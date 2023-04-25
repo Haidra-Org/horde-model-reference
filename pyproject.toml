@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "horde_model_reference"
+version = "0.0.1"
 description = "The diffusion models and related files in use by AI Horde."
 authors = [
     {name = "db0", email = "mail@dbzer0.com"},
@@ -19,3 +20,9 @@ classifiers = [
     "Operating System :: OS Independent",
     "Development Status :: 2 - Pre-Alpha",
 ]
+
+[tool.black]
+line-length = 119
+
+[tool.ruff]
+line-length = 119
