@@ -3,12 +3,18 @@ import json
 
 from pydantic import ValidationError
 
-from horde_model_reference.model_database_records import (
-    ModelDatabaseEntry,
-    DownloadRecord,
-    ConfigFileRecord,
-    StableDiffusionModelReference,
+from horde_model_reference.legacy.legacy_format import (
+    Legacy_ModelDatabaseEntry,
+    Legacy_DownloadRecord,
+    Legacy_ConfigFileRecord,
+    Legacy_StableDiffusionModelReference,
 )
+
+
+from horde_model_reference.model_database_records import (
+    StableDiffusionModelReference as New_StableDiffusionModelReference,
+)
+
 
 from pathlib import Path
 import urllib.parse
@@ -63,7 +69,7 @@ def test_convert_legacy_model_database():
             for config_entry in model_record_contents["config"]:
                 if config_entry == "files":
                     for config_file in model_record_contents["config"][config_entry]:
-                        parsed_file_record = ConfigFileRecord(**config_file)
+                        parsed_file_record = Legacy_ConfigFileRecord(**config_file)
                         if ".yaml" in parsed_file_record.path:
                             continue
                         sha_lookup[parsed_file_record.path] = parsed_file_record.sha256sum
@@ -71,7 +77,7 @@ def test_convert_legacy_model_database():
                         new_record_config_files_list.append(parsed_file_record)
                 elif config_entry == "download":
                     for download in model_record_contents["config"][config_entry]:
-                        parsed_download_record = DownloadRecord(**download)
+                        parsed_download_record = Legacy_DownloadRecord(**download)
                         parsed_download_record.sha256sum = sha_lookup[parsed_download_record.file_name]
                         new_record_config_download_list.append(parsed_download_record)
 
@@ -79,10 +85,15 @@ def test_convert_legacy_model_database():
                 # "files": new_record_config_files_list,
                 "download": new_record_config_download_list,
             }
-            new_record = ModelDatabaseEntry(**model_record_contents)
+            new_record = Legacy_ModelDatabaseEntry(**model_record_contents)
             all_records[model_record_key] = new_record
         except ValidationError as error:
+            print("*" * 80)
             print(f"Error parsing {model_record_key}:\n{error}")
+            print(f"{model_record_contents=}")
+            print("skipping.")
+            print("*" * 80)
+            continue
 
         if new_record is None:
             continue
@@ -210,7 +221,7 @@ def test_convert_legacy_model_database():
 
     print(f"{len(all_records)=}")
 
-    modelReference = StableDiffusionModelReference(
+    modelReference = Legacy_StableDiffusionModelReference(
         baseline_types=all_baseline_types,
         styles=all_styles,
         tags=all_tags,
@@ -219,7 +230,64 @@ def test_convert_legacy_model_database():
     )
 
     with open(
-        basePath.joinpath("test.json"),
+        Path("test.json"),
         "w",
     ) as testfile:
         testfile.write(modelReference.json(indent=4, exclude_defaults=True, exclude_none=True, exclude_unset=True))
+
+
+def test_validate_converted_model_database():
+    model_reference = New_StableDiffusionModelReference.parse_file(Path("test.json"))
+
+    assert len(model_reference.baseline_types) >= 3
+    for baseline_type in model_reference.baseline_types:
+        assert baseline_type != ""
+
+    assert len(model_reference.styles) >= 6
+    for style in model_reference.styles:
+        assert style != ""
+
+    assert len(model_reference.model_hosts) >= 1
+    for model_host in model_reference.model_hosts:
+        assert model_host != ""
+
+    assert model_reference.models is not None
+    assert len(model_reference.models) >= 100
+
+    assert model_reference.models["stable_diffusion"] is not None
+    assert model_reference.models["stable_diffusion"].name == "stable_diffusion"
+    assert model_reference.models["stable_diffusion"].showcases is not None
+    assert len(model_reference.models["stable_diffusion"].showcases) >= 3
+
+    for model_key, model_info in model_reference.models.items():
+
+        assert model_info.name == model_key
+        assert model_info.baseline in model_reference.baseline_types
+        assert model_info.style in model_reference.styles
+
+        if model_info.homepage is not None:
+            assert model_info.homepage != ""
+            parsedHomepage = urllib.parse.urlparse(model_info.homepage)
+            assert parsedHomepage.scheme == "https" or parsedHomepage.scheme == "http"
+
+        assert model_info.description is not None
+        assert model_info.description != ""
+        assert model_info.version != ""
+
+        if model_info.tags is not None:
+            for tag in model_info.tags:
+                assert tag in model_reference.tags
+
+        for config_key, config_section in model_info.config.items():
+            assert config_key != "files"
+
+            if config_key == "download":
+                for download_record in config_section:
+                    assert download_record.file_name is not None
+                    assert download_record.file_url is not None
+            else:
+                assert False
+
+        if model_info.trigger is not None:
+            for trigger_record in model_info.trigger:
+                assert trigger_record != ""
