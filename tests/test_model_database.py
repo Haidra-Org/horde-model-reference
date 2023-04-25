@@ -17,7 +17,10 @@ import re
 legacyPath = Path("horde_model_reference").joinpath("legacy")
 basePath = Path("horde_model_reference")
 
-githubRepoURL = "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/"
+# githubRepoURL = "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/"
+githubRepoURL = (
+    "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/"
+)
 
 
 def model_name_to_showcase_folder_name(showcase_name: str) -> str:
