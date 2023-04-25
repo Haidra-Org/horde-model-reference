@@ -43,8 +43,8 @@
             "baseline": "stable_diffusion_2_768",
             "description": "Generalist AI image generating model. The baseline for all finetuned models.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/stable_diffusion_2_1/01_juice.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/stable_diffusion_2_1/02_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/stable_diffusion_2_1/01_juice.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/stable_diffusion_2_1/02_gigachad.webp"
             ],
             "version": "2.1",
             "style": "generalist",
@@ -64,9 +64,9 @@
             "baseline": "stable_diffusion_1",
             "description": "Generalist AI image generating model. The baseline for all finetuned models.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/stable_diffusion/01_racebannin.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/stable_diffusion/02_bigdowg.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/stable_diffusion/03_executivebees24601.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/stable_diffusion/01_racebannin.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/stable_diffusion/02_bigdowg.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/stable_diffusion/03_executivebees24601.webp"
             ],
             "version": "1.5",
             "style": "generalist",
@@ -89,9 +89,9 @@
                 "anime"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/waifu_diffusion/01_jakeukalane.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/waifu_diffusion/02_gigachad.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/waifu_diffusion/03_racebannin.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/waifu_diffusion/01_jakeukalane.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/waifu_diffusion/02_gigachad.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/waifu_diffusion/03_racebannin.webp"
             ],
             "version": "1.3",
             "style": "anime",
@@ -111,7 +111,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Furry styled generations.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/furry_epoch/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/furry_epoch/01_gigachad.webp"
             ],
             "version": "4",
             "style": "furry",
@@ -131,8 +131,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Furry styled generations.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/yiffy/01_pika.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/yiffy/02_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/yiffy/01_pika.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/yiffy/02_bigdowg.webp"
             ],
             "version": "18",
             "style": "furry",
@@ -152,7 +152,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Kink/NSFW oriented furry styled generations.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/zack3d/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/zack3d/01_gigachad.webp"
             ],
             "version": "1",
             "style": "furry",
@@ -176,7 +176,7 @@
                 "manga"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/trinart/01_monarch.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/trinart/01_monarch.webp"
             ],
             "version": "1",
             "style": "anime",
@@ -218,8 +218,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Based on the Arcane TV show",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/arcane_diffusion/01_bigdowg.jpg",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/arcane_diffusion/02_bigdowg.jpg"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/arcane_diffusion/01_bigdowg.jpg",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/arcane_diffusion/02_bigdowg.jpg"
             ],
             "version": "3",
             "style": "artistic",
@@ -243,7 +243,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Squishmallows",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/squishmallow_diffusion/01_bigdawg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/squishmallow_diffusion/01_bigdawg.webp"
             ],
             "version": "1",
             "style": "other",
@@ -267,7 +267,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Based on the Into the Spider-Verse movie's animation style",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/spider_verse_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/spider_verse_diffusion/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -291,7 +291,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Based on the Archer's TV show animation style",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/archer_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/archer_diffusion/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -315,8 +315,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Based on the Elden Ring video game style",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/elden_ring_diffusion/01_dethinhfil.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/elden_ring_diffusion/02_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/elden_ring_diffusion/01_dethinhfil.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/elden_ring_diffusion/02_gigachad.webp"
             ],
             "version": "2",
             "style": "artistic",
@@ -340,7 +340,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Robot oriented drawing style",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/robo_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/robo_diffusion/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -364,7 +364,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Popular animation studio modern style generations.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/mo_di_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/mo_di_diffusion/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -388,7 +388,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Popular animation studio classic style generations.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/classic_animation_diffusion/01_bigdowg.jpg"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/classic_animation_diffusion/01_bigdowg.jpg"
             ],
             "version": "1",
             "style": "artistic",
@@ -412,7 +412,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Xynthii-Diffusion (cyclops monster girls)",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/xynthii_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/xynthii_diffusion/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -436,7 +436,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Western Comic book style",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/comic_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/comic_diffusion/01_gigachad.webp"
             ],
             "version": "2",
             "style": "artistic",
@@ -464,7 +464,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Tron Legacy movie style",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/tron_legacy_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/tron_legacy_diffusion/01_gigachad.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -488,8 +488,8 @@
             "baseline": "stable_diffusion_1",
             "description": "A remake of the old microworld with cleaned up datasets that have no text or labels.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/microworlds/01_bigdowg.jpg",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/microworlds/02_racebannin.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microworlds/01_bigdowg.jpg",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microworlds/02_racebannin.webp"
             ],
             "version": "3",
             "style": "other",
@@ -513,7 +513,7 @@
             "baseline": "stable_diffusion_1",
             "description": "For creating images of nude solo women. Also known as f222",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/zeipher_female_model/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/zeipher_female_model/01_bigdowg.webp"
             ],
             "version": "222",
             "style": "realistic",
@@ -534,7 +534,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Dreambooth model trained on high resolution 3D artworks",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/redshift_diffusion/01_bigdowg.jpg"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/redshift_diffusion/01_bigdowg.jpg"
             ],
             "version": "1",
             "style": "artistic",
@@ -558,8 +558,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Based on Borderlands video game style, trained on characters and scenes",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/borderlands/01_gigachad.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/borderlands/02_jakeukalane.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/borderlands/01_gigachad.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/borderlands/02_jakeukalane.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -588,7 +588,7 @@
                 "tv show"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/cyberpunk_anime_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/cyberpunk_anime_diffusion/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "anime",
@@ -613,8 +613,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Stable Diffusion fine tuned on Midjourney v4 images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/midjourney_diffusion/01_bigdowg.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/midjourney_diffusion/02_racebannin.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/midjourney_diffusion/01_bigdowg.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/midjourney_diffusion/02_racebannin.webp"
             ],
             "version": "1",
             "style": "generalist",
@@ -638,7 +638,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Stable Diffusion fine tuned on Paper cut images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/papercut_diffusion/01_bigdowg.jpg"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/papercut_diffusion/01_bigdowg.jpg"
             ],
             "version": "1",
             "style": "other",
@@ -662,7 +662,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Stable Diffusion fine tuned on pixel art sprites and scenes",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/aio_pixel_art/01_monarch.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/aio_pixel_art/01_monarch.webp"
             ],
             "version": "1",
             "style": "other",
@@ -687,7 +687,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Stable Diffusion fine tuned on JWST imagery",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/jwst_deep_space_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/jwst_deep_space_diffusion/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "other",
@@ -711,7 +711,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Dreambooth model fine tuned on mobile app icons",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/app_icon_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/app_icon_diffusion/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "other",
@@ -735,7 +735,7 @@
             "baseline": "stable_diffusion_1",
             "description": "SD 1.5 merged with 17 other models",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/mega_merge_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/mega_merge_diffusion/01_gigachad.webp"
             ],
             "version": "1",
             "style": "generalist",
@@ -756,7 +756,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Stable Diffusion fine-tuned on voxel art style",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/voxel_art_diffusion/01_dethinhfil.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/voxel_art_diffusion/01_dethinhfil.webp"
             ],
             "version": "1",
             "style": "other",
@@ -780,7 +780,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Stable Diffusion model trained on screenshots from the film Loving Vincent, best results with k_euler sampler",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/van_gogh_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/van_gogh_diffusion/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -808,9 +808,9 @@
                 "booru"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/anything_diffusion/01.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/anything_diffusion/02_gigachad.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/anything_diffusion/03_executivebees24601.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/anything_diffusion/01.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/anything_diffusion/02_gigachad.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/anything_diffusion/03_executivebees24601.webp"
             ],
             "version": "4.5",
             "style": "anime",
@@ -831,8 +831,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Dreamy sketched/painted portraits",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/bubblydubbly/01_bigdowg.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/bubblydubbly/02_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/bubblydubbly/01_bigdowg.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/bubblydubbly/02_bigdowg.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -856,8 +856,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Generates D&D styled characters, trained on art commissions",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dungeons_and_diffusion/01_bigdowg.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dungeons_and_diffusion/02_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dungeons_and_diffusion/01_bigdowg.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dungeons_and_diffusion/02_bigdowg.webp"
             ],
             "version": "3",
             "style": "artistic",
@@ -878,8 +878,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Generates clay-like figures",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/clazy/01_bigdowg.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/clazy/02_bigdowg.jpg"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/clazy/01_bigdowg.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/clazy/02_bigdowg.jpg"
             ],
             "version": "1",
             "style": "other",
@@ -903,7 +903,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Multi-Style model trained on Arcane, Archer and Mo-Di",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/nitro_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/nitro_diffusion/01_gigachad.webp"
             ],
             "version": "1",
             "style": "generalist",
@@ -929,7 +929,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Portraits in the style of Sam Yang, merged with chewtoy and orange code's models",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/samdoesarts_ultmerge/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/samdoesarts_ultmerge/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -953,7 +953,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Stable Diffusion model to create images in Synthwave/outrun style",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/synthwave/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/synthwave/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -977,8 +977,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Generate beautiful vector illustration",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/vectorartz/01.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/vectorartz/02_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vectorartz/01.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vectorartz/02_bigdowg.webp"
             ],
             "version": "1",
             "style": "other",
@@ -1006,7 +1006,7 @@
                 "retro"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/ranma_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/ranma_diffusion/01_gigachad.webp"
             ],
             "version": "1",
             "style": "anime",
@@ -1034,7 +1034,7 @@
                 "retro"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/ghibli_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/ghibli_diffusion/01_bigdowg.webp"
             ],
             "version": "1",
             "style": "anime",
@@ -1064,7 +1064,7 @@
                 "hentai"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/hentai_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/hentai_diffusion/01_bigdowg.webp"
             ],
             "version": "22",
             "style": "anime",
@@ -1090,8 +1090,8 @@
             "baseline": "stable_diffusion_1",
             "description": "fine-tuned Stable Diffusion model trained on traditional Chinese paintings",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/guohua_diffusion/01_ghostdragon11.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/guohua_diffusion/02_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/guohua_diffusion/01_ghostdragon11.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/guohua_diffusion/02_gigachad.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -1115,7 +1115,7 @@
             "baseline": "stable_diffusion_1",
             "description": "inspired by Gorillaz art, FLCL and Yoji Shinkawa. Trained on images generated from Midjourney",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/inkpunk_diffusion/01_bigdowg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/inkpunk_diffusion/01_bigdowg.webp"
             ],
             "version": "2",
             "style": "artistic",
@@ -1139,7 +1139,7 @@
             "baseline": "stable_diffusion_1",
             "description": "fantasy trading card style art, trained on all currently available Magic: the Gathering card art",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/fantasy_card_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/fantasy_card_diffusion/01_gigachad.webp"
             ],
             "version": "1",
             "style": "other",
@@ -1163,9 +1163,9 @@
             "baseline": "stable_diffusion_1",
             "description": "generates a glass display case with objects inside, inspired by Sean Preston. Trained on Midjourney images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/knollingcase/01_gigachad.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/knollingcase/02_ghostdragon11.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/knollingcase/03_muted001.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/knollingcase/01_gigachad.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/knollingcase/02_ghostdragon11.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/knollingcase/03_muted001.webp"
             ],
             "version": "1",
             "style": "other",
@@ -1189,8 +1189,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Midjourney v4 painting style",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/midjourney_paintart/01_gigachad.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/midjourney_paintart/02_ghostdragon11.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/midjourney_paintart/01_gigachad.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/midjourney_paintart/02_ghostdragon11.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -1214,7 +1214,7 @@
             "baseline": "stable_diffusion_1",
             "description": "portraits of charecters in the style of the game Baldur's Gate",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/rpg/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/rpg/01_gigachad.webp"
             ],
             "version": "4",
             "style": "artistic",
@@ -1238,7 +1238,7 @@
                 "anime"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/poison/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/poison/01_gigachad.webp"
             ],
             "version": "1",
             "style": "anime",
@@ -1262,7 +1262,7 @@
                 "anime"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/eimis_anime_diffusion/01_bigdawg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/eimis_anime_diffusion/01_bigdawg.webp"
             ],
             "version": "1",
             "style": "anime",
@@ -1283,7 +1283,7 @@
             "baseline": "stable_diffusion_1",
             "description": "dreambooth model trained on a very diverse dataset ranging from photographs to paintings",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/wavyfusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/wavyfusion/01_gigachad.webp"
             ],
             "version": "1",
             "style": "generalist",
@@ -1307,7 +1307,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Paper Cut Craft is a fine tuned Stable Diffusion model trained on Midjourney images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/papercutcraft/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/papercutcraft/01_gigachad.webp"
             ],
             "version": "1",
             "style": "other",
@@ -1331,7 +1331,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A DreamBooth finetune of Stable Diffusion v1.5 model trained on a bunch of stills from Kurzgesagt videos",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/kurzgesagt/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/kurzgesagt/01_gigachad.webp"
             ],
             "version": "1",
             "style": "other",
@@ -1355,7 +1355,7 @@
             "baseline": "stable_diffusion_1",
             "description": "generates metalic/chrome looking images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/chromav5/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/chromav5/01_gigachad.webp"
             ],
             "version": "1.6",
             "style": "generalist",
@@ -1379,7 +1379,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Dreamlike Diffusion 1.0 is SD 1.5 fine tuned on high quality art, made by dreamlike.art",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dreamlike_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dreamlike_diffusion/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "generalist",
@@ -1403,7 +1403,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A dreambooth model trained on a diverse set of analog photographs",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/analog_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/analog_diffusion/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "generalist",
@@ -1427,7 +1427,7 @@
             "baseline": "stable_diffusion_1",
             "description": "The Simpsons dreambooth model",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/asim_simpsons/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/asim_simpsons/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "artistic",
@@ -1451,7 +1451,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Stable Diffusion fine tuned on Funko Pop, by PromptHero.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/funko_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/funko_diffusion/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "artistic",
@@ -1475,7 +1475,7 @@
             "baseline": "stable_diffusion_1",
             "description": "The Double Exposure Diffusion model, trained specifically on images of people and a few animals",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/double_exposure_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/double_exposure_diffusion/01_gigachad.webp"
             ],
             "version": "2.0",
             "style": "artistic",
@@ -1499,7 +1499,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This is the fine-tuned Stable Diffusion model trained on microscopic images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/microscopic/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microscopic/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "other",
@@ -1523,7 +1523,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This is the fine-tuned Stable Diffusion model trained on Twisted Balloon images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/balloon_art/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/balloon_art/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "other",
@@ -1547,7 +1547,7 @@
             "baseline": "stable_diffusion_2_512",
             "description": "This creates high quality 3D images with a futuristic Sci-Fi theme",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/future_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/future_diffusion/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "artistic",
@@ -1571,7 +1571,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Seek.art MEGA is a general use 'anything' model that significantly improves on 1.5 across dozens of styles. Created by Coreco at seek.art",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/seek_art_mega/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/seek_art_mega/01_gigachad.webp"
             ],
             "version": "2.0",
             "style": "generalist",
@@ -1593,7 +1593,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This model was trained on the Valorant agents splash arts, and some extra arts on the official website",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/valorant_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/valorant_diffusion/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "artistic",
@@ -1617,8 +1617,8 @@
             "baseline": "stable_diffusion_1",
             "description": "This model was for creating people",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/hassanblend/01_gigachad.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/hassanblend/02_bettername.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/hassanblend/01_gigachad.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/hassanblend/02_bettername.webp"
             ],
             "version": "1.5.1.2",
             "style": "realistic",
@@ -1643,8 +1643,8 @@
                 "scenes"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/acertainthing/01_juice.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/acertainthing/02_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/acertainthing/01_juice.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/acertainthing/02_gigachad.webp"
             ],
             "version": "1.0",
             "style": "anime",
@@ -1665,7 +1665,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This model was trained on the loading screens, gta storymode, and gta online DLCs artworks. Which includes characters, background, chop, and some objects. The model can do people and portrait pretty easily, as well as cars, and houses. For some reasons, the model stills automatically include in some game footage, so landscapes tend to look a bit more game-like.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/gta5_artwork_diffusion/01_bettername.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/gta5_artwork_diffusion/01_bettername.webp"
             ],
             "version": "1.0",
             "style": "artistic",
@@ -1693,7 +1693,7 @@
                 "character"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/trinart_characters/01_juice.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/trinart_characters/01_juice.webp"
             ],
             "version": "2.0",
             "style": "anime",
@@ -1714,7 +1714,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This is the fine-tuned Stable Diffusion model trained on images of smoke",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/smoke_diffusion/01_voodoocode.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/smoke_diffusion/01_voodoocode.webp"
             ],
             "version": "1.0",
             "style": "other",
@@ -1738,7 +1738,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This is a fine-tuned Stable Diffusion model (based on v1.5) trained on screenshots from Gerry Anderson Supermarionation stop motion animation movie, basically from Thunderbirds tv series",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/supermarionation/supermarionation_v2_prev1.jpg"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/supermarionation/supermarionation_v2_prev1.jpg"
             ],
             "version": "2.0",
             "style": "artistic",
@@ -1762,8 +1762,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Dreamlike Photoreal 1.0 is a photorealistic Stable Diffusion 1.5 model fine tuned on high quality photos, made by dreamlike.art.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dreamlike_photoreal/preview1.jpg",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dreamlike_photoreal/preview2.jpg"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dreamlike_photoreal/preview1.jpg",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dreamlike_photoreal/preview2.jpg"
             ],
             "version": "2.0",
             "style": "realistic",
@@ -1784,7 +1784,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This is a dreambooth model trained on a diverse set of close to medium range portraits of people.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/portraitplus/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/portraitplus/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "realistic",
@@ -1808,7 +1808,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Vintedois (22h) Diffusion model trained by Predogl and piEsposito with open weights, configs and prompts (as it should be).  This model was trained on a large amount of high quality images with simple prompts to generate beautiful images without a lot of prompt engineering.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/vintedois_diffusion/01_juice.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vintedois_diffusion/01_juice.webp"
             ],
             "version": "0.2",
             "style": "generalist",
@@ -1832,7 +1832,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A free and open source Stable Diffusion model created by AI-Characters, trained on the artstyle of the game 'Darkest Dungeon'",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/darkest_diffusion/gandr-collage.jpg"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/darkest_diffusion/gandr-collage.jpg"
             ],
             "version": "1.0",
             "style": "artistic",
@@ -1856,7 +1856,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A surrealist / Minimalist model",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/eternos/01_eternos.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/eternos/01_eternos.webp"
             ],
             "version": "1.0",
             "style": "artistic",
@@ -1880,7 +1880,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This fine-tuned Stable Diffusion v1.5 model was trained on a selection of artistic works by Sin Jong Hun",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/min_illust_background/01_min.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/min_illust_background/01_min.webp"
             ],
             "version": "1.0",
             "style": "artistic",
@@ -1904,7 +1904,7 @@
             "baseline": "stable_diffusion_1",
             "description": "finetuned on dark, moody, victorian imagery",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dark_victorian_diffusion/01_victorian.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dark_victorian_diffusion/01_victorian.webp"
             ],
             "version": "2.0",
             "style": "artistic",
@@ -1928,7 +1928,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This is a model (dnditem) for creating magic items, for the game Dungeons and Dragons! It was trained to be very similar to the official results that are available here: https://www.dndbeyond.com/magic-items",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dnd_item/01_voodoocode.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dnd_item/01_voodoocode.webp"
             ],
             "version": "1.0",
             "style": "other",
@@ -1952,8 +1952,8 @@
             "baseline": "stable_diffusion_1",
             "description": "You can use this model to generate modernart style images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/modernart_diffusion/01_voodoocode.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/modernart_diffusion/02_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/modernart_diffusion/01_voodoocode.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/modernart_diffusion/02_gigachad.webp"
             ],
             "version": "1.0",
             "style": "artistic",
@@ -1977,7 +1977,7 @@
             "baseline": "stable_diffusion_1",
             "description": "He merged a few checkpoints and got something buttery and amazing. Does great with things other then people too. It can do anything really. It doesn't need crazy prompts either. Keep it simple. No need for all the artist names and trending on whatever.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/hasdx/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/hasdx/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "generalist",
@@ -1998,7 +1998,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A merge with over 23 other models with a methodical, careful and genuine approach. Freedom of prompting art or photo or both, landscapes or backgrounds or interiors, people or entities or scenes, stiff poses or movement or even mouth and facial emotions.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/liberty/01_liberty.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/liberty/01_liberty.webp"
             ],
             "version": "1.0",
             "style": "realistic",
@@ -2020,7 +2020,7 @@
             "baseline": "stable_diffusion_1",
             "description": "One Step Closer to Reality",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/protogen/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/protogen/01_gigachad.webp"
             ],
             "version": "5.3",
             "style": "generalist",
@@ -2041,8 +2041,8 @@
             "baseline": "stable_diffusion_1",
             "description": "SFW model with limited nsfw capabilities (suggestive nsfw) that is highly versatile for 3D renders.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/3dkx/01_airic.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/3dkx/02_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/3dkx/01_airic.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/3dkx/02_gigachad.webp"
             ],
             "version": "1.1",
             "style": "artistic",
@@ -2063,7 +2063,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Moe.del produces cute female characters. It is also a mix of Stable Diffusion 1.4/1.5 in different proportions so you can challenge it to generate for you pretty much anything using regular SD prompts (like cute dogs, cats etc.)",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/moedel/01_moedel.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/moedel/01_moedel.webp"
             ],
             "version": "2",
             "style": "other",
@@ -2085,7 +2085,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A mixture of Dreamlike Diffusion 1.0, SamDoesArt V3 and Kuvshinov style models.  Created mostly for exploring different character concepts with a focus on drawings, but the mix happened to be pretty good at realistic-ish images, all thanks to wonderful models that it uses.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dreamlikesamkuvshinov/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dreamlikesamkuvshinov/01_gigachad.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -2112,7 +2112,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This model is a Stable Diffusion v1.5 fine-tune trained on the Imaginary Network Expanded Dataset. It is an advanced version of Stable Diffusion and can generate nearly all kinds of images, no matter humans, reflections, cities, architecture, fantasy, digital arts, landscapes, or nature views.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/sygil_dev_diffusion/01_sygil.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/sygil_dev_diffusion/01_sygil.webp"
             ],
             "version": "0.4",
             "style": "generalist",
@@ -2133,7 +2133,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A do (almost) anything model",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/moistmix/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/moistmix/01_gigachad.webp"
             ],
             "version": "2",
             "style": "generalist",
@@ -2158,7 +2158,7 @@
                 "anime"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/healys_anime_blend/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/healys_anime_blend/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "anime",
@@ -2180,7 +2180,7 @@
             "baseline": "stable_diffusion_1",
             "description": "It's an all-around easy-to-prompt general purpose semi-realistic to realistic model that cranks out some really nice images. No trigger words required",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/elldreths_lucid_mix/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/elldreths_lucid_mix/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "generalist",
@@ -2220,8 +2220,8 @@
             "baseline": "stable_diffusion_2_768",
             "description": "This model will add a LOT of skin detail compared to SD 2.1. Sometimes this makes images look more realistic, sometimes less realistic!",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/ultraskin/01_voodoocode.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/ultraskin/02_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/ultraskin/01_voodoocode.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/ultraskin/02_gigachad.webp"
             ],
             "version": "0.9",
             "style": "realistic",
@@ -2245,7 +2245,7 @@
             "baseline": "stable_diffusion_1",
             "description": "SonicDiffusionV2.ckpt was trained on AnythingV3 for 200 epochs of 203 hand captioned Sonic images from various artists",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/sonic_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/sonic_diffusion/01_gigachad.webp"
             ],
             "version": "2",
             "style": "other",
@@ -2269,7 +2269,7 @@
             "baseline": "stable_diffusion_1",
             "description": "PPP is a realistic model merge, tested and tweaked for human females. Mostly based on NSFW models",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/ppp/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/ppp/01_gigachad.webp"
             ],
             "version": "1.0",
             "style": "realistic",
@@ -2293,7 +2293,7 @@
                 "anime"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/anygen/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/anygen/01_gigachad.webp"
             ],
             "version": "3.7",
             "style": "realistic",
@@ -2314,7 +2314,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Protogens photorealism mixed with more science fiction, comic, and synthwave to make ultimate awesomeness",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/protogen_infinity/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/protogen_infinity/01_gigachad.webp"
             ],
             "version": "8.6",
             "style": "generalist",
@@ -2340,7 +2340,7 @@
                 "retro"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/duchaiten/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/duchaiten/01_gigachad.webp"
             ],
             "version": "2",
             "style": "anime",
@@ -2361,7 +2361,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Merged model mix of Midnight mixer, roboEtics, f222, elldrethSLucidMix, Seek.ART Mega, rpg, hassanBlend, modelshoot and roboDiffusion",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dreamshaper/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dreamshaper/01_gigachad.webp"
             ],
             "version": "4",
             "style": "artistic",
@@ -2382,7 +2382,7 @@
             "baseline": "stable_diffusion_1",
             "description": "based off work of great artworks from Legend of Zelda: Breath of The Wild",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/zelda_botw/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/zelda_botw/01_gigachad.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -2406,7 +2406,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This model was trained on images from the animated Marvel Disney+ show What If, which includes characters, background, and some objects",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/marvel_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/marvel_diffusion/01_gigachad.webp"
             ],
             "version": "2",
             "style": "artistic",
@@ -2430,7 +2430,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Generates t-shirt logos, base model is vintedois-diffusion with additional training on t-shirt logos size 640x640px",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/t_shirt_diffusion/01_gigachad.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/t_shirt_diffusion/01_gigachad.webp"
             ],
             "version": "1",
             "style": "other",
@@ -2455,7 +2455,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Based on yiffy-e18 and Anything, produces sfw/nsfw furry anthro artworks of different styles with consistant quality, while maintaining details on stuff like clothes, background, etc. with simpler prompts.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/lawlass_yiff_mix/01_lawlas.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/lawlass_yiff_mix/01_lawlas.webp"
             ],
             "version": "2",
             "style": "furry",
@@ -2476,7 +2476,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Dreambooth model based on Vintedois, trained on a dataset of DGSpitzer art. Styles included are outline, sketch, anime, painting and landscape",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dgspitzer_art_diffusion/01_dgs.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dgspitzer_art_diffusion/01_dgs.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -2506,7 +2506,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Model for creating photorealistic humans",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/realistic_vision/01_realisticvision.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/realistic_vision/01_realisticvision.webp"
             ],
             "version": "1.3",
             "style": "realistic",
@@ -2528,7 +2528,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Model trained with a dataset of DanMumford Style images, courtesy of Flonix",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/dan_mumford_style/01_dan.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dan_mumford_style/01_dan.webp"
             ],
             "version": "2",
             "style": "artistic",
@@ -2554,7 +2554,7 @@
             "baseline": "stable_diffusion_1",
             "description": "NSFW Model for realistic and Hentai images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/pfg/01_pfg.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/pfg/01_pfg.webp"
             ],
             "version": "1.11",
             "style": "realistic",
@@ -2576,7 +2576,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Epic Diffusion is a general purpose model based on Stable Diffusion 1.x intended to replace the official SD releases as your default model. It is focused on providing high quality output in a wide range of different styles, with support for NFSW content.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/epic_diffusion/01_epic.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/epic_diffusion/01_epic.webp"
             ],
             "version": "1.1",
             "style": "generalist",
@@ -2598,7 +2598,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This model provides you the ability to create anything you want. The more power of prompt knowledges you have, the better results you'll get. It basically means that you'll never get a perfect result with just a few words. You have to fill out your prompt line extremely detailed",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/deliberate/01_deliberate.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/deliberate/01_deliberate.webp"
             ],
             "version": "2",
             "style": "generalist",
@@ -2619,7 +2619,7 @@
             "baseline": "stable_diffusion_2_768",
             "description": "This model is just the first dreambooth iteration for concept-sheet/old-books style. Based on SD 2.1",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/concept_sheet/01_concept.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/concept_sheet/01_concept.webp"
             ],
             "version": "alpha",
             "style": "artistic",
@@ -2644,7 +2644,7 @@
             "baseline": "stable_diffusion_2_768",
             "description": "This model was trained on a digital painting style mainly with characters and portraits. The main objective is to train a model to be a tool to help with character design ideas",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/charhelper/01_charhelper.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/charhelper/01_charhelper.webp"
             ],
             "version": "4",
             "style": "artistic",
@@ -2677,7 +2677,7 @@
                 "low poly"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/pokemon3d/01_pokemon.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/pokemon3d/01_pokemon.webp"
             ],
             "version": "1",
             "style": "anime",
@@ -2703,8 +2703,8 @@
             "baseline": "stable_diffusion_1",
             "description": "Model specifically trained for pix2pix use",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/pix2pix/01_pix2pix.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/pix2pix/02_pix2pix.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/pix2pix/01_pix2pix.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/pix2pix/02_pix2pix.webp"
             ],
             "min_bridge_version": 12,
             "version": "1",
@@ -2726,7 +2726,7 @@
             "baseline": "stable_diffusion_1",
             "description": "The model is trained with beautiful, artist-agnostic watercolor images using the midjourney method",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/vivid_watercolors/01_vivid.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vivid_watercolors/01_vivid.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -2753,7 +2753,7 @@
                 "anime"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/counterfeit/01_counterfeit.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/counterfeit/01_counterfeit.webp"
             ],
             "version": "2.5",
             "style": "anime",
@@ -2774,7 +2774,7 @@
             "baseline": "stable_diffusion_1",
             "description": "The Stable Diffusion model trained on Nijijourney images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/openniji/01_openniji.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/openniji/01_openniji.webp"
             ],
             "version": "2.0",
             "style": "artistic",
@@ -2798,7 +2798,7 @@
                 "anime"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/pastel_mix/01_pastelmix.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/pastel_mix/01_pastelmix.webp"
             ],
             "version": "1",
             "style": "anime",
@@ -2819,7 +2819,7 @@
             "baseline": "stable_diffusion_2_768",
             "description": "Style model for Stable Diffusion mimicking vector style. vector-art and pulp model mix",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/pulp_vector_art/01_pulpvector.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/pulp_vector_art/01_pulpvector.webp"
             ],
             "version": "beta",
             "style": "other",
@@ -2845,7 +2845,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Rainbowpatch is a fine-tuned model specifically trained to generate high-quality stylized images, this model doesn't require complicated detailed text prompts.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/rainbowpatch/01_rainbow.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/rainbowpatch/01_rainbow.webp"
             ],
             "version": "1.2",
             "style": "artistic",
@@ -2870,7 +2870,7 @@
             "baseline": "stable_diffusion_2_768",
             "description": "This is a style model for Stable Diffusion 2.1 mimicking vector style.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/vector_art/01_vectorart.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vector_art/01_vectorart.webp"
             ],
             "version": "beta",
             "style": "other",
@@ -2895,7 +2895,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This is a style model for creating prints for tshirts",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/t_shirt_print_designs/01_tshirt.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/t_shirt_print_designs/01_tshirt.webp"
             ],
             "version": "0.1",
             "style": "other",
@@ -2920,7 +2920,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Model mix based on any4.5, Elysium, Dreamlike and few more models",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/gorynichmix/01_gory.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/gorynichmix/01_gory.webp"
             ],
             "version": "1.2",
             "style": "artistic",
@@ -2945,7 +2945,7 @@
                 "character"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/laolei_new_berry_protogen_mix/01_laolei.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/laolei_new_berry_protogen_mix/01_laolei.webp"
             ],
             "version": "1",
             "style": "artistic",
@@ -2966,7 +2966,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Model for creating photorealistic humans",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/urpm/01_urpm.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/urpm/01_urpm.webp"
             ],
             "version": "1.3",
             "style": "realistic",
@@ -2987,7 +2987,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This model is tweak and more merges mainly intended for landscapes, but works decent for people",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/cheese_daddys_landscape_mix/01_landscape.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/cheese_daddys_landscape_mix/01_landscape.webp"
             ],
             "version": "3.5",
             "style": "realistic",
@@ -3009,8 +3009,8 @@
             "baseline": "stable_diffusion_1",
             "description": "This checkpoint is trained on the art of Rachel Walker, a New Zealand artist who paints beautiful watercolors.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/rachel_walker_watercolors/01_rachel.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/rachel_walker_watercolors/02_muted001.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/rachel_walker_watercolors/01_rachel.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/rachel_walker_watercolors/02_muted001.webp"
             ],
             "version": "1.2",
             "style": "artistic",
@@ -3035,7 +3035,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This checkpoint is trained to look like Unreal Engine 5 renders",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/project_unreal_engine_5/01_unreal.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/project_unreal_engine_5/01_unreal.webp"
             ],
             "version": "2.0",
             "style": "artistic",
@@ -3056,7 +3056,7 @@
             "baseline": "stable_diffusion_1",
             "description": "Create a variety of styles including realistic photos, realistic drawings, and animations like last three fig",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/unstable_ink_dream/01_inkdream.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/unstable_ink_dream/01_inkdream.webp"
             ],
             "version": "6.0",
             "style": "artistic",
@@ -3085,7 +3085,7 @@
             "baseline": "stable_diffusion_2_768",
             "description": "Custom built SD2.1 generalist model from 28k SFW images ",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/prmj/01_prmj.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/prmj/01_prmj.webp"
             ],
             "version": "1",
             "style": "generalist",
@@ -3107,7 +3107,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A retro twist on Elldreths other models",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/elldreths_retro_mix/01_elldreth.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/elldreths_retro_mix/01_elldreth.webp"
             ],
             "version": "1",
             "style": "generalist",
@@ -3135,7 +3135,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A beautiful blend of Vintedois and an early Protogen model to create fantabulous images",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/vinteprotogenmix/01_vinte.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vinteprotogenmix/01_vinte.webp"
             ],
             "version": "1",
             "style": "generalist",
@@ -3179,7 +3179,7 @@
                 "booru"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/anything_v3/01_anythingv3.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/anything_v3/01_anythingv3.webp"
             ],
             "version": "3",
             "style": "anime",
@@ -3200,7 +3200,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A model trained to make detailed, anatomically-accurate (hands, faces, genitals, etc) illustrations of humans and non-humans alike",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/woop_woop_photo/001_muted001.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/woop_woop_photo/001_muted001.webp"
             ],
             "version": "1.2",
             "style": "realistic",
@@ -3226,7 +3226,7 @@
                 "cg"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/abyss_orangemix/01_abyss.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/abyss_orangemix/01_abyss.webp"
             ],
             "version": "3",
             "style": "anime",
@@ -3252,7 +3252,7 @@
                 "character"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/cyriousmix/01_cyrious.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/cyriousmix/01_cyrious.webp"
             ],
             "version": "1.4",
             "style": "anime",
@@ -3273,7 +3273,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A cross of knollingcase and microworlds, for creating tiny worlds in a case",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/microcasing/01_microcasing.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microcasing/01_microcasing.webp"
             ],
             "version": "1.0",
             "style": "other",
@@ -3294,7 +3294,7 @@
             "baseline": "stable_diffusion_1",
             "description": "For creating images of nude solo women",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/chilloutmix/01_chilloutmix.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/chilloutmix/01_chilloutmix.webp"
             ],
             "version": "1.0",
             "style": "realistic",
@@ -3314,9 +3314,9 @@
             "baseline": "stable_diffusion_1",
             "description": "A cross of Cute Rich Style and microworlds, for creating tiny 3d figurines",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/microchars/01_people.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/microchars/02_chars.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/microchars/03_classes.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microchars/01_people.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microchars/02_chars.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microchars/03_classes.webp"
             ],
             "version": "1.0",
             "style": "other",
@@ -3380,7 +3380,7 @@
                 "hentai"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/grapefruit_hentai/01_grapefruit.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/grapefruit_hentai/01_grapefruit.webp"
             ],
             "version": "4.1",
             "style": "anime",
@@ -3401,7 +3401,7 @@
             "baseline": "stable_diffusion_1",
             "description": "A generalist model with a slight leaning towards science-fiction and 3d renders",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/experience/01_experience.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/experience/01_experience.webp"
             ],
             "version": "6.5",
             "style": "generalist",
@@ -3448,7 +3448,7 @@
                 "retro"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/duchaiten_classic_anime/01_anon.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/duchaiten_classic_anime/01_anon.webp"
             ],
             "version": "1.0",
             "style": "anime",
@@ -3473,7 +3473,7 @@
                 "character"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/rev_animated/001_muted.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/rev_animated/001_muted.webp"
             ],
             "version": "1.1",
             "style": "anime",
@@ -3572,7 +3572,7 @@
                 "sketch"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/anime_pencil_diffusion/01_anipen.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/anime_pencil_diffusion/01_anipen.webp"
             ],
             "version": "5",
             "style": "anime",
@@ -3685,8 +3685,8 @@
                 "booru"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/neverending_dream/01_anon.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/neverending_dream/02_muted001.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/neverending_dream/01_anon.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/neverending_dream/02_muted001.webp"
             ],
             "version": "1.0",
             "style": "artistic",
@@ -3748,7 +3748,7 @@
             "baseline": "stable_diffusion_2_768",
             "description": "Style model for Stable Diffusion. Mainly focusing on graphic design.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/graphic_art/01_graphicart.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/graphic_art/01_graphicart.webp"
             ],
             "version": "beta",
             "style": "other",
@@ -3770,8 +3770,8 @@
             "baseline": "stable_diffusion_2_768",
             "description": "Illuminati Diffusion is a latent text-to-image diffusion model that has been conditioned on high aesthetic synthetic images through fine-tuning. It was trained on 82,000 images locally with a single 3090ti, taking over 100 hours.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/illuminati_diffusion/001_muted001.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/illuminati_diffusion/002_blank.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/illuminati_diffusion/001_muted001.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/illuminati_diffusion/002_blank.webp"
             ],
             "version": "1.1",
             "style": "generalist",
@@ -3810,8 +3810,8 @@
             "baseline": "stable_diffusion_2_768",
             "description": "Trained on 666 images, hand captioned, general, but limited sci-fi model. It has been trained on armour concepts, futuristic backgrounds, androids and robots, as well as some fantasy stuff, like werecreatures.",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/fking_scifi/01_scifi.webp",
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/fking_scifi/02_voodoo.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/fking_scifi/01_scifi.webp",
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/fking_scifi/02_voodoo.webp"
             ],
             "version": "2",
             "style": "artistic",
@@ -3835,7 +3835,7 @@
             "baseline": "stable_diffusion_1",
             "description": "This blend model aims to achieve versatility in generating images that are almost realistic but with a touch of fantasy and a polished aesthetic. It performs well with both illustrations and simulated photographs, but it particularly excels with the latter",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/realbiter/001_voodoocode.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/realbiter/001_voodoocode.webp"
             ],
             "version": "29",
             "style": "realistic",
@@ -3896,7 +3896,7 @@
             "baseline": "stable_diffusion_2_768",
             "description": "This new model was fine-tuned using a vast collection of public domain images, ensuring that it can generate images across a wide range of contexts. While it may not be as strong in generating abstract or highly stylized images, it excels in generating images that are true to life, visually compelling and that accurately reflect the input textual description",
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/realism_engine/001_muted001.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/realism_engine/001_muted001.webp"
             ],
             "version": "1.0",
             "style": "generalist",
@@ -4023,7 +4023,7 @@
                 "anime"
             ],
             "showcases": [
-                "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/showcase/expmix_line/01_muted001.webp"
+                "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/expmix_line/01_muted001.webp"
             ],
             "version": "2",
             "style": "artistic",
