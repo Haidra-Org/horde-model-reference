@@ -2,17 +2,32 @@ from horde_model_reference.model_database_records import (
     StableDiffusionModelReference as New_StableDiffusionModelReference,
 )
 
+from horde_model_reference.legacy.convert_legacy import LegacyStableDiffusionConverter
 from pathlib import Path
 import urllib.parse
 
-CONVERTED_STABLE_DIFFUSION_PATH = Path(__file__).parent.joinpath(
-    "converted_stable_diffusion.json"
-)  # todo prepend test
+import horde_model_reference.consts as consts
+
+TARGET_DIRECTORY_FOR_TESTDATA = Path(__file__).parent.joinpath("test_data_results")
 """The path to the converted stable diffusion model reference."""
 
 
-def test_validate_converted_model_database():
-    model_reference = New_StableDiffusionModelReference.parse_file(CONVERTED_STABLE_DIFFUSION_PATH)
+def test_convert_legacy_stablediffusion_database():
+    converter = LegacyStableDiffusionConverter(
+        legacy_folder_path=consts.LEGACY_REFERENCE_FOLDER,
+        target_file_folder=TARGET_DIRECTORY_FOR_TESTDATA,
+    )
+    assert converter.normalize_and_convert()
+
+
+def test_validate_converted_stablediffusion_database():
+
+    stablediffusion_model_database_path = consts.get_model_reference_filename(
+        consts.MODEL_REFERENCE_TYPE.STABLE_DIFFUSION,
+        basePath=TARGET_DIRECTORY_FOR_TESTDATA,
+    )
+
+    model_reference = New_StableDiffusionModelReference.parse_file(stablediffusion_model_database_path)
 
     assert len(model_reference.baseline_types) >= 3
     for baseline_type in model_reference.baseline_types:

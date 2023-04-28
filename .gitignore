@@ -1,5 +1,5 @@
 .vscode/
-
+tests/test_data_results/
 converted_*.json
 
 # Byte-compiled / optimized / DLL files
