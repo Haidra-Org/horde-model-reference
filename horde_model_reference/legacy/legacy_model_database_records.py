@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class Legacy_ConfigFileRecord(BaseModel):
+class Legacy_Config_FileRecord(BaseModel):
     # class Config:
     # extra = "forbid"
 
@@ -10,7 +10,7 @@ class Legacy_ConfigFileRecord(BaseModel):
     sha256sum: str | None
 
 
-class Legacy_DownloadRecord(BaseModel):
+class Legacy_Config_DownloadRecord(BaseModel):
     class Config:
         extra = "forbid"
 
@@ -21,27 +21,30 @@ class Legacy_DownloadRecord(BaseModel):
     known_slow_download: bool | None
 
 
-class Legacy_ModelDatabaseEntry(BaseModel):
-    """A model entry in the legacy model reference. Note that `.dict()` exports to the new model reference format."""
-
+class Legacy_Generic_ModelRecord(BaseModel):
     class Config:
         extra = "forbid"
 
     name: str
-    baseline: str
     type: str  # noqa: A003
     description: str
+    version: str
+    style: str
+    nsfw: bool | None
+    download_all: bool | None
+    config: dict[str, list[Legacy_Config_FileRecord | Legacy_Config_DownloadRecord]]
+    available: bool
+
+
+class Legacy_StableDiffusion_ModelRecord(Legacy_Generic_ModelRecord):
+    """A model entry in the legacy model reference. Note that `.dict()` exports to the new model reference format."""
+
+    baseline: str
     tags: list[str] | None
     showcases: list[str] | None
     min_bridge_version: int | None
-    version: str
-    style: str
     trigger: list[str] | None
     homepage: str | None
-    nsfw: bool
-    download_all: bool
-    config: dict[str, list[Legacy_ConfigFileRecord | Legacy_DownloadRecord]]
-    available: bool
 
     def dict(
         self,
@@ -65,14 +68,14 @@ class Legacy_ModelDatabaseEntry(BaseModel):
         )
 
 
-class Legacy_StableDiffusionModelReference(BaseModel):
+class Legacy_StableDiffusion_ModelReference(BaseModel):
     """A helper class to convert the legacy model reference to the new model reference format."""
 
     class Config:
         extra = "forbid"
 
-    baseline_types: list[str]
-    styles: list[str]
-    tags: list[str]
-    model_hosts: list[str]
-    models: dict[str, Legacy_ModelDatabaseEntry]
+    baseline_types: dict[str, int]
+    styles: dict[str, int]
+    tags: dict[str, int]
+    model_hosts: dict[str, int]
+    models: dict[str, Legacy_StableDiffusion_ModelRecord]
