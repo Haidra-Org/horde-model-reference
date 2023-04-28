@@ -3,12 +3,16 @@ from pydantic import BaseModel
 
 
 class STABLEDIFFUSION_BASELINE(str, Enum):
+    """An enum of all the stable diffusion baselines."""
+
     stable_diffusion_1 = "stable_diffusion_1"
     stable_diffusion_2_768 = "stable_diffusion_2_768"
     stable_diffusion_2_512 = "stable_diffusion_2_512"
 
 
 class MODEL_STYLES(str, Enum):
+    """An enum of all the model styles."""
+
     generalist = "generalist"
     anime = "anime"
     furry = "furry"
@@ -18,13 +22,19 @@ class MODEL_STYLES(str, Enum):
 
 
 class DownloadRecord(BaseModel):
+    """A record of a file to download for a model. Typically a ckpt file."""
+
     class Config:
         extra = "forbid"
 
     file_name: str
+    """The horde specific filename. This is not necessarily the same as the file's name on the model host."""
     file_url: str
+    """The fully qualified URL to download the file from."""
     sha256sum: str
+    """The sha256sum of the file."""
     known_slow_download: bool | None
+    """Whether the download is known to be slow or not."""
 
 
 class ModelDatabaseEntry(BaseModel):
