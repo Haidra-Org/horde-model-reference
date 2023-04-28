@@ -23,7 +23,7 @@ class DownloadRecord(BaseModel):
 
     file_name: str
     file_url: str
-    sha256sum: str | None
+    sha256sum: str
     known_slow_download: bool | None
 
 

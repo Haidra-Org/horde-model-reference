@@ -111,11 +111,11 @@ class LegacyStableDiffusionConverter:
             if new_record is None:
                 continue
 
+            #
+            # Non-conformity checks
+            #
             if new_record.name != model_record_key:
                 print(f"name mismatch for {model_record_key}.")
-
-            new_record.baseline = self.convert_legacy_baseline(new_record.baseline)
-            all_baseline_types[new_record.baseline] = all_baseline_types.get(new_record.baseline, 0) + 1
 
             if new_record.available:
                 print(f"{model_record_key} is flagged 'available'.")
@@ -127,8 +127,28 @@ class LegacyStableDiffusionConverter:
             if new_record.config is None:
                 print(f"{model_record_key} has no config.")
 
-            expected_showcase_foldername = model_name_to_showcase_folder_name(model_record_key)
+            if new_record.description is None:
+                print(f"{model_record_key} has no description.")
 
+            if new_record.style == "":
+                print(f"{model_record_key} has no style.")
+            else:
+                all_styles[new_record.style] = all_styles.get(new_record.style, 0) + 1
+                # print(f"-> Found new style: {new_record.style}.")
+
+            if new_record.type != "ckpt":
+                print(f"{model_record_key} is not a ckpt.")
+
+            #
+            # Increment baseline type counter
+            #
+            new_record.baseline = self.convert_legacy_baseline(new_record.baseline)
+            all_baseline_types[new_record.baseline] = all_baseline_types.get(new_record.baseline, 0) + 1
+
+            #
+            # Showcase handling and sanity checks
+            #
+            expected_showcase_foldername = model_name_to_showcase_folder_name(model_record_key)
             self.create_showcase_folder(expected_showcase_foldername)
 
             if new_record.showcases is not None and len(new_record.showcases) > 0:
@@ -147,27 +167,20 @@ class LegacyStableDiffusionConverter:
                     #     print(f"{new_record.showcases=}")
                     #     continue
                     expected_github_location = urllib.parse.urljoin(
-                        GITHUB_REPO_BASE_URL, f"showcase/{expected_showcase_foldername}/{url_friendly_name}"
+                        GITHUB_REPO_BASE_URL,
+                        f"{self.default_showcase_folder_name}/{expected_showcase_foldername}/{url_friendly_name}",
                     )
                     new_record.showcases.append(expected_github_location)
-
-            if new_record.description is None:
-                print(f"{model_record_key} has no description.")
-
-            if new_record.style == "":
-                print(f"{model_record_key} has no style.")
-            else:
-                all_styles[new_record.style] = all_styles.get(new_record.style, 0) + 1
-                # print(f"-> Found new style: {new_record.style}.")
-
-            if new_record.type != "ckpt":
-                print(f"{model_record_key} is not a ckpt.")
-
+            #
+            # Increment tag counter
+            #
             if new_record.tags is not None:
                 for tag in new_record.tags:
                     all_tags[tag] = all_tags.get(tag, 0) + 1
-                    # print(f"-> Found new tag: {tag}.")
 
+            #
+            # Config handling and sanity checks
+            #
             if len(new_record.config) == 0:
                 print(f"{model_record_key} has no config.")
 
@@ -176,6 +189,10 @@ class LegacyStableDiffusionConverter:
                 model_record_key=model_record_key,
                 config_entries=config_entries,
             )
+
+            #
+            # Increment host counter
+            #
             for found_host in found_hosts:
                 all_model_hosts[found_host] = all_model_hosts.get(found_host, 0) + 1
 
@@ -189,11 +206,13 @@ class LegacyStableDiffusionConverter:
         final_on_disk_showcase_folders = glob.glob(self.showcase_glob_pattern, recursive=True)
 
         for folder in final_on_disk_showcase_folders:
-            if "." in folder:
+            parsed_folder = Path(folder)
+
+            if parsed_folder.is_file():
                 continue
-            _ = Path(folder)
-            if not any(_.iterdir()):
-                print(f"{_.name} missing a showcase file.")
+
+            if not any(parsed_folder.iterdir()):
+                print(f"{parsed_folder.name} missing a showcase file.")
 
         final_on_disk_showcase_folders_names = [Path(folder).name for folder in final_on_disk_showcase_folders]
         final_expected_showcase_folders = [
@@ -201,8 +220,11 @@ class LegacyStableDiffusionConverter:
         ]
 
         for folder in final_on_disk_showcase_folders_names:
-            if "." in folder:
+            parsed_folder = Path(folder)
+
+            if parsed_folder.is_file():
                 continue
+
             if folder not in final_expected_showcase_folders:
                 print(f"folder '{folder}' is not in the model records.")
 
@@ -221,16 +243,15 @@ class LegacyStableDiffusionConverter:
         )
 
         try:
+            # If this fails, we have a problem. By definition, the model reference should be converted by this point
+            # and ready to be cast to the new model reference type.
             StableDiffusionModelReference(**json.loads(jsonToWrite))
         except ValidationError as e:
             print(e)
             print("CRITICAL: Failed to convert to new model reference type.")
             raise e
 
-        with open(
-            self.converted_database_file_path,
-            "w",
-        ) as testfile:
+        with open(self.converted_database_file_path, "w") as testfile:
             testfile.write(jsonToWrite)
 
     def get_existing_showcases(self, existing_showcase_folders: list[str]) -> dict[str, list[str]]:
