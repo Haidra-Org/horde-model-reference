@@ -13,8 +13,9 @@ BASE_PATH = Path(__file__).parent
 LEGACY_REFERENCE_FOLDER = BASE_PATH.joinpath("legacy")
 """The path to the legacy model reference folder."""
 
+
 class ModelReferenceTypes(str, enum.Enum):
     """The types of model reference entries."""
-    
+
     STABLE_DIFFUSION = "stable_diffusion"
     """A Stable Diffusion model entry."""
