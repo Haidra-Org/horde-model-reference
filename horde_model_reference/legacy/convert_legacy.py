@@ -1,8 +1,15 @@
 from abc import ABC, abstractmethod
 import typing
+from typing_extensions import override
 from pydantic import ValidationError
 from horde_model_reference import consts
-from horde_model_reference.consts import MODEL_REFERENCE_GITHUB_REPO, LEGACY_REFERENCE_FOLDER
+from horde_model_reference.consts import (
+    MODEL_REFERENCE_GITHUB_REPO,
+    LEGACY_REFERENCE_FOLDER,
+    BASE_PATH,
+    MODEL_REFERENCE_CATEGORIES,
+    MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
+)
 from horde_model_reference.util import model_name_to_showcase_folder_name
 from horde_model_reference.legacy.legacy_model_database_records import (
     Legacy_StableDiffusion_ModelRecord,
@@ -12,14 +19,14 @@ from horde_model_reference.legacy.legacy_model_database_records import (
     Legacy_Generic_ModelRecord,
 )
 
-from horde_model_reference.model_database_records import StableDiffusionModelReference
+from horde_model_reference.model_database_records import StableDiffusion_ModelReference
 from pathlib import Path
 import json
 import glob
 import urllib.parse
 
 
-class LegacyConverterBase(ABC):
+class BaseLegacyConverter(ABC):
     legacy_folder_path: Path
     """The folder path to the legacy model reference."""
     legacy_database_path: Path
@@ -29,6 +36,9 @@ class LegacyConverterBase(ABC):
     converted_database_file_path: Path
     """The file path to write the converted stable diffusion model reference database."""
 
+    model_reference_category: MODEL_REFERENCE_CATEGORIES
+    model_reference_type: type[Legacy_Generic_ModelRecord]
+
     all_model_records: dict[str, Legacy_Generic_ModelRecord] = {}
     """All the models entries in found that will be converted."""
 
@@ -37,28 +47,33 @@ class LegacyConverterBase(ABC):
     debug_mode: bool = False
     print_errors: bool = True
 
-    def add_validation_error_to_log(self, *, model_record_key: str, error: str) -> None:
-        if model_record_key not in self.all_validation_errors_log:
-            self.all_validation_errors_log[model_record_key] = []
-        self.all_validation_errors_log[model_record_key].append(error)
-        if self.print_errors:
-            print("-> " + error)
-
     def __init__(
         self,
         *,
         legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
-        target_file_folder: str | Path,
-        model_reference_type: consts.MODEL_REFERENCE_TYPE,
-        debug_mode: bool = False,
+        target_file_folder: str | Path = BASE_PATH,
+        model_reference_category: MODEL_REFERENCE_CATEGORIES,
         print_errors: bool = True,
+        debug_mode: bool = False,
     ):
+        """Initialize an instance of the LegacyConverterBase class.
+
+        Args:
+            legacy_folder_path (str | Path, optional): The legacy database folder. Defaults to LEGACY_REFERENCE_FOLDER.
+            target_file_folder (str | Path): The folder to write the converted database to.
+            model_reference_category (MODEL_REFERENCE_CATEGORIES): The category of model reference to convert.
+            print_errors (bool, optional): Whether to print errors in the conversion to `stdout`. Defaults to True.
+            debug_mode (bool, optional): If true, include extra information in the error log. Defaults to False.
+        """
+        self.model_reference_category = model_reference_category
+        self.model_reference_type = MODEL_REFERENCE_LEGACY_TYPE_LOOKUP[model_reference_category]
+
         self.legacy_database_filename = consts.get_model_reference_filename(
-            model_reference_type=model_reference_type,
+            model_reference_category=model_reference_category,
         )
         self.legacy_folder_path = Path(legacy_folder_path)
         self.legacy_database_path = consts.get_model_reference_filename(
-            model_reference_type=model_reference_type,
+            model_reference_category=model_reference_category,
             basePath=legacy_folder_path,
         )
         self.converted_folder_path = Path(target_file_folder)
@@ -67,16 +82,42 @@ class LegacyConverterBase(ABC):
         self.debug_mode = debug_mode
         self.print_errors = print_errors
 
-    @abstractmethod
     def normalize_and_convert(self) -> bool:
         """Normalizes and converts the legacy model reference database to the new format.
 
         Returns:
             bool: True if the conversion was successful, False otherwise.
         """
+        all_model_iterator = self._iterate_over_input_records(self.model_reference_type)
+
+        for model_record_key, model_record_in_progress in all_model_iterator:
+
+            if model_record_in_progress is None:
+                raise ValueError(f"new_record is None! model_record_key = {model_record_key}")
+
+            # if not isinstance(model_record_in_progress, Legacy_StableDiffusion_ModelRecord):
+            #     raise ValueError(
+            #         f"new_record is not a Legacy_StableDiffusion_ModelRecord! model_record_key = {model_record_key}"
+            #     )
+
+            self.generic_record_sanity_checks(
+                model_record_key=model_record_key,
+                record=model_record_in_progress,
+            )
+            self.parse_record(model_record_key=model_record_key, model_record_in_progress=model_record_in_progress)
+        return True
+
+    @abstractmethod
+    def parse_record(
+        self,
+        model_record_key: str,
+        model_record_in_progress: Legacy_Generic_ModelRecord,
+    ) -> None:
+        """Perform any model category specific parsing."""
 
     def _iterate_over_input_records(
-        self, modelrecord_type: type[Legacy_Generic_ModelRecord]
+        self,
+        modelrecord_type: type[Legacy_Generic_ModelRecord],
     ) -> typing.Iterator[tuple[str, Legacy_Generic_ModelRecord]]:
         raw_legacy_json_data: dict = {}
         """Return an iterator over the legacy model reference database.
@@ -123,7 +164,12 @@ class LegacyConverterBase(ABC):
                 self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
                 continue
 
-    def generic_record_sanity_checks(self, *, model_record_key: str, record: Legacy_Generic_ModelRecord) -> None:
+    def generic_record_sanity_checks(
+        self,
+        *,
+        model_record_key: str,
+        record: Legacy_Generic_ModelRecord,
+    ) -> None:
         #
         # Non-conformity checks
         #
@@ -158,136 +204,74 @@ class LegacyConverterBase(ABC):
 
             self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
+    def add_validation_error_to_log(
+        self,
+        *,
+        model_record_key: str,
+        error: str,
+    ) -> None:
+        if model_record_key not in self.all_validation_errors_log:
+            self.all_validation_errors_log[model_record_key] = []
+        self.all_validation_errors_log[model_record_key].append(error)
+        if self.print_errors:
+            print("-> " + error)
 
-class LegacyStableDiffusionConverter(LegacyConverterBase):
+
+class LegacyStableDiffusionConverter(BaseLegacyConverter):
 
     showcase_glob_pattern: str = "horde_model_reference/showcase/*"
     """The glob pattern used to find all showcase folders. Defaults to `'horde_model_reference/showcase/*'`."""
     # todo: extract to consts
 
-    """The name of the legacy model reference database file. Defaults to `'stable_diffusion.json'`."""
-    default_showcase_folder_name = "showcase"
-    """The expected name of the folder containing all model showcase folders. Defaults to `'showcase'`."""
-    # todo: extract to consts
+    all_baseline_categories: dict[str, int]
+    """A dictionary of all the baseline types found and the number of times they appear."""
+    all_styles: dict[str, int]
+    """A dictionary of all the styles found and the number of times they appear."""
+    all_tags: dict[str, int]
+    """A dictionary of all the tags found and the number of times they appear."""
+    all_model_hosts: dict[str, int]
+    """A dictionary of all the model hosts found and the number of times they appear."""
+
+    existing_showcase_files: dict[str, list[str]]
+    """The pre-existing showcase files found in the target folder."""
 
     def __init__(
         self,
         *,
         legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
-        target_file_folder: str | Path,
-        debug_mode: bool = False,
+        target_file_folder: str | Path = BASE_PATH,
         print_errors: bool = True,
+        debug_mode: bool = False,
     ):
+        """Initialize an instance of the LegacyStableDiffusionConverter class.
+
+        Args:
+            legacy_folder_path (str | Path, optional): The legacy database folder. Defaults to LEGACY_REFERENCE_FOLDER.
+            target_file_folder (str | Path): The folder to write the converted database to.
+            print_errors (bool, optional): Whether to print errors in the conversion to `stdout`. Defaults to True.
+            debug_mode (bool, optional): If true, include extra information in the error log. Defaults to False.
+        """
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_type=consts.MODEL_REFERENCE_TYPE.STABLE_DIFFUSION,
+            model_reference_category=consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
             debug_mode=debug_mode,
             print_errors=print_errors,
         )
+        self.all_baseline_categories = {}
+        self.all_styles = {}
+        self.all_tags = {}
+        self.all_model_hosts = {}
 
+    @override
     def normalize_and_convert(self) -> bool:
-
-        all_baseline_types: dict[str, int] = {}
-        """A dictionary of all the baseline types found and the number of times they appear."""
-        all_styles: dict[str, int] = {}
-        """A dictionary of all the styles found and the number of times they appear."""
-        all_tags: dict[str, int] = {}
-        """A dictionary of all the tags found and the number of times they appear."""
-        all_model_hosts: dict[str, int] = {}
-        """A dictionary of all the model hosts found and the number of times they appear."""
-
+        # Define these variables before calling super().normalize_and_convert(), as parse_record(...) relies on them.
         existing_showcase_folders = glob.glob(self.showcase_glob_pattern, recursive=True)
-        existing_showcase_files: dict[str, list[str]] = self.get_existing_showcases(existing_showcase_folders)
-        """A dictionary of whose keys are the showcase folders and the values are a list of files within."""
-        all_model_iterator = self._iterate_over_input_records(Legacy_StableDiffusion_ModelRecord)
-
-        for model_record_key, model_record_in_progress in all_model_iterator:
-
-            if model_record_in_progress is None:
-                raise ValueError(f"new_record is None! model_record_key = {model_record_key}")
-
-            if not isinstance(model_record_in_progress, Legacy_StableDiffusion_ModelRecord):
-                raise ValueError(
-                    f"new_record is not a Legacy_StableDiffusion_ModelRecord! model_record_key = {model_record_key}"
-                )
-
-            self.generic_record_sanity_checks(
-                model_record_key=model_record_key,
-                record=model_record_in_progress,
-            )
-
-            all_styles[model_record_in_progress.style] = all_styles.get(model_record_in_progress.style, 0) + 1
-
-            if model_record_in_progress.type != "ckpt":
-                error = f"{model_record_key} is not a ckpt!"
-
-                self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
-
-            #
-            # Increment baseline type counter
-            #
-            model_record_in_progress.baseline = self.convert_legacy_baseline(model_record_in_progress.baseline)
-            all_baseline_types[model_record_in_progress.baseline] = (
-                all_baseline_types.get(model_record_in_progress.baseline, 0) + 1
-            )
-
-            #
-            # Showcase handling and sanity checks
-            #
-            expected_showcase_foldername = model_name_to_showcase_folder_name(model_record_key)
-            self.create_showcase_folder(expected_showcase_foldername)
-
-            if model_record_in_progress.showcases is not None and len(model_record_in_progress.showcases) > 0:
-                if any("huggingface" in showcase for showcase in model_record_in_progress.showcases):
-                    error = f"{model_record_key} has a huggingface showcase."
-
-                    self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
-
-                if expected_showcase_foldername not in existing_showcase_files:
-                    error = f"{model_record_key} has no showcase folder. Expected: {expected_showcase_foldername}"
-
-                    self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
-
-                model_record_in_progress.showcases = []
-                for file in existing_showcase_files[expected_showcase_foldername]:
-                    url_friendly_name = urllib.parse.quote(Path(file).name)
-                    # if not any(url_friendly_name in showcase for showcase in new_record.showcases):
-                    #     print(f"{model_record_key} is missing a showcase for {url_friendly_name}.")
-                    #     print(f"{new_record.showcases=}")
-                    #     continue
-                    expected_github_location = urllib.parse.urljoin(
-                        MODEL_REFERENCE_GITHUB_REPO,
-                        f"{self.default_showcase_folder_name}/{expected_showcase_foldername}/{url_friendly_name}",
-                    )
-                    model_record_in_progress.showcases.append(expected_github_location)
-            #
-            # Increment tag counter
-            #
-            if model_record_in_progress.tags is not None:
-                for tag in model_record_in_progress.tags:
-                    all_tags[tag] = all_tags.get(tag, 0) + 1
-
-            #
-            # Config handling and sanity checks
-            #
-            if len(model_record_in_progress.config) == 0:
-                error = f"{model_record_key} has no config."
-                self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
-
-            config_entries = model_record_in_progress.config
-            found_hosts = self.normalize_and_convert_config_entries(
-                model_record_key=model_record_key,
-                config_entries=config_entries,
-            )
-
-            #
-            # Increment host counter
-            #
-            for found_host in found_hosts:
-                all_model_hosts[found_host] = all_model_hosts.get(found_host, 0) + 1
-
+        self.existing_showcase_files = self.get_existing_showcases(existing_showcase_folders)
         final_on_disk_showcase_folders = glob.glob(self.showcase_glob_pattern, recursive=True)
+
+        # The parent class will call parse_record(...) for each model record.
+        super().normalize_and_convert()
 
         for folder in final_on_disk_showcase_folders:
             parsed_folder = Path(folder)
@@ -312,10 +296,10 @@ class LegacyStableDiffusionConverter(LegacyConverterBase):
                 self.add_validation_error_to_log(model_record_key=folder, error=error)
 
         print()
-        print(f"{all_styles=}")
-        print(f"{all_baseline_types=}")
-        print(f"{all_tags=}")
-        print(f"{all_model_hosts=}")
+        print(f"{self.all_styles=}")
+        print(f"{self.all_baseline_categories=}")
+        print(f"{self.all_tags=}")
+        print(f"{self.all_model_hosts=}")
 
         print()
         print(f"Total number of models: {len(self.all_model_records)}")
@@ -327,10 +311,10 @@ class LegacyStableDiffusionConverter(LegacyConverterBase):
         print("Errors and warnings are listed above on lines prefixed with `-> `")
 
         modelReference = Legacy_StableDiffusion_ModelReference(
-            baseline_types=all_baseline_types,
-            styles=all_styles,
-            tags=all_tags,
-            model_hosts=all_model_hosts,
+            baseline_categories=self.all_baseline_categories,
+            styles=self.all_styles,
+            tags=self.all_tags,
+            model_hosts=self.all_model_hosts,
             models={
                 key: value
                 for key, value in self.all_model_records.items()
@@ -347,7 +331,7 @@ class LegacyStableDiffusionConverter(LegacyConverterBase):
         try:
             # If this fails, we have a problem. By definition, the model reference should be converted by this point
             # and ready to be cast to the new model reference type.
-            StableDiffusionModelReference(**json.loads(jsonToWrite))
+            StableDiffusion_ModelReference(**json.loads(jsonToWrite))
         except ValidationError as e:
             print(e)
             print("CRITICAL: Failed to convert to new model reference type.")
@@ -360,8 +344,93 @@ class LegacyStableDiffusionConverter(LegacyConverterBase):
         print(f"Converted database written to: {self.converted_database_file_path}")
         return True
 
-    def get_existing_showcases(self, existing_showcase_folders: list[str]) -> dict[str, list[str]]:
-        """Get a dictionary of all existing showcase folders and their contents."""
+    @override
+    def parse_record(
+        self,
+        model_record_key: str,
+        model_record_in_progress: Legacy_Generic_ModelRecord,
+    ) -> None:
+        if not isinstance(model_record_in_progress, Legacy_StableDiffusion_ModelRecord):
+            raise TypeError(f"Expected {model_record_key} to be a Stable Diffusion record.")
+        self.all_styles[model_record_in_progress.style] = self.all_styles.get(model_record_in_progress.style, 0) + 1
+
+        if model_record_in_progress.type != "ckpt":
+            error = f"{model_record_key} is not a ckpt!"
+            self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+
+        #
+        # Increment baseline category counter
+        #
+        model_record_in_progress.baseline = self.convert_legacy_baseline(model_record_in_progress.baseline)
+        self.all_baseline_categories[model_record_in_progress.baseline] = (
+            self.all_baseline_categories.get(model_record_in_progress.baseline, 0) + 1
+        )
+
+        #
+        # Showcase handling and sanity checks
+        #
+        expected_showcase_foldername = model_name_to_showcase_folder_name(model_record_key)
+        self.create_showcase_folder(expected_showcase_foldername)
+
+        if model_record_in_progress.showcases is not None and len(model_record_in_progress.showcases) > 0:
+            if any("huggingface" in showcase for showcase in model_record_in_progress.showcases):
+                error = f"{model_record_key} has a huggingface showcase."
+                self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+
+            if expected_showcase_foldername not in self.existing_showcase_files:
+                error = f"{model_record_key} has no showcase folder. Expected: {expected_showcase_foldername}"
+                self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+
+            model_record_in_progress.showcases = []
+            for file in self.existing_showcase_files[expected_showcase_foldername]:
+                url_friendly_name = urllib.parse.quote(Path(file).name)
+                # if not any(url_friendly_name in showcase for showcase in new_record.showcases):
+                #     print(f"{model_record_key} is missing a showcase for {url_friendly_name}.")
+                #     print(f"{new_record.showcases=}")
+                #     continue
+                expected_github_location = urllib.parse.urljoin(
+                    MODEL_REFERENCE_GITHUB_REPO,
+                    f"{consts.DEFAULT_SHOWCASE_FOLDER_NAME}/{expected_showcase_foldername}/{url_friendly_name}",
+                )
+                model_record_in_progress.showcases.append(expected_github_location)
+        #
+        # Increment tag counter
+        #
+        if model_record_in_progress.tags is not None:
+            for tag in model_record_in_progress.tags:
+                self.all_tags[tag] = self.all_tags.get(tag, 0) + 1
+
+        #
+        # Config handling and sanity checks
+        #
+        if len(model_record_in_progress.config) == 0:
+            error = f"{model_record_key} has no config."
+            self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+
+        config_entries = model_record_in_progress.config
+        found_hosts = self.normalize_and_convert_config_entries(
+            model_record_key=model_record_key,
+            config_entries=config_entries,
+        )
+
+        #
+        # Increment host counter
+        #
+        for found_host in found_hosts:
+            self.all_model_hosts[found_host] = self.all_model_hosts.get(found_host, 0) + 1
+
+    def get_existing_showcases(
+        self,
+        existing_showcase_folders: list[str],
+    ) -> dict[str, list[str]]:
+        """Return a dictionary of existing showcase files, keyed by the showcase folder name.
+
+        Args:
+            existing_showcase_folders (list[str]): The list of existing showcase folders.
+
+        Returns:
+            dict[str, list[str]]: A dictionary of existing showcase files, keyed by the showcase folder name.
+        """
         existing_showcase_files: dict[str, list[str]] = {}
         for showcase_folder in existing_showcase_folders:
             model_showcase_files = glob.glob(str(Path(showcase_folder).joinpath("*")), recursive=True)
@@ -372,6 +441,7 @@ class LegacyStableDiffusionConverter(LegacyConverterBase):
         return existing_showcase_files
 
     def convert_legacy_baseline(self, baseline: str):
+        """Returns the new standardized baseline name for the given legacy baseline name."""
         if baseline == "stable diffusion 1":
             baseline = "stable_diffusion_1"
             # new_record.baseline_trained_resolution = 256
@@ -381,9 +451,14 @@ class LegacyStableDiffusionConverter(LegacyConverterBase):
             baseline = "stable_diffusion_2_512"
         return baseline
 
-    def create_showcase_folder(self, expected_showcase_foldername: str):
-        newFolder = self.converted_folder_path.joinpath(self.default_showcase_folder_name)
-        newFolder = newFolder.joinpath(expected_showcase_foldername)
+    def create_showcase_folder(self, showcase_foldername: str) -> None:
+        """Create a showcase folder with the given name.
+
+        Args:
+            showcase_foldername (str): The name of the showcase folder to create.
+        """
+        newFolder = self.converted_folder_path.joinpath(consts.DEFAULT_SHOWCASE_FOLDER_NAME)
+        newFolder = newFolder.joinpath(showcase_foldername)
         newFolder.mkdir(parents=True, exist_ok=True)
 
     def normalize_and_convert_config_entries(
@@ -392,7 +467,7 @@ class LegacyStableDiffusionConverter(LegacyConverterBase):
         model_record_key: str,
         config_entries: dict[str, list[Legacy_Config_FileRecord | Legacy_Config_DownloadRecord]],
     ) -> dict[str, int]:
-        """Normalize and convert a config entries. This changes the contents of param `config_entries`.
+        """Normalize and convert the config entries. This changes the contents of param `config_entries`.
 
         Args:
             model_record_key (str): The key of the model record.
@@ -412,20 +487,25 @@ class LegacyStableDiffusionConverter(LegacyConverterBase):
                         print(f"{model_record_key} is in 'files' but isn't a `Legacy_Config_FileRecord`!")
                         raise TypeError("Expected `Legacy_Config_FileRecord`.")
                     if config_file.path is None or config_file.path == "":
-                        print(f"{model_record_key} has a config file with no path.")
+                        error = f"{model_record_key} has a config file with no path."
+                        self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
                     if ".yaml" in config_file.path:
                         if config_file.path != "v2-inference-v.yaml" and config_file.path != "v1-inference.yaml":
-                            print(f"{model_record_key} has a non-standard config.")
+                            error = f"{model_record_key} has a non-standard config."
+                            self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
                         continue
                     elif ".ckpt" not in config_file.path:
-                        print(f"{model_record_key} does not have a ckpt file specified.")
+                        error = f"{model_record_key} has a config file with an invalid path."
+                        self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
                     if config_file.sha256sum is None or config_file.sha256sum == "":
-                        print(f"{model_record_key} has a config file with no sha256sum.")
+                        error = f"{model_record_key} has a config file with no sha256sum."
+                        self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
                     else:
                         if len(config_file.sha256sum) != 64:
-                            print(f"{model_record_key} has a config file with an invalid sha256sum.")
+                            error = f"{model_record_key} has a config file with an invalid sha256sum."
+                            self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
             elif config_entry_key == "download":
                 for download in config_entry_object:
@@ -433,13 +513,16 @@ class LegacyStableDiffusionConverter(LegacyConverterBase):
                         print(f"{model_record_key} is in 'download' but isn't a `Legacy_Config_DownloadRecord`!")
                         raise TypeError("Expected `Legacy_Config_DownloadRecord`.")
                     if download.file_name is None or download.file_name == "":
-                        print(f"{model_record_key} has a download with no file_name.")
+                        error = f"{model_record_key} has a download with no file_name."
+                        self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
                     if download.file_path is None or download.file_path != "":
-                        print(f"{model_record_key} has a download with a file_path.")
+                        error = f"{model_record_key} has a download with a file_path."
+                        self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
                     if download.file_url is None or download.file_url == "":
-                        print(f"{model_record_key} has a download with no file_url.")
+                        error = f"{model_record_key} has a download with no file_url."
+                        self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
                         continue
 
                     if "civitai" in download.file_url:
@@ -448,13 +531,14 @@ class LegacyStableDiffusionConverter(LegacyConverterBase):
                         host = urllib.parse.urlparse(download.file_url).netloc
                         download_hosts[host] = download_hosts.get(host, 0) + 1
                     except Exception as e:
-                        print(f"{model_record_key} has a download with an invalid file_url.")
+                        error = f"{model_record_key} has a download with an invalid file_url."
+                        self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
                         raise e
 
         return download_hosts
 
 
-class LegacyControlnetConverter(LegacyConverterBase):
+class LegacyControlnetConverter(BaseLegacyConverter):
     def __init__(
         self,
         *,
@@ -466,24 +550,14 @@ class LegacyControlnetConverter(LegacyConverterBase):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_type=consts.MODEL_REFERENCE_TYPE.CONTROLNET,
+            model_reference_category=consts.MODEL_REFERENCE_CATEGORIES.CONTROLNET,
             debug_mode=debug_mode,
             print_errors=print_errors,
         )
 
-    def normalize_and_convert(self) -> bool:
-        """Normalize and convert the legacy controlnet files.
-
-        Returns:
-            bool: True if successful, False otherwise.
-        """
-
-        with open(self.legacy_database_path) as legacy_model_reference_file:
-            raw_legacy_json_data = json.load(legacy_model_reference_file)
-
-        all_model_records: dict[str, Legacy_Generic_ModelRecord] = {}
-
-        return True
+    def parse_record(self, model_record_key: str, model_record_in_progress: Legacy_Generic_ModelRecord) -> None:
+        if not isinstance(model_record_in_progress, Legacy_Generic_ModelRecord):
+            raise TypeError("Expected `Legacy_Generic_ModelRecord`.")
 
 
 if __name__ == "__main__":

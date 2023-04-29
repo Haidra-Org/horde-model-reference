@@ -74,7 +74,7 @@ class Legacy_StableDiffusion_ModelReference(BaseModel):
     class Config:
         extra = "forbid"
 
-    baseline_types: dict[str, int]
+    baseline_categories: dict[str, int]
     styles: dict[str, int]
     tags: dict[str, int]
     model_hosts: dict[str, int]

@@ -1,5 +1,5 @@
 {
-    "baseline_types": {
+    "baseline_categories": {
         "stable_diffusion_2_768": 16,
         "stable_diffusion_1": 163,
         "stable_diffusion_2_512": 1
