@@ -7,13 +7,15 @@
 			"files": [
 				{
 					"path": "pytorch_model.bin",
-					"md5sum": "dbbcb50d4df4572a720b104fae1e8187"
+					"sha256sum": "64B8393F1AFD5A0C1ED2AA5F341FA7C08286839A48F3743162A76A2835C808BD"
 				},
 				{
-					"path": "config.json"
+					"path": "config.json",
+					"sha256sum": "C879A63EE73F528BC5EC148AAEA487B2B165F6A785F9CB55B90E590BA7977E0E"
 				},
 				{
-					"path": "preprocessor_config.json"
+					"path": "preprocessor_config.json",
+					"sha256sum": "2A1DA83B5E1032AAEEF397552DDB408DCA0D8CD1DC58F61BF6ABF38D6F33A0A2"
 				}
 			],
 			"download": [
