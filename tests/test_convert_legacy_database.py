@@ -1,5 +1,5 @@
 from horde_model_reference.model_database_records import (
-    StableDiffusionModelReference as New_StableDiffusionModelReference,
+    StableDiffusion_ModelReference as New_StableDiffusionModelReference,
 )
 
 from horde_model_reference.legacy.convert_legacy import LegacyStableDiffusionConverter
@@ -23,14 +23,14 @@ def test_convert_legacy_stablediffusion_database():
 def test_validate_converted_stablediffusion_database():
 
     stablediffusion_model_database_path = consts.get_model_reference_filename(
-        consts.MODEL_REFERENCE_TYPE.STABLE_DIFFUSION,
+        consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
         basePath=TARGET_DIRECTORY_FOR_TESTDATA,
     )
 
     model_reference = New_StableDiffusionModelReference.parse_file(stablediffusion_model_database_path)
 
-    assert len(model_reference.baseline_types) >= 3
-    for baseline_type in model_reference.baseline_types:
+    assert len(model_reference.baseline_categories) >= 3
+    for baseline_type in model_reference.baseline_categories:
         assert baseline_type != ""
 
     assert len(model_reference.styles) >= 6
@@ -52,7 +52,7 @@ def test_validate_converted_stablediffusion_database():
     for model_key, model_info in model_reference.models.items():
 
         assert model_info.name == model_key
-        assert model_info.baseline in model_reference.baseline_types
+        assert model_info.baseline in model_reference.baseline_categories
         assert model_info.style in model_reference.styles
 
         if model_info.homepage is not None:
