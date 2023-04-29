@@ -25,6 +25,7 @@ from horde_model_reference.legacy.legacy_model_database_records import (
 )
 from horde_model_reference.model_database_records import (
     MODEL_PURPOSE_LOOKUP,
+    MODEL_REFERENCE_TYPE_LOOKUP,
     Generic_ModelReference,
     StableDiffusion_ModelReference,
 )
@@ -128,32 +129,12 @@ class BaseLegacyConverter:
             raw_legacy_json_data = json.load(legacy_model_reference_file)
 
         for model_record_key, model_record_contents in raw_legacy_json_data.items():
-            new_record_config_files_list: list[Legacy_Config_FileRecord] = []
-            new_record_config_download_list: list[Legacy_Config_DownloadRecord] = []
-            try:
-                if len(model_record_contents["config"]) > 2:
-                    error = f"{model_record_key} has more than 2 config entries."
-                    self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
-                sha_lookup = {}
-                for config_entry in model_record_contents["config"]:
-                    if config_entry == "files":
-                        for config_file in model_record_contents["config"][config_entry]:
-                            parsed_file_record = Legacy_Config_FileRecord(**config_file)
-                            if ".yaml" in parsed_file_record.path:
-                                continue
-                            sha_lookup[parsed_file_record.path] = parsed_file_record.sha256sum
-                            parsed_file_record.sha256sum = None
-                            new_record_config_files_list.append(parsed_file_record)
-                    elif config_entry == "download":
-                        for download in model_record_contents["config"][config_entry]:
-                            parsed_download_record = Legacy_Config_DownloadRecord(**download)
-                            parsed_download_record.sha256sum = sha_lookup[parsed_download_record.file_name]
-                            new_record_config_download_list.append(parsed_download_record)
 
-                model_record_contents["config"] = {
-                    # "files": new_record_config_files_list,
-                    "download": new_record_config_download_list,
-                }
+            try:
+
+                download = self.config_record_pre_parse(model_record_key, model_record_contents)
+                model_record_contents["config"]["download"] = download
+                model_record_contents["config"]["files"] = []
                 record_as_conversion_class = modelrecord_type(**model_record_contents)
                 self.all_model_records[model_record_key] = record_as_conversion_class
                 yield model_record_key, record_as_conversion_class
@@ -161,6 +142,40 @@ class BaseLegacyConverter:
                 error = f"CRITICAL: Error parsing {model_record_key}:\n{e}"
                 self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
                 raise e
+
+    def config_record_pre_parse(
+        self,
+        model_record_key: str,
+        model_record_contents: dict,
+    ) -> list[Legacy_Config_DownloadRecord]:
+        """Parse the config record of the legacy model reference. Changes `model_record_contents`.
+
+        Args:
+            model_record_key (str): The key of the model record.
+            model_record_contents (dict): The contents of the model record.
+        """
+        new_record_config_files_list: list[Legacy_Config_FileRecord] = []
+        new_record_config_download_list: list[Legacy_Config_DownloadRecord] = []
+        if len(model_record_contents["config"]) > 2:
+            error = f"{model_record_key} has more than 2 config entries."
+            self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+        sha_lookup = {}
+        for config_entry in model_record_contents["config"]:
+            if config_entry == "files":
+                for config_file in model_record_contents["config"][config_entry]:
+                    parsed_file_record = Legacy_Config_FileRecord(**config_file)
+                    if ".yaml" in parsed_file_record.path:
+                        continue
+                    sha_lookup[parsed_file_record.path] = parsed_file_record.sha256sum
+                    parsed_file_record.sha256sum = None
+                    new_record_config_files_list.append(parsed_file_record)
+            elif config_entry == "download":
+                for download in model_record_contents["config"][config_entry]:
+                    parsed_download_record = Legacy_Config_DownloadRecord(**download)
+                    parsed_download_record.sha256sum = sha_lookup[parsed_download_record.file_name]
+                    new_record_config_download_list.append(parsed_download_record)
+
+        return new_record_config_download_list
 
     def generic_record_sanity_checks(
         self,
@@ -223,12 +238,13 @@ class BaseLegacyConverter:
     def write_out_records(self) -> None:
         """Write out the parsed records."""
         new_reference = None
+        type_to_convert_to = MODEL_REFERENCE_TYPE_LOOKUP[self.model_reference_category]
         try:
             _ = Legacy_Generic_ModelReference(models=self.all_model_records)
-            new_reference = Generic_ModelReference(models=_.models)
+            new_reference = type_to_convert_to(models=_.models)
             pass
         except ValidationError as e:
-            print("CRITICAL: Failed to convert to new model reference type.")
+            print(f"CRITICAL: Failed to convert to new model reference type {type_to_convert_to}.")
             raise e
 
         with open(self.converted_database_file_path, "w") as new_model_reference_file:
@@ -572,6 +588,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
 
                     if "civitai" in download.file_url:
                         download.known_slow_download = True
+
                     try:
                         host = urllib.parse.urlparse(download.file_url).netloc
                         download_hosts[host] = download_hosts.get(host, 0) + 1
@@ -583,26 +600,49 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         return download_hosts
 
 
-class LegacyControlnetConverter(BaseLegacyConverter):
+class LegacyClipConverter(BaseLegacyConverter):
     def __init__(
         self,
         *,
         legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
-        target_file_folder: str | Path,
-        debug_mode: bool = False,
+        target_file_folder: str | Path = BASE_PATH,
         print_errors: bool = True,
+        debug_mode: bool = False,
     ):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_category=consts.MODEL_REFERENCE_CATEGORIES.CONTROLNET,
-            debug_mode=debug_mode,
+            model_reference_category=MODEL_REFERENCE_CATEGORIES.CLIP,
             print_errors=print_errors,
+            debug_mode=debug_mode,
         )
 
-    def parse_record(self, model_record_key: str, model_record_in_progress: Legacy_Generic_ModelRecord) -> None:
-        if not isinstance(model_record_in_progress, Legacy_Generic_ModelRecord):
-            raise TypeError("Expected `Legacy_Generic_ModelRecord`.")
+    @override
+    def config_record_pre_parse(
+        self,
+        model_record_key: str,
+        model_record_contents: dict,
+    ) -> list[Legacy_Config_DownloadRecord]:
+        new_record_config_download_list: list[Legacy_Config_DownloadRecord] = []
+        if len(model_record_contents["config"]) > 2:
+            error = f"{model_record_key} has more than 2 config entries."
+            self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+        for config_entry in model_record_contents["config"]:
+            if config_entry == "files":
+                continue
+            elif config_entry == "download":
+                for download in model_record_contents["config"][config_entry]:
+                    # Skip if file_url is missing
+                    if download.get("file_url") is None or download.get("file_url") == "":
+                        continue
+                    parsed_download_record = Legacy_Config_DownloadRecord(**download)
+                    parsed_download_record.file_name = model_record_key.replace("/", "-") + ".pt"
+                    parsed_download_record.sha256sum = "FIXME"
+                    error = f"{model_record_key} has no sha256sum."
+                    self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+                    new_record_config_download_list.append(parsed_download_record)
+
+        return new_record_config_download_list
 
 
 if __name__ == "__main__":
@@ -612,7 +652,15 @@ if __name__ == "__main__":
         debug_mode=True,
         print_errors=True,
     )
-    sd_converter.normalize_and_convert()
+    # sd_converter.normalize_and_convert()
+
+    clip_converter = LegacyClipConverter(
+        legacy_folder_path=Path(__file__).parent,
+        target_file_folder=Path(__file__).parent.parent,
+        debug_mode=True,
+        print_errors=True,
+    )
+    clip_converter.normalize_and_convert()
 
     non_stablediffusion = [
         x for x in consts.MODEL_REFERENCE_CATEGORIES if x != consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION
