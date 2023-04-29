@@ -1,12 +1,11 @@
+import urllib.parse
+from pathlib import Path
+
+import horde_model_reference.consts as consts
+from horde_model_reference.legacy.convert_legacy import LegacyStableDiffusionConverter
 from horde_model_reference.model_database_records import (
     StableDiffusion_ModelReference as New_StableDiffusionModelReference,
 )
-
-from horde_model_reference.legacy.convert_legacy import LegacyStableDiffusionConverter
-from pathlib import Path
-import urllib.parse
-
-import horde_model_reference.consts as consts
 
 TARGET_DIRECTORY_FOR_TESTDATA = Path(__file__).parent.joinpath("test_data_results")
 """The path to the converted stable diffusion model reference."""

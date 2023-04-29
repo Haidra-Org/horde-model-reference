@@ -1,5 +1,39 @@
+import enum
 from enum import Enum
+from typing import Mapping
+
 from pydantic import BaseModel
+
+from horde_model_reference.consts import MODEL_REFERENCE_CATEGORIES
+
+
+class MODEL_PURPOSE(str, enum.Enum):
+    image_generation = "image_generation"
+    """The model is for image generation."""
+
+    controlnet = "controlnet"
+    """The model is a controlnet."""
+
+    clip = "clip"
+    """The model is a CLIP model."""
+
+    blip = "blip"
+    """The model is a BLIP model."""
+
+    post_processor = "post_processor"
+    """The model is a post processor of some variety."""
+
+
+MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, MODEL_PURPOSE] = {
+    MODEL_REFERENCE_CATEGORIES.CLIP: MODEL_PURPOSE.clip,
+    MODEL_REFERENCE_CATEGORIES.BLIP: MODEL_PURPOSE.blip,
+    MODEL_REFERENCE_CATEGORIES.CODEFORMER: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORIES.CONTROLNET: MODEL_PURPOSE.controlnet,
+    MODEL_REFERENCE_CATEGORIES.ESRGAN: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORIES.GFPGAN: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: MODEL_PURPOSE.image_generation,
+}
 
 
 class STABLEDIFFUSION_BASELINE(str, Enum):
@@ -24,9 +58,6 @@ class MODEL_STYLES(str, Enum):
 class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
     """A record of a file to download for a model. Typically a ckpt file."""
 
-    class Config:
-        extra = "forbid"
-
     file_name: str
     """The horde specific filename. This is not necessarily the same as the file's name on the model host."""
     file_url: str
@@ -38,25 +69,27 @@ class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
 
 
 class Generic_ModelRecord(BaseModel):
-    class Config:
-        extra = "forbid"
-
+    # TODO forbid extra?
     name: str
     """The name of the model."""
-    description: str
+    description: str | None
     """A short description of the model."""
-    version: str
-    """The version of the model (not the version of SD it is based on, see `baseline` for that info)."""
-    style: str
+    version: str | None
+    """The version of the  model (not the version of SD it is based on, see `baseline` for that info)."""
+    style: str | None
     """The style of the model."""
-    nsfw: bool  # FIXME?
-    """Whether the model is NSFW or not."""
     config: dict[str, list[DownloadRecord]]
     """A dictionary of any configuration files and information on where to download the model file(s)."""
+
+    model_purpose: MODEL_PURPOSE
+    """The purpose of the model."""
 
 
 class StableDiffusion_ModelRecord(Generic_ModelRecord):
     """A model entry in the model reference."""
+
+    class Config:
+        extra = "forbid"
 
     baseline: STABLEDIFFUSION_BASELINE
     """The model on which this model is based."""
@@ -70,9 +103,16 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
     """A list of trigger words or phrases which can be used to activate the model."""
     homepage: str | None
     """A link to the model's homepage."""
+    nsfw: bool
+    """Whether the model is NSFW or not."""
 
 
-class StableDiffusion_ModelReference(BaseModel):
+class Generic_ModelReference(BaseModel):
+    models: Mapping[str, Generic_ModelRecord]
+    """A dictionary of all the models."""
+
+
+class StableDiffusion_ModelReference(Generic_ModelReference):
     """The combined metadata and model list."""
 
     class Config:
@@ -86,5 +126,11 @@ class StableDiffusion_ModelReference(BaseModel):
     """A dictionary of all the tags and how many models use them."""
     model_hosts: dict[str, int]
     """A dictionary of all the model hosts and how many models use them."""
-    models: dict[str, StableDiffusion_ModelRecord]
+    models: Mapping[str, StableDiffusion_ModelRecord]
     """A dictionary of all the models."""
+
+
+MODEL_REFERENCE_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[StableDiffusion_ModelRecord]] = {
+    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: StableDiffusion_ModelRecord,  # FIXME
+    MODEL_REFERENCE_CATEGORIES.CONTROLNET: StableDiffusion_ModelRecord,  # FIXME
+}

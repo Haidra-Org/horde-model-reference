@@ -1,4 +1,10 @@
+"""Helper classes to convert the legacy model reference to the new model reference format."""
+from typing import Mapping
+
 from pydantic import BaseModel
+
+from horde_model_reference.consts import MODEL_REFERENCE_CATEGORIES
+from horde_model_reference.model_database_records import MODEL_PURPOSE
 
 
 class Legacy_Config_FileRecord(BaseModel):
@@ -22,18 +28,22 @@ class Legacy_Config_DownloadRecord(BaseModel):
 
 
 class Legacy_Generic_ModelRecord(BaseModel):
+    """This is hybrid representation of the legacy model reference and the new model reference format."""
+
     class Config:
         extra = "forbid"
 
     name: str
     type: str  # noqa: A003
-    description: str
-    version: str
-    style: str
+    description: str | None
+    version: str | None
+    style: str | None
     nsfw: bool | None
     download_all: bool | None
     config: dict[str, list[Legacy_Config_FileRecord | Legacy_Config_DownloadRecord]]
     available: bool
+
+    model_purpose: MODEL_PURPOSE | None
 
 
 class Legacy_StableDiffusion_ModelRecord(Legacy_Generic_ModelRecord):
@@ -68,14 +78,32 @@ class Legacy_StableDiffusion_ModelRecord(Legacy_Generic_ModelRecord):
         )
 
 
-class Legacy_StableDiffusion_ModelReference(BaseModel):
+class Legacy_Generic_ModelReference(BaseModel):
     """A helper class to convert the legacy model reference to the new model reference format."""
 
     class Config:
         extra = "forbid"
 
+    models: Mapping[str, Legacy_Generic_ModelRecord]
+
+
+class Legacy_StableDiffusion_ModelReference(Legacy_Generic_ModelReference):
+    """A helper class to convert the legacy model reference to the new model reference format."""
+
     baseline_categories: dict[str, int]
     styles: dict[str, int]
     tags: dict[str, int]
     model_hosts: dict[str, int]
-    models: dict[str, Legacy_StableDiffusion_ModelRecord]
+    models: Mapping[str, Legacy_StableDiffusion_ModelRecord]
+
+
+MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[Legacy_Generic_ModelRecord]] = {
+    MODEL_REFERENCE_CATEGORIES.BLIP: Legacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.CLIP: Legacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.CODEFORMER: Legacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.CONTROLNET: Legacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.ESRGAN: Legacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.GFPGAN: Legacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: Legacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: Legacy_StableDiffusion_ModelRecord,
+}
