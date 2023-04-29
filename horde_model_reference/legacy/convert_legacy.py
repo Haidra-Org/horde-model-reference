@@ -1,32 +1,37 @@
-from abc import ABC, abstractmethod
+import glob
+import json
 import typing
-from typing_extensions import override
+import urllib.parse
+from pathlib import Path
+
 from pydantic import ValidationError
+from typing_extensions import override
+
 from horde_model_reference import consts
 from horde_model_reference.consts import (
-    MODEL_REFERENCE_GITHUB_REPO,
-    LEGACY_REFERENCE_FOLDER,
     BASE_PATH,
+    LEGACY_REFERENCE_FOLDER,
     MODEL_REFERENCE_CATEGORIES,
-    MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
+    MODEL_REFERENCE_GITHUB_REPO,
 )
-from horde_model_reference.util import model_name_to_showcase_folder_name
 from horde_model_reference.legacy.legacy_model_database_records import (
-    Legacy_StableDiffusion_ModelRecord,
+    MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
     Legacy_Config_DownloadRecord,
     Legacy_Config_FileRecord,
-    Legacy_StableDiffusion_ModelReference,
     Legacy_Generic_ModelRecord,
+    Legacy_Generic_ModelReference,
+    Legacy_StableDiffusion_ModelRecord,
+    Legacy_StableDiffusion_ModelReference,
 )
+from horde_model_reference.model_database_records import (
+    MODEL_PURPOSE_LOOKUP,
+    Generic_ModelReference,
+    StableDiffusion_ModelReference,
+)
+from horde_model_reference.util import model_name_to_showcase_folder_name
 
-from horde_model_reference.model_database_records import StableDiffusion_ModelReference
-from pathlib import Path
-import json
-import glob
-import urllib.parse
 
-
-class BaseLegacyConverter(ABC):
+class BaseLegacyConverter:
     legacy_folder_path: Path
     """The folder path to the legacy model reference."""
     legacy_database_path: Path
@@ -39,10 +44,10 @@ class BaseLegacyConverter(ABC):
     model_reference_category: MODEL_REFERENCE_CATEGORIES
     model_reference_type: type[Legacy_Generic_ModelRecord]
 
-    all_model_records: dict[str, Legacy_Generic_ModelRecord] = {}
+    all_model_records: dict[str, Legacy_Generic_ModelRecord]
     """All the models entries in found that will be converted."""
 
-    all_validation_errors_log: dict[str, list[str]] = {}
+    all_validation_errors_log: dict[str, list[str]]
 
     debug_mode: bool = False
     print_errors: bool = True
@@ -65,20 +70,22 @@ class BaseLegacyConverter(ABC):
             print_errors (bool, optional): Whether to print errors in the conversion to `stdout`. Defaults to True.
             debug_mode (bool, optional): If true, include extra information in the error log. Defaults to False.
         """
+        self.all_model_records = {}
+        self.all_validation_errors_log = {}
+
         self.model_reference_category = model_reference_category
         self.model_reference_type = MODEL_REFERENCE_LEGACY_TYPE_LOOKUP[model_reference_category]
 
-        self.legacy_database_filename = consts.get_model_reference_filename(
-            model_reference_category=model_reference_category,
-        )
         self.legacy_folder_path = Path(legacy_folder_path)
         self.legacy_database_path = consts.get_model_reference_filename(
             model_reference_category=model_reference_category,
             basePath=legacy_folder_path,
         )
         self.converted_folder_path = Path(target_file_folder)
-        self.converted_database_file_path = self.converted_folder_path.joinpath(self.legacy_database_filename)
-
+        self.converted_database_file_path = consts.get_model_reference_filename(
+            model_reference_category=model_reference_category,
+            basePath=target_file_folder,
+        )
         self.debug_mode = debug_mode
         self.print_errors = print_errors
 
@@ -88,32 +95,23 @@ class BaseLegacyConverter(ABC):
         Returns:
             bool: True if the conversion was successful, False otherwise.
         """
+        self.pre_parse_records()
         all_model_iterator = self._iterate_over_input_records(self.model_reference_type)
-
         for model_record_key, model_record_in_progress in all_model_iterator:
 
             if model_record_in_progress is None:
-                raise ValueError(f"new_record is None! model_record_key = {model_record_key}")
-
-            # if not isinstance(model_record_in_progress, Legacy_StableDiffusion_ModelRecord):
-            #     raise ValueError(
-            #         f"new_record is not a Legacy_StableDiffusion_ModelRecord! model_record_key = {model_record_key}"
-            #     )
+                raise ValueError(f"CRITICAL: new_record is None! model_record_key = {model_record_key}")
 
             self.generic_record_sanity_checks(
                 model_record_key=model_record_key,
                 record=model_record_in_progress,
             )
             self.parse_record(model_record_key=model_record_key, model_record_in_progress=model_record_in_progress)
-        return True
 
-    @abstractmethod
-    def parse_record(
-        self,
-        model_record_key: str,
-        model_record_in_progress: Legacy_Generic_ModelRecord,
-    ) -> None:
-        """Perform any model category specific parsing."""
+        self.post_parse_records()
+        self.write_out_records()
+
+        return True
 
     def _iterate_over_input_records(
         self,
@@ -162,7 +160,7 @@ class BaseLegacyConverter(ABC):
             except ValidationError as e:
                 error = f"CRITICAL: Error parsing {model_record_key}:\n{e}"
                 self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
-                continue
+                raise e
 
     def generic_record_sanity_checks(
         self,
@@ -203,6 +201,45 @@ class BaseLegacyConverter(ABC):
             error = f"{model_record_key} has no style."
 
             self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+
+    def pre_parse_records(self) -> None:
+        """Perform any pre parsing tasks."""
+        pass
+
+    def parse_record(
+        self,
+        model_record_key: str,
+        model_record_in_progress: Legacy_Generic_ModelRecord,
+    ) -> None:
+        """Override and call super().parse_record(..) to perform any model category specific parsing."""
+        pass
+
+    def post_parse_records(self) -> None:
+        """Perform any post parsing tasks."""
+        for model_record in self.all_model_records.values():
+            model_record.model_purpose = MODEL_PURPOSE_LOOKUP[self.model_reference_category]
+        pass
+
+    def write_out_records(self) -> None:
+        """Write out the parsed records."""
+        new_reference = None
+        try:
+            _ = Legacy_Generic_ModelReference(models=self.all_model_records)
+            new_reference = Generic_ModelReference(models=_.models)
+            pass
+        except ValidationError as e:
+            print("CRITICAL: Failed to convert to new model reference type.")
+            raise e
+
+        with open(self.converted_database_file_path, "w") as new_model_reference_file:
+            new_model_reference_file.write(
+                new_reference.json(
+                    indent=4,
+                    exclude_defaults=True,
+                    exclude_none=True,
+                    exclude_unset=True,
+                )
+            )
 
     def add_validation_error_to_log(
         self,
@@ -264,85 +301,9 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         self.all_model_hosts = {}
 
     @override
-    def normalize_and_convert(self) -> bool:
-        # Define these variables before calling super().normalize_and_convert(), as parse_record(...) relies on them.
+    def pre_parse_records(self) -> None:
         existing_showcase_folders = glob.glob(self.showcase_glob_pattern, recursive=True)
         self.existing_showcase_files = self.get_existing_showcases(existing_showcase_folders)
-        final_on_disk_showcase_folders = glob.glob(self.showcase_glob_pattern, recursive=True)
-
-        # The parent class will call parse_record(...) for each model record.
-        super().normalize_and_convert()
-
-        for folder in final_on_disk_showcase_folders:
-            parsed_folder = Path(folder)
-
-            if parsed_folder.is_file():
-                continue
-
-            if not any(parsed_folder.iterdir()):
-                error = f"showcase folder '{parsed_folder.name}' is empty."
-                self.add_validation_error_to_log(model_record_key=parsed_folder.name, error=error)
-
-        final_on_disk_showcase_folders_names = [
-            Path(folder).name for folder in final_on_disk_showcase_folders if Path(folder).is_dir()
-        ]
-        final_expected_showcase_folders = [
-            model_name_to_showcase_folder_name(model_name) for model_name in self.all_model_records
-        ]
-
-        for folder in final_on_disk_showcase_folders_names:
-            if folder not in final_expected_showcase_folders:
-                error = f"folder '{folder}' is not in the model records."
-                self.add_validation_error_to_log(model_record_key=folder, error=error)
-
-        print()
-        print(f"{self.all_styles=}")
-        print(f"{self.all_baseline_categories=}")
-        print(f"{self.all_tags=}")
-        print(f"{self.all_model_hosts=}")
-
-        print()
-        print(f"Total number of models: {len(self.all_model_records)}")
-        print(f"Total number of showcase folders: {len(final_on_disk_showcase_folders_names)}")
-
-        print()
-        print(f"Total number of models with errors: {len(self.all_validation_errors_log)}")
-        print()
-        print("Errors and warnings are listed above on lines prefixed with `-> `")
-
-        modelReference = Legacy_StableDiffusion_ModelReference(
-            baseline_categories=self.all_baseline_categories,
-            styles=self.all_styles,
-            tags=self.all_tags,
-            model_hosts=self.all_model_hosts,
-            models={
-                key: value
-                for key, value in self.all_model_records.items()
-                if isinstance(value, Legacy_StableDiffusion_ModelRecord)
-            },  # quiets mypy about the potential for upcasting
-        )
-        jsonToWrite = modelReference.json(
-            indent=4,
-            exclude_defaults=True,
-            exclude_none=True,
-            exclude_unset=True,
-        )
-
-        try:
-            # If this fails, we have a problem. By definition, the model reference should be converted by this point
-            # and ready to be cast to the new model reference type.
-            StableDiffusion_ModelReference(**json.loads(jsonToWrite))
-        except ValidationError as e:
-            print(e)
-            print("CRITICAL: Failed to convert to new model reference type.")
-            raise e
-
-        with open(self.converted_database_file_path, "w") as testfile:
-            testfile.write(jsonToWrite)
-
-        print("Converted database passes validation and was written to disk successfully.")
-        print(f"Converted database written to: {self.converted_database_file_path}")
-        return True
 
     @override
     def parse_record(
@@ -352,7 +313,10 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
     ) -> None:
         if not isinstance(model_record_in_progress, Legacy_StableDiffusion_ModelRecord):
             raise TypeError(f"Expected {model_record_key} to be a Stable Diffusion record.")
-        self.all_styles[model_record_in_progress.style] = self.all_styles.get(model_record_in_progress.style, 0) + 1
+        if model_record_in_progress.style is not None:
+            self.all_styles[model_record_in_progress.style] = (
+                self.all_styles.get(model_record_in_progress.style, 0) + 1
+            )
 
         if model_record_in_progress.type != "ckpt":
             error = f"{model_record_key} is not a ckpt!"
@@ -418,6 +382,87 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         #
         for found_host in found_hosts:
             self.all_model_hosts[found_host] = self.all_model_hosts.get(found_host, 0) + 1
+
+    @override
+    def post_parse_records(self) -> None:
+        super().post_parse_records()
+        final_on_disk_showcase_folders = glob.glob(self.showcase_glob_pattern, recursive=True)
+        for folder in final_on_disk_showcase_folders:
+            parsed_folder = Path(folder)
+
+            if parsed_folder.is_file():
+                continue
+
+            if not any(parsed_folder.iterdir()):
+                error = f"showcase folder '{parsed_folder.name}' is empty."
+                self.add_validation_error_to_log(model_record_key=parsed_folder.name, error=error)
+
+        final_on_disk_showcase_folders_names = [
+            Path(folder).name for folder in final_on_disk_showcase_folders if Path(folder).is_dir()
+        ]
+        final_expected_showcase_folders = [
+            model_name_to_showcase_folder_name(model_name) for model_name in self.all_model_records
+        ]
+
+        for folder in final_on_disk_showcase_folders_names:
+            if folder not in final_expected_showcase_folders:
+                error = f"folder '{folder}' is not in the model records."
+                self.add_validation_error_to_log(model_record_key=folder, error=error)
+
+        print()
+        print(f"{self.all_styles=}")
+        print(f"{self.all_baseline_categories=}")
+        print(f"{self.all_tags=}")
+        print(f"{self.all_model_hosts=}")
+
+        print()
+        print(f"Total number of models: {len(self.all_model_records)}")
+        print(f"Total number of showcase folders: {len(final_on_disk_showcase_folders_names)}")
+
+        print()
+        print(f"Total number of models with errors: {len(self.all_validation_errors_log)}")
+        print()
+        print("Errors and warnings are listed above on lines prefixed with `-> `")
+
+    @override
+    def write_out_records(self) -> None:
+        sanity_check: dict[str, Legacy_StableDiffusion_ModelRecord] = {
+            key: value
+            for key, value in self.all_model_records.items()
+            if isinstance(value, Legacy_StableDiffusion_ModelRecord)
+        }
+        if len(sanity_check) != len(self.all_model_records):
+            raise ValueError("CRITICAL: Not all records are of the correct type.")
+
+        modelReference = Legacy_StableDiffusion_ModelReference(
+            baseline_categories=self.all_baseline_categories,
+            styles=self.all_styles,
+            tags=self.all_tags,
+            model_hosts=self.all_model_hosts,
+            models=sanity_check,
+        )
+        jsonToWrite = modelReference.json(
+            indent=4,
+            exclude_defaults=True,
+            exclude_none=True,
+            exclude_unset=True,
+            exclude={"nsfw"},
+        )
+
+        try:
+            # If this fails, we have a problem. By definition, the model reference should be converted by this point
+            # and ready to be cast to the new model reference type.
+            StableDiffusion_ModelReference(**json.loads(jsonToWrite))
+        except ValidationError as e:
+            print(e)
+            print("CRITICAL: Failed to convert to new model reference type.")
+            raise e
+
+        with open(self.converted_database_file_path, "w") as testfile:
+            testfile.write(jsonToWrite)
+
+        print("Converted database passes validation and was written to disk successfully.")
+        print(f"Converted database written to: {self.converted_database_file_path}")
 
     def get_existing_showcases(
         self,
@@ -564,15 +609,23 @@ if __name__ == "__main__":
     sd_converter = LegacyStableDiffusionConverter(
         legacy_folder_path=Path(__file__).parent,
         target_file_folder=Path(__file__).parent.parent,
-        debug_mode=False,
+        debug_mode=True,
         print_errors=True,
     )
     sd_converter.normalize_and_convert()
 
-    cn_converter = LegacyControlnetConverter(
-        legacy_folder_path=Path(__file__).parent,
-        target_file_folder=Path(__file__).parent.parent,
-        debug_mode=False,
-        print_errors=True,
-    )
-    cn_converter.normalize_and_convert()
+    non_stablediffusion = [
+        x for x in consts.MODEL_REFERENCE_CATEGORIES if x != consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION
+    ]
+
+    nor_clip = [x for x in non_stablediffusion if x != consts.MODEL_REFERENCE_CATEGORIES.CLIP]
+
+    for model_category in nor_clip:
+        converter = BaseLegacyConverter(
+            legacy_folder_path=Path(__file__).parent,
+            target_file_folder=Path(__file__).parent.parent,
+            model_reference_category=model_category,
+            debug_mode=True,
+            print_errors=True,
+        )
+        converter.normalize_and_convert()
