@@ -107,6 +107,11 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
     """Whether the model is NSFW or not."""
 
 
+class CLIP_ModelRecord(Generic_ModelRecord):
+
+    pretrained_name: str | None
+
+
 class Generic_ModelReference(BaseModel):
     models: Mapping[str, Generic_ModelRecord]
     """A dictionary of all the models."""
@@ -130,7 +135,30 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
     """A dictionary of all the models."""
 
 
-MODEL_REFERENCE_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[StableDiffusion_ModelRecord]] = {
-    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: StableDiffusion_ModelRecord,  # FIXME
-    MODEL_REFERENCE_CATEGORIES.CONTROLNET: StableDiffusion_ModelRecord,  # FIXME
+class CLIP_ModelReference(Generic_ModelReference):
+    models: Mapping[str, CLIP_ModelRecord]
+
+
+MODEL_REFERENCE_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[Generic_ModelRecord]] = {
+    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: StableDiffusion_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.CONTROLNET: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.CLIP: CLIP_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.BLIP: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.ESRGAN: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.GFPGAN: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.CODEFORMER: Generic_ModelRecord,
 }
+"""A lookup for the model record type based on the model category. See also `MODEL_REFERENCE_TYPE_LOOKUP`."""
+
+MODEL_REFERENCE_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[Generic_ModelReference]] = {
+    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: StableDiffusion_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.CONTROLNET: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.CLIP: CLIP_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.BLIP: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.ESRGAN: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.GFPGAN: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.CODEFORMER: Generic_ModelReference,
+}
+"""A lookup for the model reference type based on the model category. See also `MODEL_REFERENCE_RECORD_TYPE_LOOKUP`."""

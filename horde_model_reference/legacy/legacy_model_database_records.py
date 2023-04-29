@@ -46,6 +46,12 @@ class Legacy_Generic_ModelRecord(BaseModel):
     model_purpose: MODEL_PURPOSE | None
 
 
+class Legacy_CLIP_ModelRecord(Legacy_Generic_ModelRecord):
+    """A model entry in the legacy model reference. Note that `.dict()` exports to the new model reference format."""
+
+    pretrained_name: str | None
+
+
 class Legacy_StableDiffusion_ModelRecord(Legacy_Generic_ModelRecord):
     """A model entry in the legacy model reference. Note that `.dict()` exports to the new model reference format."""
 
@@ -99,7 +105,7 @@ class Legacy_StableDiffusion_ModelReference(Legacy_Generic_ModelReference):
 
 MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[Legacy_Generic_ModelRecord]] = {
     MODEL_REFERENCE_CATEGORIES.BLIP: Legacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.CLIP: Legacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.CLIP: Legacy_CLIP_ModelRecord,
     MODEL_REFERENCE_CATEGORIES.CODEFORMER: Legacy_Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORIES.CONTROLNET: Legacy_Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORIES.ESRGAN: Legacy_Generic_ModelRecord,
