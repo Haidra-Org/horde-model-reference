@@ -7,7 +7,7 @@
                     {
                         "file_name": "ViT-L-14.pt",
                         "file_url": "https://openaipublic.azureedge.net/clip/models/b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836/ViT-L-14.pt",
-                        "sha256sum": "FIXME"
+                        "sha256sum": "b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836"
                     }
                 ]
             },
@@ -20,7 +20,6 @@
                     {
                         "file_name": "coca_ViT-L-14.pt",
                         "file_url": "https://huggingface.co/laion/mscoco_finetuned_CoCa-ViT-L-14-laion2B-s13B-b90k/resolve/main/open_clip_pytorch_model.bin",
-                        "sha256sum": "FIXME"
                     }
                 ]
             },
@@ -33,7 +32,6 @@
                     {
                         "file_name": "ViT-bigG-14.pt",
                         "file_url": "https://huggingface.co/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k/resolve/main/open_clip_pytorch_model.bin",
-                        "sha256sum": "FIXME"
                     }
                 ]
             },
@@ -47,7 +45,6 @@
                     {
                         "file_name": "ViT-g-14.pt",
                         "file_url": "https://huggingface.co/laion/CLIP-ViT-g-14-laion2B-s12B-b42K/resolve/main/open_clip_pytorch_model.bin",
-                        "sha256sum": "FIXME"
                     }
                 ]
             },
@@ -61,7 +58,6 @@
                     {
                         "file_name": "ViT-H-14.pt",
                         "file_url": "https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/resolve/main/open_clip_pytorch_model.bin",
-                        "sha256sum": "FIXME"
                     }
                 ]
             },
