@@ -1,42 +1,4 @@
 {
-    "baseline_categories": {
-        "stable_diffusion_2_768": 16,
-        "stable_diffusion_1": 163,
-        "stable_diffusion_2_512": 1
-    },
-    "styles": {
-        "generalist": 32,
-        "anime": 34,
-        "furry": 4,
-        "artistic": 63,
-        "other": 30,
-        "realistic": 17
-    },
-    "tags": {
-        "anime": 35,
-        "manga": 1,
-        "cyberpunk": 1,
-        "tv show": 1,
-        "booru": 5,
-        "retro": 4,
-        "character": 7,
-        "hentai": 5,
-        "scenes": 2,
-        "low poly": 1,
-        "cg": 2,
-        "sketch": 1,
-        "high resolution": 1,
-        "landscapes": 2,
-        "comic": 1,
-        "cartoon": 1,
-        "painting": 1,
-        "game": 1
-    },
-    "model_hosts": {
-        "huggingface.co": 145,
-        "sexy.canine.wf": 3,
-        "civitai.com": 32
-    },
     "models": {
         "stable_diffusion_2.1": {
             "name": "stable_diffusion_2.1",
@@ -53,6 +15,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/stable_diffusion_2_1/01_juice.webp",
@@ -74,6 +37,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/stable_diffusion/01_racebannin.webp",
@@ -96,6 +60,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime"
@@ -121,6 +86,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/furry_epoch/01_gigachad.webp"
@@ -141,6 +107,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/yiffy/01_pika.webp",
@@ -162,6 +129,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/zack3d/01_gigachad.webp"
@@ -182,6 +150,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -201,12 +170,13 @@
                 "download": [
                     {
                         "file_name": "coloringbook.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/5978?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/5978?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "ee10b26e6cd95370fdbd5f3a93684dc70ad67d505d9e21cc364552a7ca37a152",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "trigger": [
                 "colr_001"
@@ -228,6 +198,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/arcane_diffusion/01_bigdowg.jpg",
@@ -253,6 +224,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/squishmallow_diffusion/01_bigdawg.webp"
@@ -277,6 +249,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/spider_verse_diffusion/01_bigdowg.webp"
@@ -301,6 +274,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/archer_diffusion/01_bigdowg.webp"
@@ -325,6 +299,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/elden_ring_diffusion/01_dethinhfil.webp",
@@ -350,6 +325,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/robo_diffusion/01_bigdowg.webp"
@@ -374,6 +350,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/mo_di_diffusion/01_bigdowg.webp"
@@ -398,6 +375,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/classic_animation_diffusion/01_bigdowg.jpg"
@@ -422,6 +400,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/xynthii_diffusion/01_bigdowg.webp"
@@ -446,6 +425,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/comic_diffusion/01_gigachad.webp"
@@ -474,6 +454,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/tron_legacy_diffusion/01_gigachad.webp"
@@ -498,6 +479,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microworlds/01_bigdowg.jpg",
@@ -523,6 +505,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/zeipher_female_model/01_bigdowg.webp"
@@ -544,6 +527,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/redshift_diffusion/01_bigdowg.jpg"
@@ -568,6 +552,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/borderlands/01_gigachad.webp",
@@ -593,6 +578,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -623,6 +609,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/midjourney_diffusion/01_bigdowg.webp",
@@ -648,6 +635,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/papercut_diffusion/01_bigdowg.jpg"
@@ -672,6 +660,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/aio_pixel_art/01_monarch.webp"
@@ -697,6 +686,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/jwst_deep_space_diffusion/01_bigdowg.webp"
@@ -721,6 +711,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/app_icon_diffusion/01_bigdowg.webp"
@@ -745,6 +736,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/mega_merge_diffusion/01_gigachad.webp"
@@ -766,6 +758,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/voxel_art_diffusion/01_dethinhfil.webp"
@@ -790,6 +783,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/van_gogh_diffusion/01_bigdowg.webp"
@@ -814,6 +808,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -841,6 +836,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/bubblydubbly/01_bigdowg.webp",
@@ -866,6 +862,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dungeons_and_diffusion/01_bigdowg.webp",
@@ -888,6 +885,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/clazy/01_bigdowg.webp",
@@ -913,6 +911,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/nitro_diffusion/01_gigachad.webp"
@@ -939,6 +938,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/samdoesarts_ultmerge/01_bigdowg.webp"
@@ -963,6 +963,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/synthwave/01_bigdowg.webp"
@@ -987,6 +988,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vectorartz/01.webp",
@@ -1012,6 +1014,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -1040,6 +1043,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -1068,6 +1072,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -1100,6 +1105,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/guohua_diffusion/01_ghostdragon11.webp",
@@ -1125,6 +1131,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/inkpunk_diffusion/01_bigdowg.webp"
@@ -1149,6 +1156,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/fantasy_card_diffusion/01_gigachad.webp"
@@ -1173,6 +1181,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/knollingcase/01_gigachad.webp",
@@ -1199,6 +1208,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/midjourney_paintart/01_gigachad.webp",
@@ -1224,6 +1234,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/rpg/01_gigachad.webp"
@@ -1245,6 +1256,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime"
@@ -1269,6 +1281,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime"
@@ -1293,6 +1306,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/wavyfusion/01_gigachad.webp"
@@ -1317,6 +1331,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/papercutcraft/01_gigachad.webp"
@@ -1341,6 +1356,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/kurzgesagt/01_gigachad.webp"
@@ -1365,6 +1381,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/chromav5/01_gigachad.webp"
@@ -1389,6 +1406,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dreamlike_diffusion/01_gigachad.webp"
@@ -1413,6 +1431,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/analog_diffusion/01_gigachad.webp"
@@ -1437,6 +1456,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/asim_simpsons/01_gigachad.webp"
@@ -1461,6 +1481,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/funko_diffusion/01_gigachad.webp"
@@ -1485,6 +1506,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/double_exposure_diffusion/01_gigachad.webp"
@@ -1509,6 +1531,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microscopic/01_gigachad.webp"
@@ -1533,6 +1556,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/balloon_art/01_gigachad.webp"
@@ -1557,6 +1581,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_512",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/future_diffusion/01_gigachad.webp"
@@ -1576,12 +1601,13 @@
                 "download": [
                     {
                         "file_name": "seek-art-mega.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/22808?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/22808?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "5600db52c98225fcd410e43c2995c7ec2aaa34dd4dc94cad59ecddf240dbaf23",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/seek_art_mega/01_gigachad.webp"
@@ -1603,6 +1629,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/valorant_diffusion/01_gigachad.webp"
@@ -1627,6 +1654,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/hassanblend/01_gigachad.webp",
@@ -1649,6 +1677,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -1675,6 +1704,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/gta5_artwork_diffusion/01_bettername.webp"
@@ -1699,6 +1729,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -1724,6 +1755,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/smoke_diffusion/01_voodoocode.webp"
@@ -1748,6 +1780,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/supermarionation/supermarionation_v2_prev1.jpg"
@@ -1772,6 +1805,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dreamlike_photoreal/preview1.jpg",
@@ -1794,6 +1828,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/portraitplus/01_gigachad.webp"
@@ -1818,6 +1853,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vintedois_diffusion/01_juice.webp"
@@ -1842,6 +1878,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/darkest_diffusion/gandr-collage.jpg"
@@ -1866,6 +1903,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/eternos/01_eternos.webp"
@@ -1890,6 +1928,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/min_illust_background/01_min.webp"
@@ -1914,6 +1953,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dark_victorian_diffusion/01_victorian.webp"
@@ -1938,6 +1978,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dnd_item/01_voodoocode.webp"
@@ -1962,6 +2003,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/modernart_diffusion/01_voodoocode.webp",
@@ -1987,6 +2029,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/hasdx/01_gigachad.webp"
@@ -2003,12 +2046,13 @@
                 "download": [
                     {
                         "file_name": "liberty.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/6908?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/6908?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "b59a47e81c6b110dc02b8141928b44f2396928469f999f9228bc0920eb89de10",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/liberty/01_liberty.webp"
@@ -2030,6 +2074,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/protogen/01_gigachad.webp"
@@ -2051,6 +2096,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/3dkx/01_airic.webp",
@@ -2068,12 +2114,13 @@
                 "download": [
                     {
                         "file_name": "moedel.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/2410?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/2410?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "b2c2e471f84ad2581238719c7f49a2a6e5e87960fdaf2828696e7af8cae00f5d",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/moedel/01_moedel.webp"
@@ -2090,12 +2137,13 @@
                 "download": [
                     {
                         "file_name": "DreamLikeSamKuvshinov.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/1642",
+                        "file_url": "https://civitai.com/api/download/models/1642?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "d43a0899eb8be52939b612189e6e93d99722888fd74999baae214cfb78192188",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dreamlikesamkuvshinov/01_gigachad.webp"
@@ -2122,6 +2170,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/sygil_dev_diffusion/01_sygil.webp"
@@ -2138,12 +2187,13 @@
                 "download": [
                     {
                         "file_name": "MoistMix.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/5955?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/5955?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "a01de4dd971acbf013363b202cac71dc4db7d7cfa36ca63b99d662dd89c520c6",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/moistmix/01_gigachad.webp"
@@ -2160,12 +2210,12 @@
                 "download": [
                     {
                         "file_name": "Healys.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/1498",
-                        "sha256sum": "8416edf88cf48cc59c6cd36aece35acd4ae465aea934b7ff1e29b3f1049e2161",
-                        "known_slow_download": true
+                        "file_url": "https://huggingface.co/BlancOfficial/Healy_AnimeBlend/resolve/main/healySAnimeBlend_17.ckpt",
+                        "sha256sum": "8416edf88cf48cc59c6cd36aece35acd4ae465aea934b7ff1e29b3f1049e2161"
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime"
@@ -2174,6 +2224,29 @@
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/healys_anime_blend/01_gigachad.webp"
             ],
             "homepage": "https://civitai.com/models/1400/healys-anime-blend"
+        },
+        "GuFeng": {
+            "name": "GuFeng",
+            "description": "This is a model of ancient Chinese style, and it also belongs to the model series with ink and water orientation",
+            "version": "2.0",
+            "style": "anime",
+            "nsfw": false,
+            "config": {
+                "download": [
+                    {
+                        "file_name": "GuFeng.safetensors",
+                        "file_url": "https://civitai.com/api/download/models/42796",
+                        "sha256sum": "1f4fd502679cdbddb168f36ca11de3787097497eeb0e4f85bd1102618178e332",
+                        "known_slow_download": true
+                    }
+                ]
+            },
+            "model_purpose": "image_generation",
+            "baseline": "stable_diffusion_1",
+            "tags": [
+                "anime"
+            ],
+            "homepage": "https://civitai.com/models/12903/gufeng"
         },
         "Elldreth's Lucid Mix": {
             "name": "Elldreth's Lucid Mix",
@@ -2185,12 +2258,13 @@
                 "download": [
                     {
                         "file_name": "Elldreths_Lucid_Mix.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/1450?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/1450?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "d0cf7cf924c6a6f42eabed6729b8d6df3ef66ba2b4c35cb3d7e2f54a5d878166",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/elldreths_lucid_mix/01_gigachad.webp"
@@ -2212,6 +2286,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://huggingface.co/Corruptlake/Sci-Fi-Diffusion"
         },
@@ -2230,6 +2305,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/ultraskin/01_voodoocode.webp",
@@ -2255,6 +2331,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/sonic_diffusion/01_gigachad.webp"
@@ -2274,12 +2351,13 @@
                 "download": [
                     {
                         "file_name": "PPP.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/1304",
+                        "file_url": "https://civitai.com/api/download/models/1304?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "40c6475ecb9aacee74f19a92a43d36b4485f16dda90acbdff79801e9c1798bb4",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/ppp/01_gigachad.webp"
@@ -2300,6 +2378,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime"
@@ -2324,6 +2403,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/protogen_infinity/01_gigachad.webp"
@@ -2345,6 +2425,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -2371,6 +2452,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dreamshaper/01_gigachad.webp"
@@ -2392,6 +2474,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/zelda_botw/01_gigachad.webp"
@@ -2416,6 +2499,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/marvel_diffusion/01_gigachad.webp"
@@ -2435,12 +2519,13 @@
                 "download": [
                     {
                         "file_name": "t-shirt_diffusion.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/5365?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/5365?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "a7832ba06828551744094e7a80225bae233f0aac1cf579dff764b3d0e845da8e",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/t_shirt_diffusion/01_gigachad.webp"
@@ -2465,6 +2550,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/lawlass_yiff_mix/01_lawlas.webp"
@@ -2486,6 +2572,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dgspitzer_art_diffusion/01_dgs.webp"
@@ -2511,12 +2598,13 @@
                 "download": [
                     {
                         "file_name": "RealisticVision.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/6987?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/6987?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "77e392958a6b2ce335fe6ed0cb8ebb9f5cfb48706bfde9c28d4721f4ce65619e",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/realistic_vision/01_realisticvision.webp"
@@ -2538,6 +2626,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/dan_mumford_style/01_dan.webp"
@@ -2559,12 +2648,13 @@
                 "download": [
                     {
                         "file_name": "PFG.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/1291",
+                        "file_url": "https://civitai.com/api/download/models/1291?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "5a369d04a05862bdf83acb86fa9aa4ea65c9bcc4102badc01821e851f34cc1d7",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/pfg/01_pfg.webp"
@@ -2581,12 +2671,13 @@
                 "download": [
                     {
                         "file_name": "EpicDiffusion.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/5677?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/5677?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "ee6266109f4060b9bf134bf670ea75e663ec356352db6140b86828917340b162",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/epic_diffusion/01_epic.webp"
@@ -2608,11 +2699,32 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/deliberate/01_deliberate.webp"
             ],
             "homepage": "https://civitai.com/models/4823/deliberate"
+        },
+        "Edge Of Realism": {
+            "name": "Edge Of Realism",
+            "description": "A spin off from Level4. Built to produce high quality photos. Sometimes photos will come out as uncanny as they are on the edge of realism.",
+            "version": "2",
+            "style": "realistic",
+            "nsfw": true,
+            "config": {
+                "download": [
+                    {
+                        "file_name": "edgeOfRealism.safetensors",
+                        "file_url": "https://civitai.com/api/download/models/51913",
+                        "sha256sum": "7f6146b8a9ad2a92b739954c1d5ef34e26fb0b65eef2d70ffd128e6046a3d0ab",
+                        "known_slow_download": true
+                    }
+                ]
+            },
+            "model_purpose": "image_generation",
+            "baseline": "stable_diffusion_1",
+            "homepage": "https://civitai.com/models/21813/edge-of-realism"
         },
         "Concept Sheet": {
             "name": "Concept Sheet",
@@ -2624,12 +2736,13 @@
                 "download": [
                     {
                         "file_name": "ConceptSheet.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/5635?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/5635?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "a938d435404da008edcb1a562cdf4f52363ac71fd7a7582839cc3cb068710ad2",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/concept_sheet/01_concept.webp"
@@ -2654,6 +2767,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/charhelper/01_charhelper.webp"
@@ -2683,6 +2797,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "tags": [
                 "anime",
@@ -2713,6 +2828,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/pix2pix/01_pix2pix.webp",
@@ -2736,6 +2852,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vivid_watercolors/01_vivid.webp"
@@ -2760,6 +2877,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime"
@@ -2784,6 +2902,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/openniji/01_openniji.webp"
@@ -2805,6 +2924,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime"
@@ -2824,12 +2944,13 @@
                 "download": [
                     {
                         "file_name": "pulp_vectorart.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/5859?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/5859?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "0c27deb0c848bc97330d17c6916f651ccc2bf154905d1e29f9dcdfc6d12ee1c5",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/pulp_vector_art/01_pulpvector.webp"
@@ -2850,12 +2971,13 @@
                 "download": [
                     {
                         "file_name": "rainbowpatch.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/6432?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/6432?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "d9d11a9ff2584632d40fd7b51821c4711ed98582937edbf0d96558ac09f97755",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/rainbowpatch/01_rainbow.webp"
@@ -2875,12 +2997,13 @@
                 "download": [
                     {
                         "file_name": "vector_art.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/5265?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/5265?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "360d741263d05dd2fc3efe42c057a6e1faf84b30e634934fac5febfcd632f5d6",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vector_art/01_vectorart.webp"
@@ -2900,12 +3023,13 @@
                 "download": [
                     {
                         "file_name": "tshirt-print-designs.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/6098?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/6098?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "d7686e58ab3cd745515bcf6489a5bec812458b002482f5d3b955c393be95c4a7",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/t_shirt_print_designs/01_tshirt.webp"
@@ -2930,6 +3054,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/gorynichmix/01_gory.webp"
@@ -2951,6 +3076,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -2971,12 +3097,13 @@
                 "download": [
                     {
                         "file_name": "URPM.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/15640?type=Pruned%20Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/15640?type=Pruned%20Model&format=PickleTensor&size=pruned&fp=fp16",
                         "sha256sum": "ce9f23b04771e636b37b7d52ff0d0f20f176f170af1ebbe9203d2b3e4a88522e",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/urpm/01_urpm.webp"
@@ -2992,12 +3119,13 @@
                 "download": [
                     {
                         "file_name": "CDLandscapeMix.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/7304?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/7304?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "469820821518540111673d6ba590cf2010ea4bc4a758e47fcf2b1ae23408b016",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/cheese_daddys_landscape_mix/01_landscape.webp"
@@ -3020,6 +3148,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/rachel_walker_watercolors/01_rachel.webp",
@@ -3045,6 +3174,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/project_unreal_engine_5/01_unreal.webp"
@@ -3066,6 +3196,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/unstable_ink_dream/01_inkdream.webp"
@@ -3090,12 +3221,13 @@
                 "download": [
                     {
                         "file_name": "PRMJ.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/7592?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/7592?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "e40298941c61102383e4839649c47610fd7fe58d0e052b041767d6a321d8f83a",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/prmj/01_prmj.webp"
@@ -3112,12 +3244,13 @@
                 "download": [
                     {
                         "file_name": "Elldreths_Retro_Mix.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/1575?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/1575?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "8c6da97f03576dde964f3e508ef5595a28f0898dcdb275f1601d410e1c8adc03",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/elldreths_retro_mix/01_elldreth.webp"
@@ -3146,6 +3279,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/vinteprotogenmix/01_vinte.webp"
@@ -3167,6 +3301,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://huggingface.co/NerdyRodent/rodent-diffusion-1-5"
         },
@@ -3185,6 +3320,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3210,6 +3346,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/woop_woop_photo/001_muted001.webp"
@@ -3231,6 +3368,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3257,6 +3395,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3283,6 +3422,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microcasing/01_microcasing.webp"
@@ -3304,6 +3444,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/chilloutmix/01_chilloutmix.webp"
@@ -3324,6 +3465,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/microchars/01_people.webp",
@@ -3347,6 +3489,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/8026/micro-critters-merge"
         },
@@ -3365,6 +3508,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3386,6 +3530,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3412,6 +3557,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/experience/01_experience.webp"
@@ -3433,6 +3579,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime"
@@ -3454,6 +3601,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3479,6 +3627,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3488,6 +3637,30 @@
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/rev_animated/001_muted.webp"
             ],
             "homepage": "https://civitai.com/models/7371/rev-animated"
+        },
+        "526Mix-Animated": {
+            "name": "526Mix-Animated",
+            "description": "The goal of this model was to anchor 526Mix's whimsical and artistic personality into anime. 526Mix can do a pretty cool anime style (and other 2D styles), but it can be a bit unreliable at times. This simple mix increases the reliability, depth, and nuance in 526Mix's anime and anime-esque capabilities.",
+            "version": "1.0",
+            "style": "anime",
+            "nsfw": true,
+            "config": {
+                "download": [
+                    {
+                        "file_name": "526mixAnimated.safetensors",
+                        "file_url": "https://civitai.com/api/download/models/42086",
+                        "sha256sum": "5c0b94405672bff73bb16fc9f2b4335695021494de16ddb1709ea7ee0f2e1b74",
+                        "known_slow_download": true
+                    }
+                ]
+            },
+            "model_purpose": "image_generation",
+            "baseline": "stable_diffusion_1",
+            "tags": [
+                "anime",
+                "character"
+            ],
+            "homepage": "https://civitai.com/models/35893/526mix-animated"
         },
         "A to Zovya RPG": {
             "name": "A to Zovya RPG",
@@ -3504,6 +3677,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "homepage": "https://civitai.com/models/8124/a-to-zovya-rpg-artists-tools-15-and-21"
         },
@@ -3523,6 +3697,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/7279/colorful"
         },
@@ -3542,6 +3717,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/8067/movie-diffusion-v12"
         },
@@ -3560,6 +3736,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://huggingface.co/xiaolxl/GuoFeng3"
         },
@@ -3578,6 +3755,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3606,6 +3784,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3628,6 +3807,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3651,6 +3831,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/8616/hrl-hyper-realistic-looking-3"
         },
@@ -3669,6 +3850,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -3676,6 +3858,26 @@
                 "cg"
             ],
             "homepage": "https://civitai.com/models/8563/uhmami"
+        },
+        "Neurogen": {
+            "name": "Neurogen",
+            "description": "This model gives a very good detail of skin and textures. Great for close-up photorealistic portraits as well as various characters and models.",
+            "version": "1.1",
+            "style": "realistic",
+            "nsfw": true,
+            "config": {
+                "download": [
+                    {
+                        "file_name": "neurogen.safetensors",
+                        "file_url": "https://civitai.com/api/download/models/29681",
+                        "sha256sum": "7ce537a0b7cca96f6862dda000b0d4054b8b996ae5859ddb2c196211447f99fc",
+                        "known_slow_download": true
+                    }
+                ]
+            },
+            "model_purpose": "image_generation",
+            "baseline": "stable_diffusion_1",
+            "homepage": "https://civitai.com/models/21616/neurogen-v11"
         },
         "NeverEnding Dream": {
             "name": "NeverEnding Dream",
@@ -3692,6 +3894,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "booru"
@@ -3712,12 +3915,13 @@
                 "download": [
                     {
                         "file_name": "Protogen_Anime.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/4007?type=Pruned%20Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/4007?type=Pruned%20Model&format=PickleTensor&size=pruned&fp=fp16",
                         "sha256sum": "eea02a02bfa43a929306f4daddad7698d7163055ed35ead53e4302c941c87b76",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime"
@@ -3734,12 +3938,13 @@
                 "download": [
                     {
                         "file_name": "Synthpunk.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/1144?format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/1144?type=Model&format=PickleTensor&size=pruned&fp=fp16",
                         "sha256sum": "dc4c67171e2eb64b1a79da7fde1cb3fcbef65364b12c8f5e30a0141fd8c88233",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/1102/synthwavepunk"
         },
@@ -3753,12 +3958,13 @@
                 "download": [
                     {
                         "file_name": "graphic-art.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/9297?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/9297?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "72adf3e51f689cdc54cf0672a74a7a281d9f38e05bd6b2e730ea962c3a4014fa",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/graphic_art/01_graphicart.webp"
@@ -3780,6 +3986,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/illuminati_diffusion/001_muted001.webp",
@@ -3802,6 +4009,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://huggingface.co/Xynon/SD-Silicon"
         },
@@ -3820,6 +4028,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/fking_scifi/01_scifi.webp",
@@ -3845,6 +4054,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/realbiter/001_voodoocode.webp"
@@ -3866,6 +4076,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/14065"
         },
@@ -3879,12 +4090,13 @@
                 "download": [
                     {
                         "file_name": "OrbAI.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/16595?type=Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/16595?type=Model&format=PickleTensor&size=full&fp=fp16",
                         "sha256sum": "47563c68cf1aff6cd970dbeb4db0233f706ce264e8f8eb168d5f7aceeea8d549",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "trigger": [
                 "orbai"
@@ -3906,6 +4118,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "showcases": [
                 "https://raw.githubusercontent.com/tazlin/AI-Horde-image-model-reference/librarize-modeldb/horde_model_reference/showcase/realism_engine/001_muted001.webp"
@@ -3927,6 +4140,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/10720/jim-eidomode"
         },
@@ -3945,6 +4159,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/11718/dungeons-n-waifus"
         },
@@ -3963,6 +4178,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "comic",
@@ -3986,6 +4202,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -4008,6 +4225,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime",
@@ -4030,6 +4248,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "anime"
@@ -4054,6 +4273,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "tags": [
                 "painting",
@@ -4079,6 +4299,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://huggingface.co/NoCrypt/SomethingV2_2"
         },
@@ -4097,6 +4318,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/21695"
         },
@@ -4115,6 +4337,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "trigger": [
                 "pixelart"
@@ -4136,6 +4359,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1"
         },
         "PVC": {
@@ -4153,6 +4377,7 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_2_768",
             "trigger": [
                 "pvc",
@@ -4160,6 +4385,31 @@
                 "nendoroid"
             ],
             "homepage": "https://huggingface.co/p1atdev/pvc-v3"
+        },
+        "Aurora": {
+            "name": "Aurora",
+            "description": "Aurora is a Stable Diffusion model, similar to its predecessor Kenshi, with the goal of capturing my own feelings towards the anime styles I desire.The name Aurora, which means 'dawn' in Latin, represents the idea of a new beginning and a fresh start.",
+            "version": "1.0",
+            "style": "anime",
+            "nsfw": false,
+            "config": {
+                "download": [
+                    {
+                        "file_name": "aurora.safetensors",
+                        "file_url": "https://civitai.com/api/download/models/45601",
+                        "sha256sum": "1b5f8211ec04926035ac81033518c802db9964e93630ab4698b6365b9811c7eb",
+                        "known_slow_download": true
+                    }
+                ]
+            },
+            "model_purpose": "image_generation",
+            "baseline": "stable_diffusion_1",
+            "trigger": [
+                "sle",
+                "mksks style",
+                "detailed background"
+            ],
+            "homepage": "https://civitai.com/models/40199/aurora"
         },
         "Char": {
             "name": "Char",
@@ -4171,14 +4421,35 @@
                 "download": [
                     {
                         "file_name": "Char.ckpt",
-                        "file_url": "https://civitai.com/api/download/models/24806?type=Pruned%20Model&format=PickleTensor",
+                        "file_url": "https://civitai.com/api/download/models/24806?type=Pruned%20Model&format=PickleTensor&size=pruned&fp=fp16",
                         "sha256sum": "20fd9992efbb5dab68d054932d228865a1bc11965a285e84f82cef667ad6e3c7",
                         "known_slow_download": true
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/20842"
+        },
+        "CamelliaMix 2.5D": {
+            "name": "CamelliaMix 2.5D",
+            "description": "Semi-realistic model, Camellia Mix 2.5D V2",
+            "version": "2.0",
+            "style": "anime",
+            "nsfw": false,
+            "config": {
+                "download": [
+                    {
+                        "file_name": "camelliamix25D.safetensors",
+                        "file_url": "https://civitai.com/api/download/models/48859",
+                        "sha256sum": "ed4f26c284bc9baaeee63f10ad823486bcc0dd6fcc03c9472fd8c44e508889a1",
+                        "known_slow_download": true
+                    }
+                ]
+            },
+            "model_purpose": "image_generation",
+            "baseline": "stable_diffusion_1",
+            "homepage": "https://civitai.com/models/44219"
         },
         "Perfect World": {
             "name": "Perfect World",
@@ -4195,8 +4466,32 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/8281/perfect-world"
+        },
+        "JoMad Diffusion": {
+            "name": "JoMad Diffusion",
+            "description": "SD 1.5 model trained on a sample of Joe Madureiras artwork, this model was combined with another anime style model to create the blend uploaded here.",
+            "version": "1.0",
+            "style": "anime",
+            "nsfw": false,
+            "config": {
+                "download": [
+                    {
+                        "file_name": "jomadDiffusion.ckpt",
+                        "file_url": "https://civitai.com/api/download/models/1286?type=Model&format=PickleTensor&size=full&fp=fp16",
+                        "sha256sum": "bfdb1bc07f86a37363bdf04b778e0d528d28f25d2b78becc66f5b725452e4e62",
+                        "known_slow_download": true
+                    }
+                ]
+            },
+            "model_purpose": "image_generation",
+            "baseline": "stable_diffusion_1",
+            "trigger": [
+                "style of joemadureira"
+            ],
+            "homepage": "https://civitai.com/models/1223/jomad-diffusion"
         },
         "RCNZ Gorilla With A Brick": {
             "name": "RCNZ Gorilla With A Brick",
@@ -4213,8 +4508,67 @@
                     }
                 ]
             },
+            "model_purpose": "image_generation",
             "baseline": "stable_diffusion_1",
             "homepage": "https://civitai.com/models/22747/rcnz-gorilla-with-a-brick"
+        },
+        "Ether Real Mix": {
+            "name": "Ether Real Mix",
+            "description": "Ether Real Mix is a realistic to semi-realistic anime style model tuned with the flexibility for general purpose use (hopefully). It still has some shortcomings inherit to anime models such as biases in generating females and humans.",
+            "version": "1.1",
+            "style": "other",
+            "nsfw": false,
+            "config": {
+                "download": [
+                    {
+                        "file_name": "etherRealMix.safetensors",
+                        "file_url": "https://civitai.com/api/download/models/23036",
+                        "sha256sum": "0ec84979f876e0de9e11a3fa2856c16607df6ff14896c6660cbeda0f792d5134",
+                        "known_slow_download": true
+                    }
+                ]
+            },
+            "model_purpose": "image_generation",
+            "baseline": "stable_diffusion_1",
+            "homepage": "https://civitai.com/models/18207?modelVersionId=23036"
         }
+    },
+    "baseline_categories": {
+        "stable_diffusion_2_768": 16,
+        "stable_diffusion_1": 171,
+        "stable_diffusion_2_512": 1
+    },
+    "styles": {
+        "generalist": 32,
+        "anime": 39,
+        "furry": 4,
+        "artistic": 63,
+        "other": 31,
+        "realistic": 19
+    },
+    "tags": {
+        "anime": 37,
+        "manga": 1,
+        "cyberpunk": 1,
+        "tv show": 1,
+        "booru": 5,
+        "retro": 4,
+        "character": 8,
+        "hentai": 5,
+        "scenes": 2,
+        "low poly": 1,
+        "cg": 2,
+        "sketch": 1,
+        "high resolution": 1,
+        "landscapes": 2,
+        "comic": 1,
+        "cartoon": 1,
+        "painting": 1,
+        "game": 1
+    },
+    "model_hosts": {
+        "huggingface.co": 146,
+        "sexy.canine.wf": 3,
+        "civitai.com": 39
     }
 }

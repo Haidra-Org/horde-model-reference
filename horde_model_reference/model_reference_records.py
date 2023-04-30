@@ -1,58 +1,14 @@
-import enum
-from enum import Enum
+"""The model database pydantic models and associate enums/lookups."""
 from typing import Mapping
 
 from pydantic import BaseModel
 
-from horde_model_reference.consts import MODEL_REFERENCE_CATEGORIES
-
-
-class MODEL_PURPOSE(str, enum.Enum):
-    image_generation = "image_generation"
-    """The model is for image generation."""
-
-    controlnet = "controlnet"
-    """The model is a controlnet."""
-
-    clip = "clip"
-    """The model is a CLIP model."""
-
-    blip = "blip"
-    """The model is a BLIP model."""
-
-    post_processor = "post_processor"
-    """The model is a post processor of some variety."""
-
-
-MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, MODEL_PURPOSE] = {
-    MODEL_REFERENCE_CATEGORIES.CLIP: MODEL_PURPOSE.clip,
-    MODEL_REFERENCE_CATEGORIES.BLIP: MODEL_PURPOSE.blip,
-    MODEL_REFERENCE_CATEGORIES.CODEFORMER: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.CONTROLNET: MODEL_PURPOSE.controlnet,
-    MODEL_REFERENCE_CATEGORIES.ESRGAN: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.GFPGAN: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: MODEL_PURPOSE.image_generation,
-}
-
-
-class STABLEDIFFUSION_BASELINE(str, Enum):
-    """An enum of all the stable diffusion baselines."""
-
-    stable_diffusion_1 = "stable_diffusion_1"
-    stable_diffusion_2_768 = "stable_diffusion_2_768"
-    stable_diffusion_2_512 = "stable_diffusion_2_512"
-
-
-class MODEL_STYLES(str, Enum):
-    """An enum of all the model styles."""
-
-    generalist = "generalist"
-    anime = "anime"
-    furry = "furry"
-    artistic = "artistic"
-    other = "other"
-    realistic = "realistic"
+from horde_model_reference.meta_consts import (
+    MODEL_PURPOSE,
+    MODEL_REFERENCE_CATEGORIES,
+    MODEL_STYLES,
+    STABLEDIFFUSION_BASELINE,
+)
 
 
 class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
@@ -108,8 +64,8 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
 
 
 class CLIP_ModelRecord(Generic_ModelRecord):
-
     pretrained_name: str | None
+    # TODO docstring
 
 
 class Generic_ModelReference(BaseModel):
@@ -137,6 +93,7 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
 
 class CLIP_ModelReference(Generic_ModelReference):
     models: Mapping[str, CLIP_ModelRecord]
+    """A dictionary of all the models."""
 
 
 MODEL_REFERENCE_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[Generic_ModelRecord]] = {

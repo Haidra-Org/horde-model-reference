@@ -1,15 +1,22 @@
 """Helper classes to convert the legacy model reference to the new model reference format."""
+
+# If you're here in search of an explanation, please know that this isn't really
+# a set of classes exactly representative of the legacy model reference. It's
+# more of a hybrid representation of the legacy model reference and the new model.
+
+# These classes will only persist until the legacy model reference is fully deprecated.
+
 from typing import Mapping
 
 from pydantic import BaseModel
 
-from horde_model_reference.consts import MODEL_REFERENCE_CATEGORIES
-from horde_model_reference.model_database_records import MODEL_PURPOSE
+from horde_model_reference.model_reference_records import MODEL_PURPOSE
+from horde_model_reference.path_consts import MODEL_REFERENCE_CATEGORIES
 
 
 class Legacy_Config_FileRecord(BaseModel):
     # class Config:
-    # extra = "forbid"
+    #     extra = "forbid"
 
     path: str
     # md5sum: str | None
@@ -62,7 +69,7 @@ class Legacy_StableDiffusion_ModelRecord(Legacy_Generic_ModelRecord):
     trigger: list[str] | None
     homepage: str | None
 
-    def dict(
+    def dict(  # noqa: A003
         self,
         *,
         include=None,
@@ -71,7 +78,7 @@ class Legacy_StableDiffusion_ModelRecord(Legacy_Generic_ModelRecord):
         skip_defaults: bool | None = None,
         exclude_unset: bool = False,
         exclude_defaults: bool = False,
-        exclude_none: bool = False
+        exclude_none: bool = False,
     ):
         return super().dict(
             include=include,
