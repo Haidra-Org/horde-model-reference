@@ -1,0 +1,28 @@
+{
+    "models": {
+        "safety_checker": {
+            "name": "safety_checker",
+            "description": "Safety checker",
+            "config": {
+                "download": [
+                    {
+                        "file_name": "pytorch_model.bin",
+                        "file_url": "https://huggingface.co/CompVis/stable-diffusion-safety-checker/resolve/main/pytorch_model.bin",
+                        "sha256sum": "64B8393F1AFD5A0C1ED2AA5F341FA7C08286839A48F3743162A76A2835C808BD"
+                    },
+                    {
+                        "file_name": "config.json",
+                        "file_url": "https://huggingface.co/CompVis/stable-diffusion-safety-checker/resolve/main/config.json",
+                        "sha256sum": "C879A63EE73F528BC5EC148AAEA487B2B165F6A785F9CB55B90E590BA7977E0E"
+                    },
+                    {
+                        "file_name": "preprocessor_config.json",
+                        "file_url": "https://huggingface.co/CompVis/stable-diffusion-safety-checker/resolve/main/preprocessor_config.json",
+                        "sha256sum": "2A1DA83B5E1032AAEEF397552DDB408DCA0D8CD1DC58F61BF6ABF38D6F33A0A2"
+                    }
+                ]
+            },
+            "model_purpose": "post_processor"
+        }
+    }
+}

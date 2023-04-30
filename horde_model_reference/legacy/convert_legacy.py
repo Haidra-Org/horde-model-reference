@@ -7,13 +7,7 @@ from pathlib import Path
 from pydantic import ValidationError
 from typing_extensions import override
 
-from horde_model_reference import consts
-from horde_model_reference.consts import (
-    BASE_PATH,
-    LEGACY_REFERENCE_FOLDER,
-    MODEL_REFERENCE_CATEGORIES,
-    MODEL_REFERENCE_GITHUB_REPO,
-)
+from horde_model_reference import path_consts
 from horde_model_reference.legacy.legacy_model_database_records import (
     MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
     Legacy_Config_DownloadRecord,
@@ -23,11 +17,18 @@ from horde_model_reference.legacy.legacy_model_database_records import (
     Legacy_StableDiffusion_ModelRecord,
     Legacy_StableDiffusion_ModelReference,
 )
-from horde_model_reference.model_database_records import (
-    MODEL_PURPOSE_LOOKUP,
+from horde_model_reference.meta_consts import MODEL_PURPOSE_LOOKUP
+from horde_model_reference.model_reference_records import (
     MODEL_REFERENCE_TYPE_LOOKUP,
-    Generic_ModelReference,
     StableDiffusion_ModelReference,
+)
+from horde_model_reference.path_consts import (
+    BASE_PATH,
+    DEFAULT_SHOWCASE_FOLDER_NAME,
+    LEGACY_REFERENCE_FOLDER,
+    MODEL_REFERENCE_CATEGORIES,
+    MODEL_REFERENCE_GITHUB_REPO,
+    PACKAGE_NAME,
 )
 from horde_model_reference.util import model_name_to_showcase_folder_name
 
@@ -78,12 +79,12 @@ class BaseLegacyConverter:
         self.model_reference_type = MODEL_REFERENCE_LEGACY_TYPE_LOOKUP[model_reference_category]
 
         self.legacy_folder_path = Path(legacy_folder_path)
-        self.legacy_database_path = consts.get_model_reference_filename(
+        self.legacy_database_path = path_consts.get_model_reference_filename(
             model_reference_category=model_reference_category,
             basePath=legacy_folder_path,
         )
         self.converted_folder_path = Path(target_file_folder)
-        self.converted_database_file_path = consts.get_model_reference_filename(
+        self.converted_database_file_path = path_consts.get_model_reference_filename(
             model_reference_category=model_reference_category,
             basePath=target_file_folder,
         )
@@ -110,13 +111,14 @@ class BaseLegacyConverter:
             self.parse_record(model_record_key=model_record_key, model_record_in_progress=model_record_in_progress)
 
         self.post_parse_records()
+        self.write_out_validation_errors()
         self.write_out_records()
 
         return True
 
     def _iterate_over_input_records(
         self,
-        modelrecord_type: type[Legacy_Generic_ModelRecord],
+        model_record_type: type[Legacy_Generic_ModelRecord],
     ) -> typing.Iterator[tuple[str, Legacy_Generic_ModelRecord]]:
         raw_legacy_json_data: dict = {}
         """Return an iterator over the legacy model reference database.
@@ -134,8 +136,12 @@ class BaseLegacyConverter:
 
                 download = self.config_record_pre_parse(model_record_key, model_record_contents)
                 model_record_contents["config"]["download"] = download
-                model_record_contents["config"]["files"] = []
-                record_as_conversion_class = modelrecord_type(**model_record_contents)
+                del model_record_contents["config"]["files"]  # New format doesn't have 'files' in the config
+
+                if "showcases" in model_record_contents["config"]:
+                    model_record_contents["showcases"] = model_record_contents["config"]["showcases"]
+                    del model_record_contents["config"]["showcases"]
+                record_as_conversion_class = model_record_type(**model_record_contents)
                 self.all_model_records[model_record_key] = record_as_conversion_class
                 yield model_record_key, record_as_conversion_class
             except ValidationError as e:
@@ -154,11 +160,13 @@ class BaseLegacyConverter:
             model_record_key (str): The key of the model record.
             model_record_contents (dict): The contents of the model record.
         """
-        new_record_config_files_list: list[Legacy_Config_FileRecord] = []
-        new_record_config_download_list: list[Legacy_Config_DownloadRecord] = []
+        parsed_record_config_files_list: list[Legacy_Config_FileRecord] = []
+        parsed_record_config_download_list: list[Legacy_Config_DownloadRecord] = []
+
         if len(model_record_contents["config"]) > 2:
             error = f"{model_record_key} has more than 2 config entries."
             self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+
         sha_lookup = {}
         for config_entry in model_record_contents["config"]:
             if config_entry == "files":
@@ -166,16 +174,20 @@ class BaseLegacyConverter:
                     parsed_file_record = Legacy_Config_FileRecord(**config_file)
                     if ".yaml" in parsed_file_record.path:
                         continue
+
+                    # We shift the sha256sum to the download record
                     sha_lookup[parsed_file_record.path] = parsed_file_record.sha256sum
                     parsed_file_record.sha256sum = None
-                    new_record_config_files_list.append(parsed_file_record)
+
+                    parsed_record_config_files_list.append(parsed_file_record)
+
             elif config_entry == "download":
                 for download in model_record_contents["config"][config_entry]:
                     parsed_download_record = Legacy_Config_DownloadRecord(**download)
                     parsed_download_record.sha256sum = sha_lookup[parsed_download_record.file_name]
-                    new_record_config_download_list.append(parsed_download_record)
+                    parsed_record_config_download_list.append(parsed_download_record)
 
-        return new_record_config_download_list
+        return parsed_record_config_download_list
 
     def generic_record_sanity_checks(
         self,
@@ -219,7 +231,6 @@ class BaseLegacyConverter:
 
     def pre_parse_records(self) -> None:
         """Perform any pre parsing tasks."""
-        pass
 
     def parse_record(
         self,
@@ -227,7 +238,6 @@ class BaseLegacyConverter:
         model_record_in_progress: Legacy_Generic_ModelRecord,
     ) -> None:
         """Override and call super().parse_record(..) to perform any model category specific parsing."""
-        pass
 
     def post_parse_records(self) -> None:
         """Perform any post parsing tasks."""
@@ -254,7 +264,7 @@ class BaseLegacyConverter:
                     exclude_defaults=True,
                     exclude_none=True,
                     exclude_unset=True,
-                )
+                ),
             )
 
     def add_validation_error_to_log(
@@ -268,6 +278,17 @@ class BaseLegacyConverter:
         self.all_validation_errors_log[model_record_key].append(error)
         if self.print_errors:
             print("-> " + error)
+
+    def write_out_validation_errors(self) -> None:
+        """Write out the validation errors."""
+        log_file = self.converted_folder_path.joinpath(self.model_reference_category + ".log")
+        with open(log_file, "w") as validation_errors_log_file:
+            validation_errors_log_file.write(
+                json.dumps(
+                    self.all_validation_errors_log,
+                    indent=4,
+                ),
+            )
 
 
 class LegacyStableDiffusionConverter(BaseLegacyConverter):
@@ -307,7 +328,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_category=consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
+            model_reference_category=path_consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
             debug_mode=debug_mode,
             print_errors=print_errors,
         )
@@ -370,7 +391,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 #     continue
                 expected_github_location = urllib.parse.urljoin(
                     MODEL_REFERENCE_GITHUB_REPO,
-                    f"{consts.DEFAULT_SHOWCASE_FOLDER_NAME}/{expected_showcase_foldername}/{url_friendly_name}",
+                    f"{PACKAGE_NAME}/{DEFAULT_SHOWCASE_FOLDER_NAME}/{expected_showcase_foldername}/{url_friendly_name}",
                 )
                 model_record_in_progress.showcases.append(expected_github_location)
         #
@@ -518,7 +539,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         Args:
             showcase_foldername (str): The name of the showcase folder to create.
         """
-        newFolder = self.converted_folder_path.joinpath(consts.DEFAULT_SHOWCASE_FOLDER_NAME)
+        newFolder = self.converted_folder_path.joinpath(path_consts.DEFAULT_SHOWCASE_FOLDER_NAME)
         newFolder = newFolder.joinpath(showcase_foldername)
         newFolder.mkdir(parents=True, exist_ok=True)
 
@@ -649,31 +670,34 @@ if __name__ == "__main__":
     sd_converter = LegacyStableDiffusionConverter(
         legacy_folder_path=Path(__file__).parent,
         target_file_folder=Path(__file__).parent.parent,
-        debug_mode=True,
+        debug_mode=False,
         print_errors=True,
     )
-    # sd_converter.normalize_and_convert()
+    sd_converter.normalize_and_convert()
 
     clip_converter = LegacyClipConverter(
         legacy_folder_path=Path(__file__).parent,
         target_file_folder=Path(__file__).parent.parent,
-        debug_mode=True,
+        debug_mode=False,
         print_errors=True,
     )
     clip_converter.normalize_and_convert()
 
-    non_stablediffusion = [
-        x for x in consts.MODEL_REFERENCE_CATEGORIES if x != consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION
+    non_generic_converter_categories = [
+        MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
+        MODEL_REFERENCE_CATEGORIES.CLIP,
     ]
 
-    nor_clip = [x for x in non_stablediffusion if x != consts.MODEL_REFERENCE_CATEGORIES.CLIP]
+    generic_converted_categories = [
+        x for x in path_consts.MODEL_REFERENCE_CATEGORIES if x not in non_generic_converter_categories
+    ]
 
-    for model_category in nor_clip:
+    for model_category in generic_converted_categories:
         converter = BaseLegacyConverter(
             legacy_folder_path=Path(__file__).parent,
             target_file_folder=Path(__file__).parent.parent,
             model_reference_category=model_category,
-            debug_mode=True,
+            debug_mode=False,
             print_errors=True,
         )
         converter.normalize_and_convert()

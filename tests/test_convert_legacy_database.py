@@ -1,10 +1,21 @@
 import urllib.parse
 from pathlib import Path
 
-import horde_model_reference.consts as consts
-from horde_model_reference.legacy.convert_legacy import LegacyStableDiffusionConverter
-from horde_model_reference.model_database_records import (
-    StableDiffusion_ModelReference as New_StableDiffusionModelReference,
+import horde_model_reference.meta_consts as meta_consts
+import horde_model_reference.path_consts as path_consts
+from horde_model_reference.legacy.convert_legacy import (
+    BaseLegacyConverter,
+    LegacyClipConverter,
+    LegacyStableDiffusionConverter,
+)
+from horde_model_reference.legacy.legacy_model_database_records import (
+    MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
+    Legacy_Generic_ModelRecord,
+)
+from horde_model_reference.model_reference_records import (
+    StableDiffusion_ModelReference,
+    CLIP_ModelReference,
+    Generic_ModelReference,
 )
 
 TARGET_DIRECTORY_FOR_TESTDATA = Path(__file__).parent.joinpath("test_data_results")
@@ -12,21 +23,42 @@ TARGET_DIRECTORY_FOR_TESTDATA = Path(__file__).parent.joinpath("test_data_result
 
 
 def test_convert_legacy_stablediffusion_database():
-    converter = LegacyStableDiffusionConverter(
-        legacy_folder_path=consts.LEGACY_REFERENCE_FOLDER,
+    sd_converter = LegacyStableDiffusionConverter(
+        legacy_folder_path=path_consts.LEGACY_REFERENCE_FOLDER,
         target_file_folder=TARGET_DIRECTORY_FOR_TESTDATA,
     )
-    assert converter.normalize_and_convert()
+    assert sd_converter.normalize_and_convert()
+
+
+def test_convert_legacy_clip_database():
+    clip_converter = LegacyClipConverter(
+        legacy_folder_path=path_consts.LEGACY_REFERENCE_FOLDER,
+        target_file_folder=TARGET_DIRECTORY_FOR_TESTDATA,
+    )
+    assert clip_converter.normalize_and_convert()
+
+
+def test_all_base_legacy_converters():
+    generic_references = {
+        k: v for k, v in MODEL_REFERENCE_LEGACY_TYPE_LOOKUP.items() if v is Legacy_Generic_ModelRecord
+    }
+    for reference_category in generic_references:
+        base_converter = BaseLegacyConverter(
+            legacy_folder_path=path_consts.LEGACY_REFERENCE_FOLDER,
+            target_file_folder=TARGET_DIRECTORY_FOR_TESTDATA,
+            model_reference_category=reference_category,
+        )
+        assert base_converter.normalize_and_convert()
 
 
 def test_validate_converted_stablediffusion_database():
 
-    stablediffusion_model_database_path = consts.get_model_reference_filename(
-        consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
+    stablediffusion_model_database_path = path_consts.get_model_reference_filename(
+        path_consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
         basePath=TARGET_DIRECTORY_FOR_TESTDATA,
     )
 
-    model_reference = New_StableDiffusionModelReference.parse_file(stablediffusion_model_database_path)
+    model_reference = StableDiffusion_ModelReference.parse_file(stablediffusion_model_database_path)
 
     assert len(model_reference.baseline_categories) >= 3
     for baseline_type in model_reference.baseline_categories:
