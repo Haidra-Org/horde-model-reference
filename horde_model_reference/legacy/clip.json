@@ -19,7 +19,7 @@
 		},
 		"available": false
 	},
-    "coca_ViT-L-14": {
+	"coca_ViT-L-14": {
 		"name": "coca_ViT-L-14",
 		"type": "coca",
 		"config": {
@@ -38,7 +38,7 @@
 		},
 		"available": false
 	},
-    "ViT-bigG-14": {
+	"ViT-bigG-14": {
 		"name": "ViT-bigG-14",
 		"pretrained_name": "laion2b_s39b_b160k",
 		"type": "open_clip",
