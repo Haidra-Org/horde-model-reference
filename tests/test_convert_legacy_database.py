@@ -1,3 +1,4 @@
+import json
 import urllib.parse
 from pathlib import Path
 
@@ -12,7 +13,8 @@ from horde_model_reference.legacy.classes.staging_model_database_records import 
     StagingLegacy_Generic_ModelRecord,
 )
 from horde_model_reference.model_reference_records import (
-    StableDiffusion_ModelReference,
+    StableDiffusion_ModelRecord,
+    create_stablediffusion_modelreference,
 )
 
 TARGET_DIRECTORY_FOR_TESTDATA = Path(__file__).parent.joinpath("test_data_results")
@@ -54,8 +56,14 @@ def test_validate_converted_stablediffusion_database():
         path_consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
         base_path=TARGET_DIRECTORY_FOR_TESTDATA,
     )
+    sd_model_datbase_file_contents: str = ""
+    with open(stablediffusion_model_database_path) as f:
+        sd_model_datbase_file_contents = f.read()
 
-    model_reference = StableDiffusion_ModelReference.parse_file(stablediffusion_model_database_path)
+    sd_model_database_file_json = json.loads(sd_model_datbase_file_contents)
+    model_reference = create_stablediffusion_modelreference(
+        {k: StableDiffusion_ModelRecord.parse_obj(v) for k, v in sd_model_database_file_json.items()},
+    )
 
     assert len(model_reference.baseline) >= 3
     for baseline_type in model_reference.baseline:
