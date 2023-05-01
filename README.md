@@ -32,7 +32,7 @@ You can install this module through pip:
 ```
 python -m pip install horde_model_reference
 ```
-This library has a number of python classes which may assist you in working with the model reference. The following paths may be of interest:
+This library has a number of python classes which may assist you in working with the model reference. The following files may be of interest:
 - horde_model_reference\model_reference_records.py
   - Contains pydantic definitions, and some meta information, for all record types.
 - horde_model_reference\meta_consts.py
