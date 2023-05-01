@@ -64,7 +64,7 @@ class MODEL_PURPOSE(str, Enum):
     """The model is a post processor of some variety."""
 
 
-class STABLE_DIFFUSION_BASELINE(str, Enum):
+class STABLE_DIFFUSION_BASELINE_CATEGORIES(str, Enum):
     """An enum of all the stable diffusion baselines."""
 
     stable_diffusion_1 = "stable_diffusion_1"

@@ -7,7 +7,7 @@ from horde_model_reference.meta_consts import (
     MODEL_PURPOSE,
     MODEL_REFERENCE_CATEGORIES,
     MODEL_STYLES,
-    STABLE_DIFFUSION_BASELINE,
+    STABLE_DIFFUSION_BASELINE_CATEGORIES,
 )
 
 
@@ -20,7 +20,7 @@ class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
     """The fully qualified URL to download the file from."""
     sha256sum: str
     """The sha256sum of the file."""
-    known_slow_download: bool | None
+    known_slow_download: bool | None = None
     """Whether the download is known to be slow or not."""
 
 
@@ -32,7 +32,7 @@ class Generic_ModelRecord(BaseModel):
     """A short description of the model."""
     version: str | None
     """The version of the  model (not the version of SD it is based on, see `baseline` for that info)."""
-    style: str | None
+    style: MODEL_STYLES | str | None  # TODO remove str
     """The style of the model."""
     config: dict[str, list[DownloadRecord]]
     """A dictionary of any configuration files and information on where to download the model file(s)."""
@@ -47,7 +47,7 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
     class Config:
         extra = "forbid"
 
-    baseline: STABLE_DIFFUSION_BASELINE
+    baseline: STABLE_DIFFUSION_BASELINE_CATEGORIES
     """The model on which this model is based."""
     tags: list[str] | None
     """Any tags associated with the model which may be useful for searching."""
@@ -79,7 +79,7 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
     class Config:
         extra = "forbid"
 
-    baseline_categories: dict[STABLE_DIFFUSION_BASELINE, int]
+    baseline: dict[STABLE_DIFFUSION_BASELINE_CATEGORIES, int]
     """A dictionary of all the baseline types and how many models use them."""
     styles: dict[MODEL_STYLES, int]
     """A dictionary of all the styles and how many models use them."""
@@ -89,6 +89,30 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
     """A dictionary of all the model hosts and how many models use them."""
     models: Mapping[str, StableDiffusion_ModelRecord]
     """A dictionary of all the models."""
+
+
+def create_stablediffusion_modelreference(models: Mapping[str, StableDiffusion_ModelRecord]):
+    """Create a StableDiffusion_ModelReference from a mapping of {str: StableDiffusion_ModelRecords}."""
+    baseline_categories: dict[STABLE_DIFFUSION_BASELINE_CATEGORIES, int] = {}
+    styles: dict[MODEL_STYLES, int] = {}
+    tags: dict[str, int] = {}
+    model_hosts: dict[str, int] = {}
+    for model in models.values():
+        baseline_categories[model.baseline] = baseline_categories.get(model.baseline, 0) + 1
+        if model.style is not None and model.style in MODEL_STYLES:
+            styles[MODEL_STYLES(model.style)] = styles.get(MODEL_STYLES(model.style), 0) + 1
+        if model.tags is not None:
+            for tag in model.tags:
+                tags[tag] = tags.get(tag, 0) + 1
+        for host in model.config:
+            model_hosts[host] = model_hosts.get(host, 0) + 1
+    return StableDiffusion_ModelReference(
+        baseline=baseline_categories,
+        styles=styles,
+        tags=tags,
+        model_hosts=model_hosts,
+        models=models,
+    )
 
 
 class CLIP_ModelReference(Generic_ModelReference):
