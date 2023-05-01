@@ -1,0 +1,152 @@
+{
+    "title": "StableDiffusion_ModelRecord",
+    "description": "A model entry in the model reference.",
+    "type": "object",
+    "properties": {
+        "name": {
+            "title": "Name",
+            "type": "string"
+        },
+        "description": {
+            "title": "Description",
+            "type": "string"
+        },
+        "version": {
+            "title": "Version",
+            "type": "string"
+        },
+        "style": {
+            "title": "Style",
+            "anyOf": [
+                {
+                    "$ref": "#/definitions/MODEL_STYLES"
+                },
+                {
+                    "type": "string"
+                }
+            ]
+        },
+        "config": {
+            "title": "Config",
+            "type": "object",
+            "additionalProperties": {
+                "type": "array",
+                "items": {
+                    "$ref": "#/definitions/DownloadRecord"
+                }
+            }
+        },
+        "model_purpose": {
+            "$ref": "#/definitions/MODEL_PURPOSE"
+        },
+        "baseline": {
+            "$ref": "#/definitions/STABLE_DIFFUSION_BASELINE_CATEGORIES"
+        },
+        "tags": {
+            "title": "Tags",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "showcases": {
+            "title": "Showcases",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "min_bridge_version": {
+            "title": "Min Bridge Version",
+            "type": "integer"
+        },
+        "trigger": {
+            "title": "Trigger",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "homepage": {
+            "title": "Homepage",
+            "type": "string"
+        },
+        "nsfw": {
+            "title": "Nsfw",
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "name",
+        "config",
+        "model_purpose",
+        "baseline",
+        "nsfw"
+    ],
+    "additionalProperties": false,
+    "definitions": {
+        "MODEL_STYLES": {
+            "title": "MODEL_STYLES",
+            "description": "An enum of all the model styles.",
+            "enum": [
+                "generalist",
+                "anime",
+                "furry",
+                "artistic",
+                "other",
+                "realistic"
+            ],
+            "type": "string"
+        },
+        "DownloadRecord": {
+            "title": "DownloadRecord",
+            "description": "A record of a file to download for a model. Typically a ckpt file.",
+            "type": "object",
+            "properties": {
+                "file_name": {
+                    "title": "File Name",
+                    "type": "string"
+                },
+                "file_url": {
+                    "title": "File Url",
+                    "type": "string"
+                },
+                "sha256sum": {
+                    "title": "Sha256Sum",
+                    "type": "string"
+                },
+                "known_slow_download": {
+                    "title": "Known Slow Download",
+                    "type": "boolean"
+                }
+            },
+            "required": [
+                "file_name",
+                "file_url",
+                "sha256sum"
+            ]
+        },
+        "MODEL_PURPOSE": {
+            "title": "MODEL_PURPOSE",
+            "description": "An enumeration.",
+            "enum": [
+                "image_generation",
+                "controlnet",
+                "clip",
+                "blip",
+                "post_processor"
+            ],
+            "type": "string"
+        },
+        "STABLE_DIFFUSION_BASELINE_CATEGORIES": {
+            "title": "STABLE_DIFFUSION_BASELINE_CATEGORIES",
+            "description": "An enum of all the stable diffusion baselines.",
+            "enum": [
+                "stable_diffusion_1",
+                "stable_diffusion_2_768",
+                "stable_diffusion_2_512"
+            ],
+            "type": "string"
+        }
+    }
+}

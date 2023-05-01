@@ -1,0 +1,68 @@
+{
+    "models": {
+        "ViT-L/14": {
+            "name": "ViT-L/14",
+            "config": {
+                "download": [
+                    {
+                        "file_name": "ViT-L-14.pt",
+                        "file_url": "https://openaipublic.azureedge.net/clip/models/b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836/ViT-L-14.pt",
+                        "sha256sum": "b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836"
+                    }
+                ]
+            },
+            "model_purpose": "clip"
+        },
+        "coca_ViT-L-14": {
+            "name": "coca_ViT-L-14",
+            "config": {
+                "download": [
+                    {
+                        "file_name": "coca_ViT-L-14.pt",
+                        "file_url": "https://huggingface.co/laion/mscoco_finetuned_CoCa-ViT-L-14-laion2B-s13B-b90k/resolve/main/open_clip_pytorch_model.bin",
+                    }
+                ]
+            },
+            "model_purpose": "clip"
+        },
+        "ViT-bigG-14": {
+            "name": "ViT-bigG-14",
+            "config": {
+                "download": [
+                    {
+                        "file_name": "ViT-bigG-14.pt",
+                        "file_url": "https://huggingface.co/laion/CLIP-ViT-bigG-14-laion2B-39B-b160k/resolve/main/open_clip_pytorch_model.bin",
+                    }
+                ]
+            },
+            "model_purpose": "clip",
+            "pretrained_name": "laion2b_s39b_b160k"
+        },
+        "ViT-g-14": {
+            "name": "ViT-g-14",
+            "config": {
+                "download": [
+                    {
+                        "file_name": "ViT-g-14.pt",
+                        "file_url": "https://huggingface.co/laion/CLIP-ViT-g-14-laion2B-s12B-b42K/resolve/main/open_clip_pytorch_model.bin",
+                    }
+                ]
+            },
+            "model_purpose": "clip",
+            "pretrained_name": "laion2b_s12b_b42k"
+        },
+        "ViT-H-14": {
+            "name": "ViT-H-14",
+            "config": {
+                "download": [
+                    {
+                        "file_name": "ViT-H-14.pt",
+                        "file_url": "https://huggingface.co/laion/CLIP-ViT-H-14-laion2B-s32B-b79K/resolve/main/open_clip_pytorch_model.bin",
+                    }
+                ]
+            },
+            "model_purpose": "clip",
+            "pretrained_name": "laion2b_s32b_b79k"
+        }
+    }
+}
