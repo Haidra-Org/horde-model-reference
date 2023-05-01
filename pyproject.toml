@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "horde_model_reference"
-version = "0.0.3"
+version = "0.0.8"
 description = "A helper library providing a way to work with the lists of diffusion models, utility models, and any other related files required for AI-Horde."
 authors = [
     {name = "tazlin", email = "tazlin.on.github@gmail.com"},
@@ -26,7 +26,8 @@ dependencies = ["pydantic"]
 "Homepage" = "https://github.com/db0/AI-Horde-image-model-reference"
 
 [tool.setuptools.packages.find]
-where = ["horde_model_reference"]
+include = ["horde_model_reference*", "horde_model_reference.*"]
+exclude = ["horde_model_reference.showcase.*"]
 
 [tool.setuptools.exclude-package-data]
 "*" = ["*.webp", "*.png", "*.jpg", "*.ckpt", "*.pt", "*.safetensors"]
