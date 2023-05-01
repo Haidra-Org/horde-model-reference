@@ -1,21 +1,18 @@
 import urllib.parse
 from pathlib import Path
 
-import horde_model_reference.meta_consts as meta_consts
 import horde_model_reference.path_consts as path_consts
-from horde_model_reference.legacy.convert_legacy import (
+from horde_model_reference.legacy.classes.legacy_converters import (
     BaseLegacyConverter,
     LegacyClipConverter,
     LegacyStableDiffusionConverter,
 )
-from horde_model_reference.legacy.legacy_model_database_records import (
+from horde_model_reference.legacy.classes.staging_model_database_records import (
     MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
-    Legacy_Generic_ModelRecord,
+    StagingLegacy_Generic_ModelRecord,
 )
 from horde_model_reference.model_reference_records import (
     StableDiffusion_ModelReference,
-    CLIP_ModelReference,
-    Generic_ModelReference,
 )
 
 TARGET_DIRECTORY_FOR_TESTDATA = Path(__file__).parent.joinpath("test_data_results")
@@ -40,7 +37,7 @@ def test_convert_legacy_clip_database():
 
 def test_all_base_legacy_converters():
     generic_references = {
-        k: v for k, v in MODEL_REFERENCE_LEGACY_TYPE_LOOKUP.items() if v is Legacy_Generic_ModelRecord
+        k: v for k, v in MODEL_REFERENCE_LEGACY_TYPE_LOOKUP.items() if v is StagingLegacy_Generic_ModelRecord
     }
     for reference_category in generic_references:
         base_converter = BaseLegacyConverter(
@@ -60,8 +57,8 @@ def test_validate_converted_stablediffusion_database():
 
     model_reference = StableDiffusion_ModelReference.parse_file(stablediffusion_model_database_path)
 
-    assert len(model_reference.baseline_categories) >= 3
-    for baseline_type in model_reference.baseline_categories:
+    assert len(model_reference.baseline) >= 3
+    for baseline_type in model_reference.baseline:
         assert baseline_type != ""
 
     assert len(model_reference.styles) >= 6
@@ -83,7 +80,7 @@ def test_validate_converted_stablediffusion_database():
     for model_key, model_info in model_reference.models.items():
 
         assert model_info.name == model_key
-        assert model_info.baseline in model_reference.baseline_categories
+        assert model_info.baseline in model_reference.baseline
         assert model_info.style in model_reference.styles
 
         if model_info.homepage is not None:
