@@ -3,21 +3,28 @@ from typing import Mapping
 from pydantic import BaseModel
 
 
-class Temp_DownloadRecord(BaseModel):
-    """A record of a file to download for a model. Typically a ckpt file."""
+class RawLegacy_DownloadRecord(BaseModel):
+    """An entry in the `config` field of a `RawLegacy_StableDiffusion_ModelRecord`."""
 
     file_name: str
     file_path: str
     file_url: str
 
 
-class Temp_FileRecord(BaseModel):
+class RawLegacy_FileRecord(BaseModel):
+    """An entry in the `config` field of a `RawLegacy_StableDiffusion_ModelRecord`."""
+
     path: str
     md5sum: str | None = None
     sha256sum: str | None = None
 
 
-class Temp_StableDiffusion_ModelRecord(BaseModel):
+class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
+    """A model entry in the legacy model reference. Note that `.dict()` exports to the new model reference format."""
+
+    # This is a better representation of the legacy model reference than the one in `staging_model_database_records.py`
+    # which is a hybrid representation of the legacy model reference and the new model reference format.
+
     class Config:
         extra = "forbid"
 
@@ -34,7 +41,7 @@ class Temp_StableDiffusion_ModelRecord(BaseModel):
     homepage: str | None
     nsfw: bool
     download_all: bool
-    config: Mapping[str, list[Temp_FileRecord | Temp_DownloadRecord]]
+    config: Mapping[str, list[RawLegacy_FileRecord | RawLegacy_DownloadRecord]]
     available: bool
 
     def dict(  # noqa: A003

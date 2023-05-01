@@ -6,10 +6,10 @@ import os
 import pathlib
 import urllib.parse
 
-from horde_model_reference.legacy.temp_sd_model_database_records import (
-    Temp_DownloadRecord,
-    Temp_FileRecord,
-    Temp_StableDiffusion_ModelRecord,
+from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
+    RawLegacy_DownloadRecord,
+    RawLegacy_FileRecord,
+    RawLegacy_StableDiffusion_ModelRecord,
 )
 from horde_model_reference.meta_consts import KNOWN_TAGS, MODEL_REFERENCE_CATEGORIES, MODEL_STYLES
 from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER, get_model_reference_filename
@@ -23,18 +23,18 @@ class Temp_StableDiffusionRecordHelper:
             target_folder = pathlib.Path(target_folder)
         self.target_folder = target_folder
 
-    def load_legacy_sd_model_reference(self) -> dict[str, Temp_StableDiffusion_ModelRecord]:
+    def load_legacy_sd_model_reference(self) -> dict[str, RawLegacy_StableDiffusion_ModelRecord]:
         path_to_legacy_stablediffusion = get_model_reference_filename(
             MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
             base_path=LEGACY_REFERENCE_FOLDER,
         )
-        sd_legacy_model_reference: dict[str, Temp_StableDiffusion_ModelRecord] = {}
+        sd_legacy_model_reference: dict[str, RawLegacy_StableDiffusion_ModelRecord] = {}
         with open(str(path_to_legacy_stablediffusion)) as f:
             raw_json = json.load(f)
 
             for raw_record_key, raw_record_contents in raw_json.items():
                 try:
-                    sd_legacy_model_reference[raw_record_key] = Temp_StableDiffusion_ModelRecord.parse_obj(
+                    sd_legacy_model_reference[raw_record_key] = RawLegacy_StableDiffusion_ModelRecord.parse_obj(
                         raw_record_contents,
                     )
                 except Exception as e:
@@ -51,11 +51,11 @@ class Temp_StableDiffusionRecordHelper:
     def is_in_sd_legacy_model_reference(
         self,
         model_filename: str,
-        sd_legacy_model_reference: dict[str, Temp_StableDiffusion_ModelRecord],
+        sd_legacy_model_reference: dict[str, RawLegacy_StableDiffusion_ModelRecord],
     ):
         for legacy_model_record in sd_legacy_model_reference.values():
             download = legacy_model_record.config["download"][0]
-            if not isinstance(download, Temp_DownloadRecord):
+            if not isinstance(download, RawLegacy_DownloadRecord):
                 raise ValueError(f"Expected download to be a DownloadRecord, got {download}")
             if download.file_name == str(model_filename):
                 # print(f"Found {model_on_disk} in legacy model reference")
@@ -65,7 +65,7 @@ class Temp_StableDiffusionRecordHelper:
     def add_models_from_disk(self, file_out: pathlib.Path) -> None:
         all_sd_models_on_disk = self.get_sd_models_on_disk()
         sd_legacy_model_reference = self.load_legacy_sd_model_reference()
-        new_models: dict[str, Temp_StableDiffusion_ModelRecord] = {}
+        new_models: dict[str, RawLegacy_StableDiffusion_ModelRecord] = {}
 
         for model_on_disk in all_sd_models_on_disk:
             model_on_disk_path = pathlib.Path(model_on_disk)
@@ -222,18 +222,18 @@ class Temp_StableDiffusionRecordHelper:
                     tags_chosen.append(tag_num_lookup[int(tag_chosen)])
 
                 # FIXME ADD TRIGGERS
-                new_file_record = Temp_FileRecord(path=model_on_disk_path.name, sha256sum=sha256sum)
+                new_file_record = RawLegacy_FileRecord(path=model_on_disk_path.name, sha256sum=sha256sum)
                 legacy_yaml_filename = "v1-inference.yaml"
                 if baseline_type != "stable_diffusion_1":
                     legacy_yaml_filename = "v2-inference.yaml"
 
-                legacy_yaml_file_record = Temp_FileRecord(path=legacy_yaml_filename)
-                new_download_record = Temp_DownloadRecord(
+                legacy_yaml_file_record = RawLegacy_FileRecord(path=legacy_yaml_filename)
+                new_download_record = RawLegacy_DownloadRecord(
                     file_name=model_on_disk_path.name,
                     file_path="",
                     file_url=download_url,
                 )
-                new_model_record = Temp_StableDiffusion_ModelRecord(
+                new_model_record = RawLegacy_StableDiffusion_ModelRecord(
                     name=model_friendly_name,
                     baseline=baseline_type,
                     type="ckpt",
