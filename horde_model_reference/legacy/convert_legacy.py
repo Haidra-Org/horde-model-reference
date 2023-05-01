@@ -81,12 +81,12 @@ class BaseLegacyConverter:
         self.legacy_folder_path = Path(legacy_folder_path)
         self.legacy_database_path = path_consts.get_model_reference_filename(
             model_reference_category=model_reference_category,
-            basePath=legacy_folder_path,
+            base_path=legacy_folder_path,
         )
         self.converted_folder_path = Path(target_file_folder)
         self.converted_database_file_path = path_consts.get_model_reference_filename(
             model_reference_category=model_reference_category,
-            basePath=target_file_folder,
+            base_path=target_file_folder,
         )
         self.debug_mode = debug_mode
         self.print_errors = print_errors

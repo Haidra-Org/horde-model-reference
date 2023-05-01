@@ -7,7 +7,7 @@ from horde_model_reference.meta_consts import (
     MODEL_PURPOSE,
     MODEL_REFERENCE_CATEGORIES,
     MODEL_STYLES,
-    STABLEDIFFUSION_BASELINE,
+    STABLE_DIFFUSION_BASELINE,
 )
 
 
@@ -47,7 +47,7 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
     class Config:
         extra = "forbid"
 
-    baseline: STABLEDIFFUSION_BASELINE
+    baseline: STABLE_DIFFUSION_BASELINE
     """The model on which this model is based."""
     tags: list[str] | None
     """Any tags associated with the model which may be useful for searching."""
@@ -79,7 +79,7 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
     class Config:
         extra = "forbid"
 
-    baseline_categories: dict[STABLEDIFFUSION_BASELINE, int]
+    baseline_categories: dict[STABLE_DIFFUSION_BASELINE, int]
     """A dictionary of all the baseline types and how many models use them."""
     styles: dict[MODEL_STYLES, int]
     """A dictionary of all the styles and how many models use them."""

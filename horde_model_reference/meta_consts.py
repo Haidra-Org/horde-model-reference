@@ -12,6 +12,28 @@ class MODEL_STYLES(str, Enum):
     realistic = "realistic"
 
 
+KNOWN_TAGS = [
+    "anime",
+    "manga",
+    "cyberpunk",
+    "tv show",
+    "booru",
+    "retro",
+    "character",
+    "hentai",
+    "scenes",
+    "low poly",
+    "cg",
+    "sketch",
+    "high resolution",
+    "landscapes",
+    "comic",
+    "cartoon",
+    "painting",
+    "game",
+]
+
+
 class MODEL_REFERENCE_CATEGORIES(str, Enum):
     """The categories of model reference entries."""
 
@@ -42,7 +64,7 @@ class MODEL_PURPOSE(str, Enum):
     """The model is a post processor of some variety."""
 
 
-class STABLEDIFFUSION_BASELINE(str, Enum):
+class STABLE_DIFFUSION_BASELINE(str, Enum):
     """An enum of all the stable diffusion baselines."""
 
     stable_diffusion_1 = "stable_diffusion_1"

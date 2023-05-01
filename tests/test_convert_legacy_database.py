@@ -55,7 +55,7 @@ def test_validate_converted_stablediffusion_database():
 
     stablediffusion_model_database_path = path_consts.get_model_reference_filename(
         path_consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
-        basePath=TARGET_DIRECTORY_FOR_TESTDATA,
+        base_path=TARGET_DIRECTORY_FOR_TESTDATA,
     )
 
     model_reference = StableDiffusion_ModelReference.parse_file(stablediffusion_model_database_path)
