@@ -44,11 +44,11 @@ This library has a number of python classes which may assist you in working with
 ### Validating
 When making changes to stable_diffusion.json, you can now validate, format, and standardize it for consistency. You can do this by invoking the following:
 ```
-python -m horde_model_reference.legacy.validate path/to/stable_diffusion.json
+python -m horde_model_reference.legacy.validate_sd path/to/stable_diffusion.json
 ```
 This will give you a success message if the file is standardized. If it is not, you can invoke the following:
 ```
-python -m horde_model_reference.legacy.validate path/to/stable_diffusion.json --write file/to/write_out_to.json
+python -m horde_model_reference.legacy.validate_sd path/to/stable_diffusion.json --write file/to/write_out_to.json
 ```
 This will write the appropriately normalized json out to the path specified by `--write`.
 
