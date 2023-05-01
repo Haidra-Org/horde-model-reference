@@ -47,7 +47,7 @@ for category in MODEL_REFERENCE_CATEGORIES:
 def get_model_reference_filename(
     model_reference_category: MODEL_REFERENCE_CATEGORIES,
     *,
-    basePath: str | Path = BASE_PATH,
+    base_path: str | Path = BASE_PATH,
 ) -> Path:
     """Returns the filename for the given model reference category.
 
@@ -58,6 +58,6 @@ def get_model_reference_filename(
     Returns:
         path:
     """
-    if not isinstance(basePath, Path):
-        basePath = Path(basePath)
-    return basePath.joinpath(_MODEL_REFERENCE_FILENAMES[model_reference_category])
+    if not isinstance(base_path, Path):
+        base_path = Path(base_path)
+    return base_path.joinpath(_MODEL_REFERENCE_FILENAMES[model_reference_category])

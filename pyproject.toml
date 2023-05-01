@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "horde_model_reference"
-version = "0.0.1"
-description = "The diffusion models and related files in use by AI Horde."
+version = "0.0.2"
+description = "A helper library providing a way to work with the lists of diffusion models, utility models, and any other related files required for AI-Horde."
 authors = [
+    {name = "tazlin", email = "tazlin.on.github@gmail.com"},
     {name = "db0", email = "mail@dbzer0.com"},
     {name = "Jug", email = "jugdev@proton.me"},
-    {name = "tazlin", email = "tazlin.on.github@gmail.com"},
 ]
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,11 +22,11 @@ classifiers = [
 ]
 dependencies = ["pydantic"]
 
-[tool.setuptools.packages.find]
-where = ["horde_model_reference"]
+[project.urls]
+"Homepage" = "https://github.com/db0/AI-Horde-image-model-reference"
 
-[tool.setuptools.package-data]
-mypkg = ["*.json", "*.md"]
+[tool.setuptools.exclude-package-data]
+"*" = ["*.webp", "*.png", "*.jpg"]
 
 [tool.black]
 line-length = 119
