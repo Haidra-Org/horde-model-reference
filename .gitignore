@@ -1,6 +1,10 @@
 .vscode/
 tests/test_data_results/
 converted_*.json
+test.json
+
+horde_model_reference/legacy/*.json
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
