@@ -19,6 +19,17 @@ MODEL_REFERENCE_GITHUB_REPO: str
 
 MODEL_REFERENCE_GITHUB_REPO = f"https://raw.githubusercontent.com/{MODEL_REFERENCE_GITHUB_REPO_OWNER}/{MODEL_REFERENCE_GITHUB_REPO_NAME}/{MODEL_REFERENCE_GITHUB_REPO_BRANCH}/"
 
+LEGACY_MODEL_REFERENCE_URLS = {
+    MODEL_REFERENCE_CATEGORIES.BLIP: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/blip.json",
+    MODEL_REFERENCE_CATEGORIES.CLIP: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/clip.json",
+    MODEL_REFERENCE_CATEGORIES.CODEFORMER: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/codeformer.json",
+    MODEL_REFERENCE_CATEGORIES.CONTROLNET: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/controlnet.json",
+    MODEL_REFERENCE_CATEGORIES.ESRGAN: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/esrgan.json",
+    MODEL_REFERENCE_CATEGORIES.GFPGAN: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/gfpgan.json",
+    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/safety_checker.json",
+    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/stable_diffusion.json",
+}
+
 LEGACY_MODEL_REFERENCE_GITHUB_REPO: str
 """The base URL to the legacy GitHub repo used to power the horde. This path ends in `horde_model_reference/`."""
 
