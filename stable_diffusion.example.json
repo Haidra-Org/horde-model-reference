@@ -1,0 +1,66 @@
+{
+    "Example General Model": {
+        "name": "Example General Model",
+        "description": "This would be a description of the model.",
+        "version": "1.0",
+        "style": "generalist",
+        "config": {
+            "download": [
+                {
+                    "file_name": "example_general_model.ckpt",
+                    "file_url": "https://www.some_website.com/a_different_name_on_the_website.ckpt",
+                    "sha256sum": "DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+                    "known_slow_download": null
+                }
+            ]
+        },
+        "model_purpose": "image_generation",
+        "baseline": "stable_diffusion_1",
+        "tags": [
+            "anime",
+            "faces"
+        ],
+        "showcases": [
+            "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/showcase/test/test_general_01.png"
+        ],
+        "min_bridge_version": 12,
+        "trigger": [
+            "trigger1",
+            "some other_trigger"
+        ],
+        "homepage": "https://www.not.a.real_website.com",
+        "nsfw": false
+    },
+    "Example anime model": {
+        "name": "Example anime model",
+        "description": "This would be a description of the model.",
+        "version": "2.5",
+        "style": "anime",
+        "config": {
+            "download": [
+                {
+                    "file_name": "example_general_model.ckpt",
+                    "file_url": "https://www.some_website.com/a_different_name_on_the_website.ckpt",
+                    "sha256sum": "DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+                    "known_slow_download": null
+                }
+            ]
+        },
+        "model_purpose": "image_generation",
+        "baseline": "stable_diffusion_1",
+        "tags": [
+            "anime",
+            "faces"
+        ],
+        "showcases": [
+            "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/showcase/test/anime_01.png"
+        ],
+        "min_bridge_version": 12,
+        "trigger": [
+            "anime",
+            "some other_anime_trigger"
+        ],
+        "homepage": "https://www.another_fake_website.com",
+        "nsfw": true
+    }
+}
