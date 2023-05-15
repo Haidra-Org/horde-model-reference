@@ -391,7 +391,16 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
             if expected_showcase_foldername not in self.existing_showcase_files:
-                error = f"{model_record_key} has no showcase folder. Expected: {expected_showcase_foldername}"
+                raise RuntimeError
+
+            if len(self.existing_showcase_files[expected_showcase_foldername]) == 0:
+                error = f"{model_record_key} has no showcases defined on disk."
+                self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+
+            if len(model_record_in_progress.showcases) != len(
+                self.existing_showcase_files[expected_showcase_foldername]
+            ):
+                error = f"{model_record_key} has no showcase folder when it was expected to have one. Expected: {expected_showcase_foldername}"
                 self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
             model_record_in_progress.showcases = []
@@ -546,6 +555,10 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         Args:
             showcase_foldername (str): The name of the showcase folder to create.
         """
+
+        if showcase_foldername not in self.existing_showcase_files:
+            self.existing_showcase_files[showcase_foldername] = []
+
         newFolder = self.converted_folder_path.joinpath(path_consts.DEFAULT_SHOWCASE_FOLDER_NAME)
         newFolder = newFolder.joinpath(showcase_foldername)
         newFolder.mkdir(parents=True, exist_ok=True)
