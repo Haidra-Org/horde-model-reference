@@ -20,7 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Development Status :: 2 - Pre-Alpha",
 ]
-dependencies = ["pydantic"]
+dependencies = ["pydantic", "requests", "typing_extensions"]
 
 [project.urls]
 "Homepage" = "https://github.com/db0/AI-Horde-image-model-reference"
