@@ -105,7 +105,6 @@ class BaseLegacyConverter:
         self.pre_parse_records()
         all_model_iterator = self._iterate_over_input_records(self.model_reference_type)
         for model_record_key, model_record_in_progress in all_model_iterator:
-
             if model_record_in_progress is None:
                 raise ValueError(f"CRITICAL: new_record is None! model_record_key = {model_record_key}")
 
@@ -136,9 +135,7 @@ class BaseLegacyConverter:
             raw_legacy_json_data = json.load(legacy_model_reference_file)
 
         for model_record_key, model_record_contents in raw_legacy_json_data.items():
-
             try:
-
                 download = self.config_record_pre_parse(model_record_key, model_record_contents)
                 model_record_contents["config"]["download"] = download
                 del model_record_contents["config"]["files"]  # New format doesn't have 'files' in the config
@@ -304,7 +301,6 @@ class BaseLegacyConverter:
 
 
 class LegacyStableDiffusionConverter(BaseLegacyConverter):
-
     showcase_glob_pattern: str = "horde_model_reference/showcase/*"
     """The glob pattern used to find all showcase folders. Defaults to `'horde_model_reference/showcase/*'`."""
     # todo: extract to consts
@@ -398,9 +394,12 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
             if len(model_record_in_progress.showcases) != len(
-                self.existing_showcase_files[expected_showcase_foldername]
+                self.existing_showcase_files[expected_showcase_foldername],
             ):
-                error = f"{model_record_key} has no showcase folder when it was expected to have one. Expected: {expected_showcase_foldername}"
+                error = (
+                    f"{model_record_key} has no showcase folder when it was expected to have one. "
+                    "Expected: {expected_showcase_foldername}"
+                )
                 self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
             model_record_in_progress.showcases = []

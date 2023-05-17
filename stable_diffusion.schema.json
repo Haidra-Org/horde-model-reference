@@ -39,6 +39,10 @@
         "model_purpose": {
             "$ref": "#/definitions/MODEL_PURPOSE"
         },
+        "inpainting": {
+            "title": "Inpainting",
+            "type": "boolean"
+        },
         "baseline": {
             "$ref": "#/definitions/STABLE_DIFFUSION_BASELINE_CATEGORIES"
         },
