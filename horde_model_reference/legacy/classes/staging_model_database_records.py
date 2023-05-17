@@ -66,6 +66,7 @@ class Legacy_CLIP_ModelRecord(StagingLegacy_Generic_ModelRecord):
 class Legacy_StableDiffusion_ModelRecord(StagingLegacy_Generic_ModelRecord):
     """A model entry in the legacy model reference. Note that `.dict()` exports to the new model reference format."""
 
+    inpainting: bool | None
     baseline: str
     tags: list[str] | None
     showcases: list[str] | None

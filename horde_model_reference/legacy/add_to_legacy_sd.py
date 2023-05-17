@@ -221,6 +221,9 @@ class Temp_StableDiffusionRecordHelper:
                         continue
                     tags_chosen.append(tag_num_lookup[int(tag_chosen)])
 
+                print("Is this an inpainting model? (y/n)")
+                inpainting = input().lower() == "y"
+
                 # FIXME ADD TRIGGERS
                 new_file_record = RawLegacy_FileRecord(path=model_on_disk_path.name, sha256sum=sha256sum)
                 legacy_yaml_filename = "v1-inference.yaml"
@@ -237,6 +240,7 @@ class Temp_StableDiffusionRecordHelper:
                     name=model_friendly_name,
                     baseline=baseline_type,
                     type="ckpt",
+                    inpainting=inpainting,
                     description=model_description,
                     tags=tags_chosen if len(tags_chosen) > 0 else None,
                     showcases=None,

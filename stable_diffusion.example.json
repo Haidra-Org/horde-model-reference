@@ -15,6 +15,7 @@
             ]
         },
         "model_purpose": "image_generation",
+        "inpainting": false,
         "baseline": "stable_diffusion_1",
         "tags": [
             "anime",
@@ -47,6 +48,7 @@
             ]
         },
         "model_purpose": "image_generation",
+        "inpainting": false,
         "baseline": "stable_diffusion_1",
         "tags": [
             "anime",

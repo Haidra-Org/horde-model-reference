@@ -47,6 +47,8 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
     class Config:
         extra = "forbid"
 
+    inpainting: bool | None
+    """If this is an inpainting model or not."""
     baseline: STABLE_DIFFUSION_BASELINE_CATEGORIES
     """The model on which this model is based."""
     tags: list[str] | None
