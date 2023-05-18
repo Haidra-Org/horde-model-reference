@@ -10,7 +10,11 @@ from horde_model_reference.path_consts import (
 )
 
 
-def download_all_models(override_existing: bool = False) -> dict[MODEL_REFERENCE_CATEGORIES, pathlib.Path]:
+def download_all_models(
+    override_existing: bool = False,
+    *,
+    proxy_url: str = "",
+) -> dict[MODEL_REFERENCE_CATEGORIES, pathlib.Path]:
     """Download all legacy model reference files from https://github.com/db0/AI-Horde-image-model-reference.
 
     Args:
@@ -21,7 +25,7 @@ def download_all_models(override_existing: bool = False) -> dict[MODEL_REFERENCE
     """
     downloaded_files: dict[MODEL_REFERENCE_CATEGORIES, pathlib.Path] = {}
     for model_category_name, legacy_model_reference_url in LEGACY_MODEL_REFERENCE_URLS.items():
-        response = requests.get(legacy_model_reference_url)
+        response = requests.get(proxy_url + legacy_model_reference_url)
         target_file_path = get_model_reference_filename(model_category_name, base_path=LEGACY_REFERENCE_FOLDER)
         if target_file_path.exists() and not override_existing:
             print(f"File already exists: {target_file_path}")
