@@ -6,12 +6,9 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORIES
 
 PACKAGE_NAME = "horde_model_reference"
 
-# MODEL_REFERENCE_GITHUB_REPO_OWNER = "db0"
-MODEL_REFERENCE_GITHUB_REPO_OWNER = "tazlin"
-# MODEL_REFERENCE_GITHUB_REPO_NAME = "horde_model_reference"
+MODEL_REFERENCE_GITHUB_REPO_OWNER = "Haidra-Org"
 MODEL_REFERENCE_GITHUB_REPO_NAME = "AI-Horde-image-model-reference"
-# MODEL_REFERENCE_GITHUB_REPO_BRANCH = "main" # "comfy"
-MODEL_REFERENCE_GITHUB_REPO_BRANCH = "librarize-modeldb"
+MODEL_REFERENCE_GITHUB_REPO_BRANCH = "main"
 
 # github_repo_url = "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/"
 MODEL_REFERENCE_GITHUB_REPO: str
