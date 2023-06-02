@@ -5,6 +5,9 @@ converted_*.json
 test.json
 
 horde_model_reference/legacy/*.json
+*.webp
+*.png
+*.jpg
 
 
 # Byte-compiled / optimized / DLL files
