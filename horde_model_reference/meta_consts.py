@@ -39,10 +39,10 @@ class MODEL_REFERENCE_CATEGORIES(str, Enum):
 
     BLIP = "blip"
     CLIP = "clip"
-    ESRGAN = "esrgan"
-    GFPGAN = "gfpgan"
     CODEFORMER = "codeformer"
     CONTROLNET = "controlnet"
+    ESRGAN = "esrgan"
+    GFPGAN = "gfpgan"
     SAFETY_CHECKER = "safety_checker"
     STABLE_DIFFUSION = "stable_diffusion"
 

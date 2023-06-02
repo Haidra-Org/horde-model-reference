@@ -51,8 +51,7 @@ def test_all_base_legacy_converters():
 
 
 def test_validate_converted_stablediffusion_database():
-
-    stablediffusion_model_database_path = path_consts.get_model_reference_filename(
+    stablediffusion_model_database_path = path_consts.get_model_reference_file_path(
         path_consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
         base_path=TARGET_DIRECTORY_FOR_TESTDATA,
     )
@@ -86,7 +85,6 @@ def test_validate_converted_stablediffusion_database():
     assert len(model_reference.models["stable_diffusion"].showcases) >= 3
 
     for model_key, model_info in model_reference.models.items():
-
         assert model_info.name == model_key
         assert model_info.baseline in model_reference.baseline
         assert model_info.style in model_reference.styles

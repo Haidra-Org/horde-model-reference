@@ -12,7 +12,7 @@ from horde_model_reference.legacy.classes.raw_legacy_model_database_records impo
     RawLegacy_StableDiffusion_ModelRecord,
 )
 from horde_model_reference.meta_consts import KNOWN_TAGS, MODEL_REFERENCE_CATEGORIES, MODEL_STYLES
-from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER, get_model_reference_filename
+from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER, get_model_reference_file_path
 
 
 class Temp_StableDiffusionRecordHelper:
@@ -24,7 +24,7 @@ class Temp_StableDiffusionRecordHelper:
         self.target_folder = target_folder
 
     def load_legacy_sd_model_reference(self) -> dict[str, RawLegacy_StableDiffusion_ModelRecord]:
-        path_to_legacy_stablediffusion = get_model_reference_filename(
+        path_to_legacy_stablediffusion = get_model_reference_file_path(
             MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
             base_path=LEGACY_REFERENCE_FOLDER,
         )

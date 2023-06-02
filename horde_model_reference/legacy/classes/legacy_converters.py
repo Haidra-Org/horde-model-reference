@@ -27,7 +27,7 @@ from horde_model_reference.path_consts import (
     DEFAULT_SHOWCASE_FOLDER_NAME,
     LEGACY_REFERENCE_FOLDER,
     MODEL_REFERENCE_CATEGORIES,
-    MODEL_REFERENCE_GITHUB_REPO,
+    GITHUB_REPO_URL,
     PACKAGE_NAME,
 )
 from horde_model_reference.util import model_name_to_showcase_folder_name
@@ -84,12 +84,12 @@ class BaseLegacyConverter:
         self.model_reference_type = MODEL_REFERENCE_LEGACY_TYPE_LOOKUP[model_reference_category]
 
         self.legacy_folder_path = Path(legacy_folder_path)
-        self.legacy_database_path = path_consts.get_model_reference_filename(
+        self.legacy_database_path = path_consts.get_model_reference_file_path(
             model_reference_category=model_reference_category,
             base_path=legacy_folder_path,
         )
         self.converted_folder_path = Path(target_file_folder)
-        self.converted_database_file_path = path_consts.get_model_reference_filename(
+        self.converted_database_file_path = path_consts.get_model_reference_file_path(
             model_reference_category=model_reference_category,
             base_path=target_file_folder,
         )
@@ -410,7 +410,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 #     print(f"{new_record.showcases=}")
                 #     continue
                 expected_github_location = urllib.parse.urljoin(
-                    MODEL_REFERENCE_GITHUB_REPO,
+                    GITHUB_REPO_URL,
                     f"{PACKAGE_NAME}/{DEFAULT_SHOWCASE_FOLDER_NAME}/{expected_showcase_foldername}/{url_friendly_name}",
                 )
                 model_record_in_progress.showcases.append(expected_github_location)
