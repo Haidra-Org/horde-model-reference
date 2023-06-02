@@ -1,34 +1,32 @@
 """Constants, especially those to do with paths or network locations, for the horde_model_reference package."""
 
 from pathlib import Path
+from urllib.parse import urlparse
 
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORIES
 
 PACKAGE_NAME = "horde_model_reference"
 
-MODEL_REFERENCE_GITHUB_REPO_OWNER = "Haidra-Org"
-MODEL_REFERENCE_GITHUB_REPO_NAME = "AI-Horde-image-model-reference"
-MODEL_REFERENCE_GITHUB_REPO_BRANCH = "main"
+GITHUB_REPO_OWNER = "Haidra-Org"
+GITHUB_REPO_NAME = "AI-Horde-image-model-reference"
+GITHUB_REPO_BRANCH = "main"
 
-# github_repo_url = "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/comfy/"
-MODEL_REFERENCE_GITHUB_REPO: str
+GITHUB_REPO_URL: str = (
+    f"https://raw.githubusercontent.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/{GITHUB_REPO_BRANCH}/"
+)
 """The base URL to the live GitHub repo used to power the horde."""
 
-MODEL_REFERENCE_GITHUB_REPO = f"https://raw.githubusercontent.com/{MODEL_REFERENCE_GITHUB_REPO_OWNER}/{MODEL_REFERENCE_GITHUB_REPO_NAME}/{MODEL_REFERENCE_GITHUB_REPO_BRANCH}/"
-
-LEGACY_MODEL_REFERENCE_URLS = {
-    MODEL_REFERENCE_CATEGORIES.BLIP: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/blip.json",
-    MODEL_REFERENCE_CATEGORIES.CLIP: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/clip.json",
-    MODEL_REFERENCE_CATEGORIES.CODEFORMER: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/codeformer.json",
-    MODEL_REFERENCE_CATEGORIES.CONTROLNET: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/controlnet.json",
-    MODEL_REFERENCE_CATEGORIES.ESRGAN: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/esrgan.json",
-    MODEL_REFERENCE_CATEGORIES.GFPGAN: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/gfpgan.json",
-    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/safety_checker.json",
-    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/stable_diffusion.json",
+LEGACY_MODEL_GITHUB_URLS = {
+    MODEL_REFERENCE_CATEGORIES.BLIP: urlparse(GITHUB_REPO_URL + "blip.json").geturl(),
+    MODEL_REFERENCE_CATEGORIES.CLIP: urlparse(GITHUB_REPO_URL + "clip.json").geturl(),
+    MODEL_REFERENCE_CATEGORIES.CODEFORMER: urlparse(GITHUB_REPO_URL + "codeformer.json").geturl(),
+    MODEL_REFERENCE_CATEGORIES.CONTROLNET: urlparse(GITHUB_REPO_URL + "controlnet.json").geturl(),
+    MODEL_REFERENCE_CATEGORIES.ESRGAN: urlparse(GITHUB_REPO_URL + "esrgan.json").geturl(),
+    MODEL_REFERENCE_CATEGORIES.GFPGAN: urlparse(GITHUB_REPO_URL + "gfpgan.json").geturl(),
+    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: urlparse(GITHUB_REPO_URL + "safety_checker.json").geturl(),
+    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: urlparse(GITHUB_REPO_URL + "stable_diffusion.json").geturl(),
 }
-
-LEGACY_MODEL_REFERENCE_GITHUB_REPO: str
-"""The base URL to the legacy GitHub repo used to power the horde. This path ends in `horde_model_reference/`."""
+"""A lookup of all the fully qualified URLs to the live model reference files."""
 
 
 BASE_PATH: Path = Path(__file__).parent
@@ -54,10 +52,24 @@ for category in MODEL_REFERENCE_CATEGORIES:
 
 def get_model_reference_filename(
     model_reference_category: MODEL_REFERENCE_CATEGORIES,
+) -> str:
+    """Returns just the filename (not the path) of the model reference file for the given model reference category.
+
+    Args:
+        model_reference_category (MODEL_REFERENCE_CATEGORIES): The category of model reference to get the filename for.
+
+    Returns:
+        str: The filename of the model reference file.
+    """
+    return _MODEL_REFERENCE_FILENAMES[model_reference_category]
+
+
+def get_model_reference_file_path(
+    model_reference_category: MODEL_REFERENCE_CATEGORIES,
     *,
     base_path: str | Path = BASE_PATH,
 ) -> Path:
-    """Returns the filename for the given model reference category.
+    """Returns the path to the model reference file for the given model reference category.
 
     Args:
         model_reference_category (MODEL_REFERENCE_CATEGORIES): The category of model reference to get the filename for.
