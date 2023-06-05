@@ -71,6 +71,10 @@ class BaseLegacyConverter:
     """Whether to print errors in the conversion to `stdout`."""
 
     log_folder: Path = LOG_FOLDER
+    """The folder to write the validation error log to."""
+
+    dry_run: bool = False
+    """If true, don't write out the converted database or any log files."""
 
     def __init__(
         self,
@@ -81,6 +85,7 @@ class BaseLegacyConverter:
         model_reference_category: MODEL_REFERENCE_CATEGORIES,
         print_errors: bool = True,
         debug_mode: bool = False,
+        dry_run: bool = False,
     ):
         """Initialize an instance of the LegacyConverterBase class.
 
@@ -90,6 +95,7 @@ class BaseLegacyConverter:
             model_reference_category (MODEL_REFERENCE_CATEGORIES): The category of model reference to convert.
             print_errors (bool, optional): Whether to print errors in the conversion to `stdout`. Defaults to True.
             debug_mode (bool, optional): If true, include extra information in the error log. Defaults to False.
+            dry_run (bool, optional): If true, don't write out the converted database or any logs. Defaults to False.
         """
         self.all_model_records = {}
         self.all_validation_errors_log = {}
@@ -111,6 +117,8 @@ class BaseLegacyConverter:
         self.print_errors = print_errors
 
         self.log_folder = Path(log_folder)
+
+        self.dry_run = dry_run
 
     def normalize_and_convert(self) -> bool:
         """Normalizes and converts the legacy model reference database to the new format.
@@ -281,6 +289,9 @@ class BaseLegacyConverter:
             print(f"CRITICAL: Failed to convert to new model reference type {type_to_convert_to}.")
             raise e
 
+        if self.dry_run:
+            return
+
         with open(self.converted_database_file_path, "w") as new_model_reference_file:
             new_model_reference_file.write(
                 new_reference.json(
@@ -306,6 +317,9 @@ class BaseLegacyConverter:
 
     def write_out_validation_errors(self) -> None:
         """Write out the validation errors."""
+        if self.dry_run:
+            return
+
         log_file = self.log_folder.joinpath(self.model_reference_category + ".log")
         with open(log_file, "w") as validation_errors_log_file:
             validation_errors_log_file.write(
@@ -525,6 +539,9 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             print(e)
             print("CRITICAL: Failed to convert to new model reference type.")
             raise e
+
+        if self.dry_run:
+            return
 
         with open(self.converted_database_file_path, "w") as testfile:
             testfile.write(json.dumps(models_in_doc_root, indent=4))
