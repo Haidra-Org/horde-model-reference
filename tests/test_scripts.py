@@ -4,9 +4,9 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORIES
 from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER, get_model_reference_file_path
 
 
-def test_download_all_models():
+def test_download_all_model_references():
     reference_download_manager = ReferenceDownloadManager()
-    download_models = reference_download_manager.download_all_models(override_existing=True)
+    download_models = reference_download_manager.download_all_model_references(override_existing=True)
     assert len(download_models) == 8
 
 
