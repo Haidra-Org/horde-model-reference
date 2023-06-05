@@ -1,5 +1,5 @@
 """The model database pydantic models and associate enums/lookups."""
-from typing import Mapping
+from collections.abc import Mapping
 
 from pydantic import BaseModel
 
