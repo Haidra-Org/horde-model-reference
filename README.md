@@ -5,7 +5,7 @@ This package provides some tools to help manage the models which power the [AI-H
 ## Reference info (.json files)
 ### stable_diffusion.json
 You can find a schema for an individual record in the file `stable_diffusion.schema.json` in the root of this repository. Also see `stable_diffusion.example.json` for a small example containing two records will all of the fields populated.
-### stable_diffusion.json changes 
+### stable_diffusion.json changes
 You can see two records which include entries for every field, and the associated metadata in `stable_diffusion.example.json` at the root of this repository.
 
 Some key takeaways for the new `stable_diffusion.json`:
@@ -14,8 +14,8 @@ Some key takeaways for the new `stable_diffusion.json`:
   - `download_all`
   - `available`
   - the sub-key `file_path` under `download`
-  - the entire key `files` under `config` has been removed. 
-     - (`config` still contains a `download` key, which is a list of all files to download.) 
+  - the entire key `files` under `config` has been removed.
+     - (`config` still contains a `download` key, which is a list of all files to download.)
 - `baseline`'s old values have been normalized. The currently valid values are as follows:
   - `stable_diffusion_1`
   - `stable_diffusion_2_768`
@@ -51,4 +51,3 @@ This will give you a success message if the file is standardized. If it is not, 
 validate_sd path/to/stable_diffusion.json --write file/to/write_out_to.json
 ```
 This will write the appropriately normalized json out to the path specified by `--write`.
-

@@ -6,7 +6,7 @@
 
 # These classes will only persist until the legacy model reference is fully deprecated.
 
-from typing import Mapping
+from collections.abc import Mapping
 
 from pydantic import BaseModel
 
