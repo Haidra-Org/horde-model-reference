@@ -31,11 +31,7 @@ from horde_model_reference.model_reference_records import (
     StableDiffusion_ModelReference,
 )
 from horde_model_reference.path_consts import (
-    BASE_PATH,
-    DEFAULT_SHOWCASE_FOLDER_NAME,
     GITHUB_REPO_URL,
-    LEGACY_REFERENCE_FOLDER,
-    MODEL_REFERENCE_CATEGORIES,
     PACKAGE_NAME,
 )
 from horde_model_reference.util import model_name_to_showcase_folder_name
