@@ -45,7 +45,7 @@ class ReferenceDownloadManager:
             override_existing (bool, optional): If true, overwrite any existing files. Defaults to False.
 
         Returns:
-            dict[MODEL_REFERENCE_CATEGORIES, pathlib.Path | None]: The files written to, or `None` if that reference failed
+            dict[MODEL_REFERENCE_CATEGORIES, Path | None]: The files written, or `None` if that reference failed
         """
         downloaded_files: dict[MODEL_REFERENCE_CATEGORIES, pathlib.Path | None] = {}
         for model_category_name in MODEL_REFERENCE_CATEGORIES:
