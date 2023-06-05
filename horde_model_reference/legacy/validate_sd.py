@@ -54,9 +54,9 @@ def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None 
     return True
 
 
-if __name__ == "__main__":
+def main():
     argParser = argparse.ArgumentParser()
-    argParser.description = "Validate the stable diffusion model database."
+    argParser.description = "Validate the ('legacy') stable diffusion model database."
     argParser.add_argument(
         "sd_db",
         help="Path to the stable diffusion model database (should be a .json file)",
@@ -89,3 +89,7 @@ if __name__ == "__main__":
             exit(1)
 
     validate_legacy_stable_diffusion_db(sd_db=validated_sd_db, write_to_path=validated_file_output_path)
+
+
+if __name__ == "__main__":
+    main()
