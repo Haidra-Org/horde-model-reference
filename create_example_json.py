@@ -1,6 +1,6 @@
 import json
 
-from horde_model_reference.meta_consts import MODEL_PURPOSE, MODEL_STYLES, STABLE_DIFFUSION_BASELINE_CATEGORIES
+from horde_model_reference import MODEL_PURPOSE, MODEL_STYLES, STABLE_DIFFUSION_BASELINE_CATEGORIES
 from horde_model_reference.model_reference_records import (
     DownloadRecord,
     StableDiffusion_ModelRecord,
