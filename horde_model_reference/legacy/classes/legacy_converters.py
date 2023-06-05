@@ -1,3 +1,4 @@
+"""The classes used to convert the legacy model reference to the new format."""
 import glob
 import json
 import typing
@@ -41,7 +42,8 @@ from horde_model_reference.util import model_name_to_showcase_folder_name
 
 
 class BaseLegacyConverter:
-    """The logic applicable to all legacy model reference converters."""
+    """The logic applicable to all legacy model reference converters.
+    See normalize_and_convert() for the order of operations critical to the conversion process."""
 
     legacy_folder_path: Path
     """The folder path to the legacy model reference."""
@@ -262,7 +264,7 @@ class BaseLegacyConverter:
         """Override and call super().parse_record(..) to perform any model category specific parsing."""
 
     def post_parse_records(self) -> None:
-        """Perform any post parsing tasks."""
+        """Override and call super().post_parse_records() to perform any model category specific post parsing."""
         for model_record in self.all_model_records.values():
             model_record.model_purpose = MODEL_PURPOSE_LOOKUP[self.model_reference_category]
         pass
