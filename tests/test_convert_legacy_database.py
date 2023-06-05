@@ -77,12 +77,13 @@ def test_validate_converted_stablediffusion_database():
         assert model_host != ""
 
     assert model_reference.models is not None
-    assert len(model_reference.models) >= 100
+    assert len(model_reference.models) >= 200
 
     assert model_reference.models["stable_diffusion"] is not None
     assert model_reference.models["stable_diffusion"].name == "stable_diffusion"
     assert model_reference.models["stable_diffusion"].showcases is not None
-    assert len(model_reference.models["stable_diffusion"].showcases) >= 3
+    # assert len(model_reference.models["stable_diffusion"].showcases) >= 3
+    # XXX This is commented out because the dynamic showcase generation should not currently be part of the CI
 
     for model_key, model_info in model_reference.models.items():
         assert model_info.name == model_key
