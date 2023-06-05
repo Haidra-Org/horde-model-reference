@@ -41,6 +41,8 @@ from horde_model_reference.util import model_name_to_showcase_folder_name
 
 
 class BaseLegacyConverter:
+    """The logic applicable to all legacy model reference converters."""
+
     legacy_folder_path: Path
     """The folder path to the legacy model reference."""
     legacy_database_path: Path
@@ -66,11 +68,14 @@ class BaseLegacyConverter:
     print_errors: bool = True
     """Whether to print errors in the conversion to `stdout`."""
 
+    log_folder: Path = LOG_FOLDER
+
     def __init__(
         self,
         *,
         legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
         target_file_folder: str | Path = BASE_PATH,
+        log_folder: str | Path = LOG_FOLDER,
         model_reference_category: MODEL_REFERENCE_CATEGORIES,
         print_errors: bool = True,
         debug_mode: bool = False,
@@ -103,11 +108,13 @@ class BaseLegacyConverter:
         self.debug_mode = debug_mode
         self.print_errors = print_errors
 
+        self.log_folder = Path(log_folder)
+
     def normalize_and_convert(self) -> bool:
         """Normalizes and converts the legacy model reference database to the new format.
 
         Returns:
-            bool: True if the conversion was successful, False otherwise.
+            bool: `True` if the conversion was successful, False otherwise.
         """
         self.pre_parse_records()
         all_model_iterator = self._iterate_over_input_records(self.model_reference_type)
@@ -297,7 +304,7 @@ class BaseLegacyConverter:
 
     def write_out_validation_errors(self) -> None:
         """Write out the validation errors."""
-        log_file = self.converted_folder_path.joinpath(self.model_reference_category + ".log")
+        log_file = self.log_folder.joinpath(self.model_reference_category + ".log")
         with open(log_file, "w") as validation_errors_log_file:
             validation_errors_log_file.write(
                 json.dumps(
