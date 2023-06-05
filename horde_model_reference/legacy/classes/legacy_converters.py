@@ -21,7 +21,7 @@ from horde_model_reference.legacy.classes.staging_model_database_records import 
     MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
     Legacy_Generic_ModelReference,
     Legacy_StableDiffusion_ModelRecord,
-    Legacy_StableDiffusion_ModelReference,
+    Staging_StableDiffusion_ModelReference,
     StagingLegacy_Config_DownloadRecord,
     StagingLegacy_Config_FileRecord,
     StagingLegacy_Generic_ModelRecord,
@@ -507,7 +507,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         if len(sanity_check) != len(self.all_model_records):
             raise ValueError("CRITICAL: Not all records are of the correct type.")
 
-        modelReference = Legacy_StableDiffusion_ModelReference(
+        modelReference = Staging_StableDiffusion_ModelReference(
             baseline=self.all_baseline_categories,
             styles=self.all_styles,
             tags=self.all_tags,
