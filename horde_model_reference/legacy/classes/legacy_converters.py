@@ -7,7 +7,15 @@ from pathlib import Path
 from pydantic import ValidationError
 from typing_extensions import override
 
-from horde_model_reference import path_consts
+from horde_model_reference import (
+    BASE_PATH,
+    DEFAULT_SHOWCASE_FOLDER_NAME,
+    LEGACY_REFERENCE_FOLDER,
+    LOG_FOLDER,
+    MODEL_PURPOSE_LOOKUP,
+    MODEL_REFERENCE_CATEGORIES,
+    path_consts,
+)
 from horde_model_reference.legacy.classes.staging_model_database_records import (
     MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
     Legacy_Generic_ModelReference,
@@ -17,7 +25,6 @@ from horde_model_reference.legacy.classes.staging_model_database_records import 
     StagingLegacy_Config_FileRecord,
     StagingLegacy_Generic_ModelRecord,
 )
-from horde_model_reference.meta_consts import MODEL_PURPOSE_LOOKUP
 from horde_model_reference.model_reference_records import (
     MODEL_REFERENCE_TYPE_LOOKUP,
     StableDiffusion_ModelReference,
