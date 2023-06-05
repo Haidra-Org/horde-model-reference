@@ -14,6 +14,7 @@ on:
       - '.github/workflows/maintests.yml'
       - '.github/workflows/prtests.yml'
       - '.github/workflows/release.yml'
+      - '.pre-commit-config.yaml'
 jobs:
   build:
     runs-on: ubuntu-latest
