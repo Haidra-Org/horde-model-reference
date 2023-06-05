@@ -105,7 +105,7 @@ class Legacy_Generic_ModelReference(BaseModel):
     models: Mapping[str, StagingLegacy_Generic_ModelRecord]
 
 
-class Legacy_StableDiffusion_ModelReference(Legacy_Generic_ModelReference):
+class Staging_StableDiffusion_ModelReference(Legacy_Generic_ModelReference):
     """A helper class to convert the legacy model reference to the new model reference format."""
 
     baseline: dict[str, int]
