@@ -1,4 +1,4 @@
-## Foreword 
+## Foreword
 These are not all 1:1 matches to the legacy files. If there is a need to update these, please look carefully at the diffs. 4-indent format any json files first.
 
 ## To convert files

@@ -1,9 +1,9 @@
 """The model database pydantic models and associate enums/lookups."""
-from typing import Mapping
+from collections.abc import Mapping
 
 from pydantic import BaseModel
 
-from horde_model_reference.meta_consts import (
+from horde_model_reference import (
     MODEL_PURPOSE,
     MODEL_REFERENCE_CATEGORIES,
     MODEL_STYLES,

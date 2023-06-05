@@ -1,4 +1,5 @@
-from typing import Mapping
+"""The classes which can represent a legacy model reference file."""
+from collections.abc import Mapping
 
 from pydantic import BaseModel
 
@@ -31,7 +32,7 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
     name: str
     baseline: str
     type: str  # noqa: A003
-    inpainting: bool | None
+    inpainting: bool
     description: str | None
     tags: list[str] | None
     showcases: list[str] | None

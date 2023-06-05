@@ -6,7 +6,7 @@
 
 # These classes will only persist until the legacy model reference is fully deprecated.
 
-from typing import Mapping
+from collections.abc import Mapping
 
 from pydantic import BaseModel
 
@@ -39,7 +39,7 @@ class StagingLegacy_Config_DownloadRecord(BaseModel):
 
 
 class StagingLegacy_Generic_ModelRecord(BaseModel):
-    """This is hybrid representation of the legacy model reference and the new model reference format."""
+    """This is a helper class, a hybrid representation of the legacy model reference and the new format."""
 
     class Config:
         extra = "forbid"
@@ -105,7 +105,7 @@ class Legacy_Generic_ModelReference(BaseModel):
     models: Mapping[str, StagingLegacy_Generic_ModelRecord]
 
 
-class Legacy_StableDiffusion_ModelReference(Legacy_Generic_ModelReference):
+class Staging_StableDiffusion_ModelReference(Legacy_Generic_ModelReference):
     """A helper class to convert the legacy model reference to the new model reference format."""
 
     baseline: dict[str, int]
