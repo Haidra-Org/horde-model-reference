@@ -1,3 +1,4 @@
+"""The classes which can represent a legacy model reference file."""
 from typing import Mapping
 
 from pydantic import BaseModel

@@ -1,3 +1,4 @@
+"""Script to add models to the legacy stable diffusion model reference."""
 import argparse
 import glob
 import hashlib
@@ -20,7 +21,9 @@ from horde_model_reference.legacy.classes.raw_legacy_model_database_records impo
 )
 
 
-class Temp_StableDiffusionRecordHelper:
+class Legacy_StableDiffusionRecordHelper:
+    """A helper class to add models to the legacy stable diffusion model reference."""
+
     target_folder: pathlib.Path
 
     def __init__(self, target_folder: str | pathlib.Path):
@@ -304,4 +307,4 @@ if __name__ == "__main__":
         print(f"compvis folder {STABLE_DIFFUSION_FOLDER} does not exist")
         exit(1)
 
-    Temp_StableDiffusionRecordHelper(STABLE_DIFFUSION_FOLDER).add_models_from_disk(pathlib.Path("test.json"))
+    Legacy_StableDiffusionRecordHelper(STABLE_DIFFUSION_FOLDER).add_models_from_disk(pathlib.Path("test.json"))

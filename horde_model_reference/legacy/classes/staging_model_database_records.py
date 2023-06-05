@@ -39,7 +39,7 @@ class StagingLegacy_Config_DownloadRecord(BaseModel):
 
 
 class StagingLegacy_Generic_ModelRecord(BaseModel):
-    """This is hybrid representation of the legacy model reference and the new model reference format."""
+    """This is a helper class, a hybrid representation of the legacy model reference and the new format."""
 
     class Config:
         extra = "forbid"

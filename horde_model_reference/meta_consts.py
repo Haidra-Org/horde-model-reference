@@ -61,7 +61,7 @@ class MODEL_PURPOSE(str, Enum):
     """The model is a BLIP model."""
 
     post_processor = "post_processor"
-    """The model is a post processor of some variety."""
+    """The model is a post processor (after image generation) of some variety."""
 
 
 class STABLE_DIFFUSION_BASELINE_CATEGORIES(str, Enum):
