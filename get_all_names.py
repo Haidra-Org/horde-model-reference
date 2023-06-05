@@ -1,4 +1,5 @@
 import json
+
 from horde_model_reference.model_reference_records import StableDiffusion_ModelRecord
 
 parsed_db_records: dict[str, StableDiffusion_ModelRecord] | None = None

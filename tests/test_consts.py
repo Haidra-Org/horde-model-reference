@@ -1,6 +1,6 @@
 import urllib.parse
 
-from horde_model_reference import meta_consts, path_consts
+from horde_model_reference import path_consts
 
 
 def test_github_urls():
