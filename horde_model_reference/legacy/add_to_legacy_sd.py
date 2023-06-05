@@ -6,13 +6,18 @@ import os
 import pathlib
 import urllib.parse
 
+from horde_model_reference import (
+    KNOWN_TAGS,
+    LEGACY_REFERENCE_FOLDER,
+    MODEL_REFERENCE_CATEGORIES,
+    MODEL_STYLES,
+    get_model_reference_file_path,
+)
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
     RawLegacy_DownloadRecord,
     RawLegacy_FileRecord,
     RawLegacy_StableDiffusion_ModelRecord,
 )
-from horde_model_reference.meta_consts import KNOWN_TAGS, MODEL_REFERENCE_CATEGORIES, MODEL_STYLES
-from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER, get_model_reference_file_path
 
 
 class Temp_StableDiffusionRecordHelper:

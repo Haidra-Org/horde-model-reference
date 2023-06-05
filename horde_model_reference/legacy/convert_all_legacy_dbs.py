@@ -1,11 +1,11 @@
 from pathlib import Path
 
+from horde_model_reference import BASE_PATH, LEGACY_REFERENCE_FOLDER, MODEL_REFERENCE_CATEGORIES
 from horde_model_reference.legacy.classes.legacy_converters import (
     BaseLegacyConverter,
     LegacyClipConverter,
     LegacyStableDiffusionConverter,
 )
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORIES
 
 if __name__ == "__main__":
     sd_converter = LegacyStableDiffusionConverter(

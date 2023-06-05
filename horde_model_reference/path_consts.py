@@ -3,7 +3,7 @@
 from pathlib import Path
 from urllib.parse import urlparse
 
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORIES
+from horde_model_reference import MODEL_REFERENCE_CATEGORIES
 
 PACKAGE_NAME = "horde_model_reference"
 
