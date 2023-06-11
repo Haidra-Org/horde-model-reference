@@ -3,6 +3,8 @@
 This package provides some tools to help manage the models which power the [AI-Horde](https://github.com/db0/AI-Horde).
 
 ## Reference info (.json files)
+For now, the legacy reference format will be availible as before at the [original official repo](https://github.com/Haidra-Org/AI-Horde-image-model-reference) used in the past.
+
 ### stable_diffusion.json
 You can find a schema for an individual record in the file `stable_diffusion.schema.json` in the root of this repository. Also see `stable_diffusion.example.json` for a small example containing two records will all of the fields populated.
 ### stable_diffusion.json changes
@@ -26,7 +28,7 @@ Some key takeaways for the new `stable_diffusion.json`:
 Moving forward, you can expect the schema to honor at least the existing values. There is a strong possibility additional fields will be added.
 
 ## Python library
-This repo is also a python library!
+This repo is also a python library designed to help you integrate the scheme the AI-Horde project uses to manage its models into your project.
 ### General info
 You can install this module through pip:
 ```
@@ -39,15 +41,18 @@ This library has a number of python classes which may assist you in working with
   - Contains many commonly used strings, enums, and certain useful dict lookups.
 - horde_model_reference\path_consts.py
   - Contains certain potentially useful paths, path constructors and folder/file name information relevant to the package.
+
+Note that a number of useful imports have been made availible at the `horde_model_reference` import level.
+
 ## Horde Moderators/Support Staff
 
 ### Validating
 When making changes to stable_diffusion.json, you can now validate, format, and standardize it for consistency. You can do this by invoking the following:
 ```
-validate_sd path/to/stable_diffusion.json
+validate_sd stable_diffusion.json
 ```
 This will give you a success message if the file is standardized. If it is not, you can invoke the following:
 ```
-validate_sd path/to/stable_diffusion.json --write file/to/write_out_to.json
+validate_sd stable_diffusion.json --write validated_and_formatted.json
 ```
-This will write the appropriately normalized json out to the path specified by `--write`.
+This will write the appropriately normalized json out to the path specified by `--write`. It will only write a file out if the input file is valid json and conforms to the established schema.
