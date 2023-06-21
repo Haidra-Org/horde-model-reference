@@ -67,6 +67,15 @@ class ReferenceDownloadManager:
         self.download_all_model_references(override_existing=redownload_all)
 
 
+def download_all_models(
+    override_existing: bool = False,
+    proxy_url: str = "",
+) -> dict[MODEL_REFERENCE_CATEGORIES, pathlib.Path | None]:
+    reference_dm = ReferenceDownloadManager(proxy_url=proxy_url)
+    logger.error("This method is deprecated. Use `download_all_model_references` instead.")
+    return reference_dm.download_all_model_references(override_existing=override_existing)
+
+
 if __name__ == "__main__":
     reference_download_manager = ReferenceDownloadManager()
     reference_download_manager.download_all_model_references(override_existing=True)
