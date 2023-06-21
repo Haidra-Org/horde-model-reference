@@ -13,7 +13,6 @@ def main(legacy_path: str | Path = LEGACY_REFERENCE_FOLDER, target_path: str | P
         legacy_folder_path=legacy_path,
         target_file_folder=target_path,
         debug_mode=False,
-        print_errors=True,
     )
     sd_converter.normalize_and_convert()
 
@@ -21,7 +20,6 @@ def main(legacy_path: str | Path = LEGACY_REFERENCE_FOLDER, target_path: str | P
         legacy_folder_path=legacy_path,
         target_file_folder=target_path,
         debug_mode=False,
-        print_errors=True,
     )
     clip_converter.normalize_and_convert()
 
@@ -38,7 +36,6 @@ def main(legacy_path: str | Path = LEGACY_REFERENCE_FOLDER, target_path: str | P
             target_file_folder=target_path,
             model_reference_category=model_category,
             debug_mode=False,
-            print_errors=True,
         )
         converter.normalize_and_convert()
 
