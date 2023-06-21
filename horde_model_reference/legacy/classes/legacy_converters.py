@@ -295,7 +295,8 @@ class BaseLegacyConverter:
                     exclude_defaults=True,
                     exclude_none=True,
                     exclude_unset=True,
-                ),
+                )
+                + "\n",
             )
 
     def add_validation_error_to_log(
@@ -503,9 +504,10 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         print(f"Total number of showcase folders: {len(final_on_disk_showcase_folders_names)}")
 
         print()
-        print(f"Total number of models with errors: {len(self.all_validation_errors_log)}")
+        print(f"Total number of models with validation issues: {len(self.all_validation_errors_log)}")
         print()
-        print("Errors and warnings are listed above on lines prefixed with `-> `")
+        if self.print_errors:
+            print("Errors and warnings are listed above on lines prefixed with `-> `")
 
     @override
     def write_out_records(self) -> None:
@@ -540,7 +542,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             return
 
         with open(self.converted_database_file_path, "w") as testfile:
-            testfile.write(json.dumps(models_in_doc_root, indent=4))
+            testfile.write(json.dumps(models_in_doc_root, indent=4) + "\n")
 
         print("Converted database passes validation and was written to disk successfully.")
         print(f"Converted database written to: {self.converted_database_file_path}")
