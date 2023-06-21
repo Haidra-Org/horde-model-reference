@@ -17,43 +17,40 @@ from horde_model_reference.model_reference_records import (
     create_stablediffusion_modelreference,
 )
 
-TARGET_DIRECTORY_FOR_TESTDATA = Path(__file__).parent.joinpath("test_data_results")
-"""The path to the converted stable diffusion model reference."""
 
-
-def test_convert_legacy_stablediffusion_database():
+def test_convert_legacy_stablediffusion_database(base_path_for_tests: Path, legacy_folder_for_tests: Path):
     sd_converter = LegacyStableDiffusionConverter(
-        legacy_folder_path=path_consts.LEGACY_REFERENCE_FOLDER,
-        target_file_folder=TARGET_DIRECTORY_FOR_TESTDATA,
+        legacy_folder_path=legacy_folder_for_tests,
+        target_file_folder=base_path_for_tests,
     )
     assert sd_converter.normalize_and_convert()
 
 
-def test_convert_legacy_clip_database():
+def test_convert_legacy_clip_database(base_path_for_tests: Path, legacy_folder_for_tests: Path):
     clip_converter = LegacyClipConverter(
-        legacy_folder_path=path_consts.LEGACY_REFERENCE_FOLDER,
-        target_file_folder=TARGET_DIRECTORY_FOR_TESTDATA,
+        legacy_folder_path=legacy_folder_for_tests,
+        target_file_folder=base_path_for_tests,
     )
     assert clip_converter.normalize_and_convert()
 
 
-def test_all_base_legacy_converters():
+def test_all_base_legacy_converters(base_path_for_tests: Path, legacy_folder_for_tests: Path):
     generic_references = {
         k: v for k, v in MODEL_REFERENCE_LEGACY_TYPE_LOOKUP.items() if v is StagingLegacy_Generic_ModelRecord
     }
     for reference_category in generic_references:
         base_converter = BaseLegacyConverter(
-            legacy_folder_path=path_consts.LEGACY_REFERENCE_FOLDER,
-            target_file_folder=TARGET_DIRECTORY_FOR_TESTDATA,
+            legacy_folder_path=legacy_folder_for_tests,
+            target_file_folder=base_path_for_tests,
             model_reference_category=reference_category,
         )
         assert base_converter.normalize_and_convert()
 
 
-def test_validate_converted_stablediffusion_database():
+def test_validate_converted_stablediffusion_database(base_path_for_tests) -> None:
     stablediffusion_model_database_path = path_consts.get_model_reference_file_path(
         path_consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
-        base_path=TARGET_DIRECTORY_FOR_TESTDATA,
+        base_path=base_path_for_tests,
     )
     sd_model_datbase_file_contents: str = ""
     with open(stablediffusion_model_database_path) as f:
