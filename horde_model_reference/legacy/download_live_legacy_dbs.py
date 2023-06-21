@@ -1,6 +1,7 @@
 import pathlib
 
 import requests
+from loguru import logger
 
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORIES
 from horde_model_reference.path_consts import (
@@ -55,6 +56,11 @@ class ReferenceDownloadManager:
             )
 
         return downloaded_files
+
+    def download_all_models(self, override_existing: bool = False, proxy_url: str = ""):
+        logger.error("This method is deprecated. Use `download_all_model_references` instead.")
+        self.proxy_url = proxy_url
+        self.download_all_model_references(override_existing=override_existing)
 
     def read_all_model_references(self, *, redownload_all: bool = False):
         """Read all legacy model reference files from disk, optionally redownloading them first."""
