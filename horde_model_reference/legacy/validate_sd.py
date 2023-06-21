@@ -54,7 +54,7 @@ def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None 
     return True
 
 
-def main():
+def main() -> None:
     argParser = argparse.ArgumentParser()
     argParser.description = "Validate the ('legacy') stable diffusion model database."
     argParser.add_argument(
