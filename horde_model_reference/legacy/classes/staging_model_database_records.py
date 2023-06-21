@@ -52,7 +52,7 @@ class StagingLegacy_Generic_ModelRecord(BaseModel):
     nsfw: bool | None
     download_all: bool | None
     config: dict[str, list[StagingLegacy_Config_FileRecord | StagingLegacy_Config_DownloadRecord]]
-    available: bool
+    available: bool | None
 
     model_purpose: MODEL_PURPOSE | None
 
