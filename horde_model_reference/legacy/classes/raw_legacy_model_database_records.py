@@ -44,7 +44,7 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
     nsfw: bool
     download_all: bool
     config: Mapping[str, list[RawLegacy_FileRecord | RawLegacy_DownloadRecord]]
-    available: bool
+    available: bool | None
 
     def dict(  # noqa: A003
         self,
