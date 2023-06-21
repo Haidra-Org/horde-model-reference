@@ -61,15 +61,22 @@ for category in MODEL_REFERENCE_CATEGORIES:
 
 def get_model_reference_filename(
     model_reference_category: MODEL_REFERENCE_CATEGORIES,
-) -> str:
-    """Returns just the filename (not the path) of the model reference file for the given model reference category.
+    *,
+    base_path: str | Path | None = None,
+) -> str | Path:
+    """Return the filename for the given model reference category.
 
     Args:
         model_reference_category (MODEL_REFERENCE_CATEGORIES): The category of model reference to get the filename for.
+        base_path (str | Path | None): If provided, the base path to the model reference file. Defaults to BASE_PATH.
 
     Returns:
-        str: The filename of the model reference file.
+        str: The filename for the given model reference category. If base_path is provided, returns the full path
+        from get_model_reference_file_path(...).
     """
+    if base_path:
+        return get_model_reference_file_path(model_reference_category, base_path=base_path).resolve()
+
     return _MODEL_REFERENCE_FILENAMES[model_reference_category]
 
 
