@@ -7,6 +7,8 @@ import os
 import pathlib
 import urllib.parse
 
+from loguru import logger
+
 from horde_model_reference import (
     KNOWN_TAGS,
     LEGACY_REFERENCE_FOLDER,
@@ -46,7 +48,7 @@ class Legacy_StableDiffusionRecordHelper:
                         raw_record_contents,
                     )
                 except Exception as e:
-                    print(f"Failed to parse {raw_record_key} due to {e}")
+                    logger.exception(f"Failed to parse {raw_record_key} due to {e}")
 
         return sd_legacy_model_reference
 
