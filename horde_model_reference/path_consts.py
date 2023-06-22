@@ -75,6 +75,9 @@ def get_model_reference_filename(
         from get_model_reference_file_path(...).
     """
     if base_path:
+        base_path = Path(base_path)
+        if base_path.name == "model_database":
+            base_path = BASE_PATH
         return get_model_reference_file_path(model_reference_category, base_path=base_path).resolve()
 
     return _MODEL_REFERENCE_FILENAMES[model_reference_category]

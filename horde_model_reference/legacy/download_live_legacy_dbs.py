@@ -6,8 +6,8 @@ from loguru import logger
 
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORIES
 from horde_model_reference.path_consts import (
+    BASE_PATH,
     LEGACY_MODEL_GITHUB_URLS,
-    LEGACY_REFERENCE_FOLDER,
     LEGACY_REFERENCE_FOLDER_NAME,
     get_model_reference_file_path,
 )
@@ -17,12 +17,12 @@ class ReferenceDownloadManager:
     proxy_url: str = ""
     """The URL to use as a proxy for downloading files. If empty, no proxy will be used."""
 
-    base_path: str | Path = LEGACY_REFERENCE_FOLDER
+    base_path: str | Path = BASE_PATH
 
     def __init__(
         self,
         *,
-        base_path: str | Path = LEGACY_REFERENCE_FOLDER,
+        base_path: str | Path = BASE_PATH,
         proxy_url: str = "",
     ) -> None:
         self.base_path = base_path
