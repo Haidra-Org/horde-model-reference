@@ -2,6 +2,8 @@ import argparse
 import json
 from pathlib import Path
 
+from loguru import logger
+
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
     RawLegacy_StableDiffusion_ModelRecord,
 )
@@ -14,9 +16,8 @@ def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None 
     try:
         loaded_json_sd_db = json.loads(raw_json_sd_db)
     except Exception as e:
-        print(e)
-        print()
-        print(f"ERROR: The stable diffusion database specified ({sd_db}) is not a valid json file.")
+        logger.exception(e)
+        logger.exception(f"ERROR: The stable diffusion database specified ({sd_db}) is not a valid json file.")
         if __name__ == "__main__":
             exit(1)
         else:
@@ -30,9 +31,9 @@ def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None 
     correct_json_layout += "\n"  # Add a newline to the end of the file, for consistency with formatters.
 
     if raw_json_sd_db != correct_json_layout:
-        print("ERROR: Invalid stable diffusion model database.")
+        logger.error("Invalid stable diffusion model database.")
         if write_to_path:
-            print(f"Writing the correct stable diffusion model database json to {write_to_path}")
+            logger.info(f"Writing the correct stable diffusion model database json to {write_to_path}")
             with open(write_to_path, "w") as corrected_sd_db_file:
                 corrected_sd_db_file.write(correct_json_layout)
         else:
@@ -54,7 +55,7 @@ def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None 
     return True
 
 
-def main():
+def main() -> None:
     argParser = argparse.ArgumentParser()
     argParser.description = "Validate the ('legacy') stable diffusion model database."
     argParser.add_argument(

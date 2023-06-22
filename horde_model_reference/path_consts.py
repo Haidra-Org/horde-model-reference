@@ -4,9 +4,10 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
-from horde_model_reference import MODEL_REFERENCE_CATEGORIES
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORIES
 
 PACKAGE_NAME = "horde_model_reference"
+"""The name of this package. Also used as the name of the base folder name for all model reference files."""
 
 BASE_PATH: Path = Path(__file__).parent
 """The base path for all model reference files. Will be based in AIWORKER_CACHE_HOME if set, otherwise will be based in
@@ -17,12 +18,17 @@ AIWORKER_CACHE_HOME = os.getenv("AIWORKER_CACHE_HOME")
 
 if AIWORKER_CACHE_HOME:
     BASE_PATH = Path(AIWORKER_CACHE_HOME).joinpath(PACKAGE_NAME)
+BASE_PATH.mkdir(parents=True, exist_ok=True)
 
 LOG_FOLDER: Path = BASE_PATH.joinpath("logs")
 LOG_FOLDER.mkdir(parents=True, exist_ok=True)
 
-LEGACY_REFERENCE_FOLDER: Path = BASE_PATH.joinpath("legacy")
-"""The path to the legacy model reference folder."""
+LEGACY_REFERENCE_FOLDER_NAME: str = "legacy"
+"""The default name of the legacy model reference folder.
+If you need the default path, use `LEGACY_REFERENCE_FOLDER`."""
+
+LEGACY_REFERENCE_FOLDER: Path = BASE_PATH.joinpath(LEGACY_REFERENCE_FOLDER_NAME)
+"""The default path, starting with BASE_PATH, to the default legacy model reference folder. """
 LEGACY_REFERENCE_FOLDER.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_SHOWCASE_FOLDER_NAME: str = "showcase"
@@ -55,15 +61,22 @@ for category in MODEL_REFERENCE_CATEGORIES:
 
 def get_model_reference_filename(
     model_reference_category: MODEL_REFERENCE_CATEGORIES,
-) -> str:
-    """Returns just the filename (not the path) of the model reference file for the given model reference category.
+    *,
+    base_path: str | Path | None = None,
+) -> str | Path:
+    """Return the filename for the given model reference category.
 
     Args:
         model_reference_category (MODEL_REFERENCE_CATEGORIES): The category of model reference to get the filename for.
+        base_path (str | Path | None): If provided, the base path to the model reference file. Defaults to BASE_PATH.
 
     Returns:
-        str: The filename of the model reference file.
+        str: The filename for the given model reference category. If base_path is provided, returns the full path
+        from get_model_reference_file_path(...).
     """
+    if base_path:
+        return get_model_reference_file_path(model_reference_category, base_path=base_path).resolve()
+
     return _MODEL_REFERENCE_FILENAMES[model_reference_category]
 
 

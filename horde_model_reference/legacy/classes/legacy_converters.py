@@ -5,6 +5,7 @@ import typing
 import urllib.parse
 from pathlib import Path
 
+from loguru import logger
 from pydantic import ValidationError
 from typing_extensions import override
 
@@ -63,8 +64,6 @@ class BaseLegacyConverter:
 
     debug_mode: bool = False
     """If true, include extra information in the error log."""
-    print_errors: bool = True
-    """Whether to print errors in the conversion to `stdout`."""
 
     log_folder: Path = LOG_FOLDER
     """The folder to write the validation error log to."""
@@ -79,7 +78,6 @@ class BaseLegacyConverter:
         target_file_folder: str | Path = BASE_PATH,
         log_folder: str | Path = LOG_FOLDER,
         model_reference_category: MODEL_REFERENCE_CATEGORIES,
-        print_errors: bool = True,
         debug_mode: bool = False,
         dry_run: bool = False,
     ):
@@ -89,7 +87,6 @@ class BaseLegacyConverter:
             legacy_folder_path (str | Path, optional): The legacy database folder. Defaults to LEGACY_REFERENCE_FOLDER.
             target_file_folder (str | Path): The folder to write the converted database to.
             model_reference_category (MODEL_REFERENCE_CATEGORIES): The category of model reference to convert.
-            print_errors (bool, optional): Whether to print errors in the conversion to `stdout`. Defaults to True.
             debug_mode (bool, optional): If true, include extra information in the error log. Defaults to False.
             dry_run (bool, optional): If true, don't write out the converted database or any logs. Defaults to False.
         """
@@ -110,7 +107,6 @@ class BaseLegacyConverter:
             base_path=target_file_folder,
         )
         self.debug_mode = debug_mode
-        self.print_errors = print_errors
 
         self.log_folder = Path(log_folder)
 
@@ -282,7 +278,7 @@ class BaseLegacyConverter:
             new_reference = type_to_convert_to(models=_.models)
             pass
         except ValidationError as e:
-            print(f"CRITICAL: Failed to convert to new model reference type {type_to_convert_to}.")
+            logger.exception(f"CRITICAL: Failed to convert to new model reference type {type_to_convert_to}.")
             raise e
 
         if self.dry_run:
@@ -295,7 +291,8 @@ class BaseLegacyConverter:
                     exclude_defaults=True,
                     exclude_none=True,
                     exclude_unset=True,
-                ),
+                )
+                + "\n",
             )
 
     def add_validation_error_to_log(
@@ -304,12 +301,12 @@ class BaseLegacyConverter:
         model_record_key: str,
         error: str,
     ) -> None:
-        """Add a validation error to the log. If print_errors is True, also print the error to stdout."""
+        """Add a validation error to the log."""
         if model_record_key not in self.all_validation_errors_log:
             self.all_validation_errors_log[model_record_key] = []
         self.all_validation_errors_log[model_record_key].append(error)
-        if self.print_errors:
-            print("-> " + error)
+
+        logger.debug(f"{model_record_key} has error: {error}")
 
     def write_out_validation_errors(self) -> None:
         """Write out the validation errors."""
@@ -348,7 +345,6 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         *,
         legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
         target_file_folder: str | Path = BASE_PATH,
-        print_errors: bool = True,
         debug_mode: bool = False,
     ):
         """Initialize an instance of the LegacyStableDiffusionConverter class.
@@ -356,7 +352,6 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         Args:
             legacy_folder_path (str | Path, optional): The legacy database folder. Defaults to LEGACY_REFERENCE_FOLDER.
             target_file_folder (str | Path): The folder to write the converted database to.
-            print_errors (bool, optional): Whether to print errors in the conversion to `stdout`. Defaults to True.
             debug_mode (bool, optional): If true, include extra information in the error log. Defaults to False.
         """
         super().__init__(
@@ -364,7 +359,6 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             target_file_folder=target_file_folder,
             model_reference_category=path_consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
             debug_mode=debug_mode,
-            print_errors=print_errors,
         )
         self.all_baseline_categories = {}
         self.all_styles = {}
@@ -432,8 +426,8 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             for file in self.existing_showcase_files[expected_showcase_foldername]:
                 url_friendly_name = urllib.parse.quote(Path(file).name)
                 # if not any(url_friendly_name in showcase for showcase in new_record.showcases):
-                #     print(f"{model_record_key} is missing a showcase for {url_friendly_name}.")
-                #     print(f"{new_record.showcases=}")
+                #     logger.debug(f"{model_record_key} is missing a showcase for {url_friendly_name}.")
+                #     logger.debug(f"{new_record.showcases=}")
                 #     continue
                 expected_github_location = urllib.parse.urljoin(
                     GITHUB_REPO_URL,
@@ -493,19 +487,15 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 self.add_validation_error_to_log(model_record_key=folder, error=error)
 
         print()
-        print(f"{self.all_styles=}")
-        print(f"{self.all_baseline_categories=}")
-        print(f"{self.all_tags=}")
-        print(f"{self.all_model_hosts=}")
-
+        logger.debug(f"{self.all_styles=}")
+        logger.debug(f"{self.all_baseline_categories=}")
+        logger.debug(f"{self.all_tags=}")
+        logger.debug(f"{self.all_model_hosts=}")
         print()
-        print(f"Total number of models: {len(self.all_model_records)}")
-        print(f"Total number of showcase folders: {len(final_on_disk_showcase_folders_names)}")
-
+        logger.info(f"Total number of models: {len(self.all_model_records)}")
+        logger.info(f"Total number of showcase folders: {len(final_on_disk_showcase_folders_names)}")
         print()
-        print(f"Total number of models with errors: {len(self.all_validation_errors_log)}")
-        print()
-        print("Errors and warnings are listed above on lines prefixed with `-> `")
+        logger.info(f"Total number of models with validation issues: {len(self.all_validation_errors_log)}")
 
     @override
     def write_out_records(self) -> None:
@@ -532,18 +522,18 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             # and ready to be cast to the new model reference type.
             StableDiffusion_ModelReference(**json.loads(modelReference.json()))
         except ValidationError as e:
-            print(e)
-            print("CRITICAL: Failed to convert to new model reference type.")
+            logger.exception(e)
+            logger.exception("CRITICAL: Failed to convert to new model reference type.")
             raise e
 
         if self.dry_run:
             return
 
         with open(self.converted_database_file_path, "w") as testfile:
-            testfile.write(json.dumps(models_in_doc_root, indent=4))
+            testfile.write(json.dumps(models_in_doc_root, indent=4) + "\n")
 
-        print("Converted database passes validation and was written to disk successfully.")
-        print(f"Converted database written to: {self.converted_database_file_path}")
+        logger.info("Converted database passes validation and was written to disk successfully.")
+        logger.info(f"Converted database written to: {self.converted_database_file_path}")
 
     def get_existing_showcases(
         self,
@@ -614,7 +604,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             if config_entry_key == "files":
                 for config_file in config_entry_object:
                     if not isinstance(config_file, StagingLegacy_Config_FileRecord):
-                        print(f"{model_record_key} is in 'files' but isn't a `Legacy_Config_FileRecord`!")
+                        logger.exception(f"{model_record_key} is in 'files' but isn't a `Legacy_Config_FileRecord`!")
                         raise TypeError("Expected `Legacy_Config_FileRecord`.")
                     if config_file.path is None or config_file.path == "":
                         error = f"{model_record_key} has a config file with no path."
@@ -640,7 +630,9 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             elif config_entry_key == "download":
                 for download in config_entry_object:
                     if not isinstance(download, StagingLegacy_Config_DownloadRecord):
-                        print(f"{model_record_key} is in 'download' but isn't a `Legacy_Config_DownloadRecord`!")
+                        logger.exception(
+                            f"{model_record_key} is in 'download' but isn't a `Legacy_Config_DownloadRecord`!",
+                        )
                         raise TypeError("Expected `Legacy_Config_DownloadRecord`.")
                     if download.file_name is None or download.file_name == "":
                         error = f"{model_record_key} has a download with no file_name."
@@ -675,14 +667,12 @@ class LegacyClipConverter(BaseLegacyConverter):
         *,
         legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
         target_file_folder: str | Path = BASE_PATH,
-        print_errors: bool = True,
         debug_mode: bool = False,
     ):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
             model_reference_category=MODEL_REFERENCE_CATEGORIES.CLIP,
-            print_errors=print_errors,
             debug_mode=debug_mode,
         )
 

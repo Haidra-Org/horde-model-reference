@@ -34,7 +34,7 @@ class Generic_ModelRecord(BaseModel):
     """The version of the  model (not the version of SD it is based on, see `baseline` for that info)."""
     style: MODEL_STYLES | str | None  # TODO remove str
     """The style of the model."""
-    config: dict[str, list[DownloadRecord]]
+    config: Mapping[str, list[DownloadRecord]]
     """A dictionary of any configuration files and information on where to download the model file(s)."""
 
     model_purpose: MODEL_PURPOSE
@@ -81,19 +81,21 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
     class Config:
         extra = "forbid"
 
-    baseline: dict[STABLE_DIFFUSION_BASELINE_CATEGORIES, int]
+    baseline: Mapping[STABLE_DIFFUSION_BASELINE_CATEGORIES, int]
     """A dictionary of all the baseline types and how many models use them."""
-    styles: dict[MODEL_STYLES, int]
+    styles: Mapping[MODEL_STYLES, int]
     """A dictionary of all the styles and how many models use them."""
-    tags: dict[str, int]
+    tags: Mapping[str, int]
     """A dictionary of all the tags and how many models use them."""
-    model_hosts: dict[str, int]
+    model_hosts: Mapping[str, int]
     """A dictionary of all the model hosts and how many models use them."""
     models: Mapping[str, StableDiffusion_ModelRecord]
     """A dictionary of all the models."""
 
 
-def create_stablediffusion_modelreference(models: Mapping[str, StableDiffusion_ModelRecord]):
+def create_stablediffusion_modelreference(
+    models: Mapping[str, StableDiffusion_ModelRecord],
+) -> StableDiffusion_ModelReference:
     """Create a StableDiffusion_ModelReference from a mapping of {str: StableDiffusion_ModelRecords}."""
     baseline_categories: dict[STABLE_DIFFUSION_BASELINE_CATEGORIES, int] = {}
     styles: dict[MODEL_STYLES, int] = {}
