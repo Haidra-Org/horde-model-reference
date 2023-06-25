@@ -82,7 +82,7 @@ def download_all_models(
     proxy_url: str = "",
 ) -> dict[MODEL_REFERENCE_CATEGORIES, pathlib.Path | None]:
     reference_dm = ReferenceDownloadManager(proxy_url=proxy_url)
-    logger.error("This method is deprecated. Use `download_all_model_references` instead.")
+    logger.warning("This method is deprecated. Use `download_all_model_references` instead.")
     return reference_dm.download_all_legacy_model_references(override_existing=override_existing)
 
 
