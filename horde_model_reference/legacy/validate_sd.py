@@ -24,10 +24,20 @@ def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None 
             return False
 
     parsed_db_records: dict[str, RawLegacy_StableDiffusion_ModelRecord] = {
-        k: RawLegacy_StableDiffusion_ModelRecord.parse_obj(v) for k, v in loaded_json_sd_db.items()
+        k: RawLegacy_StableDiffusion_ModelRecord.model_validate(v) for k, v in loaded_json_sd_db.items()
     }
 
-    correct_json_layout = json.dumps({k: v.dict() for k, v in parsed_db_records.items()}, indent=4)
+    correct_json_layout = json.dumps(
+        {
+            k: v.model_dump(
+                exclude_none=True,
+                exclude_unset=True,
+                by_alias=True,
+            )
+            for k, v in parsed_db_records.items()
+        },
+        indent=4,
+    )
     correct_json_layout += "\n"  # Add a newline to the end of the file, for consistency with formatters.
 
     if raw_json_sd_db != correct_json_layout:

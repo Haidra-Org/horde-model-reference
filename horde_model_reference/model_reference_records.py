@@ -1,7 +1,9 @@
 """The model database pydantic models and associate enums/lookups."""
+from __future__ import annotations
+
 from collections.abc import Mapping
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from horde_model_reference import (
     MODEL_PURPOSE,
@@ -37,32 +39,42 @@ class Generic_ModelRecord(BaseModel):
     config: Mapping[str, list[DownloadRecord]]
     """A dictionary of any configuration files and information on where to download the model file(s)."""
 
-    model_purpose: MODEL_PURPOSE
+    purpose: MODEL_PURPOSE
     """The purpose of the model."""
 
 
 class StableDiffusion_ModelRecord(Generic_ModelRecord):
     """A model entry in the model reference."""
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="ignore")
 
-    inpainting: bool | None
+    inpainting: bool | None = False
     """If this is an inpainting model or not."""
     baseline: STABLE_DIFFUSION_BASELINE_CATEGORIES
     """The model on which this model is based."""
-    tags: list[str] | None
+    tags: list[str] | None = []
     """Any tags associated with the model which may be useful for searching."""
-    showcases: list[str] | None
+    showcases: list[str] | None = []
     """Links to any showcases of the model which illustrate its style."""
-    min_bridge_version: int | None
+    min_bridge_version: int | None = None
     """The minimum version of AI-Horde-Worker required to use this model."""
-    trigger: list[str] | None
+    trigger: list[str] | None = []
     """A list of trigger words or phrases which can be used to activate the model."""
-    homepage: str | None
+    homepage: str | None = None
     """A link to the model's homepage."""
     nsfw: bool
     """Whether the model is NSFW or not."""
+
+    @model_validator(mode="after")  # type: ignore # FIXME
+    def validator_set_arrays_to_empty_if_none(self) -> StableDiffusion_ModelRecord:
+        """Set any `None` values to empty lists."""
+        if self.tags is None:
+            self.tags = []
+        if self.showcases is None:
+            self.showcases = []
+        if self.trigger is None:
+            self.trigger = []
+        return self
 
 
 class CLIP_ModelRecord(Generic_ModelRecord):
@@ -78,8 +90,7 @@ class Generic_ModelReference(BaseModel):
 class StableDiffusion_ModelReference(Generic_ModelReference):
     """The combined metadata and model list."""
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     baseline: Mapping[STABLE_DIFFUSION_BASELINE_CATEGORIES, int]
     """A dictionary of all the baseline types and how many models use them."""
@@ -87,7 +98,7 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
     """A dictionary of all the styles and how many models use them."""
     tags: Mapping[str, int]
     """A dictionary of all the tags and how many models use them."""
-    model_hosts: Mapping[str, int]
+    models_hosts: Mapping[str, int]
     """A dictionary of all the model hosts and how many models use them."""
     models: Mapping[str, StableDiffusion_ModelRecord]
     """A dictionary of all the models."""
@@ -100,21 +111,21 @@ def create_stablediffusion_modelreference(
     baseline_categories: dict[STABLE_DIFFUSION_BASELINE_CATEGORIES, int] = {}
     styles: dict[MODEL_STYLES, int] = {}
     tags: dict[str, int] = {}
-    model_hosts: dict[str, int] = {}
+    download_hosts: dict[str, int] = {}
     for model in models.values():
         baseline_categories[model.baseline] = baseline_categories.get(model.baseline, 0) + 1
-        if model.style is not None and model.style in MODEL_STYLES:
+        if model.style is not None and model.style in MODEL_STYLES.__members__:
             styles[MODEL_STYLES(model.style)] = styles.get(MODEL_STYLES(model.style), 0) + 1
         if model.tags is not None:
             for tag in model.tags:
                 tags[tag] = tags.get(tag, 0) + 1
         for host in model.config:
-            model_hosts[host] = model_hosts.get(host, 0) + 1
+            download_hosts[host] = download_hosts.get(host, 0) + 1
     return StableDiffusion_ModelReference(
         baseline=baseline_categories,
         styles=styles,
         tags=tags,
-        model_hosts=model_hosts,
+        models_hosts=download_hosts,
         models=models,
     )
 
@@ -125,25 +136,25 @@ class CLIP_ModelReference(Generic_ModelReference):
 
 
 MODEL_REFERENCE_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[Generic_ModelRecord]] = {
-    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: StableDiffusion_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.CONTROLNET: Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.CLIP: CLIP_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.BLIP: Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.ESRGAN: Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.GFPGAN: Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.CODEFORMER: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.stable_diffusion: StableDiffusion_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.controlnet: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.clip: CLIP_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.blip: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.esrgan: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.gfpgan: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.safety_checker: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.codeformer: Generic_ModelRecord,
 }
 """A lookup for the model record type based on the model category. See also `MODEL_REFERENCE_TYPE_LOOKUP`."""
 
 MODEL_REFERENCE_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[Generic_ModelReference]] = {
-    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: StableDiffusion_ModelReference,
-    MODEL_REFERENCE_CATEGORIES.CONTROLNET: Generic_ModelReference,
-    MODEL_REFERENCE_CATEGORIES.CLIP: CLIP_ModelReference,
-    MODEL_REFERENCE_CATEGORIES.BLIP: Generic_ModelReference,
-    MODEL_REFERENCE_CATEGORIES.ESRGAN: Generic_ModelReference,
-    MODEL_REFERENCE_CATEGORIES.GFPGAN: Generic_ModelReference,
-    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: Generic_ModelReference,
-    MODEL_REFERENCE_CATEGORIES.CODEFORMER: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.stable_diffusion: StableDiffusion_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.controlnet: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.clip: CLIP_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.blip: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.esrgan: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.gfpgan: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.safety_checker: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORIES.codeformer: Generic_ModelReference,
 }
 """A lookup for the model reference type based on the model category. See also `MODEL_REFERENCE_RECORD_TYPE_LOOKUP`."""

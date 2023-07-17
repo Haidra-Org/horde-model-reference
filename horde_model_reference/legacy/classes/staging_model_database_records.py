@@ -8,7 +8,7 @@
 
 from collections.abc import Mapping
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, model_validator
 
 from horde_model_reference.model_reference_records import MODEL_PURPOSE
 from horde_model_reference.path_consts import MODEL_REFERENCE_CATEGORIES
@@ -22,85 +22,71 @@ class StagingLegacy_Config_FileRecord(BaseModel):
 
     path: str
     # md5sum: str | None
-    sha256sum: str | None
+    sha256sum: str | None = None
+
+    @model_validator(mode="after")
+    def validate_model_file_has_sha256sum(self):
+        if ".yaml" in self.path or ".json" in self.path:
+            return self
+
+        if self.sha256sum is None:
+            raise ValueError("A model file must have a sha256sum.")
+
+        return self
 
 
 class StagingLegacy_Config_DownloadRecord(BaseModel):
     """An entry in the `config` field of a `StagingLegacy_Generic_ModelRecord`."""
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     file_name: str
     file_path: str = ""
     file_url: str
-    sha256sum: str | None
-    known_slow_download: bool | None
+    sha256sum: str | None = None
+    known_slow_download: bool | None = False
 
 
 class StagingLegacy_Generic_ModelRecord(BaseModel):
     """This is a helper class, a hybrid representation of the legacy model reference and the new format."""
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     name: str
     type: str  # noqa: A003
-    description: str | None
-    version: str | None
-    style: str | None
-    nsfw: bool | None
-    download_all: bool | None
+    description: str | None = None
+    version: str | None = None
+    style: str | None = None
+    nsfw: bool | None = None
+    download_all: bool | None = None
     config: dict[str, list[StagingLegacy_Config_FileRecord | StagingLegacy_Config_DownloadRecord]]
-    available: bool | None
+    available: bool | None = None
 
-    model_purpose: MODEL_PURPOSE | None
+    purpose: MODEL_PURPOSE | None = None
 
 
 class Legacy_CLIP_ModelRecord(StagingLegacy_Generic_ModelRecord):
-    """A model entry in the legacy model reference. Note that `.dict()` exports to the new model reference format."""
+    """A model entry in the legacy model reference."""
 
-    pretrained_name: str | None
+    pretrained_name: str | None = None
 
 
 class Legacy_StableDiffusion_ModelRecord(StagingLegacy_Generic_ModelRecord):
-    """A model entry in the legacy model reference. Note that `.dict()` exports to the new model reference format."""
+    """A model entry in the legacy model reference."""
 
-    inpainting: bool | None
+    inpainting: bool
     baseline: str
-    tags: list[str] | None
-    showcases: list[str] | None
-    min_bridge_version: int | None
-    trigger: list[str] | None
-    homepage: str | None
-
-    def dict(  # noqa: A003
-        self,
-        *,
-        include=None,
-        exclude=None,
-        by_alias: bool = False,
-        skip_defaults: bool | None = None,
-        exclude_unset: bool = False,
-        exclude_defaults: bool = False,
-        exclude_none: bool = False,
-    ):
-        return super().dict(
-            include=include,
-            exclude={"available", "type", "download_all"},
-            by_alias=by_alias,
-            skip_defaults=skip_defaults,
-            exclude_unset=True,
-            exclude_defaults=True,
-            exclude_none=True,
-        )
+    tags: list[str] | None = None
+    showcases: list[str] | None = None
+    min_bridge_version: int | None = None
+    trigger: list[str] | None = None
+    homepage: str | None = None
 
 
 class Legacy_Generic_ModelReference(BaseModel):
     """A helper class to convert the legacy model reference to the new model reference format."""
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     models: Mapping[str, StagingLegacy_Generic_ModelRecord]
 
@@ -111,17 +97,17 @@ class Staging_StableDiffusion_ModelReference(Legacy_Generic_ModelReference):
     baseline: dict[str, int]
     styles: dict[str, int]
     tags: dict[str, int]
-    model_hosts: dict[str, int]
+    download_hosts: dict[str, int]
     models: Mapping[str, Legacy_StableDiffusion_ModelRecord]
 
 
 MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[StagingLegacy_Generic_ModelRecord]] = {
-    MODEL_REFERENCE_CATEGORIES.BLIP: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.CLIP: Legacy_CLIP_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.CODEFORMER: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.CONTROLNET: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.ESRGAN: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.GFPGAN: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: Legacy_StableDiffusion_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.blip: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.clip: Legacy_CLIP_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.codeformer: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.controlnet: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.esrgan: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.gfpgan: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.safety_checker: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORIES.stable_diffusion: Legacy_StableDiffusion_ModelRecord,
 }
