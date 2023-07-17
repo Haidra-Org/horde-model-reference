@@ -24,8 +24,8 @@ def main(legacy_path: str | Path = LEGACY_REFERENCE_FOLDER, target_path: str | P
     clip_converter.normalize_and_convert()
 
     non_generic_converter_categories = [
-        MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
-        MODEL_REFERENCE_CATEGORIES.CLIP,
+        MODEL_REFERENCE_CATEGORIES.stable_diffusion,
+        MODEL_REFERENCE_CATEGORIES.clip,
     ]
 
     generic_converted_categories = [x for x in MODEL_REFERENCE_CATEGORIES if x not in non_generic_converter_categories]

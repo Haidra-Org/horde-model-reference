@@ -26,7 +26,7 @@ def main():
         inpainting=False,
         style=MODEL_STYLES.generalist,
         config={"download": [example_download_record]},
-        model_purpose=MODEL_PURPOSE.image_generation,
+        purpose=MODEL_PURPOSE.image_generation,
         baseline=STABLE_DIFFUSION_BASELINE_CATEGORIES.stable_diffusion_1,
         tags=["anime", "faces"],
         showcases=[
@@ -51,7 +51,7 @@ def main():
         inpainting=False,
         style=MODEL_STYLES.anime,
         config={"download": [example_download_record_2]},
-        model_purpose=MODEL_PURPOSE.image_generation,
+        purpose=MODEL_PURPOSE.image_generation,
         baseline=STABLE_DIFFUSION_BASELINE_CATEGORIES.stable_diffusion_1,
         tags=["anime", "faces"],
         showcases=[
@@ -64,14 +64,14 @@ def main():
     )
 
     jsonable_dict = {
-        example_record_name: example_model_record.dict(),
-        example_record_2_name: example_model_record_2.dict(),
+        example_record_name: example_model_record.model_dump(),
+        example_record_2_name: example_model_record_2.model_dump(),
     }
     with open(STABLE_DIFFUSION_EXAMPLE_JSON_FILENAME, "w") as example_file:
         example_file.write(json.dumps(jsonable_dict, indent=4) + "\n")
 
     with open(STABLE_DIFFUSION_SCHEMA_JSON_FILENAME, "w") as schema_file:
-        schema_file.write(StableDiffusion_ModelRecord.schema_json(indent=4) + "\n")
+        schema_file.write(json.dumps(StableDiffusion_ModelRecord.model_json_schema(), indent=4) + "\n")
 
 
 if __name__ == "__main__":

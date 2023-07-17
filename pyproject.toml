@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "horde_model_reference"
-version = "0.2.3"
+version = "0.3.0"
 description = "A helper library providing a way to work with the lists of diffusion models, utility models, and any other related files required for AI-Horde."
 authors = [
     {name = "tazlin", email = "tazlin.on.github@gmail.com"},
@@ -20,7 +20,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Development Status :: 2 - Pre-Alpha",
 ]
-dependencies = ["pydantic", "requests", "typing_extensions"]
+dependencies = ["pydantic", "requests", "typing_extensions", "loguru", "strenum"]
 
 [project.urls]
 "Homepage" = "https://github.com/Haidra-Org/horde-model-reference"
@@ -51,19 +51,20 @@ select = [
 
     "YTT",  # flake8-2020
     # "BLE",    # flake8-blind-except
-    # "B",    # flake8-bugbear
+    "B",    # flake8-bugbear
     "COM",  # flake8-commas
     "C4",   # flake8-comprehensions
     # "G",    # flake8-logging-format
     "INP",  # flake8-no-pep420
     "PIE",  # flake8-pie
     # "T20",  # flake8-print
-    # "UP",   # pyupgrade
+    "UP",   # pyupgrade
     "RSE",  # flake8-raise
-    # "RET",  # flake8-return
-    # "SLF",  # flake8-self
-    # "SIM",  # flake8-simplify
-    # "ARG",  # flake8-unused-arguments
-    # "TRY",  # tryceratops
+    "RET",  # flake8-return
+    "SLF",  # flake8-self
+    "SIM",  # flake8-simplify
+    "ARG",  # flake8-unused-arguments
+    "TRY",  # tryceratops
     "RUF100"
 ]
+ignore=["TRY003"]

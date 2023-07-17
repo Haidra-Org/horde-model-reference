@@ -14,7 +14,7 @@
                 }
             ]
         },
-        "model_purpose": "image_generation",
+        "purpose": "image_generation",
         "inpainting": false,
         "baseline": "stable_diffusion_1",
         "tags": [
@@ -47,7 +47,7 @@
                 }
             ]
         },
-        "model_purpose": "image_generation",
+        "purpose": "image_generation",
         "inpainting": false,
         "baseline": "stable_diffusion_1",
         "tags": [

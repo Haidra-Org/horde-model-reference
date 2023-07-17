@@ -1,15 +1,17 @@
-from enum import Enum
+from enum import auto
+
+from strenum import StrEnum
 
 
-class MODEL_STYLES(str, Enum):
+class MODEL_STYLES(StrEnum):
     """An enum of all the model styles."""
 
-    generalist = "generalist"
-    anime = "anime"
-    furry = "furry"
-    artistic = "artistic"
-    other = "other"
-    realistic = "realistic"
+    generalist = auto()
+    anime = auto()
+    furry = auto()
+    artistic = auto()
+    other = auto()
+    realistic = auto()
 
 
 KNOWN_TAGS = [
@@ -34,51 +36,51 @@ KNOWN_TAGS = [
 ]
 
 
-class MODEL_REFERENCE_CATEGORIES(str, Enum):
+class MODEL_REFERENCE_CATEGORIES(StrEnum):
     """The categories of model reference entries."""
 
-    BLIP = "blip"
-    CLIP = "clip"
-    CODEFORMER = "codeformer"
-    CONTROLNET = "controlnet"
-    ESRGAN = "esrgan"
-    GFPGAN = "gfpgan"
-    SAFETY_CHECKER = "safety_checker"
-    STABLE_DIFFUSION = "stable_diffusion"
+    blip = auto()
+    clip = auto()
+    codeformer = auto()
+    controlnet = auto()
+    esrgan = auto()
+    gfpgan = auto()
+    safety_checker = auto()
+    stable_diffusion = auto()
 
 
-class MODEL_PURPOSE(str, Enum):
-    image_generation = "image_generation"
+class MODEL_PURPOSE(StrEnum):
+    image_generation = auto()
     """The model is for image generation."""
 
-    controlnet = "controlnet"
+    controlnet = auto()
     """The model is a controlnet."""
 
-    clip = "clip"
+    clip = auto()
     """The model is a CLIP model."""
 
-    blip = "blip"
+    blip = auto()
     """The model is a BLIP model."""
 
-    post_processor = "post_processor"
+    post_processor = auto()
     """The model is a post processor (after image generation) of some variety."""
 
 
-class STABLE_DIFFUSION_BASELINE_CATEGORIES(str, Enum):
+class STABLE_DIFFUSION_BASELINE_CATEGORIES(StrEnum):
     """An enum of all the stable diffusion baselines."""
 
-    stable_diffusion_1 = "stable_diffusion_1"
-    stable_diffusion_2_768 = "stable_diffusion_2_768"
-    stable_diffusion_2_512 = "stable_diffusion_2_512"
+    stable_diffusion_1 = auto()
+    stable_diffusion_2_768 = auto()
+    stable_diffusion_2_512 = auto()
 
 
 MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, MODEL_PURPOSE] = {
-    MODEL_REFERENCE_CATEGORIES.CLIP: MODEL_PURPOSE.clip,
-    MODEL_REFERENCE_CATEGORIES.BLIP: MODEL_PURPOSE.blip,
-    MODEL_REFERENCE_CATEGORIES.CODEFORMER: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.CONTROLNET: MODEL_PURPOSE.controlnet,
-    MODEL_REFERENCE_CATEGORIES.ESRGAN: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.GFPGAN: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.SAFETY_CHECKER: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION: MODEL_PURPOSE.image_generation,
+    MODEL_REFERENCE_CATEGORIES.clip: MODEL_PURPOSE.clip,
+    MODEL_REFERENCE_CATEGORIES.blip: MODEL_PURPOSE.blip,
+    MODEL_REFERENCE_CATEGORIES.codeformer: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORIES.controlnet: MODEL_PURPOSE.controlnet,
+    MODEL_REFERENCE_CATEGORIES.esrgan: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORIES.gfpgan: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORIES.safety_checker: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORIES.stable_diffusion: MODEL_PURPOSE.image_generation,
 }

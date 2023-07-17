@@ -2,6 +2,8 @@ import json
 import urllib.parse
 from pathlib import Path
 
+import pytest
+
 import horde_model_reference.path_consts as path_consts
 from horde_model_reference.legacy.classes.legacy_converters import (
     BaseLegacyConverter,
@@ -49,7 +51,7 @@ def test_all_base_legacy_converters(base_path_for_tests: Path, legacy_folder_for
 
 def test_validate_converted_stablediffusion_database(base_path_for_tests) -> None:
     stablediffusion_model_database_path = path_consts.get_model_reference_file_path(
-        path_consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
+        path_consts.MODEL_REFERENCE_CATEGORIES.stable_diffusion,
         base_path=base_path_for_tests,
     )
     sd_model_datbase_file_contents: str = ""
@@ -58,7 +60,7 @@ def test_validate_converted_stablediffusion_database(base_path_for_tests) -> Non
 
     sd_model_database_file_json = json.loads(sd_model_datbase_file_contents)
     model_reference = create_stablediffusion_modelreference(
-        {k: StableDiffusion_ModelRecord.parse_obj(v) for k, v in sd_model_database_file_json.items()},
+        {k: StableDiffusion_ModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()},
     )
 
     assert len(model_reference.baseline) >= 3
@@ -69,8 +71,8 @@ def test_validate_converted_stablediffusion_database(base_path_for_tests) -> Non
     for style in model_reference.styles:
         assert style != ""
 
-    assert len(model_reference.model_hosts) >= 1
-    for model_host in model_reference.model_hosts:
+    assert len(model_reference.models_hosts) >= 1
+    for model_host in model_reference.models_hosts:
         assert model_host != ""
 
     assert model_reference.models is not None
@@ -108,7 +110,7 @@ def test_validate_converted_stablediffusion_database(base_path_for_tests) -> Non
                     assert download_record.file_name is not None
                     assert download_record.file_url is not None
             else:
-                assert False
+                pytest.fail(f"Unknown config section: {config_key}")
 
         if model_info.trigger is not None:
             for trigger_record in model_info.trigger:

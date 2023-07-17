@@ -1,111 +1,7 @@
 {
-    "title": "StableDiffusion_ModelRecord",
-    "description": "A model entry in the model reference.",
-    "type": "object",
-    "properties": {
-        "name": {
-            "title": "Name",
-            "type": "string"
-        },
-        "description": {
-            "title": "Description",
-            "type": "string"
-        },
-        "version": {
-            "title": "Version",
-            "type": "string"
-        },
-        "style": {
-            "title": "Style",
-            "anyOf": [
-                {
-                    "$ref": "#/definitions/MODEL_STYLES"
-                },
-                {
-                    "type": "string"
-                }
-            ]
-        },
-        "config": {
-            "title": "Config",
-            "type": "object",
-            "additionalProperties": {
-                "type": "array",
-                "items": {
-                    "$ref": "#/definitions/DownloadRecord"
-                }
-            }
-        },
-        "model_purpose": {
-            "$ref": "#/definitions/MODEL_PURPOSE"
-        },
-        "inpainting": {
-            "title": "Inpainting",
-            "type": "boolean"
-        },
-        "baseline": {
-            "$ref": "#/definitions/STABLE_DIFFUSION_BASELINE_CATEGORIES"
-        },
-        "tags": {
-            "title": "Tags",
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
-        },
-        "showcases": {
-            "title": "Showcases",
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
-        },
-        "min_bridge_version": {
-            "title": "Min Bridge Version",
-            "type": "integer"
-        },
-        "trigger": {
-            "title": "Trigger",
-            "type": "array",
-            "items": {
-                "type": "string"
-            }
-        },
-        "homepage": {
-            "title": "Homepage",
-            "type": "string"
-        },
-        "nsfw": {
-            "title": "Nsfw",
-            "type": "boolean"
-        }
-    },
-    "required": [
-        "name",
-        "config",
-        "model_purpose",
-        "baseline",
-        "nsfw"
-    ],
-    "additionalProperties": false,
-    "definitions": {
-        "MODEL_STYLES": {
-            "title": "MODEL_STYLES",
-            "description": "An enum of all the model styles.",
-            "enum": [
-                "generalist",
-                "anime",
-                "furry",
-                "artistic",
-                "other",
-                "realistic"
-            ],
-            "type": "string"
-        },
+    "$defs": {
         "DownloadRecord": {
-            "title": "DownloadRecord",
             "description": "A record of a file to download for a model. Typically a ckpt file.",
-            "type": "object",
             "properties": {
                 "file_name": {
                     "title": "File Name",
@@ -120,19 +16,27 @@
                     "type": "string"
                 },
                 "known_slow_download": {
-                    "title": "Known Slow Download",
-                    "type": "boolean"
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Known Slow Download"
                 }
             },
             "required": [
                 "file_name",
                 "file_url",
                 "sha256sum"
-            ]
+            ],
+            "title": "DownloadRecord",
+            "type": "object"
         },
         "MODEL_PURPOSE": {
-            "title": "MODEL_PURPOSE",
-            "description": "An enumeration.",
             "enum": [
                 "image_generation",
                 "controlnet",
@@ -140,17 +44,187 @@
                 "blip",
                 "post_processor"
             ],
+            "title": "MODEL_PURPOSE",
+            "type": "string"
+        },
+        "MODEL_STYLES": {
+            "description": "An enum of all the model styles.",
+            "enum": [
+                "generalist",
+                "anime",
+                "furry",
+                "artistic",
+                "other",
+                "realistic"
+            ],
+            "title": "MODEL_STYLES",
             "type": "string"
         },
         "STABLE_DIFFUSION_BASELINE_CATEGORIES": {
-            "title": "STABLE_DIFFUSION_BASELINE_CATEGORIES",
             "description": "An enum of all the stable diffusion baselines.",
             "enum": [
                 "stable_diffusion_1",
                 "stable_diffusion_2_768",
                 "stable_diffusion_2_512"
             ],
+            "title": "STABLE_DIFFUSION_BASELINE_CATEGORIES",
             "type": "string"
         }
-    }
+    },
+    "description": "A model entry in the model reference.",
+    "properties": {
+        "name": {
+            "title": "Name",
+            "type": "string"
+        },
+        "description": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "title": "Description"
+        },
+        "version": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "title": "Version"
+        },
+        "style": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/MODEL_STYLES"
+                },
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "title": "Style"
+        },
+        "config": {
+            "additionalProperties": {
+                "items": {
+                    "$ref": "#/$defs/DownloadRecord"
+                },
+                "type": "array"
+            },
+            "title": "Config",
+            "type": "object"
+        },
+        "purpose": {
+            "$ref": "#/$defs/MODEL_PURPOSE"
+        },
+        "inpainting": {
+            "anyOf": [
+                {
+                    "type": "boolean"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": false,
+            "title": "Inpainting"
+        },
+        "baseline": {
+            "$ref": "#/$defs/STABLE_DIFFUSION_BASELINE_CATEGORIES"
+        },
+        "tags": {
+            "anyOf": [
+                {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": [],
+            "title": "Tags"
+        },
+        "showcases": {
+            "anyOf": [
+                {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": [],
+            "title": "Showcases"
+        },
+        "min_bridge_version": {
+            "anyOf": [
+                {
+                    "type": "integer"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Min Bridge Version"
+        },
+        "trigger": {
+            "anyOf": [
+                {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": [],
+            "title": "Trigger"
+        },
+        "homepage": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Homepage"
+        },
+        "nsfw": {
+            "title": "Nsfw",
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "name",
+        "description",
+        "version",
+        "style",
+        "config",
+        "purpose",
+        "baseline",
+        "nsfw"
+    ],
+    "title": "StableDiffusion_ModelRecord",
+    "type": "object"
 }
