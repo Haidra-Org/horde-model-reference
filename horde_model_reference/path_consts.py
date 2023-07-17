@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+from loguru import logger
+
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORIES
 
 PACKAGE_NAME = "horde_model_reference"
@@ -18,10 +20,8 @@ AIWORKER_CACHE_HOME = os.getenv("AIWORKER_CACHE_HOME")
 
 if AIWORKER_CACHE_HOME:
     BASE_PATH = Path(AIWORKER_CACHE_HOME).joinpath(PACKAGE_NAME)
-BASE_PATH.mkdir(parents=True, exist_ok=True)
 
 LOG_FOLDER: Path = BASE_PATH.joinpath("logs")
-LOG_FOLDER.mkdir(parents=True, exist_ok=True)
 
 LEGACY_REFERENCE_FOLDER_NAME: str = "legacy"
 """The default name of the legacy model reference folder.
@@ -29,15 +29,33 @@ If you need the default path, use `LEGACY_REFERENCE_FOLDER`."""
 
 LEGACY_REFERENCE_FOLDER: Path = BASE_PATH.joinpath(LEGACY_REFERENCE_FOLDER_NAME)
 """The default path, starting with BASE_PATH, to the default legacy model reference folder. """
-LEGACY_REFERENCE_FOLDER.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_SHOWCASE_FOLDER_NAME: str = "showcase"
 """The default name of the stable diffusion showcase folder. If you need the path, use `SHOWCASE_FOLDER_PATH`."""
 
 SHOWCASE_FOLDER_PATH: Path = BASE_PATH.joinpath(DEFAULT_SHOWCASE_FOLDER_NAME)
 """The path to the stable diffusion showcase folder."""
-SHOWCASE_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
 
+
+def make_all_model_reference_folders():
+    """Make all the default model reference folders."""
+    if not BASE_PATH.exists():
+        BASE_PATH.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Created base path: {BASE_PATH}")
+    if not LOG_FOLDER.exists():
+        LOG_FOLDER.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Created log folder: {LOG_FOLDER}")
+    if not LEGACY_REFERENCE_FOLDER.exists():
+        LEGACY_REFERENCE_FOLDER.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Created legacy model reference folder: {LEGACY_REFERENCE_FOLDER}")
+    if not SHOWCASE_FOLDER_PATH.exists():
+        SHOWCASE_FOLDER_PATH.mkdir(parents=True, exist_ok=True)
+        logger.info(f"Created showcase folder: {SHOWCASE_FOLDER_PATH}")
+
+
+if os.getenv("HORDE_MODEL_REFERENCE_MAKE_FOLDERS"):
+    logger.info("Making all model reference folders.")
+    make_all_model_reference_folders()
 
 GITHUB_REPO_OWNER = "Haidra-Org"
 GITHUB_REPO_NAME = "AI-Horde-image-model-reference"
