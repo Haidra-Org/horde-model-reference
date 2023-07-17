@@ -1,7 +1,7 @@
 """The classes which can represent a legacy model reference file."""
 from collections.abc import Mapping
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class RawLegacy_DownloadRecord(BaseModel):
@@ -21,48 +21,26 @@ class RawLegacy_FileRecord(BaseModel):
 
 
 class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
-    """A model entry in the legacy model reference. Note that `.dict()` exports to the new model reference format."""
+    """A model entry in the legacy model reference."""
 
     # This is a better representation of the legacy model reference than the one in `staging_model_database_records.py`
     # which is a hybrid representation of the legacy model reference and the new model reference format.
 
-    class Config:
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
     name: str
     baseline: str
     type: str  # noqa: A003
     inpainting: bool
-    description: str | None
-    tags: list[str] | None
-    showcases: list[str] | None
-    min_bridge_version: int | None
+    description: str | None = None
+    tags: list[str] | None = None
+    showcases: list[str] | None = None
+    min_bridge_version: int | None = None
     version: str
-    style: str | None
-    trigger: list[str] | None
-    homepage: str | None
+    style: str | None = None
+    trigger: list[str] | None = None
+    homepage: str | None = None
     nsfw: bool
     download_all: bool
     config: Mapping[str, list[RawLegacy_FileRecord | RawLegacy_DownloadRecord]]
-    available: bool | None
-
-    def dict(  # noqa: A003
-        self,
-        *,
-        include=None,
-        exclude=None,
-        by_alias: bool = False,
-        skip_defaults: bool | None = None,
-        exclude_unset: bool = False,
-        exclude_defaults: bool = False,
-        exclude_none: bool = False,
-    ):
-        return super().dict(
-            include=include,
-            exclude=exclude,
-            by_alias=by_alias,
-            skip_defaults=skip_defaults,
-            exclude_unset=True,
-            exclude_defaults=exclude_defaults,
-            exclude_none=True,
-        )
+    available: bool | None = None

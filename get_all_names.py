@@ -7,11 +7,13 @@ from horde_model_reference.model_reference_records import StableDiffusion_ModelR
 parsed_db_records: dict[str, StableDiffusion_ModelRecord] | None = None
 with open("horde_model_reference/stable_diffusion.json") as f:
     sd_model_database_file_json = json.load(f)
-    parsed_db_records = {k: StableDiffusion_ModelRecord.parse_obj(v) for k, v in sd_model_database_file_json.items()}
+    parsed_db_records = {
+        k: StableDiffusion_ModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()
+    }
 
 
 if not parsed_db_records:
-    raise Exception("Failed to parse stable diffusion model database.")
+    raise RuntimeError("Failed to parse stable diffusion model database.")
 
 logger.debug(len(parsed_db_records))
 

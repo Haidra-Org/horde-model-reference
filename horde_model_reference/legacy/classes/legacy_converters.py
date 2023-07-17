@@ -20,16 +20,15 @@ from horde_model_reference import (
 )
 from horde_model_reference.legacy.classes.staging_model_database_records import (
     MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
-    Legacy_Generic_ModelReference,
     Legacy_StableDiffusion_ModelRecord,
     Staging_StableDiffusion_ModelReference,
     StagingLegacy_Config_DownloadRecord,
     StagingLegacy_Config_FileRecord,
     StagingLegacy_Generic_ModelRecord,
 )
+from horde_model_reference.meta_consts import MODEL_PURPOSE
 from horde_model_reference.model_reference_records import (
-    MODEL_REFERENCE_TYPE_LOOKUP,
-    StableDiffusion_ModelReference,
+    StableDiffusion_ModelRecord,
 )
 from horde_model_reference.path_consts import (
     GITHUB_REPO_URL,
@@ -165,7 +164,7 @@ class BaseLegacyConverter:
             except ValidationError as e:
                 error = f"CRITICAL: Error parsing {model_record_key}:\n{e}"
                 self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
-                raise e
+                raise
 
     def config_record_pre_parse(
         self,
@@ -201,8 +200,11 @@ class BaseLegacyConverter:
 
             elif config_entry == "download":
                 for download in model_record_contents["config"][config_entry]:
-                    parsed_download_record = StagingLegacy_Config_DownloadRecord(**download)
-                    parsed_download_record.sha256sum = sha_lookup[parsed_download_record.file_name]
+                    sha_dict = {}
+                    if download.get("file_name") and download["file_name"] in sha_lookup:
+                        sha_dict = {"sha256sum": sha_lookup[download["file_name"]]}
+                    all_params = {**download, **sha_dict}
+                    parsed_download_record = StagingLegacy_Config_DownloadRecord(**all_params)
 
                     if parsed_download_record.sha256sum is None:
                         error = f"{model_record_key} has a download record without a sha256sum."
@@ -232,11 +234,10 @@ class BaseLegacyConverter:
 
             self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
-        if record.download_all:
-            if self.debug_mode:
-                error = f"{model_record_key} has download_all set."
+        if record.download_all and self.debug_mode:
+            error = f"{model_record_key} has download_all set."
 
-                self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
+            self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
         if record.config is None:
             error = f"{model_record_key} has no config."
@@ -266,33 +267,24 @@ class BaseLegacyConverter:
     def post_parse_records(self) -> None:
         """Override and call super().post_parse_records() to perform any model category specific post parsing."""
         for model_record in self.all_model_records.values():
-            model_record.model_purpose = MODEL_PURPOSE_LOOKUP[self.model_reference_category]
+            model_record.purpose = MODEL_PURPOSE_LOOKUP[self.model_reference_category]
         pass
 
     def write_out_records(self) -> None:
         """Write out the parsed records."""
-        new_reference = None
-        type_to_convert_to = MODEL_REFERENCE_TYPE_LOOKUP[self.model_reference_category]
-        try:
-            _ = Legacy_Generic_ModelReference(models=self.all_model_records)
-            new_reference = type_to_convert_to(models=_.models)
-            pass
-        except ValidationError as e:
-            logger.exception(f"CRITICAL: Failed to convert to new model reference type {type_to_convert_to}.")
-            raise e
-
         if self.dry_run:
             return
 
         with open(self.converted_database_file_path, "w") as new_model_reference_file:
-            new_model_reference_file.write(
-                new_reference.json(
-                    indent=4,
-                    exclude_defaults=True,
+            json.dump(
+                self.all_model_records,
+                new_model_reference_file,
+                indent=4,
+                default=lambda o: o.model_dump(
                     exclude_none=True,
                     exclude_unset=True,
-                )
-                + "\n",
+                    by_alias=True,
+                ),
             )
 
     def add_validation_error_to_log(
@@ -334,7 +326,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
     """A dictionary of all the styles found and the number of times they appear."""
     all_tags: dict[str, int]
     """A dictionary of all the tags found and the number of times they appear."""
-    all_model_hosts: dict[str, int]
+    all_download_hosts: dict[str, int]
     """A dictionary of all the model hosts found and the number of times they appear."""
 
     existing_showcase_files: dict[str, list[str]]
@@ -357,13 +349,13 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_category=path_consts.MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
+            model_reference_category=path_consts.MODEL_REFERENCE_CATEGORIES.stable_diffusion,
             debug_mode=debug_mode,
         )
         self.all_baseline_categories = {}
         self.all_styles = {}
         self.all_tags = {}
-        self.all_model_hosts = {}
+        self.all_download_hosts = {}
 
     @override
     def pre_parse_records(self) -> None:
@@ -458,7 +450,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         # Increment host counter
         #
         for found_host in found_hosts:
-            self.all_model_hosts[found_host] = self.all_model_hosts.get(found_host, 0) + 1
+            self.all_download_hosts[found_host] = self.all_download_hosts.get(found_host, 0) + 1
 
     @override
     def post_parse_records(self) -> None:
@@ -490,7 +482,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         logger.debug(f"{self.all_styles=}")
         logger.debug(f"{self.all_baseline_categories=}")
         logger.debug(f"{self.all_tags=}")
-        logger.debug(f"{self.all_model_hosts=}")
+        logger.debug(f"{self.all_download_hosts=}")
         print()
         logger.info(f"Total number of models: {len(self.all_model_records)}")
         logger.info(f"Total number of showcase folders: {len(final_on_disk_showcase_folders_names)}")
@@ -507,30 +499,46 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         if len(sanity_check) != len(self.all_model_records):
             raise ValueError("CRITICAL: Not all records are of the correct type.")
 
-        modelReference = Staging_StableDiffusion_ModelReference(
+        Staging_StableDiffusion_ModelReference(
             baseline=self.all_baseline_categories,
             styles=self.all_styles,
             tags=self.all_tags,
-            model_hosts=self.all_model_hosts,
+            download_hosts=self.all_download_hosts,
             models=sanity_check,
         )
 
-        models_in_doc_root = {k: v.dict() for k, v in self.all_model_records.items()}
+        models_in_doc_root = {
+            k: v.model_dump(
+                exclude_none=True,
+                exclude_unset=True,
+                by_alias=True,
+            )
+            for k, v in self.all_model_records.items()
+        }
 
         try:
             # If this fails, we have a problem. By definition, the model reference should be converted by this point
             # and ready to be cast to the new model reference type.
-            StableDiffusion_ModelReference(**json.loads(modelReference.json()))
+            for model_entry in sanity_check.values():
+                model_entry_as_dict = model_entry.model_dump(by_alias=True)
+                model_entry_as_dict["purpose"] = MODEL_PURPOSE.image_generation
+                StableDiffusion_ModelRecord(**model_entry_as_dict)
         except ValidationError as e:
             logger.exception(e)
             logger.exception("CRITICAL: Failed to convert to new model reference type.")
-            raise e
+            raise
 
         if self.dry_run:
             return
 
         with open(self.converted_database_file_path, "w") as testfile:
-            testfile.write(json.dumps(models_in_doc_root, indent=4) + "\n")
+            testfile.write(
+                json.dumps(
+                    models_in_doc_root,
+                    indent=4,
+                )
+                + "\n",
+            )
 
         logger.info("Converted database passes validation and was written to disk successfully.")
         logger.info(f"Converted database written to: {self.converted_database_file_path}")
@@ -615,7 +623,8 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                             error = f"{model_record_key} has a non-standard config."
                             self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
                         continue
-                    elif ".ckpt" not in config_file.path:
+
+                    if ".ckpt" not in config_file.path:
                         error = f"{model_record_key} has a config file with an invalid path."
                         self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
@@ -653,10 +662,10 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                     try:
                         host = urllib.parse.urlparse(download.file_url).netloc
                         download_hosts[host] = download_hosts.get(host, 0) + 1
-                    except Exception as e:
+                    except Exception:
                         error = f"{model_record_key} has a download with an invalid file_url."
                         self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
-                        raise e
+                        raise
 
         return download_hosts
 
@@ -672,7 +681,7 @@ class LegacyClipConverter(BaseLegacyConverter):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_category=MODEL_REFERENCE_CATEGORIES.CLIP,
+            model_reference_category=MODEL_REFERENCE_CATEGORIES.clip,
             debug_mode=debug_mode,
         )
 
@@ -689,7 +698,7 @@ class LegacyClipConverter(BaseLegacyConverter):
         for config_entry in model_record_contents["config"]:
             if config_entry == "files":
                 continue
-            elif config_entry == "download":
+            if config_entry == "download":
                 for download in model_record_contents["config"][config_entry]:
                     # Skip if file_url is missing
                     if download.get("file_url") is None or download.get("file_url") == "":

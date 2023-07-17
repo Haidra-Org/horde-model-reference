@@ -35,7 +35,7 @@ class Legacy_StableDiffusionRecordHelper:
 
     def load_legacy_sd_model_reference(self) -> dict[str, RawLegacy_StableDiffusion_ModelRecord]:
         path_to_legacy_stablediffusion = get_model_reference_file_path(
-            MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
+            MODEL_REFERENCE_CATEGORIES.stable_diffusion,
             base_path=LEGACY_REFERENCE_FOLDER,
         )
         sd_legacy_model_reference: dict[str, RawLegacy_StableDiffusion_ModelRecord] = {}
@@ -44,7 +44,7 @@ class Legacy_StableDiffusionRecordHelper:
 
             for raw_record_key, raw_record_contents in raw_json.items():
                 try:
-                    sd_legacy_model_reference[raw_record_key] = RawLegacy_StableDiffusion_ModelRecord.parse_obj(
+                    sd_legacy_model_reference[raw_record_key] = RawLegacy_StableDiffusion_ModelRecord.model_validate(
                         raw_record_contents,
                     )
                 except Exception as e:
@@ -66,7 +66,7 @@ class Legacy_StableDiffusionRecordHelper:
         for legacy_model_record in sd_legacy_model_reference.values():
             download = legacy_model_record.config["download"][0]
             if not isinstance(download, RawLegacy_DownloadRecord):
-                raise ValueError(f"Expected download to be a DownloadRecord, got {download}")
+                raise TypeError(f"Expected download to be a DownloadRecord, got {download}")
             if download.file_name == str(model_filename):
                 # print(f"Found {model_on_disk} in legacy model reference")
                 return True
@@ -272,7 +272,11 @@ class Legacy_StableDiffusionRecordHelper:
 
         jsonable_out = {}
         for model_name, model_record in sd_legacy_model_reference.items():
-            jsonable_out[model_name] = model_record.dict()
+            jsonable_out[model_name] = model_record.model_dump(
+                exclude_none=True,
+                exclude_unset=True,
+                by_alias=True,
+            )
 
         with open(str(file_out), "w") as f:
             f.write(json.dumps(jsonable_out, indent=4))

@@ -15,7 +15,7 @@ def test_download_all_model_references(base_path_for_tests: Path):
 def test_validate_stable_diffusion_model_reference(legacy_folder_for_tests: Path):
     assert validate_legacy_stable_diffusion_db(
         sd_db=get_model_reference_file_path(
-            MODEL_REFERENCE_CATEGORIES.STABLE_DIFFUSION,
+            MODEL_REFERENCE_CATEGORIES.stable_diffusion,
             base_path=legacy_folder_for_tests,
         ),
     )
