@@ -58,9 +58,11 @@ def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None 
         else:
             return False
 
-    print("Success! Validated stable diffusion model database.")
+    logger.info("Success! Validated stable diffusion model database.")
     if write_to_path:
-        print(f"The stable diffusion model database json was already valid, so no file was written to {write_to_path}")
+        logger.info(
+            f"The stable diffusion model database json was already valid, so no file was written to {write_to_path}",
+        )
 
     return True
 

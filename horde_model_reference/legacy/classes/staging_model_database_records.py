@@ -4,14 +4,14 @@
 # a set of classes exactly representative of the legacy model reference. It's
 # more of a hybrid representation of the legacy model reference and the new model.
 
-# These classes will only persist until the legacy model reference is fully deprecated.
+# These classes will persist until the legacy model reference is fully deprecated.
 
 from collections.abc import Mapping
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from horde_model_reference.model_reference_records import MODEL_PURPOSE
-from horde_model_reference.path_consts import MODEL_REFERENCE_CATEGORIES
+from horde_model_reference.path_consts import MODEL_REFERENCE_CATEGORY
 
 
 class StagingLegacy_Config_FileRecord(BaseModel):
@@ -101,13 +101,13 @@ class Staging_StableDiffusion_ModelReference(Legacy_Generic_ModelReference):
     models: Mapping[str, Legacy_StableDiffusion_ModelRecord]
 
 
-MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, type[StagingLegacy_Generic_ModelRecord]] = {
-    MODEL_REFERENCE_CATEGORIES.blip: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.clip: Legacy_CLIP_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.codeformer: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.controlnet: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.esrgan: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.gfpgan: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.safety_checker: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORIES.stable_diffusion: Legacy_StableDiffusion_ModelRecord,
+MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[StagingLegacy_Generic_ModelRecord]] = {
+    MODEL_REFERENCE_CATEGORY.blip: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.clip: Legacy_CLIP_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.codeformer: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.controlnet: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.esrgan: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.gfpgan: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.safety_checker: StagingLegacy_Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.stable_diffusion: Legacy_StableDiffusion_ModelRecord,
 }

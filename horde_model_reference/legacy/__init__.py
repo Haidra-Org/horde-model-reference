@@ -1,7 +1,7 @@
-from .download_live_legacy_dbs import ReferenceDownloadManager
+from .download_live_legacy_dbs import LegacyReferenceDownloadManager
 from .validate_sd import validate_legacy_stable_diffusion_db
 
 __all__ = [
-    "ReferenceDownloadManager",
+    "LegacyReferenceDownloadManager",
     "validate_legacy_stable_diffusion_db",
 ]

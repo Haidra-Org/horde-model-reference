@@ -1,9 +1,8 @@
 {
-    "Example General Model": {
+    "example model 1": {
         "name": "Example General Model",
         "description": "This would be a description of the model.",
         "version": "1.0",
-        "style": "generalist",
         "config": {
             "download": [
                 {
@@ -30,13 +29,13 @@
             "some other_trigger"
         ],
         "homepage": "https://www.not.a.real_website.com",
-        "nsfw": false
+        "nsfw": false,
+        "style": "generalist"
     },
-    "Example anime model": {
+    "example model 2": {
         "name": "Example anime model",
         "description": "This would be a description of the model.",
         "version": "2.5",
-        "style": "anime",
         "config": {
             "download": [
                 {
@@ -63,6 +62,7 @@
             "some other_anime_trigger"
         ],
         "homepage": "https://www.another_fake_website.com",
-        "nsfw": true
+        "nsfw": true,
+        "style": "anime"
     }
 }

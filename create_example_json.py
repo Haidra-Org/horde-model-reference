@@ -1,9 +1,10 @@
 import json
 
-from horde_model_reference import MODEL_PURPOSE, MODEL_STYLES, STABLE_DIFFUSION_BASELINE_CATEGORIES
+from horde_model_reference import MODEL_PURPOSE, MODEL_STYLE, STABLE_DIFFUSION_BASELINE_CATEGORY
 from horde_model_reference.model_reference_records import (
     DownloadRecord,
     StableDiffusion_ModelRecord,
+    StableDiffusion_ModelReference,
 )
 
 STABLE_DIFFUSION_EXAMPLE_JSON_FILENAME = "stable_diffusion.example.json"
@@ -24,10 +25,10 @@ def main():
         description="This would be a description of the model.",
         version="1.0",
         inpainting=False,
-        style=MODEL_STYLES.generalist,
+        style=MODEL_STYLE.generalist,
         config={"download": [example_download_record]},
         purpose=MODEL_PURPOSE.image_generation,
-        baseline=STABLE_DIFFUSION_BASELINE_CATEGORIES.stable_diffusion_1,
+        baseline=STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_1,
         tags=["anime", "faces"],
         showcases=[
             "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/showcase/test/test_general_01.png",
@@ -49,10 +50,10 @@ def main():
         description="This would be a description of the model.",
         version="2.5",
         inpainting=False,
-        style=MODEL_STYLES.anime,
+        style=MODEL_STYLE.anime,
         config={"download": [example_download_record_2]},
         purpose=MODEL_PURPOSE.image_generation,
-        baseline=STABLE_DIFFUSION_BASELINE_CATEGORIES.stable_diffusion_1,
+        baseline=STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_1,
         tags=["anime", "faces"],
         showcases=[
             "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/showcase/test/anime_01.png",
@@ -63,15 +64,18 @@ def main():
         nsfw=True,
     )
 
-    jsonable_dict = {
-        example_record_name: example_model_record.model_dump(),
-        example_record_2_name: example_model_record_2.model_dump(),
-    }
+    reference = StableDiffusion_ModelReference(
+        root={
+            "example model 1": example_model_record,
+            "example model 2": example_model_record_2,
+        },
+    )
+
     with open(STABLE_DIFFUSION_EXAMPLE_JSON_FILENAME, "w") as example_file:
-        example_file.write(json.dumps(jsonable_dict, indent=4) + "\n")
+        example_file.write(reference.model_dump_json(indent=4) + "\n")
 
     with open(STABLE_DIFFUSION_SCHEMA_JSON_FILENAME, "w") as schema_file:
-        schema_file.write(json.dumps(StableDiffusion_ModelRecord.model_json_schema(), indent=4) + "\n")
+        schema_file.write(json.dumps(StableDiffusion_ModelReference.model_json_schema(), indent=4) + "\n")
 
 
 if __name__ == "__main__":

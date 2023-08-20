@@ -14,13 +14,10 @@ from horde_model_reference.legacy.classes.staging_model_database_records import 
     MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
     StagingLegacy_Generic_ModelRecord,
 )
-from horde_model_reference.model_reference_records import (
-    StableDiffusion_ModelRecord,
-    create_stablediffusion_modelreference,
-)
+from horde_model_reference.model_reference_records import StableDiffusion_ModelRecord, StableDiffusion_ModelReference
 
 
-def test_convert_legacy_stablediffusion_database(base_path_for_tests: Path, legacy_folder_for_tests: Path):
+def test_convert_legacy_stable_diffusion_database(base_path_for_tests: Path, legacy_folder_for_tests: Path):
     sd_converter = LegacyStableDiffusionConverter(
         legacy_folder_path=legacy_folder_for_tests,
         target_file_folder=base_path_for_tests,
@@ -49,18 +46,18 @@ def test_all_base_legacy_converters(base_path_for_tests: Path, legacy_folder_for
         assert base_converter.normalize_and_convert()
 
 
-def test_validate_converted_stablediffusion_database(base_path_for_tests) -> None:
-    stablediffusion_model_database_path = path_consts.get_model_reference_file_path(
-        path_consts.MODEL_REFERENCE_CATEGORIES.stable_diffusion,
+def test_validate_converted_stable_diffusion_database(base_path_for_tests) -> None:
+    stable_diffusion_model_database_path = path_consts.get_model_reference_file_path(
+        path_consts.MODEL_REFERENCE_CATEGORY.stable_diffusion,
         base_path=base_path_for_tests,
     )
-    sd_model_datbase_file_contents: str = ""
-    with open(stablediffusion_model_database_path) as f:
-        sd_model_datbase_file_contents = f.read()
+    sd_model_database_file_contents: str = ""
+    with open(stable_diffusion_model_database_path) as f:
+        sd_model_database_file_contents = f.read()
 
-    sd_model_database_file_json = json.loads(sd_model_datbase_file_contents)
-    model_reference = create_stablediffusion_modelreference(
-        {k: StableDiffusion_ModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()},
+    sd_model_database_file_json = json.loads(sd_model_database_file_contents)
+    model_reference = StableDiffusion_ModelReference(
+        root={k: StableDiffusion_ModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()},
     )
 
     assert len(model_reference.baseline) >= 3
@@ -75,16 +72,16 @@ def test_validate_converted_stablediffusion_database(base_path_for_tests) -> Non
     for model_host in model_reference.models_hosts:
         assert model_host != ""
 
-    assert model_reference.models is not None
-    assert len(model_reference.models) >= 200
+    assert model_reference.root is not None
+    assert len(model_reference.root) >= 200
 
-    assert model_reference.models["stable_diffusion"] is not None
-    assert model_reference.models["stable_diffusion"].name == "stable_diffusion"
-    assert model_reference.models["stable_diffusion"].showcases is not None
+    assert model_reference.root["stable_diffusion"] is not None
+    assert model_reference.root["stable_diffusion"].name == "stable_diffusion"
+    assert model_reference.root["stable_diffusion"].showcases is not None
     # assert len(model_reference.models["stable_diffusion"].showcases) >= 3
     # XXX This is commented out because the dynamic showcase generation should not currently be part of the CI
 
-    for model_key, model_info in model_reference.models.items():
+    for model_key, model_info in model_reference.root.items():
         assert model_info.name == model_key
         assert model_info.baseline in model_reference.baseline
         assert model_info.style in model_reference.styles

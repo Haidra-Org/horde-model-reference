@@ -1,4 +1,12 @@
 """The classes used to convert the legacy model reference to the new format."""
+
+# This whole file is predicated on the idea that the old format suc... wasn't ideal.
+
+# There is a lot of manual wrangling of dicts and failure all around on my part in terms of
+# keeping track of what is what and where it is going in a clear, readable way.
+
+# If you can avoid it, don't look at this file. It's not pretty.
+
 import glob
 import json
 import typing
@@ -15,7 +23,7 @@ from horde_model_reference import (
     LEGACY_REFERENCE_FOLDER,
     LOG_FOLDER,
     MODEL_PURPOSE_LOOKUP,
-    MODEL_REFERENCE_CATEGORIES,
+    MODEL_REFERENCE_CATEGORY,
     path_consts,
 )
 from horde_model_reference.legacy.classes.staging_model_database_records import (
@@ -50,7 +58,7 @@ class BaseLegacyConverter:
     converted_database_file_path: Path
     """The file path to write the converted stable diffusion model reference database."""
 
-    model_reference_category: MODEL_REFERENCE_CATEGORIES
+    model_reference_category: MODEL_REFERENCE_CATEGORY
     """The category of model reference to convert."""
     model_reference_type: type[StagingLegacy_Generic_ModelRecord]
     """The `type` (class type) of model reference to convert."""
@@ -76,7 +84,7 @@ class BaseLegacyConverter:
         legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
         target_file_folder: str | Path = BASE_PATH,
         log_folder: str | Path = LOG_FOLDER,
-        model_reference_category: MODEL_REFERENCE_CATEGORIES,
+        model_reference_category: MODEL_REFERENCE_CATEGORY,
         debug_mode: bool = False,
         dry_run: bool = False,
     ):
@@ -85,7 +93,7 @@ class BaseLegacyConverter:
         Args:
             legacy_folder_path (str | Path, optional): The legacy database folder. Defaults to LEGACY_REFERENCE_FOLDER.
             target_file_folder (str | Path): The folder to write the converted database to.
-            model_reference_category (MODEL_REFERENCE_CATEGORIES): The category of model reference to convert.
+            model_reference_category (MODEL_REFERENCE_CATEGORY): The category of model reference to convert.
             debug_mode (bool, optional): If true, include extra information in the error log. Defaults to False.
             dry_run (bool, optional): If true, don't write out the converted database or any logs. Defaults to False.
         """
@@ -153,7 +161,8 @@ class BaseLegacyConverter:
             try:
                 download = self.config_record_pre_parse(model_record_key, model_record_contents)
                 model_record_contents["config"]["download"] = download
-                del model_record_contents["config"]["files"]  # New format doesn't have 'files' in the config
+                if "files" in model_record_contents["config"]:
+                    del model_record_contents["config"]["files"]  # New format doesn't have 'files' in the config
 
                 if "showcases" in model_record_contents["config"]:
                     model_record_contents["showcases"] = model_record_contents["config"]["showcases"]
@@ -349,7 +358,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_category=path_consts.MODEL_REFERENCE_CATEGORIES.stable_diffusion,
+            model_reference_category=path_consts.MODEL_REFERENCE_CATEGORY.stable_diffusion,
             debug_mode=debug_mode,
         )
         self.all_baseline_categories = {}
@@ -478,15 +487,12 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 error = f"folder '{folder}' is not in the model records."
                 self.add_validation_error_to_log(model_record_key=folder, error=error)
 
-        print()
         logger.debug(f"{self.all_styles=}")
         logger.debug(f"{self.all_baseline_categories=}")
         logger.debug(f"{self.all_tags=}")
         logger.debug(f"{self.all_download_hosts=}")
-        print()
         logger.info(f"Total number of models: {len(self.all_model_records)}")
         logger.info(f"Total number of showcase folders: {len(final_on_disk_showcase_folders_names)}")
-        print()
         logger.info(f"Total number of models with validation issues: {len(self.all_validation_errors_log)}")
 
     @override
@@ -681,7 +687,7 @@ class LegacyClipConverter(BaseLegacyConverter):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_category=MODEL_REFERENCE_CATEGORIES.clip,
+            model_reference_category=MODEL_REFERENCE_CATEGORY.clip,
             debug_mode=debug_mode,
         )
 
