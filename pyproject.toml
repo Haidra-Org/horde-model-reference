@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm"]
+requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "horde_model_reference"
-version = "0.3.0"
+version = "0.4.1"
 description = "A helper library providing a way to work with the lists of diffusion models, utility models, and any other related files required for AI-Horde."
 authors = [
     {name = "tazlin", email = "tazlin.on.github@gmail.com"},
@@ -28,6 +28,9 @@ dependencies = ["pydantic", "requests", "typing_extensions", "loguru", "strenum"
 [project.scripts]
 validate-sd-models = "horde_model_reference.legacy.validate_sd:main"
 
+[tool.setuptools.package-dir]
+horde_model_reference = "horde_model_reference"
+
 [tool.setuptools.packages.find]
 include = ["horde_model_reference*", "horde_model_reference.*"]
 exclude = ["horde_model_reference.showcase.*"]
@@ -47,8 +50,6 @@ select = [
     "F",    # pyflakes
     "E",    # pycodestyle errors
     "W",    # pycodestyle warnings
-
-
     "YTT",  # flake8-2020
     # "BLE",    # flake8-blind-except
     "B",    # flake8-bugbear
