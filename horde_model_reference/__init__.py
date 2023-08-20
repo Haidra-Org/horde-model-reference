@@ -1,12 +1,17 @@
-from .meta_consts import (
+from dotenv import load_dotenv
+
+load_dotenv()
+
+
+from .meta_consts import (  # noqa: E402
     KNOWN_TAGS,
     MODEL_PURPOSE,
     MODEL_PURPOSE_LOOKUP,
-    MODEL_REFERENCE_CATEGORIES,
-    MODEL_STYLES,
-    STABLE_DIFFUSION_BASELINE_CATEGORIES,
+    MODEL_REFERENCE_CATEGORY,
+    MODEL_STYLE,
+    STABLE_DIFFUSION_BASELINE_CATEGORY,
 )
-from .path_consts import (
+from .path_consts import (  # noqa: E402
     BASE_PATH,
     DEFAULT_SHOWCASE_FOLDER_NAME,
     LEGACY_REFERENCE_FOLDER,
@@ -17,11 +22,11 @@ from .path_consts import (
 
 __all__ = [
     "KNOWN_TAGS",
-    "MODEL_REFERENCE_CATEGORIES",
+    "MODEL_REFERENCE_CATEGORY",
     "MODEL_PURPOSE",
     "MODEL_PURPOSE_LOOKUP",
-    "MODEL_STYLES",
-    "STABLE_DIFFUSION_BASELINE_CATEGORIES",
+    "MODEL_STYLE",
+    "STABLE_DIFFUSION_BASELINE_CATEGORY",
     "BASE_PATH",
     "DEFAULT_SHOWCASE_FOLDER_NAME",
     "LEGACY_REFERENCE_FOLDER",

@@ -3,7 +3,7 @@ from enum import auto
 from strenum import StrEnum
 
 
-class MODEL_STYLES(StrEnum):
+class MODEL_STYLE(StrEnum):
     """An enum of all the model styles."""
 
     generalist = auto()
@@ -12,6 +12,19 @@ class MODEL_STYLES(StrEnum):
     artistic = auto()
     other = auto()
     realistic = auto()
+
+
+class CONTROLNET_STYLE(StrEnum):
+    control_seg = auto()
+    control_scribble = auto()
+    control_fakescribbles = auto()
+    control_openpose = auto()
+    control_normal = auto()
+    control_mlsd = auto()
+    control_hough = auto()
+    control_hed = auto()
+    control_canny = auto()
+    control_depth = auto()
 
 
 KNOWN_TAGS = [
@@ -36,7 +49,7 @@ KNOWN_TAGS = [
 ]
 
 
-class MODEL_REFERENCE_CATEGORIES(StrEnum):
+class MODEL_REFERENCE_CATEGORY(StrEnum):
     """The categories of model reference entries."""
 
     blip = auto()
@@ -66,21 +79,22 @@ class MODEL_PURPOSE(StrEnum):
     """The model is a post processor (after image generation) of some variety."""
 
 
-class STABLE_DIFFUSION_BASELINE_CATEGORIES(StrEnum):
+class STABLE_DIFFUSION_BASELINE_CATEGORY(StrEnum):
     """An enum of all the stable diffusion baselines."""
 
     stable_diffusion_1 = auto()
     stable_diffusion_2_768 = auto()
     stable_diffusion_2_512 = auto()
+    stable_diffusion_xl = auto()
 
 
-MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORIES, MODEL_PURPOSE] = {
-    MODEL_REFERENCE_CATEGORIES.clip: MODEL_PURPOSE.clip,
-    MODEL_REFERENCE_CATEGORIES.blip: MODEL_PURPOSE.blip,
-    MODEL_REFERENCE_CATEGORIES.codeformer: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.controlnet: MODEL_PURPOSE.controlnet,
-    MODEL_REFERENCE_CATEGORIES.esrgan: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.gfpgan: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.safety_checker: MODEL_PURPOSE.post_processor,
-    MODEL_REFERENCE_CATEGORIES.stable_diffusion: MODEL_PURPOSE.image_generation,
+MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, MODEL_PURPOSE] = {
+    MODEL_REFERENCE_CATEGORY.clip: MODEL_PURPOSE.clip,
+    MODEL_REFERENCE_CATEGORY.blip: MODEL_PURPOSE.blip,
+    MODEL_REFERENCE_CATEGORY.codeformer: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORY.controlnet: MODEL_PURPOSE.controlnet,
+    MODEL_REFERENCE_CATEGORY.esrgan: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORY.gfpgan: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORY.safety_checker: MODEL_PURPOSE.post_processor,
+    MODEL_REFERENCE_CATEGORY.stable_diffusion: MODEL_PURPOSE.image_generation,
 }

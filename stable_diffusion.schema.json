@@ -47,7 +47,7 @@
             "title": "MODEL_PURPOSE",
             "type": "string"
         },
-        "MODEL_STYLES": {
+        "MODEL_STYLE": {
             "description": "An enum of all the model styles.",
             "enum": [
                 "generalist",
@@ -57,174 +57,179 @@
                 "other",
                 "realistic"
             ],
-            "title": "MODEL_STYLES",
+            "title": "MODEL_STYLE",
             "type": "string"
         },
-        "STABLE_DIFFUSION_BASELINE_CATEGORIES": {
+        "STABLE_DIFFUSION_BASELINE_CATEGORY": {
             "description": "An enum of all the stable diffusion baselines.",
             "enum": [
                 "stable_diffusion_1",
                 "stable_diffusion_2_768",
-                "stable_diffusion_2_512"
+                "stable_diffusion_2_512",
+                "stable_diffusion_xl"
             ],
-            "title": "STABLE_DIFFUSION_BASELINE_CATEGORIES",
-            "type": "string"
-        }
-    },
-    "description": "A model entry in the model reference.",
-    "properties": {
-        "name": {
-            "title": "Name",
+            "title": "STABLE_DIFFUSION_BASELINE_CATEGORY",
             "type": "string"
         },
-        "description": {
-            "anyOf": [
-                {
+        "StableDiffusion_ModelRecord": {
+            "description": "A model entry in the model reference.",
+            "properties": {
+                "name": {
+                    "title": "Name",
                     "type": "string"
                 },
-                {
-                    "type": "null"
-                }
-            ],
-            "title": "Description"
-        },
-        "version": {
-            "anyOf": [
-                {
-                    "type": "string"
+                "description": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Description"
                 },
-                {
-                    "type": "null"
-                }
-            ],
-            "title": "Version"
-        },
-        "style": {
-            "anyOf": [
-                {
-                    "$ref": "#/$defs/MODEL_STYLES"
+                "version": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Version"
                 },
-                {
-                    "type": "string"
+                "config": {
+                    "additionalProperties": {
+                        "items": {
+                            "$ref": "#/$defs/DownloadRecord"
+                        },
+                        "type": "array"
+                    },
+                    "title": "Config",
+                    "type": "object"
                 },
-                {
-                    "type": "null"
-                }
-            ],
-            "title": "Style"
-        },
-        "config": {
-            "additionalProperties": {
-                "items": {
-                    "$ref": "#/$defs/DownloadRecord"
+                "purpose": {
+                    "$ref": "#/$defs/MODEL_PURPOSE"
                 },
-                "type": "array"
-            },
-            "title": "Config",
-            "type": "object"
-        },
-        "purpose": {
-            "$ref": "#/$defs/MODEL_PURPOSE"
-        },
-        "inpainting": {
-            "anyOf": [
-                {
+                "inpainting": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": false,
+                    "title": "Inpainting"
+                },
+                "baseline": {
+                    "$ref": "#/$defs/STABLE_DIFFUSION_BASELINE_CATEGORY"
+                },
+                "tags": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": [],
+                    "title": "Tags"
+                },
+                "showcases": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": [],
+                    "title": "Showcases"
+                },
+                "min_bridge_version": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Min Bridge Version"
+                },
+                "trigger": {
+                    "anyOf": [
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": [],
+                    "title": "Trigger"
+                },
+                "homepage": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Homepage"
+                },
+                "nsfw": {
+                    "title": "Nsfw",
                     "type": "boolean"
                 },
-                {
-                    "type": "null"
+                "style": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/MODEL_STYLE"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null
                 }
+            },
+            "required": [
+                "name",
+                "config",
+                "purpose",
+                "baseline",
+                "nsfw"
             ],
-            "default": false,
-            "title": "Inpainting"
-        },
-        "baseline": {
-            "$ref": "#/$defs/STABLE_DIFFUSION_BASELINE_CATEGORIES"
-        },
-        "tags": {
-            "anyOf": [
-                {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                {
-                    "type": "null"
-                }
-            ],
-            "default": [],
-            "title": "Tags"
-        },
-        "showcases": {
-            "anyOf": [
-                {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                {
-                    "type": "null"
-                }
-            ],
-            "default": [],
-            "title": "Showcases"
-        },
-        "min_bridge_version": {
-            "anyOf": [
-                {
-                    "type": "integer"
-                },
-                {
-                    "type": "null"
-                }
-            ],
-            "default": null,
-            "title": "Min Bridge Version"
-        },
-        "trigger": {
-            "anyOf": [
-                {
-                    "items": {
-                        "type": "string"
-                    },
-                    "type": "array"
-                },
-                {
-                    "type": "null"
-                }
-            ],
-            "default": [],
-            "title": "Trigger"
-        },
-        "homepage": {
-            "anyOf": [
-                {
-                    "type": "string"
-                },
-                {
-                    "type": "null"
-                }
-            ],
-            "default": null,
-            "title": "Homepage"
-        },
-        "nsfw": {
-            "title": "Nsfw",
-            "type": "boolean"
+            "title": "StableDiffusion_ModelRecord",
+            "type": "object"
         }
     },
-    "required": [
-        "name",
-        "description",
-        "version",
-        "style",
-        "config",
-        "purpose",
-        "baseline",
-        "nsfw"
-    ],
-    "title": "StableDiffusion_ModelRecord",
+    "additionalProperties": {
+        "$ref": "#/$defs/StableDiffusion_ModelRecord"
+    },
+    "description": "The combined metadata and model list.",
+    "title": "StableDiffusion_ModelReference",
     "type": "object"
 }

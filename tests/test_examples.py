@@ -7,7 +7,7 @@ from create_example_json import (
 )
 
 
-def test_create_example_jsom():
+def test_create_example_json():
     create_example_json.main()
     assert Path(STABLE_DIFFUSION_EXAMPLE_JSON_FILENAME).exists()
     assert Path(STABLE_DIFFUSION_SCHEMA_JSON_FILENAME).exists()

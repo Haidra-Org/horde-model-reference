@@ -12,8 +12,8 @@ from loguru import logger
 from horde_model_reference import (
     KNOWN_TAGS,
     LEGACY_REFERENCE_FOLDER,
-    MODEL_REFERENCE_CATEGORIES,
-    MODEL_STYLES,
+    MODEL_REFERENCE_CATEGORY,
+    MODEL_STYLE,
     get_model_reference_file_path,
 )
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
@@ -35,7 +35,7 @@ class Legacy_StableDiffusionRecordHelper:
 
     def load_legacy_sd_model_reference(self) -> dict[str, RawLegacy_StableDiffusion_ModelRecord]:
         path_to_legacy_stablediffusion = get_model_reference_file_path(
-            MODEL_REFERENCE_CATEGORIES.stable_diffusion,
+            MODEL_REFERENCE_CATEGORY.stable_diffusion,
             base_path=LEGACY_REFERENCE_FOLDER,
         )
         sd_legacy_model_reference: dict[str, RawLegacy_StableDiffusion_ModelRecord] = {}
@@ -189,7 +189,7 @@ class Legacy_StableDiffusionRecordHelper:
                 print("Is this model nsfw? (y/n)")
                 is_nsfw = input().lower() == "y"
 
-                style_num_lookup = {x + 1: y for x, y in enumerate(MODEL_STYLES)}
+                style_num_lookup = {x + 1: y for x, y in enumerate(MODEL_STYLE)}
                 style = "generalist"
                 while True:
                     print("Please enter the style of the model:")

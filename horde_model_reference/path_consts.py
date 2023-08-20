@@ -6,7 +6,7 @@ from urllib.parse import urlparse
 
 from loguru import logger
 
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORIES
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 PACKAGE_NAME = "horde_model_reference"
 """The name of this package. Also used as the name of the base folder name for all model reference files."""
@@ -54,7 +54,8 @@ def make_all_model_reference_folders():
 
 
 if os.getenv("HORDE_MODEL_REFERENCE_MAKE_FOLDERS"):
-    logger.info("Making all model reference folders.")
+    logger.info("Making all model reference folders if they don't already exist.")
+    logger.info(f"BASE_PATH: {BASE_PATH}")
     make_all_model_reference_folders()
 
 GITHUB_REPO_OWNER = "Haidra-Org"
@@ -66,26 +67,31 @@ GITHUB_REPO_URL: str = (
 )
 """The base URL to the live GitHub repo used to power the horde."""
 
+HORDE_PROXY_URL_BASE = os.getenv("HORDE_PROXY_URL_BASE", "")
+
+if HORDE_PROXY_URL_BASE:
+    logger.info("Using proxy for all outbound URLs.")
+
 LEGACY_MODEL_GITHUB_URLS = {}
 """A lookup of all the fully qualified file URLs to the given model reference."""
 
-_MODEL_REFERENCE_FILENAMES: dict[MODEL_REFERENCE_CATEGORIES, str] = {}
+_MODEL_REFERENCE_FILENAMES: dict[MODEL_REFERENCE_CATEGORY, str] = {}
 
-for category in MODEL_REFERENCE_CATEGORIES:
+for category in MODEL_REFERENCE_CATEGORY:
     filename = f"{category}.json"
     _MODEL_REFERENCE_FILENAMES[category] = filename
     LEGACY_MODEL_GITHUB_URLS[category] = urlparse(GITHUB_REPO_URL + filename).geturl()
 
 
 def get_model_reference_filename(
-    model_reference_category: MODEL_REFERENCE_CATEGORIES,
+    model_reference_category: MODEL_REFERENCE_CATEGORY,
     *,
     base_path: str | Path | None = None,
 ) -> str | Path:
     """Return the filename for the given model reference category.
 
     Args:
-        model_reference_category (MODEL_REFERENCE_CATEGORIES): The category of model reference to get the filename for.
+        model_reference_category (MODEL_REFERENCE_CATEGORY): The category of model reference to get the filename for.
         base_path (str | Path | None): If provided, the base path to the model reference file. Defaults to BASE_PATH.
 
     Returns:
@@ -102,14 +108,14 @@ def get_model_reference_filename(
 
 
 def get_model_reference_file_path(
-    model_reference_category: MODEL_REFERENCE_CATEGORIES,
+    model_reference_category: MODEL_REFERENCE_CATEGORY,
     *,
     base_path: str | Path = BASE_PATH,
 ) -> Path:
     """Returns the path to the model reference file for the given model reference category.
 
     Args:
-        model_reference_category (MODEL_REFERENCE_CATEGORIES): The category of model reference to get the filename for.
+        model_reference_category (MODEL_REFERENCE_CATEGORY): The category of model reference to get the filename for.
         basePath (str | Path): If provided, the base path to the model reference file. Defaults to BASE_PATH.
 
     Returns:
@@ -118,3 +124,51 @@ def get_model_reference_file_path(
     if not isinstance(base_path, Path):
         base_path = Path(base_path)
     return base_path.joinpath(_MODEL_REFERENCE_FILENAMES[model_reference_category])
+
+
+def get_all_model_reference_file_paths(
+    *,
+    base_path: str | Path = BASE_PATH,
+) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
+    """Returns the path to the model reference file for the given model reference category.
+
+    Args:
+        basePath (str | Path): If provided, the base path to the model reference file. Defaults to BASE_PATH.
+
+    Returns:
+        path:
+    """
+    if not isinstance(base_path, Path):
+        base_path = Path(base_path)
+
+    return_dict: dict[MODEL_REFERENCE_CATEGORY, Path | None] = {}
+
+    for model_reference_category in MODEL_REFERENCE_CATEGORY:
+        file_path = get_model_reference_file_path(model_reference_category, base_path=base_path)
+        if not file_path.exists():
+            return_dict[model_reference_category] = None
+        else:
+            return_dict[model_reference_category] = file_path
+
+    return return_dict
+
+
+def get_legacy_model_reference_file_path(
+    model_reference_category: MODEL_REFERENCE_CATEGORY,
+    *,
+    base_path: str | Path = BASE_PATH,
+) -> Path:
+    """Returns the path to the legacy model reference file for the given model reference category.
+
+    Args:
+        model_reference_category (MODEL_REFERENCE_CATEGORY): The category of model reference to get the filename for.
+        basePath (str | Path): If provided, the base path to the model reference file. Defaults to BASE_PATH.
+
+    Returns:
+        path:
+    """
+    if not isinstance(base_path, Path):
+        base_path = Path(base_path)
+    base_path.joinpath(LEGACY_REFERENCE_FOLDER_NAME)
+    base_path.joinpath(_MODEL_REFERENCE_FILENAMES[model_reference_category])
+    return base_path

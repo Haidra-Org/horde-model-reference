@@ -3,3 +3,4 @@ requests
 typing_extensions
 loguru
 StrEnum
+python-dotenv
