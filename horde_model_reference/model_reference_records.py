@@ -104,8 +104,6 @@ class Generic_ModelReference(RootModel[Mapping[str, Generic_ModelRecord]]):
 class StableDiffusion_ModelReference(Generic_ModelReference):
     """The combined metadata and model list."""
 
-    model_config = ConfigDict(extra="forbid")
-
     _baseline: dict[STABLE_DIFFUSION_BASELINE_CATEGORY, int] = PrivateAttr(default_factory=dict)
     """A dictionary of all the baseline types and how many models use them."""
     _styles: dict[MODEL_STYLE, int] = PrivateAttr(default_factory=dict)
@@ -133,36 +131,8 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
 
         return False
 
-    @property
-    def baseline(self) -> dict[STABLE_DIFFUSION_BASELINE_CATEGORY, int]:
-        """Return a dictionary of all the baseline types and how many models use them."""
-        self.check_was_models_modified()
-        return self._baseline
-
-    @property
-    def styles(self) -> dict[MODEL_STYLE, int]:
-        """Return a dictionary of all the styles and how many models use them."""
-        self.check_was_models_modified()
-        return self._styles
-
-    @property
-    def tags(self) -> dict[str, int]:
-        """Return a dictionary of all the tags and how many models use them."""
-        self.check_was_models_modified()
-        return self._tags
-
-    @property
-    def models_hosts(self) -> dict[str, int]:
-        """Return a dictionary of all the model hosts and how many models use them."""
-        self.check_was_models_modified()
-        return self._models_hosts
-
-    @property
-    def models_names(self) -> set[str]:
-        """Return a list of all the model names."""
-        return set(self.root.keys())
-
     def rebuild_metadata(self) -> None:
+        """Rebuild the metadata dictionaries."""
         # Initialize empty dictionaries to store metadata
         self._baseline = {}  # Dictionary to count models by baseline
         self._styles = {}  # Dictionary to count models by style
@@ -194,6 +164,35 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
                         host = urllib.parse.urlparse(download_entry.file_url).netloc
                         # Count models by host
                         self._models_hosts[host] = self._models_hosts.get(host, 0) + 1
+
+    @property
+    def baseline(self) -> dict[STABLE_DIFFUSION_BASELINE_CATEGORY, int]:
+        """Return a dictionary of all the baseline types and how many models use them."""
+        self.check_was_models_modified()
+        return self._baseline
+
+    @property
+    def styles(self) -> dict[MODEL_STYLE, int]:
+        """Return a dictionary of all the styles and how many models use them."""
+        self.check_was_models_modified()
+        return self._styles
+
+    @property
+    def tags(self) -> dict[str, int]:
+        """Return a dictionary of all the tags and how many models use them."""
+        self.check_was_models_modified()
+        return self._tags
+
+    @property
+    def models_hosts(self) -> dict[str, int]:
+        """Return a dictionary of all the model hosts and how many models use them."""
+        self.check_was_models_modified()
+        return self._models_hosts
+
+    @property
+    def models_names(self) -> set[str]:
+        """Return a list of all the model names."""
+        return set(self.root.keys())
 
 
 class CLIP_ModelReference(Generic_ModelReference):

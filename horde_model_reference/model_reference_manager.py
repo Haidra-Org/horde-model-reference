@@ -48,7 +48,17 @@ class ModelReferenceManager:
             self._legacy_reference_download_manager.legacy_path,
         )
 
-    def get_all_legacy_model_references(
+    @property
+    def all_legacy_model_reference_file_paths(self) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
+        """
+        Get all legacy model reference files.
+
+        Returns:
+            A dictionary mapping model reference categories to file paths.
+        """
+        return self.get_all_legacy_model_reference_file_paths(redownload_all=False)
+
+    def get_all_legacy_model_reference_file_paths(
         self,
         redownload_all: bool = False,
     ) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
@@ -65,24 +75,36 @@ class ModelReferenceManager:
             redownload_all=redownload_all,
         )
 
+    @property
+    def all_model_references(self) -> dict[MODEL_REFERENCE_CATEGORY, Generic_ModelReference | None]:
+        """
+        Get all model reference files.
+
+        Returns:
+            A dictionary mapping model reference categories to file paths. Values of None indicate that the file does
+            not exist (failed to download or convert).
+        """
+        return self.get_all_model_references(redownload_all=False)
+
     def get_all_model_references(
         self,
-        redownload_all_legacy: bool = False,
+        redownload_all: bool = False,
     ) -> dict[MODEL_REFERENCE_CATEGORY, Generic_ModelReference | None]:
         """
         Get all model reference files.
 
         Args:
-            redownload_all_legacy: Whether to redownload all legacy model reference files.
+            redownload_all: Whether to redownload all legacy model reference files.
 
         Returns:
-            A dictionary mapping model reference categories to file paths.
+            A dictionary mapping model reference categories to file paths. Values of None indicate that the file does
+            not exist (failed to download or convert).
         """
 
-        if not redownload_all_legacy and self._cached_new_references:
+        if not redownload_all and self._cached_new_references:
             return self._cached_new_references
 
-        if redownload_all_legacy:
+        if redownload_all:
             self.download_and_convert_all_legacy_dbs()
 
         all_files: dict[MODEL_REFERENCE_CATEGORY, Path | None] = path_consts.get_all_model_reference_file_paths()

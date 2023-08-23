@@ -9,7 +9,7 @@ def test_manager_init():
 def test_manager_legacy():
     model_reference_manager = ModelReferenceManager()
 
-    legacy_reference_locations = model_reference_manager.get_all_legacy_model_references()
+    legacy_reference_locations = model_reference_manager.get_all_legacy_model_reference_file_paths()
 
     assert len(legacy_reference_locations) > 0
     assert MODEL_REFERENCE_CATEGORY.stable_diffusion in legacy_reference_locations
