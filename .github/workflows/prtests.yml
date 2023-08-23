@@ -38,3 +38,5 @@ jobs:
         uses: pre-commit/action@v3.0.0
       - name: Run unit tests
         run: tox -e tests
+        env:
+          AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
