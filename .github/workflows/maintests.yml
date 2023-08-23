@@ -14,6 +14,8 @@ on:
       - '.pre-commit-config.yaml'
 jobs:
   build:
+    env:
+      AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -33,5 +35,3 @@ jobs:
         uses: pre-commit/action@v3.0.0
       - name: Run unit tests
         run: tox -e tests
-        env:
-          AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
