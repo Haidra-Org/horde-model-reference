@@ -6,21 +6,6 @@ from loguru import logger
 from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER_NAME
 
 
-def pytest_collection_modifyitems(items):
-    """Modifies test items in place to ensure test modules run in a given order."""
-    MODULE_ORDER = ["tests.scripts", "tests.test_convert_legacy_database", "tests.test_consts"]
-    # `test.scripts` must run first because it downloads the legacy database
-    module_mapping = {item: item.module.__name__ for item in items}
-
-    sorted_items = items.copy()
-    # Iteratively move tests of each module to the end of the test queue
-    for module in MODULE_ORDER:
-        sorted_items = [it for it in sorted_items if module_mapping[it] != module] + [
-            it for it in sorted_items if module_mapping[it] == module
-        ]
-    items[:] = sorted_items
-
-
 @pytest.fixture(scope="session")
 def base_path_for_tests() -> Path:
     target_path = Path(__file__).parent.joinpath("test_data_results")
@@ -47,3 +32,25 @@ def setup_logging(base_path_for_tests: Path):
             },
         ],
     )
+
+
+def pytest_collection_modifyitems(items):  # type: ignore
+    """Modifies test items to ensure test modules run in a given order."""
+    MODULES_TO_RUN_FIRST = ["tests.test_scripts"]
+
+    MODULES_TO_RUN_LAST = []  # FIXME make dynamic
+    module_mapping = {item: item.module.__name__ for item in items}
+
+    sorted_items = []
+
+    for module in MODULES_TO_RUN_FIRST:
+        sorted_items.extend([item for item in items if module_mapping[item] == module])
+
+    sorted_items.extend(
+        [item for item in items if module_mapping[item] not in MODULES_TO_RUN_FIRST + MODULES_TO_RUN_LAST],
+    )
+
+    for module in MODULES_TO_RUN_LAST:
+        sorted_items.extend([item for item in items if module_mapping[item] == module])
+
+    items[:] = sorted_items
