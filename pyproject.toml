@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "horde_model_reference"
-version = "0.4.1"
+version = "0.4.2"
 description = "A helper library providing a way to work with the lists of diffusion models, utility models, and any other related files required for AI-Horde."
 authors = [
     {name = "tazlin", email = "tazlin.on.github@gmail.com"},
