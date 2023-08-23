@@ -19,7 +19,8 @@ AIWORKER_CACHE_HOME = os.getenv("AIWORKER_CACHE_HOME")
 """The default location for all AI-Horde-Worker cache (model) files."""
 
 if AIWORKER_CACHE_HOME:
-    BASE_PATH = Path(AIWORKER_CACHE_HOME).joinpath(PACKAGE_NAME)
+    BASE_PATH = Path(AIWORKER_CACHE_HOME).resolve().joinpath(PACKAGE_NAME)
+    BASE_PATH.mkdir(parents=True, exist_ok=True)
 
 LOG_FOLDER: Path = BASE_PATH.joinpath("logs")
 
