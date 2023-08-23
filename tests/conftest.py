@@ -8,7 +8,7 @@ from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER_NAME
 
 @pytest.fixture(scope="session")
 def base_path_for_tests() -> Path:
-    target_path = Path(__file__).parent.joinpath("test_data_results")
+    target_path = Path(__file__).parent.joinpath("test_data_results/horde_model_reference")
     target_path.mkdir(exist_ok=True)
     return target_path
 
