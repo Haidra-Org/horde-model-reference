@@ -311,7 +311,7 @@ class BaseLegacyConverter:
 
     def write_out_validation_errors(self) -> None:
         """Write out the validation errors."""
-        if self.dry_run:
+        if self.dry_run or not self.debug_mode:
             return
 
         log_file = self.log_folder.joinpath(self.model_reference_category + ".log")
