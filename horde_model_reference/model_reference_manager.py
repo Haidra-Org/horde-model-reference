@@ -43,10 +43,7 @@ class ModelReferenceManager:
         self._legacy_reference_download_manager.download_all_legacy_model_references(
             overwrite_existing=override_existing,
         )
-        convert_all_legacy_model_references(
-            self._legacy_reference_download_manager.base_path,
-            self._legacy_reference_download_manager.legacy_path,
-        )
+        convert_all_legacy_model_references()
 
     @property
     def all_legacy_model_reference_file_paths(self) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
