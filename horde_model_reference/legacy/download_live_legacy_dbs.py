@@ -18,6 +18,13 @@ def download_all_models(
     return reference_dm.download_all_legacy_model_references(overwrite_existing=override_existing)
 
 
-if __name__ == "__main__":
+def main():
     reference_download_manager = LegacyReferenceDownloadManager()
-    reference_download_manager.download_all_legacy_model_references(overwrite_existing=True)
+    references_and_paths = reference_download_manager.download_all_legacy_model_references(overwrite_existing=True)
+
+    for reference, path in references_and_paths.items():
+        print(f"Downloaded {reference.name}: {path}")
+
+
+if __name__ == "__main__":
+    main()

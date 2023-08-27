@@ -63,6 +63,9 @@ GITHUB_REPO_OWNER = "Haidra-Org"
 GITHUB_REPO_NAME = "AI-Horde-image-model-reference"
 GITHUB_REPO_BRANCH = "main"
 
+if os.getenv("HORDE_MODEL_REFERENCE_GITHUB_BRANCH"):
+    GITHUB_REPO_BRANCH = os.getenv("HORDE_MODEL_REFERENCE_GITHUB_BRANCH")
+
 GITHUB_REPO_URL: str = (
     f"https://raw.githubusercontent.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/{GITHUB_REPO_BRANCH}/"
 )
