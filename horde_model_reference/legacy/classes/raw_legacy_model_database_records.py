@@ -1,7 +1,11 @@
 """The classes which can represent a legacy model reference file."""
-from collections.abc import Mapping
+from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict
+from collections.abc import Mapping
+from enum import auto
+
+from pydantic import BaseModel, ConfigDict, RootModel
+from strenum import StrEnum
 
 
 class RawLegacy_DownloadRecord(BaseModel):
@@ -18,6 +22,15 @@ class RawLegacy_FileRecord(BaseModel):
     path: str
     md5sum: str | None = None
     sha256sum: str | None = None
+
+
+class FEATURE_SUPPORTED(StrEnum):
+    """A feature supported by a model."""
+
+    hires_fix = auto()
+    loras = auto()
+    inpainting = auto()
+    controlnet = auto()
 
 
 class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
@@ -44,3 +57,8 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
     download_all: bool
     config: Mapping[str, list[RawLegacy_FileRecord | RawLegacy_DownloadRecord]]
     available: bool | None = None
+    features_not_supported: list[FEATURE_SUPPORTED] | None = None
+
+
+class RawLegacy_StableDiffusion_ModelReference(RootModel[Mapping[str, RawLegacy_StableDiffusion_ModelRecord]]):
+    pass

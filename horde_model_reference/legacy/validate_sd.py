@@ -31,7 +31,7 @@ def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None 
         {
             k: v.model_dump(
                 exclude_none=True,
-                exclude_unset=True,
+                exclude_defaults=False,
                 by_alias=True,
             )
             for k, v in parsed_db_records.items()

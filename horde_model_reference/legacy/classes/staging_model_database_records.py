@@ -63,6 +63,7 @@ class StagingLegacy_Generic_ModelRecord(BaseModel):
     available: bool | None = None
 
     purpose: MODEL_PURPOSE | None = None
+    features_not_supported: list[str] | None = None
 
 
 class Legacy_CLIP_ModelRecord(StagingLegacy_Generic_ModelRecord):

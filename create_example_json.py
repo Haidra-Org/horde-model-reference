@@ -1,6 +1,9 @@
 import json
 
 from horde_model_reference import MODEL_PURPOSE, MODEL_STYLE, STABLE_DIFFUSION_BASELINE_CATEGORY
+from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
+    RawLegacy_StableDiffusion_ModelReference,
+)
 from horde_model_reference.model_reference_records import (
     DownloadRecord,
     StableDiffusion_ModelRecord,
@@ -9,6 +12,8 @@ from horde_model_reference.model_reference_records import (
 
 STABLE_DIFFUSION_EXAMPLE_JSON_FILENAME = "stable_diffusion.example.json"
 STABLE_DIFFUSION_SCHEMA_JSON_FILENAME = "stable_diffusion.schema.json"
+
+LEGACY_STABLE_DIFFUSION_SCHEMA_JSON_FILENAME = "legacy_stable_diffusion.schema.json"
 
 
 def main():
@@ -76,6 +81,9 @@ def main():
 
     with open(STABLE_DIFFUSION_SCHEMA_JSON_FILENAME, "w") as schema_file:
         schema_file.write(json.dumps(StableDiffusion_ModelReference.model_json_schema(), indent=4) + "\n")
+
+    with open(LEGACY_STABLE_DIFFUSION_SCHEMA_JSON_FILENAME, "w") as schema_file:
+        schema_file.write(json.dumps(RawLegacy_StableDiffusion_ModelReference.model_json_schema(), indent=4) + "\n")
 
 
 if __name__ == "__main__":
