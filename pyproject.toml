@@ -27,6 +27,7 @@ dependencies = ["pydantic", "requests", "typing_extensions", "loguru", "strenum"
 
 [project.scripts]
 validate-sd-models = "horde_model_reference.legacy.validate_sd:main"
+download-sd-models = "horde_model_reference.legacy.download_live_legacy_dbs:main"
 
 [tool.setuptools.package-dir]
 horde_model_reference = "horde_model_reference"
