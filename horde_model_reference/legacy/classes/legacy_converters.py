@@ -167,7 +167,7 @@ class BaseLegacyConverter:
                 if "showcases" in model_record_contents["config"]:
                     model_record_contents["showcases"] = model_record_contents["config"]["showcases"]
                     del model_record_contents["config"]["showcases"]
-                record_as_conversion_class = model_record_type(**model_record_contents)
+                record_as_conversion_class = model_record_type.model_validate(model_record_contents)
                 self.all_model_records[model_record_key] = record_as_conversion_class
                 yield model_record_key, record_as_conversion_class
             except ValidationError as e:
@@ -579,6 +579,8 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             baseline = "stable_diffusion_2_768"
         elif baseline == "stable diffusion 2 512":
             baseline = "stable_diffusion_2_512"
+        elif baseline == "stable_diffusion_xl":
+            baseline = "stable_diffusion_xl"
         return baseline
 
     def create_showcase_folder(self, showcase_foldername: str) -> None:

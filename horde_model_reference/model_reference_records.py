@@ -49,6 +49,8 @@ class Generic_ModelRecord(BaseModel):
     purpose: MODEL_PURPOSE
     """The purpose of the model."""
 
+    features_not_supported: list[str] | None = None
+
 
 class StableDiffusion_ModelRecord(Generic_ModelRecord):
     """A model entry in the model reference."""
