@@ -307,7 +307,8 @@ class BaseLegacyConverter:
             self.all_validation_errors_log[model_record_key] = []
         self.all_validation_errors_log[model_record_key].append(error)
 
-        logger.debug(f"{model_record_key} has error: {error}")
+        if self.debug_mode:
+            logger.debug(f"{model_record_key} has error: {error}")
 
     def write_out_validation_errors(self) -> None:
         """Write out the validation errors."""
