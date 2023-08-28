@@ -3,11 +3,12 @@ import warnings
 
 from horde_model_reference.legacy.legacy_download_manager import LegacyReferenceDownloadManager
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.path_consts import HORDE_PROXY_URL_BASE
 
 
 def download_all_models(
     override_existing: bool = False,
-    proxy_url: str = "",
+    proxy_url: str = HORDE_PROXY_URL_BASE,
 ) -> dict[MODEL_REFERENCE_CATEGORY, pathlib.Path | None]:
     reference_dm = LegacyReferenceDownloadManager(proxy_url=proxy_url)
     warnings.warn(

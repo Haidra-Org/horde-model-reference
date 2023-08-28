@@ -8,6 +8,7 @@ from horde_model_reference.legacy.convert_all_legacy_dbs import convert_all_lega
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.path_consts import (
     BASE_PATH,
+    HORDE_PROXY_URL_BASE,
     LEGACY_MODEL_GITHUB_URLS,
     LEGACY_REFERENCE_FOLDER_NAME,
     get_model_reference_file_path,
@@ -20,7 +21,7 @@ class LegacyReferenceDownloadManager:
     legacy_path: Path
     """The path to the legacy reference folder."""
 
-    proxy_url: str = ""
+    proxy_url: str = HORDE_PROXY_URL_BASE
     """The URL to use as a proxy for downloading files. If empty, no proxy will be used."""
 
     _cached_file_locations: dict[MODEL_REFERENCE_CATEGORY, pathlib.Path | None] | None = None
@@ -29,7 +30,7 @@ class LegacyReferenceDownloadManager:
         self,
         *,
         base_path: str | Path = BASE_PATH,
-        proxy_url: str = "",
+        proxy_url: str = HORDE_PROXY_URL_BASE,
     ) -> None:
         self.base_path = base_path
         self.legacy_path = Path(self.base_path).joinpath(LEGACY_REFERENCE_FOLDER_NAME)
