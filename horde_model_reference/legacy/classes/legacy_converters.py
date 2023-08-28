@@ -488,13 +488,14 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 error = f"folder '{folder}' is not in the model records."
                 self.add_validation_error_to_log(model_record_key=folder, error=error)
 
-        logger.debug(f"{self.all_styles=}")
-        logger.debug(f"{self.all_baseline_categories=}")
-        logger.debug(f"{self.all_tags=}")
-        logger.debug(f"{self.all_download_hosts=}")
-        logger.info(f"Total number of models: {len(self.all_model_records)}")
-        logger.info(f"Total number of showcase folders: {len(final_on_disk_showcase_folders_names)}")
-        logger.info(f"Total number of models with validation issues: {len(self.all_validation_errors_log)}")
+        if self.debug_mode:
+            logger.debug(f"{self.all_styles=}")
+            logger.debug(f"{self.all_baseline_categories=}")
+            logger.debug(f"{self.all_tags=}")
+            logger.debug(f"{self.all_download_hosts=}")
+            logger.info(f"Total number of models: {len(self.all_model_records)}")
+            logger.info(f"Total number of showcase folders: {len(final_on_disk_showcase_folders_names)}")
+            logger.info(f"Total number of models with validation issues: {len(self.all_validation_errors_log)}")
 
     @override
     def write_out_records(self) -> None:
@@ -547,7 +548,6 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 + "\n",
             )
 
-        logger.info("Converted database passes validation and was written to disk successfully.")
         logger.info(f"Converted database written to: {self.converted_database_file_path}")
 
     def get_existing_showcases(
