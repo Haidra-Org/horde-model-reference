@@ -548,7 +548,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 + "\n",
             )
 
-        logger.info(f"Converted database written to: {self.converted_database_file_path}")
+        logger.debug(f"Converted database written to: {self.converted_database_file_path}")
 
     def get_existing_showcases(
         self,
