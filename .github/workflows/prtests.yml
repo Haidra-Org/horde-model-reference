@@ -15,6 +15,9 @@ on:
       - '.github/workflows/prtests.yml'
       - '.github/workflows/release.yml'
       - '.pre-commit-config.yaml'
+      - 'requirements.txt'
+      - 'requirements.dev.txt'
+      - 'requirements.docs.txt'
 jobs:
   build:
     env:
