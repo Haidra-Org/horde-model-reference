@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "horde_model_reference"
-version = "0.4.11"
+version = "0.5.0"
 description = "A helper library providing a way to work with the lists of diffusion models, utility models, and any other related files required for AI-Horde."
 authors = [
     {name = "tazlin", email = "tazlin.on.github@gmail.com"},
@@ -18,9 +18,12 @@ classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: GNU Affero General Public License v3",
     "Operating System :: OS Independent",
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 4 - Beta",
 ]
-dependencies = ["pydantic", "requests", "typing_extensions", "loguru", "strenum"]
+dynamic=["dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
 
 [project.urls]
 "Homepage" = "https://github.com/Haidra-Org/horde-model-reference"
