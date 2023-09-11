@@ -63,8 +63,20 @@ GITHUB_REPO_OWNER = "Haidra-Org"
 GITHUB_REPO_NAME = "AI-Horde-image-model-reference"
 GITHUB_REPO_BRANCH = "main"
 
-if os.getenv("HORDE_MODEL_REFERENCE_GITHUB_BRANCH"):
-    GITHUB_REPO_BRANCH = os.getenv("HORDE_MODEL_REFERENCE_GITHUB_BRANCH")
+_github_repo_owner = os.getenv("HORDE_MODEL_REFERENCE_GITHUB_OWNER")
+if _github_repo_owner:
+    logger.info(f"Using GitHub repo owner: {_github_repo_owner}")
+    GITHUB_REPO_OWNER = _github_repo_owner
+
+_github_repo_name = os.getenv("HORDE_MODEL_REFERENCE_GITHUB_NAME")
+if _github_repo_name:
+    logger.info(f"Using GitHub repo name: {_github_repo_name}")
+    GITHUB_REPO_NAME = _github_repo_name
+
+_github_repo_branch = os.getenv("HORDE_MODEL_REFERENCE_GITHUB_BRANCH")
+if _github_repo_branch:
+    logger.info(f"Using GitHub repo branch: {_github_repo_branch}")
+    GITHUB_REPO_BRANCH = _github_repo_branch
 
 GITHUB_REPO_URL: str = (
     f"https://raw.githubusercontent.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/{GITHUB_REPO_BRANCH}/"

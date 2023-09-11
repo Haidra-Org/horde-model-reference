@@ -22,6 +22,7 @@ Some key takeaways for the new `stable_diffusion.json`:
   - `stable_diffusion_1`
   - `stable_diffusion_2_768`
   - `stable_diffusion_2_512`
+  - `stable_diffusion_xl`
 - An MD5 sum is no longer included. All models (of all types) will have an SHA included from now on.
 - `download` entries optionally contain a new key, `known_slow_download`, which indicates this download host is known to be slow at times.
 
