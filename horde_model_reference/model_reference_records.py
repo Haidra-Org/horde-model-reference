@@ -77,6 +77,8 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
     style: MODEL_STYLE | None = None
     """The style of the model."""
 
+    size_on_disk_bytes: int | None = None
+
     @model_validator(mode="after")  # type: ignore # FIXME
     def validator_set_arrays_to_empty_if_none(self) -> StableDiffusion_ModelRecord:
         """Set any `None` values to empty lists."""
