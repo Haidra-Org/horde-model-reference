@@ -228,6 +228,18 @@
                         }
                     ],
                     "default": null
+                },
+                "size_on_disk_bytes": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Size On Disk Bytes"
                 }
             },
             "required": [

@@ -42,6 +42,7 @@ def main():
         trigger=["trigger1", "some other_trigger"],
         homepage="https://www.not.a.real_website.com",
         nsfw=False,
+        size_on_disk_bytes=123456789,
     )
 
     example_record_2_name = "Example anime model"
@@ -67,6 +68,7 @@ def main():
         trigger=["anime", "some other_anime_trigger"],
         homepage="https://www.another_fake_website.com",
         nsfw=True,
+        size_on_disk_bytes=123456789,
     )
 
     reference = StableDiffusion_ModelReference(

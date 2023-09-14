@@ -58,6 +58,7 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
     config: Mapping[str, list[RawLegacy_FileRecord | RawLegacy_DownloadRecord]]
     available: bool | None = None
     features_not_supported: list[FEATURE_SUPPORTED] | None = None
+    size_on_disk_bytes: int | None = None
 
 
 class RawLegacy_StableDiffusion_ModelReference(RootModel[Mapping[str, RawLegacy_StableDiffusion_ModelRecord]]):

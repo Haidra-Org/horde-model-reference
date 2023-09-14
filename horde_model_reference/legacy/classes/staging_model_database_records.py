@@ -82,6 +82,7 @@ class Legacy_StableDiffusion_ModelRecord(StagingLegacy_Generic_ModelRecord):
     min_bridge_version: int | None = None
     trigger: list[str] | None = None
     homepage: str | None = None
+    size_on_disk_bytes: int | None = None
 
 
 class Legacy_Generic_ModelReference(BaseModel):

@@ -31,7 +31,8 @@
         ],
         "homepage": "https://www.not.a.real_website.com",
         "nsfw": false,
-        "style": "generalist"
+        "style": "generalist",
+        "size_on_disk_bytes": 123456789
     },
     "example model 2": {
         "name": "Example anime model",
@@ -65,6 +66,7 @@
         ],
         "homepage": "https://www.another_fake_website.com",
         "nsfw": true,
-        "style": "anime"
+        "style": "anime",
+        "size_on_disk_bytes": 123456789
     }
 }
