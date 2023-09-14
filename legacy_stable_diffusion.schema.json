@@ -11,8 +11,8 @@
             "title": "FEATURE_SUPPORTED",
             "type": "string"
         },
-        "DownloadRecord": {
-            "description": "An entry in the `config` field of a `StableDiffusionModelRecord`.",
+        "RawLegacy_DownloadRecord": {
+            "description": "An entry in the `config` field of a `RawLegacy_StableDiffusion_ModelRecord`.",
             "properties": {
                 "file_name": {
                     "title": "File Name",
@@ -32,11 +32,11 @@
                 "file_path",
                 "file_url"
             ],
-            "title": "DownloadRecord",
+            "title": "RawLegacy_DownloadRecord",
             "type": "object"
         },
-        "FileRecord": {
-            "description": "An entry in the `config` field of a `StableDiffusionModelRecord`.",
+        "RawLegacy_FileRecord": {
+            "description": "An entry in the `config` field of a `RawLegacy_StableDiffusion_ModelRecord`.",
             "properties": {
                 "path": {
                     "title": "Path",
@@ -70,10 +70,10 @@
             "required": [
                 "path"
             ],
-            "title": "FileRecord",
+            "title": "RawLegacy_FileRecord",
             "type": "object"
         },
-        "StableDiffusionModelRecord": {
+        "RawLegacy_StableDiffusion_ModelRecord": {
             "additionalProperties": false,
             "description": "A model entry in the legacy model reference.",
             "properties": {
@@ -203,10 +203,10 @@
                         "items": {
                             "anyOf": [
                                 {
-                                    "$ref": "#/$defs/FileRecord"
+                                    "$ref": "#/$defs/RawLegacy_FileRecord"
                                 },
                                 {
-                                    "$ref": "#/$defs/DownloadRecord"
+                                    "$ref": "#/$defs/RawLegacy_DownloadRecord"
                                 }
                             ]
                         },
@@ -241,6 +241,18 @@
                     ],
                     "default": null,
                     "title": "Features Not Supported"
+                },
+                "size_on_disk_bytes": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Size On Disk Bytes"
                 }
             },
             "required": [
@@ -253,13 +265,13 @@
                 "download_all",
                 "config"
             ],
-            "title": "StableDiffusionModelRecord",
+            "title": "RawLegacy_StableDiffusion_ModelRecord",
             "type": "object"
         }
     },
     "additionalProperties": {
-        "$ref": "#/$defs/StableDiffusionModelRecord"
+        "$ref": "#/$defs/RawLegacy_StableDiffusion_ModelRecord"
     },
-    "title": "StableDiffusionModelReference",
+    "title": "RawLegacy_StableDiffusion_ModelReference",
     "type": "object"
 }
