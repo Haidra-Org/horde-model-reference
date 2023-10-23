@@ -277,7 +277,6 @@ class BaseLegacyConverter:
         """Override and call super().post_parse_records() to perform any model category specific post parsing."""
         for model_record in self.all_model_records.values():
             model_record.purpose = MODEL_PURPOSE_LOOKUP[self.model_reference_category]
-        pass
 
     def write_out_records(self) -> None:
         """Write out the parsed records."""
