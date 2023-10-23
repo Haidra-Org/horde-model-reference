@@ -27,6 +27,10 @@ def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None 
         k: RawLegacy_StableDiffusion_ModelRecord.model_validate(v) for k, v in loaded_json_sd_db.items()
     }
 
+    # # Write out a list of keys formatted as a python list
+    # with open("stable_diffusion_model_keys.txt", "w") as sd_db_keys_file:
+    #     sd_db_keys_file.write("[" + ", ".join([f'"{k}"' for k in parsed_db_records]) + "]")
+
     correct_json_layout = json.dumps(
         {
             k: v.model_dump(
