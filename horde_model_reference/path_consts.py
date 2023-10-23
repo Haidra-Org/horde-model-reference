@@ -11,9 +11,9 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 PACKAGE_NAME = "horde_model_reference"
 """The name of this package. Also used as the name of the base folder name for all model reference files."""
 
-BASE_PATH: Path = Path(__file__).parent
-"""The base path for all model reference files. Will be based in AIWORKER_CACHE_HOME if set, otherwise will be based in
- this package's install location (IE, in site-packages.)"""
+BASE_PATH: Path = Path.home() / ".cache" / PACKAGE_NAME
+"""The base path for all model reference files. Will be based in AIWORKER_CACHE_HOME if set, otherwise will be in the
+~/.cache folder"""
 
 AIWORKER_CACHE_HOME = os.getenv("AIWORKER_CACHE_HOME")
 """The default location for all AI-Horde-Worker cache (model) files."""
