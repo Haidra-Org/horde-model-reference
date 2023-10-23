@@ -33,7 +33,7 @@ class ModelReferenceManager:
         if download_and_convert_legacy_dbs:
             self.download_and_convert_all_legacy_dbs(override_existing)
 
-    def download_and_convert_all_legacy_dbs(self, override_existing: bool = True) -> None:
+    def download_and_convert_all_legacy_dbs(self, override_existing: bool = True) -> bool:
         """
         Download and convert all legacy model reference files.
 
@@ -43,7 +43,7 @@ class ModelReferenceManager:
         self._legacy_reference_download_manager.download_all_legacy_model_references(
             overwrite_existing=override_existing,
         )
-        convert_all_legacy_model_references()
+        return convert_all_legacy_model_references()
 
     @property
     def all_legacy_model_reference_file_paths(self) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
