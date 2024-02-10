@@ -1,3 +1,4 @@
+import json
 import pathlib
 from pathlib import Path
 
@@ -43,6 +44,16 @@ class LegacyReferenceDownloadManager:
         override_existing: bool = False,
     ) -> pathlib.Path | None:
         response = requests.get(self.proxy_url + LEGACY_MODEL_GITHUB_URLS[model_category_name])
+        if response.status_code != 200:
+            logger.error(f"Failed to download {model_category_name} reference file.")
+            return None
+
+        try:
+            json.loads(response.content)
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse {model_category_name} reference file as JSON.")
+            return None
+
         target_file_path = get_model_reference_file_path(model_category_name, base_path=self.legacy_path)
 
         if target_file_path.exists() and not override_existing:
