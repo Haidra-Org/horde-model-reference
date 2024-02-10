@@ -44,7 +44,7 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
 
     name: str
     baseline: str
-    type_: str
+    type: str
     inpainting: bool
     description: str | None = None
     tags: list[str] | None = None

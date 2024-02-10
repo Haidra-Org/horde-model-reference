@@ -53,7 +53,7 @@ class StagingLegacy_Generic_ModelRecord(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    type_: str
+    type: str
     description: str | None = None
     version: str | None = None
     style: str | None = None
