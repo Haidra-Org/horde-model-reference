@@ -1,4 +1,5 @@
 """The classes which can represent a legacy model reference file."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -43,7 +44,7 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
 
     name: str
     baseline: str
-    type: str  # noqa: A003
+    type_: str
     inpainting: bool
     description: str | None = None
     tags: list[str] | None = None

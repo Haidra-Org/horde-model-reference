@@ -1,4 +1,5 @@
 """The model database pydantic models and associate enums/lookups."""
+
 from __future__ import annotations
 
 import urllib.parse
