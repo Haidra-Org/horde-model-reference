@@ -384,7 +384,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 self.all_styles.get(model_record_in_progress.style, 0) + 1
             )
 
-        if model_record_in_progress.type_ != "ckpt":
+        if model_record_in_progress.type != "ckpt":
             error = f"{model_record_key} is not a ckpt!"
             self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
