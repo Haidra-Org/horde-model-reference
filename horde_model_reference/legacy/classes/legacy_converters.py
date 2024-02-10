@@ -277,7 +277,6 @@ class BaseLegacyConverter:
         """Override and call super().post_parse_records() to perform any model category specific post parsing."""
         for model_record in self.all_model_records.values():
             model_record.purpose = MODEL_PURPOSE_LOOKUP[self.model_reference_category]
-        pass
 
     def write_out_records(self) -> None:
         """Write out the parsed records."""
@@ -385,7 +384,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 self.all_styles.get(model_record_in_progress.style, 0) + 1
             )
 
-        if model_record_in_progress.type != "ckpt":
+        if model_record_in_progress.type_ != "ckpt":
             error = f"{model_record_key} is not a ckpt!"
             self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 

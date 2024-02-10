@@ -1,4 +1,5 @@
 """Script to add models to the legacy stable diffusion model reference."""
+
 import argparse
 import glob
 import hashlib
@@ -249,7 +250,7 @@ class Legacy_StableDiffusionRecordHelper:
                 new_model_record = RawLegacy_StableDiffusion_ModelRecord(
                     name=model_friendly_name,
                     baseline=baseline_type,
-                    type="ckpt",
+                    type_="ckpt",
                     inpainting=inpainting,
                     description=model_description,
                     tags=tags_chosen if len(tags_chosen) > 0 else None,
