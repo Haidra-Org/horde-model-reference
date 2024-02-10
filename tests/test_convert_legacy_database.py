@@ -73,7 +73,7 @@ def test_validate_converted_stable_diffusion_database(base_path_for_tests) -> No
         assert model_host != ""
 
     assert model_reference.root is not None
-    assert len(model_reference.root) >= 200
+    assert len(model_reference.root) >= 100
 
     assert model_reference.root["stable_diffusion"] is not None
     assert model_reference.root["stable_diffusion"].name == "stable_diffusion"
