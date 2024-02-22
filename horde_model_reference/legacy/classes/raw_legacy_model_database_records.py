@@ -15,6 +15,7 @@ class RawLegacy_DownloadRecord(BaseModel):
     file_name: str
     file_path: str
     file_url: str
+    file_type: str | None = None
 
 
 class RawLegacy_FileRecord(BaseModel):
@@ -23,6 +24,7 @@ class RawLegacy_FileRecord(BaseModel):
     path: str
     md5sum: str | None = None
     sha256sum: str | None = None
+    file_type: str | None = None
 
 
 class FEATURE_SUPPORTED(StrEnum):

@@ -15,6 +15,18 @@
                     "title": "Sha256Sum",
                     "type": "string"
                 },
+                "file_type": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "File Type"
+                },
                 "known_slow_download": {
                     "anyOf": [
                         {
@@ -114,7 +126,15 @@
                     "type": "object"
                 },
                 "purpose": {
-                    "$ref": "#/$defs/MODEL_PURPOSE"
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/MODEL_PURPOSE"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "title": "Purpose"
                 },
                 "features_not_supported": {
                     "anyOf": [
@@ -144,7 +164,15 @@
                     "title": "Inpainting"
                 },
                 "baseline": {
-                    "$ref": "#/$defs/STABLE_DIFFUSION_BASELINE_CATEGORY"
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/STABLE_DIFFUSION_BASELINE_CATEGORY"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "title": "Baseline"
                 },
                 "tags": {
                     "anyOf": [
@@ -225,10 +253,14 @@
                             "$ref": "#/$defs/MODEL_STYLE"
                         },
                         {
+                            "type": "string"
+                        },
+                        {
                             "type": "null"
                         }
                     ],
-                    "default": null
+                    "default": null,
+                    "title": "Style"
                 },
                 "size_on_disk_bytes": {
                     "anyOf": [
