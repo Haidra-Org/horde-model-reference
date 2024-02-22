@@ -86,6 +86,7 @@ class STABLE_DIFFUSION_BASELINE_CATEGORY(StrEnum):
     stable_diffusion_2_768 = auto()
     stable_diffusion_2_512 = auto()
     stable_diffusion_xl = auto()
+    stable_cascade = auto()
 
 
 MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, MODEL_PURPOSE] = {

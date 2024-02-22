@@ -581,6 +581,8 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             baseline = "stable_diffusion_2_512"
         elif baseline == "stable_diffusion_xl":
             baseline = "stable_diffusion_xl"
+        elif baseline == "stable_cascade":
+            baseline = "stable_cascade"
         return baseline
 
     def create_showcase_folder(self, showcase_foldername: str) -> None:
