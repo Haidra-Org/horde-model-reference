@@ -25,6 +25,18 @@
                 "file_url": {
                     "title": "File Url",
                     "type": "string"
+                },
+                "file_type": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "File Type"
                 }
             },
             "required": [
@@ -65,6 +77,18 @@
                     ],
                     "default": null,
                     "title": "Sha256Sum"
+                },
+                "file_type": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "File Type"
                 }
             },
             "required": [

@@ -219,6 +219,10 @@ class BaseLegacyConverter:
                         error = f"{model_record_key} has a download record without a sha256sum."
                         self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
                         parsed_download_record.sha256sum = "FIXME"
+
+                    if download.get("file_type") and download["file_type"] == "ckpt":
+                        parsed_download_record.file_type = download["file_type"]
+
                     parsed_record_config_download_list.append(parsed_download_record)
 
         return parsed_record_config_download_list

@@ -6,8 +6,11 @@
 
 # These classes will persist until the legacy model reference is fully deprecated.
 
+from __future__ import annotations
+
 from collections.abc import Mapping
 
+from loguru import logger
 from pydantic import BaseModel, ConfigDict, model_validator
 
 from horde_model_reference.model_reference_records import MODEL_PURPOSE
@@ -42,6 +45,7 @@ class StagingLegacy_Config_DownloadRecord(BaseModel):
 
     file_name: str
     file_path: str = ""
+    file_type: str | None = None
     file_url: str
     sha256sum: str | None = None
     known_slow_download: bool | None = False
@@ -62,8 +66,16 @@ class StagingLegacy_Generic_ModelRecord(BaseModel):
     config: dict[str, list[StagingLegacy_Config_FileRecord | StagingLegacy_Config_DownloadRecord]]
     available: bool | None = None
 
-    purpose: MODEL_PURPOSE | None = None
+    purpose: MODEL_PURPOSE | str | None = None
     features_not_supported: list[str] | None = None
+
+    @model_validator(mode="after")
+    def validator_known_purpose(self) -> StagingLegacy_Generic_ModelRecord:
+        """Check if the purpose is known."""
+        if self.purpose is not None and str(self.purpose) not in MODEL_PURPOSE.__members__:
+            logger.warning(f"Unknown purpose {self.purpose} for model {self.name}")
+
+        return self
 
 
 class Legacy_CLIP_ModelRecord(StagingLegacy_Generic_ModelRecord):

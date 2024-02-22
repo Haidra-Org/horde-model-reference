@@ -9,6 +9,7 @@
                     "file_name": "example_general_model.ckpt",
                     "file_url": "https://www.some_website.com/a_different_name_on_the_website.ckpt",
                     "sha256sum": "DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+                    "file_type": null,
                     "known_slow_download": null
                 }
             ]
@@ -44,6 +45,7 @@
                     "file_name": "example_general_model.ckpt",
                     "file_url": "https://www.some_website.com/a_different_name_on_the_website.ckpt",
                     "sha256sum": "DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
+                    "file_type": null,
                     "known_slow_download": null
                 }
             ]

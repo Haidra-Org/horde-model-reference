@@ -5,6 +5,7 @@ from __future__ import annotations
 import urllib.parse
 from collections.abc import Mapping
 
+from loguru import logger
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -31,6 +32,7 @@ class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
     """The fully qualified URL to download the file from."""
     sha256sum: str
     """The sha256sum of the file."""
+    file_type: str | None = None
     known_slow_download: bool | None = None
     """Whether the download is known to be slow or not."""
 
@@ -47,10 +49,18 @@ class Generic_ModelRecord(BaseModel):
     config: dict[str, list[DownloadRecord]]
     """A dictionary of any configuration files and information on where to download the model file(s)."""
 
-    purpose: MODEL_PURPOSE
+    purpose: MODEL_PURPOSE | str
     """The purpose of the model."""
 
     features_not_supported: list[str] | None = None
+
+    @model_validator(mode="after")
+    def validator_known_purpose(self) -> Generic_ModelRecord:
+        """Check if the purpose is known."""
+        if str(self.purpose) not in MODEL_PURPOSE.__members__:
+            logger.warning(f"Unknown purpose {self.purpose} for model {self.name}")
+
+        return self
 
 
 class StableDiffusion_ModelRecord(Generic_ModelRecord):
@@ -60,7 +70,7 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
 
     inpainting: bool | None = False
     """If this is an inpainting model or not."""
-    baseline: STABLE_DIFFUSION_BASELINE_CATEGORY
+    baseline: STABLE_DIFFUSION_BASELINE_CATEGORY | str
     """The model on which this model is based."""
     tags: list[str] | None = []
     """Any tags associated with the model which may be useful for searching."""
@@ -75,7 +85,7 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
     nsfw: bool
     """Whether the model is NSFW or not."""
 
-    style: MODEL_STYLE | None = None
+    style: MODEL_STYLE | str | None = None
     """The style of the model."""
 
     size_on_disk_bytes: int | None = None
@@ -91,6 +101,17 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
             self.trigger = []
         return self
 
+    @model_validator(mode="after")
+    def validator_is_baseline_and_style_known(self) -> StableDiffusion_ModelRecord:
+        """Check if the baseline is known."""
+        if str(self.baseline) not in STABLE_DIFFUSION_BASELINE_CATEGORY.__members__:
+            logger.warning(f"Unknown baseline {self.baseline} for model {self.name}")
+
+        if self.style is not None and str(self.style) not in MODEL_STYLE.__members__:  # type: ignore # FIXME
+            logger.warning(f"Unknown style {self.style} for model {self.name}")
+
+        return self
+
 
 class CLIP_ModelRecord(Generic_ModelRecord):
     pretrained_name: str | None = None
@@ -98,7 +119,15 @@ class CLIP_ModelRecord(Generic_ModelRecord):
 
 
 class ControlNet_ModelRecord(Generic_ModelRecord):
-    style: CONTROLNET_STYLE | None = None
+    style: CONTROLNET_STYLE | str | None = None
+
+    @model_validator(mode="after")
+    def validator_is_style_known(self) -> ControlNet_ModelRecord:
+        """Check if the style is known."""
+        if self.style is not None and str(self.style) not in CONTROLNET_STYLE.__members__:
+            logger.warning(f"Unknown style {self.style} for model {self.name}")
+
+        return self
 
 
 class Generic_ModelReference(RootModel[Mapping[str, Generic_ModelRecord]]):
