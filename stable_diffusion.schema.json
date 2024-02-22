@@ -66,7 +66,8 @@
                 "stable_diffusion_1",
                 "stable_diffusion_2_768",
                 "stable_diffusion_2_512",
-                "stable_diffusion_xl"
+                "stable_diffusion_xl",
+                "stable_cascade"
             ],
             "title": "STABLE_DIFFUSION_BASELINE_CATEGORY",
             "type": "string"
