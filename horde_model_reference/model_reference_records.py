@@ -90,7 +90,7 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
 
     size_on_disk_bytes: int | None = None
 
-    @model_validator(mode="after")  # type: ignore # FIXME
+    @model_validator(mode="after")
     def validator_set_arrays_to_empty_if_none(self) -> StableDiffusion_ModelRecord:
         """Set any `None` values to empty lists."""
         if self.tags is None:
@@ -107,7 +107,7 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
         if str(self.baseline) not in STABLE_DIFFUSION_BASELINE_CATEGORY.__members__:
             logger.warning(f"Unknown baseline {self.baseline} for model {self.name}")
 
-        if self.style is not None and str(self.style) not in MODEL_STYLE.__members__:  # type: ignore # FIXME
+        if self.style is not None and str(self.style) not in MODEL_STYLE.__members__:
             logger.warning(f"Unknown style {self.style} for model {self.name}")
 
         return self
