@@ -1,10 +1,9 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "horde_model_reference"
-version = "0.5.4"
 description = "A helper library providing a way to work with the lists of diffusion models, utility models, and any other related files required for AI-Horde."
 authors = [
     {name = "tazlin", email = "tazlin.on.github@gmail.com"},
@@ -20,7 +19,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Development Status :: 4 - Beta",
 ]
-dynamic=["dependencies"]
+dynamic=["version", "dependencies"]
 
 [tool.setuptools.dynamic]
 dependencies = {file = ["requirements.txt"]}
@@ -31,6 +30,10 @@ dependencies = {file = ["requirements.txt"]}
 [project.scripts]
 validate-sd-models = "horde_model_reference.legacy.validate_sd:main"
 download-sd-models = "horde_model_reference.legacy.download_live_legacy_dbs:main"
+
+
+[tool.setuptools_scm]
+write_to = "horde_model_reference/_version.py"
 
 [tool.setuptools.package-dir]
 horde_model_reference = "horde_model_reference"

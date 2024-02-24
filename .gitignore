@@ -1,3 +1,5 @@
+_version.py
+
 .vscode/
 
 tests/test_data_results/
