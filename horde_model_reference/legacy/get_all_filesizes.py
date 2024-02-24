@@ -4,12 +4,18 @@ from pathlib import Path
 from loguru import logger
 
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
+    RawLegacy_FileRecord,
     RawLegacy_StableDiffusion_ModelRecord,
 )
 from horde_model_reference.path_consts import AIWORKER_CACHE_HOME
 
 
-def get_all_file_sizes(sd_db: Path, write_to_path: Path | None = None) -> bool:
+def get_all_file_sizes(sd_db: Path, write_to_path: Path | str) -> bool:
+
+    if AIWORKER_CACHE_HOME is None:
+        logger.error("AIWORKER_CACHE_HOME is not set.")
+        return False
+
     raw_json_sd_db: str
     with open(sd_db) as sd_db_file:
         raw_json_sd_db = sd_db_file.read()
@@ -28,6 +34,10 @@ def get_all_file_sizes(sd_db: Path, write_to_path: Path | None = None) -> bool:
     }
 
     for _, model_details in parsed_db_records.items():
+        if not isinstance(model_details.config["files"][0], RawLegacy_FileRecord):
+            logger.error(f"File {model_details.config['files'][0]} is not a valid file record.")
+            continue
+
         filename = model_details.config["files"][0].path
 
         full_file_path = Path(AIWORKER_CACHE_HOME) / "compvis" / filename

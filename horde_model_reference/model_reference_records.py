@@ -138,9 +138,9 @@ class Generic_ModelReference(RootModel[Mapping[str, Generic_ModelRecord]]):
 class StableDiffusion_ModelReference(Generic_ModelReference):
     """The combined metadata and model list."""
 
-    _baseline: dict[STABLE_DIFFUSION_BASELINE_CATEGORY, int] = PrivateAttr(default_factory=dict)
+    _baseline: dict[STABLE_DIFFUSION_BASELINE_CATEGORY | str, int] = PrivateAttr(default_factory=dict)
     """A dictionary of all the baseline types and how many models use them."""
-    _styles: dict[MODEL_STYLE, int] = PrivateAttr(default_factory=dict)
+    _styles: dict[MODEL_STYLE | str, int] = PrivateAttr(default_factory=dict)
     """A dictionary of all the styles and how many models use them."""
     _tags: dict[str, int] = PrivateAttr(default_factory=dict)
     """A dictionary of all the tags and how many models use them."""
@@ -200,13 +200,13 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
                         self._models_hosts[host] = self._models_hosts.get(host, 0) + 1
 
     @property
-    def baseline(self) -> dict[STABLE_DIFFUSION_BASELINE_CATEGORY, int]:
+    def baseline(self) -> dict[STABLE_DIFFUSION_BASELINE_CATEGORY | str, int]:
         """Return a dictionary of all the baseline types and how many models use them."""
         self.check_was_models_modified()
         return self._baseline
 
     @property
-    def styles(self) -> dict[MODEL_STYLE, int]:
+    def styles(self) -> dict[MODEL_STYLE | str, int]:
         """Return a dictionary of all the styles and how many models use them."""
         self.check_was_models_modified()
         return self._styles
