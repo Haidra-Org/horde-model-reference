@@ -42,7 +42,7 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
     # This is a better representation of the legacy model reference than the one in `staging_model_database_records.py`
     # which is a hybrid representation of the legacy model reference and the new model reference format.
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     name: str
     baseline: str

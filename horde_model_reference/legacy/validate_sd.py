@@ -9,7 +9,11 @@ from horde_model_reference.legacy.classes.raw_legacy_model_database_records impo
 )
 
 
-def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None = None) -> bool:
+def validate_legacy_stable_diffusion_db(
+    sd_db: Path,
+    write_to_path: Path | None = None,
+    fail_on_extra: bool = False,
+) -> bool:
     raw_json_sd_db: str
     with open(sd_db) as sd_db_file:
         raw_json_sd_db = sd_db_file.read()
@@ -42,7 +46,17 @@ def validate_legacy_stable_diffusion_db(sd_db: Path, write_to_path: Path | None 
         },
         indent=4,
     )
+
     correct_json_layout += "\n"  # Add a newline to the end of the file, for consistency with formatters.
+
+    any_extra_fields = False
+    for key, record in parsed_db_records.items():
+        if record.model_extra:
+            logger.error(f"Extra fields found in {key}: {record.model_extra}")
+            any_extra_fields = True
+
+    if any_extra_fields and fail_on_extra:
+        raise ValueError("Extra fields found in stable diffusion model database.")
 
     if raw_json_sd_db != correct_json_layout:
         logger.error("Invalid stable diffusion model database.")
