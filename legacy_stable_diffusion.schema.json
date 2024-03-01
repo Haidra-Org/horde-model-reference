@@ -98,7 +98,7 @@
             "type": "object"
         },
         "RawLegacy_StableDiffusion_ModelRecord": {
-            "additionalProperties": false,
+            "additionalProperties": true,
             "description": "A model entry in the legacy model reference.",
             "properties": {
                 "name": {

@@ -1,9 +1,20 @@
+import os
+import sys
 from pathlib import Path
 
 import pytest
 from loguru import logger
 
 from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER_NAME
+
+os.environ["TESTS_ONGOING"] = "1"
+
+
+@pytest.fixture(scope="session")
+def env_var_checks() -> None:
+    """Check for required environment variables."""
+
+    assert "TESTS_ONGOING" in os.environ, "Environment variable 'TESTS_ONGOING' not set."
 
 
 @pytest.fixture(scope="session")
@@ -30,6 +41,9 @@ def setup_logging(base_path_for_tests: Path):
                 "sink": base_path_for_tests.joinpath("test_log.txt"),
                 "format": "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
             },
+            # add sinks for stdout and stderr
+            {"sink": sys.stdout, "format": "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"},
+            {"sink": sys.stderr, "format": "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"},
         ],
     )
 
