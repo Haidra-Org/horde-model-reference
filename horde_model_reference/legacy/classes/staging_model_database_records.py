@@ -41,7 +41,7 @@ class StagingLegacy_Config_FileRecord(BaseModel):
 class StagingLegacy_Config_DownloadRecord(BaseModel):
     """An entry in the `config` field of a `StagingLegacy_Generic_ModelRecord`."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     file_name: str
     file_path: str = ""
@@ -54,7 +54,7 @@ class StagingLegacy_Config_DownloadRecord(BaseModel):
 class StagingLegacy_Generic_ModelRecord(BaseModel):
     """This is a helper class, a hybrid representation of the legacy model reference and the new format."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     name: str
     type: str
@@ -100,7 +100,7 @@ class Legacy_StableDiffusion_ModelRecord(StagingLegacy_Generic_ModelRecord):
 class Legacy_Generic_ModelReference(BaseModel):
     """A helper class to convert the legacy model reference to the new model reference format."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="allow")
 
     models: Mapping[str, StagingLegacy_Generic_ModelRecord]
 
