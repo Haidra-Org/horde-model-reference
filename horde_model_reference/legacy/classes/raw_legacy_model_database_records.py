@@ -46,6 +46,7 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
 
     name: str
     baseline: str
+    optimization: str | None = None
     type: str
     inpainting: bool
     description: str | None = None
@@ -58,6 +59,7 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
     homepage: str | None = None
     nsfw: bool
     download_all: bool
+    requirements: dict[str, int | str | list[int] | list[str] | bool] | None = None
     config: Mapping[str, list[RawLegacy_FileRecord | RawLegacy_DownloadRecord]]
     available: bool | None = None
     features_not_supported: list[FEATURE_SUPPORTED] | None = None
