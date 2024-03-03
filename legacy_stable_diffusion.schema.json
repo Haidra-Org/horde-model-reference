@@ -109,6 +109,18 @@
                     "title": "Baseline",
                     "type": "string"
                 },
+                "optimization": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Optimization"
+                },
                 "type": {
                     "title": "Type",
                     "type": "string"
@@ -221,6 +233,43 @@
                 "download_all": {
                     "title": "Download All",
                     "type": "boolean"
+                },
+                "requirements": {
+                    "anyOf": [
+                        {
+                            "additionalProperties": {
+                                "anyOf": [
+                                    {
+                                        "type": "integer"
+                                    },
+                                    {
+                                        "type": "string"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "integer"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "items": {
+                                            "type": "string"
+                                        },
+                                        "type": "array"
+                                    },
+                                    {
+                                        "type": "boolean"
+                                    }
+                                ]
+                            },
+                            "type": "object"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Requirements"
                 },
                 "config": {
                     "additionalProperties": {

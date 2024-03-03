@@ -72,6 +72,8 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
     """If this is an inpainting model or not."""
     baseline: STABLE_DIFFUSION_BASELINE_CATEGORY | str
     """The model on which this model is based."""
+    optimization: str | None = None
+    """The optimization type of the model."""
     tags: list[str] | None = []
     """Any tags associated with the model which may be useful for searching."""
     showcases: list[str] | None = []
@@ -87,6 +89,8 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
 
     style: MODEL_STYLE | str | None = None
     """The style of the model."""
+
+    requirements: dict[str, int | str | list[int] | list[str] | bool] | None = None
 
     size_on_disk_bytes: int | None = None
 
