@@ -25,6 +25,8 @@ jobs:
       - uses: actions/checkout@v3
       - name: Run pre-commit
         uses: pre-commit/action@v3.0.0
+        with:
+          extra_args: --all-files
 
   no_extra_fields:
     env:
