@@ -252,6 +252,7 @@ MODEL_REFERENCE_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[Generic_
     MODEL_REFERENCE_CATEGORY.gfpgan: Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORY.safety_checker: Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORY.codeformer: Generic_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.miscellaneous: Generic_ModelRecord,
 }
 """A lookup for the model record type based on the model category. See also `MODEL_REFERENCE_TYPE_LOOKUP`."""
 
@@ -264,5 +265,6 @@ MODEL_REFERENCE_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[Generic_ModelRe
     MODEL_REFERENCE_CATEGORY.gfpgan: Generic_ModelReference,
     MODEL_REFERENCE_CATEGORY.safety_checker: Generic_ModelReference,
     MODEL_REFERENCE_CATEGORY.codeformer: Generic_ModelReference,
+    MODEL_REFERENCE_CATEGORY.miscellaneous: Generic_ModelReference,
 }
 """A lookup for the model reference type based on the model category. See also `MODEL_REFERENCE_RECORD_TYPE_LOOKUP`."""

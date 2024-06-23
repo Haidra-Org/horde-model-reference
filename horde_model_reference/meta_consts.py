@@ -60,6 +60,7 @@ class MODEL_REFERENCE_CATEGORY(StrEnum):
     gfpgan = auto()
     safety_checker = auto()
     stable_diffusion = auto()
+    miscellaneous = auto()
 
 
 class MODEL_PURPOSE(StrEnum):
@@ -77,6 +78,8 @@ class MODEL_PURPOSE(StrEnum):
 
     post_processor = auto()
     """The model is a post processor (after image generation) of some variety."""
+
+    miscellaneous = auto()
 
 
 class STABLE_DIFFUSION_BASELINE_CATEGORY(StrEnum):
@@ -98,4 +101,5 @@ MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, MODEL_PURPOSE] = {
     MODEL_REFERENCE_CATEGORY.gfpgan: MODEL_PURPOSE.post_processor,
     MODEL_REFERENCE_CATEGORY.safety_checker: MODEL_PURPOSE.post_processor,
     MODEL_REFERENCE_CATEGORY.stable_diffusion: MODEL_PURPOSE.image_generation,
+    MODEL_REFERENCE_CATEGORY.miscellaneous: MODEL_PURPOSE.miscellaneous,
 }

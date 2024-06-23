@@ -54,7 +54,8 @@
                 "controlnet",
                 "clip",
                 "blip",
-                "post_processor"
+                "post_processor",
+                "miscellaneous"
             ],
             "title": "MODEL_PURPOSE",
             "type": "string"
