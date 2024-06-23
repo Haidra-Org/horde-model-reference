@@ -126,4 +126,5 @@ MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[StagingL
     MODEL_REFERENCE_CATEGORY.gfpgan: StagingLegacy_Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORY.safety_checker: StagingLegacy_Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORY.stable_diffusion: Legacy_StableDiffusion_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.miscellaneous: StagingLegacy_Generic_ModelRecord,
 }
