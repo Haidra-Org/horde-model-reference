@@ -232,6 +232,24 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
         """Return a list of all the model names."""
         return set(self.root.keys())
 
+    def get_model_baseline(self, model_name: str) -> STABLE_DIFFUSION_BASELINE_CATEGORY | str | None:
+        """Return the baseline for a given model name."""
+        model: StableDiffusion_ModelRecord | None = self.root.get(model_name)
+
+        return model.baseline if model else None
+
+    def get_model_style(self, model_name: str) -> MODEL_STYLE | str | None:
+        """Return the style for a given model name."""
+        model: StableDiffusion_ModelRecord | None = self.root.get(model_name)
+
+        return model.style if model else None
+
+    def get_model_tags(self, model_name: str) -> list[str] | None:
+        """Return the tags for a given model name."""
+        model: StableDiffusion_ModelRecord | None = self.root.get(model_name)
+
+        return model.tags if model else None
+
 
 class CLIP_ModelReference(Generic_ModelReference):
     root: Mapping[str, CLIP_ModelRecord]
