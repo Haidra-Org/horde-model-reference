@@ -77,7 +77,7 @@ def test_validate_converted_stable_diffusion_database(base_path_for_tests) -> No
 
     assert model_reference.get_model_baseline("BAD_MODEL_KEY") is None
     assert model_reference.get_model_style("BAD_MODEL_KEY") is None
-    assert model_reference.get_model_tags("BAD_MODEL_KEY") == []
+    assert model_reference.get_model_tags("BAD_MODEL_KEY") is None
 
     assert model_reference.root["stable_diffusion"] is not None
     assert model_reference.root["stable_diffusion"].name == "stable_diffusion"
