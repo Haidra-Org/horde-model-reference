@@ -103,3 +103,25 @@ MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, MODEL_PURPOSE] = {
     MODEL_REFERENCE_CATEGORY.stable_diffusion: MODEL_PURPOSE.image_generation,
     MODEL_REFERENCE_CATEGORY.miscellaneous: MODEL_PURPOSE.miscellaneous,
 }
+
+STABLE_DIFFUSION_BASELINE_NATIVE_RESOLUTION_LOOKUP: dict[STABLE_DIFFUSION_BASELINE_CATEGORY, int] = {
+    STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_1: 512,
+    STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_2_768: 768,
+    STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_2_512: 512,
+    STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_xl: 1024,
+    STABLE_DIFFUSION_BASELINE_CATEGORY.stable_cascade: 1024,
+}
+"""The single-side preferred resolution for each known stable diffusion baseline."""
+
+
+def get_baseline_native_resolution(baseline: STABLE_DIFFUSION_BASELINE_CATEGORY) -> int:
+    """
+    Get the native resolution of a stable diffusion baseline.
+
+    Args:
+        baseline: The stable diffusion baseline.
+
+    Returns:
+        The native resolution of the baseline.
+    """
+    return STABLE_DIFFUSION_BASELINE_NATIVE_RESOLUTION_LOOKUP[baseline]

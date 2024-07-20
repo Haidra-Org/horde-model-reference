@@ -75,6 +75,10 @@ def test_validate_converted_stable_diffusion_database(base_path_for_tests) -> No
     assert model_reference.root is not None
     assert len(model_reference.root) >= 100
 
+    assert model_reference.get_model_baseline("BAD_MODEL_KEY") is None
+    assert model_reference.get_model_style("BAD_MODEL_KEY") is None
+    assert model_reference.get_model_tags("BAD_MODEL_KEY") is None
+
     assert model_reference.root["stable_diffusion"] is not None
     assert model_reference.root["stable_diffusion"].name == "stable_diffusion"
     assert model_reference.root["stable_diffusion"].showcases is not None
@@ -112,3 +116,7 @@ def test_validate_converted_stable_diffusion_database(base_path_for_tests) -> No
         if model_info.trigger is not None:
             for trigger_record in model_info.trigger:
                 assert trigger_record != ""
+
+        assert model_reference.get_model_baseline(model_key) is not None
+        assert model_reference.get_model_style(model_key) is not None
+        assert isinstance(model_reference.get_model_tags(model_key), list)
