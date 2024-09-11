@@ -82,7 +82,7 @@ class MODEL_PURPOSE(StrEnum):
     miscellaneous = auto()
 
 
-class STABLE_DIFFUSION_BASELINE_CATEGORY(StrEnum): 
+class STABLE_DIFFUSION_BASELINE_CATEGORY(StrEnum):
     """An enum of all the image generation baselines."""
 
     stable_diffusion_1 = auto()
@@ -90,7 +90,7 @@ class STABLE_DIFFUSION_BASELINE_CATEGORY(StrEnum):
     stable_diffusion_2_512 = auto()
     stable_diffusion_xl = auto()
     stable_cascade = auto()
-    flux_1 = auto() # TODO: Extract flux and create "IMAGE_GENERATION_BASELINE_CATEGORY" due to name inconsistency
+    flux_1 = auto()  # TODO: Extract flux and create "IMAGE_GENERATION_BASELINE_CATEGORY" due to name inconsistency
 
 
 MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, MODEL_PURPOSE] = {
