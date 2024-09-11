@@ -90,6 +90,7 @@ class STABLE_DIFFUSION_BASELINE_CATEGORY(StrEnum):
     stable_diffusion_2_512 = auto()
     stable_diffusion_xl = auto()
     stable_cascade = auto()
+    flux_1 = auto()
 
 
 MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, MODEL_PURPOSE] = {
@@ -110,6 +111,7 @@ STABLE_DIFFUSION_BASELINE_NATIVE_RESOLUTION_LOOKUP: dict[STABLE_DIFFUSION_BASELI
     STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_2_512: 512,
     STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_xl: 1024,
     STABLE_DIFFUSION_BASELINE_CATEGORY.stable_cascade: 1024,
+    STABLE_DIFFUSION_BASELINE_CATEGORY.flux_1: 1024,
 }
 """The single-side preferred resolution for each known stable diffusion baseline."""
 
