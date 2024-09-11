@@ -74,13 +74,14 @@
             "type": "string"
         },
         "STABLE_DIFFUSION_BASELINE_CATEGORY": {
-            "description": "An enum of all the stable diffusion baselines.",
+            "description": "An enum of all the image generation baselines.",
             "enum": [
                 "stable_diffusion_1",
                 "stable_diffusion_2_768",
                 "stable_diffusion_2_512",
                 "stable_diffusion_xl",
-                "stable_cascade"
+                "stable_cascade",
+                "flux_1"
             ],
             "title": "STABLE_DIFFUSION_BASELINE_CATEGORY",
             "type": "string"
