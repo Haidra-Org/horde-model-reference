@@ -90,7 +90,7 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
     style: MODEL_STYLE | str | None = None
     """The style of the model."""
 
-    requirements: dict[str, int | str | list[int] | list[str] | bool] | None = None
+    requirements: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
 
     size_on_disk_bytes: int | None = None
 
