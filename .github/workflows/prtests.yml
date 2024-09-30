@@ -14,22 +14,10 @@ on:
       - '.github/workflows/maintests.yml'
       - '.github/workflows/prtests.yml'
       - '.github/workflows/release.yml'
-      - '.pre-commit-config.yaml'
       - 'requirements.txt'
       - 'requirements.dev.txt'
       - 'requirements.docs.txt'
 jobs:
-  pre-commit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Run pre-commit
-        uses: pre-commit/action@v3.0.0
-        with:
-          extra_args: --all-files
-
   no_extra_fields:
     env:
       AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
