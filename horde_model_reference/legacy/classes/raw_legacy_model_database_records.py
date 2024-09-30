@@ -59,7 +59,7 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
     homepage: str | None = None
     nsfw: bool
     download_all: bool
-    requirements: dict[str, int | float | str | list[int] | list[str] | bool] | None = None
+    requirements: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
     config: Mapping[str, list[RawLegacy_FileRecord | RawLegacy_DownloadRecord]]
     available: bool | None = None
     features_not_supported: list[FEATURE_SUPPORTED] | None = None

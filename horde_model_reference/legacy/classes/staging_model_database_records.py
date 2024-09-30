@@ -96,7 +96,7 @@ class Legacy_StableDiffusion_ModelRecord(StagingLegacy_Generic_ModelRecord):
     homepage: str | None = None
     size_on_disk_bytes: int | None = None
     optimization: str | None = None
-    requirements: dict[str, int | str | list[int] | list[str] | bool] | None = None
+    requirements: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
 
 
 class Legacy_Generic_ModelReference(BaseModel):
