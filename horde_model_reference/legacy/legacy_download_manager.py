@@ -60,7 +60,6 @@ class LegacyReferenceDownloadManager:
             logger.error(f"Failed to parse {model_category_name} reference file as JSON.")
             return None
 
-
         if target_file_path.exists() and not override_existing:
             logger.debug(f"File {target_file_path} already exists, skipping download.")
             return None
