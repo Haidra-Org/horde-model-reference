@@ -90,7 +90,7 @@ class MODEL_PURPOSE(StrEnum):
     miscellaneous = auto()
 
 
-class STABLE_DIFFUSION_BASELINE_CATEGORY(StrEnum):
+class IMAGE_GENERATION_BASELINE(StrEnum):
     """An enum of all the image generation baselines."""
 
     stable_diffusion_1 = auto()
@@ -98,7 +98,7 @@ class STABLE_DIFFUSION_BASELINE_CATEGORY(StrEnum):
     stable_diffusion_2_512 = auto()
     stable_diffusion_xl = auto()
     stable_cascade = auto()
-    flux_1 = auto()  # TODO: Extract flux and create "IMAGE_GENERATION_BASELINE_CATEGORY" due to name inconsistency
+    flux_1 = auto()
 
 
 MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, MODEL_PURPOSE] = {
@@ -113,18 +113,18 @@ MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, MODEL_PURPOSE] = {
     MODEL_REFERENCE_CATEGORY.miscellaneous: MODEL_PURPOSE.miscellaneous,
 }
 
-STABLE_DIFFUSION_BASELINE_NATIVE_RESOLUTION_LOOKUP: dict[STABLE_DIFFUSION_BASELINE_CATEGORY, int] = {
-    STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_1: 512,
-    STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_2_768: 768,
-    STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_2_512: 512,
-    STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_xl: 1024,
-    STABLE_DIFFUSION_BASELINE_CATEGORY.stable_cascade: 1024,
-    STABLE_DIFFUSION_BASELINE_CATEGORY.flux_1: 1024,
+STABLE_DIFFUSION_BASELINE_NATIVE_RESOLUTION_LOOKUP: dict[IMAGE_GENERATION_BASELINE, int] = {
+    IMAGE_GENERATION_BASELINE.stable_diffusion_1: 512,
+    IMAGE_GENERATION_BASELINE.stable_diffusion_2_768: 768,
+    IMAGE_GENERATION_BASELINE.stable_diffusion_2_512: 512,
+    IMAGE_GENERATION_BASELINE.stable_diffusion_xl: 1024,
+    IMAGE_GENERATION_BASELINE.stable_cascade: 1024,
+    IMAGE_GENERATION_BASELINE.flux_1: 1024,
 }
 """The single-side preferred resolution for each known stable diffusion baseline."""
 
 
-def get_baseline_native_resolution(baseline: STABLE_DIFFUSION_BASELINE_CATEGORY) -> int:
+def get_baseline_native_resolution(baseline: IMAGE_GENERATION_BASELINE) -> int:
     """
     Get the native resolution of a stable diffusion baseline.
 

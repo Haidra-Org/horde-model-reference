@@ -18,7 +18,7 @@ from horde_model_reference import (
     MODEL_PURPOSE,
     MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
-    STABLE_DIFFUSION_BASELINE_CATEGORY,
+    IMAGE_GENERATION_BASELINE,
 )
 from horde_model_reference.meta_consts import CONTROLNET_STYLE
 
@@ -70,7 +70,7 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
 
     inpainting: bool | None = False
     """If this is an inpainting model or not."""
-    baseline: STABLE_DIFFUSION_BASELINE_CATEGORY | str
+    baseline: IMAGE_GENERATION_BASELINE | str
     """The model on which this model is based."""
     optimization: str | None = None
     """The optimization type of the model."""
@@ -108,7 +108,7 @@ class StableDiffusion_ModelRecord(Generic_ModelRecord):
     @model_validator(mode="after")
     def validator_is_baseline_and_style_known(self) -> StableDiffusion_ModelRecord:
         """Check if the baseline is known."""
-        if str(self.baseline) not in STABLE_DIFFUSION_BASELINE_CATEGORY.__members__:
+        if str(self.baseline) not in IMAGE_GENERATION_BASELINE.__members__:
             logger.warning(f"Unknown baseline {self.baseline} for model {self.name}")
 
         if self.style is not None and str(self.style) not in MODEL_STYLE.__members__:
@@ -142,7 +142,7 @@ class Generic_ModelReference(RootModel[Mapping[str, Generic_ModelRecord]]):
 class StableDiffusion_ModelReference(Generic_ModelReference):
     """The combined metadata and model list."""
 
-    _baseline: dict[STABLE_DIFFUSION_BASELINE_CATEGORY | str, int] = PrivateAttr(default_factory=dict)
+    _baseline: dict[IMAGE_GENERATION_BASELINE | str, int] = PrivateAttr(default_factory=dict)
     """A dictionary of all the baseline types and how many models use them."""
     _styles: dict[MODEL_STYLE | str, int] = PrivateAttr(default_factory=dict)
     """A dictionary of all the styles and how many models use them."""
@@ -204,7 +204,7 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
                         self._models_hosts[host] = self._models_hosts.get(host, 0) + 1
 
     @property
-    def baseline(self) -> dict[STABLE_DIFFUSION_BASELINE_CATEGORY | str, int]:
+    def baseline(self) -> dict[IMAGE_GENERATION_BASELINE | str, int]:
         """Return a dictionary of all the baseline types and how many models use them."""
         self.check_was_models_modified()
         return self._baseline
@@ -232,7 +232,7 @@ class StableDiffusion_ModelReference(Generic_ModelReference):
         """Return a list of all the model names."""
         return set(self.root.keys())
 
-    def get_model_baseline(self, model_name: str) -> STABLE_DIFFUSION_BASELINE_CATEGORY | str | None:
+    def get_model_baseline(self, model_name: str) -> IMAGE_GENERATION_BASELINE | str | None:
         """Return the baseline for a given model name."""
         model: StableDiffusion_ModelRecord | None = self.root.get(model_name)
 
