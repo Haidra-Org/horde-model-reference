@@ -66,10 +66,12 @@ class MODEL_REFERENCE_CATEGORY(StrEnum):
     ti = auto()
     lora = auto()
 
+
 LOCAL_MODEL_REFERENCE_CATEGORIES = [
     MODEL_REFERENCE_CATEGORY.ti,
     MODEL_REFERENCE_CATEGORY.lora,
 ]
+
 
 class MODEL_PURPOSE(StrEnum):
     image_generation = auto()
