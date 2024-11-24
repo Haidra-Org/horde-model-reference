@@ -4,7 +4,6 @@ from pathlib import Path
 import horde_model_reference.path_consts as path_consts
 from horde_model_reference.legacy.convert_all_legacy_dbs import convert_all_legacy_model_references
 from horde_model_reference.legacy.download_live_legacy_dbs import LegacyReferenceDownloadManager
-from horde_model_reference.meta_consts import LOCAL_MODEL_REFERENCE_CATEGORIES
 from horde_model_reference.model_reference_records import (
     MODEL_REFERENCE_TYPE_LOOKUP,
     CLIP_ModelReference,
