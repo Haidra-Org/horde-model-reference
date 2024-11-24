@@ -4,12 +4,12 @@ load_dotenv()
 
 
 from .meta_consts import (  # noqa: E402
+    IMAGE_GENERATION_BASELINE,
     KNOWN_TAGS,
     MODEL_PURPOSE,
     MODEL_PURPOSE_LOOKUP,
     MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
-    IMAGE_GENERATION_BASELINE,
 )
 from .path_consts import (  # noqa: E402
     BASE_PATH,

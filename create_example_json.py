@@ -1,6 +1,6 @@
 import json
 
-from horde_model_reference import MODEL_PURPOSE, MODEL_STYLE, IMAGE_GENERATION_BASELINE
+from horde_model_reference import IMAGE_GENERATION_BASELINE, MODEL_PURPOSE, MODEL_STYLE
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
     RawLegacy_StableDiffusion_ModelReference,
 )
