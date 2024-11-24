@@ -6,7 +6,7 @@ import requests
 from loguru import logger
 
 from horde_model_reference.legacy.convert_all_legacy_dbs import convert_all_legacy_model_references
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.meta_consts import LOCAL_MODEL_REFERENCE_CATEGORIES, MODEL_REFERENCE_CATEGORY
 from horde_model_reference.path_consts import (
     BASE_PATH,
     HORDE_PROXY_URL_BASE,
