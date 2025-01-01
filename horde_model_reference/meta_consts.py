@@ -25,6 +25,8 @@ class CONTROLNET_STYLE(StrEnum):
     control_hed = auto()
     control_canny = auto()
     control_depth = auto()
+    control_qr = auto()
+    control_qr_xl = auto()
 
 
 KNOWN_TAGS = [
