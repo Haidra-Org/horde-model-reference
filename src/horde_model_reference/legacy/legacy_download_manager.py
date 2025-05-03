@@ -43,6 +43,12 @@ class LegacyReferenceDownloadManager:
         model_category_name: MODEL_REFERENCE_CATEGORY,
         override_existing: bool = False,
     ) -> pathlib.Path | None:
+        target_file_path = get_model_reference_file_path(model_category_name, base_path=self.legacy_path)
+
+        # if model_category_name in LOCAL_MODEL_REFERENCE_CATEGORIES:
+        # logger.debug(f"Skipping download of {model_category_name} reference file, as it is local.")
+        # return target_file_path
+
         response = requests.get(self.proxy_url + LEGACY_MODEL_GITHUB_URLS[model_category_name])
         if response.status_code != 200:
             logger.error(f"Failed to download {model_category_name} reference file.")
@@ -53,8 +59,6 @@ class LegacyReferenceDownloadManager:
         except json.JSONDecodeError:
             logger.error(f"Failed to parse {model_category_name} reference file as JSON.")
             return None
-
-        target_file_path = get_model_reference_file_path(model_category_name, base_path=self.legacy_path)
 
         if target_file_path.exists() and not override_existing:
             logger.debug(f"File {target_file_path} already exists, skipping download.")

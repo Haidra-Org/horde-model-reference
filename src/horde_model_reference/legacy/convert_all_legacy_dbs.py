@@ -46,6 +46,8 @@ def convert_all_legacy_model_references(
     non_generic_converter_categories = [
         MODEL_REFERENCE_CATEGORY.stable_diffusion,
         MODEL_REFERENCE_CATEGORY.clip,
+        # MODEL_REFERENCE_CATEGORY.lora,
+        # MODEL_REFERENCE_CATEGORY.ti,
     ]
     generic_converted_categories = [x for x in MODEL_REFERENCE_CATEGORY if x not in non_generic_converter_categories]
     for model_category in generic_converted_categories:
