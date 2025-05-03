@@ -10,7 +10,6 @@ from .meta_consts import (  # noqa: E402
     MODEL_PURPOSE_LOOKUP,
     MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
-    KNOWN_IMAGE_GENERATION_BASELINE,
 )
 from .path_consts import (  # noqa: E402
     BASE_PATH,
