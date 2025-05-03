@@ -48,19 +48,6 @@
             "title": "DownloadRecord",
             "type": "object"
         },
-        "IMAGE_GENERATION_BASELINE": {
-            "description": "An enum of all the image generation baselines.",
-            "enum": [
-                "stable_diffusion_1",
-                "stable_diffusion_2_768",
-                "stable_diffusion_2_512",
-                "stable_diffusion_xl",
-                "stable_cascade",
-                "flux_1"
-            ],
-            "title": "IMAGE_GENERATION_BASELINE",
-            "type": "string"
-        },
         "MODEL_PURPOSE": {
             "enum": [
                 "image_generation",
@@ -84,6 +71,19 @@
                 "realistic"
             ],
             "title": "MODEL_STYLE",
+            "type": "string"
+        },
+        "STABLE_DIFFUSION_BASELINE_CATEGORY": {
+            "description": "An enum of all the image generation baselines.",
+            "enum": [
+                "stable_diffusion_1",
+                "stable_diffusion_2_768",
+                "stable_diffusion_2_512",
+                "stable_diffusion_xl",
+                "stable_cascade",
+                "flux_1"
+            ],
+            "title": "STABLE_DIFFUSION_BASELINE_CATEGORY",
             "type": "string"
         },
         "StableDiffusion_ModelRecord": {
@@ -168,7 +168,7 @@
                 "baseline": {
                     "anyOf": [
                         {
-                            "$ref": "#/$defs/IMAGE_GENERATION_BASELINE"
+                            "$ref": "#/$defs/STABLE_DIFFUSION_BASELINE_CATEGORY"
                         },
                         {
                             "type": "string"

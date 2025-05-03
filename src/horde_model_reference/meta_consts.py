@@ -63,14 +63,6 @@ class MODEL_REFERENCE_CATEGORY(StrEnum):
     safety_checker = auto()
     stable_diffusion = auto()
     miscellaneous = auto()
-    ti = auto()
-    lora = auto()
-
-
-LOCAL_MODEL_REFERENCE_CATEGORIES = [
-    MODEL_REFERENCE_CATEGORY.ti,
-    MODEL_REFERENCE_CATEGORY.lora,
-]
 
 
 class MODEL_PURPOSE(StrEnum):
@@ -92,15 +84,87 @@ class MODEL_PURPOSE(StrEnum):
     miscellaneous = auto()
 
 
-class IMAGE_GENERATION_BASELINE(StrEnum):
+class KNOWN_IMAGE_GENERATION_BASELINE(StrEnum):
     """An enum of all the image generation baselines."""
+
+    infer = auto()
+    """The baseline is not known and should be inferred from the model name."""
 
     stable_diffusion_1 = auto()
     stable_diffusion_2_768 = auto()
     stable_diffusion_2_512 = auto()
     stable_diffusion_xl = auto()
     stable_cascade = auto()
-    flux_1 = auto()
+    flux_1 = auto()  # TODO: Extract flux and create "IMAGE_GENERATION_BASELINE_CATEGORY" due to name inconsistency
+    flux_schnell = auto() # FIXME
+    flux_dev = auto() # FIXME
+
+STABLE_DIFFUSION_BASELINE_CATEGORY = KNOWN_IMAGE_GENERATION_BASELINE
+"""Deprecated: Use KNOWN_IMAGE_GENERATION_BASELINE instead."""
+
+_alternative_sd1_baseline_names = [
+    "stable diffusion 1",
+    "stable diffusion 1.4",
+    "stable diffusion 1.5",
+    "SD1",
+    "SD14",
+    "SD1.4",
+    "SD15" "SD1.5",
+    "stable_diffusion",
+    "stable_diffusion_1",
+    "stable_diffusion_1.4",
+    "stable_diffusion_1.5",
+]
+
+alternative_sdxl_baseline_names = [
+    "stable diffusion xl",
+    "SDXL",
+    "stable_diffusion_xl",
+]
+
+_alternative_flux_schnell_baseline_names = [
+    "flux_schnell",
+    "flux schnell",
+]
+
+_alternative_flux_dev_baseline_names = [
+    "flux_dev",
+    "flux dev",
+]
+
+_alternative_stable_cascade_baseline_names = [
+    "stable_cascade",
+    "stable cascade",
+]
+
+
+def is_of_baseline_category(
+    baseline: str,
+    category: KNOWN_IMAGE_GENERATION_BASELINE,
+) -> bool:
+    """
+    Check if a baseline name is of a certain category.
+
+    Args:
+        baseline: The baseline name.
+        category: The category to check against.
+
+    Returns:
+        True if the baseline name is of the category, False otherwise.
+    """
+
+    if category == KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1:
+        return baseline in _alternative_sd1_baseline_names
+    if category == KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl:
+        return baseline in alternative_sdxl_baseline_names
+    if category == KNOWN_IMAGE_GENERATION_BASELINE.flux_schnell:
+        return baseline in _alternative_flux_schnell_baseline_names
+    if category == KNOWN_IMAGE_GENERATION_BASELINE.flux_dev:
+        return baseline in _alternative_flux_dev_baseline_names
+    if category == KNOWN_IMAGE_GENERATION_BASELINE.stable_cascade:
+        return baseline in _alternative_stable_cascade_baseline_names
+
+    return baseline == category.name
 
 
 MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, MODEL_PURPOSE] = {
@@ -115,18 +179,18 @@ MODEL_PURPOSE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, MODEL_PURPOSE] = {
     MODEL_REFERENCE_CATEGORY.miscellaneous: MODEL_PURPOSE.miscellaneous,
 }
 
-STABLE_DIFFUSION_BASELINE_NATIVE_RESOLUTION_LOOKUP: dict[IMAGE_GENERATION_BASELINE, int] = {
-    IMAGE_GENERATION_BASELINE.stable_diffusion_1: 512,
-    IMAGE_GENERATION_BASELINE.stable_diffusion_2_768: 768,
-    IMAGE_GENERATION_BASELINE.stable_diffusion_2_512: 512,
-    IMAGE_GENERATION_BASELINE.stable_diffusion_xl: 1024,
-    IMAGE_GENERATION_BASELINE.stable_cascade: 1024,
-    IMAGE_GENERATION_BASELINE.flux_1: 1024,
+STABLE_DIFFUSION_BASELINE_NATIVE_RESOLUTION_LOOKUP: dict[KNOWN_IMAGE_GENERATION_BASELINE, int] = {
+    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1: 512,
+    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_2_768: 768,
+    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_2_512: 512,
+    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl: 1024,
+    KNOWN_IMAGE_GENERATION_BASELINE.stable_cascade: 1024,
+    KNOWN_IMAGE_GENERATION_BASELINE.flux_1: 1024,
 }
 """The single-side preferred resolution for each known stable diffusion baseline."""
 
 
-def get_baseline_native_resolution(baseline: IMAGE_GENERATION_BASELINE) -> int:
+def get_baseline_native_resolution(baseline: KNOWN_IMAGE_GENERATION_BASELINE) -> int:
     """
     Get the native resolution of a stable diffusion baseline.
 
