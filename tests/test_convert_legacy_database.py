@@ -2,9 +2,8 @@ import json
 import urllib.parse
 from pathlib import Path
 
-import pytest
-
 import horde_model_reference.path_consts as path_consts
+import pytest
 from horde_model_reference.legacy.classes.legacy_converters import (
     BaseLegacyConverter,
     LegacyClipConverter,

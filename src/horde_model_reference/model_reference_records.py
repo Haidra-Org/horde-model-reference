@@ -15,10 +15,10 @@ from pydantic import (
 )
 
 from horde_model_reference import (
+    KNOWN_IMAGE_GENERATION_BASELINE,
     MODEL_PURPOSE,
     MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
-    KNOWN_IMAGE_GENERATION_BASELINE,
 )
 from horde_model_reference.meta_consts import CONTROLNET_STYLE
 
