@@ -96,8 +96,9 @@ class KNOWN_IMAGE_GENERATION_BASELINE(StrEnum):
     stable_diffusion_xl = auto()
     stable_cascade = auto()
     flux_1 = auto()  # TODO: Extract flux and create "IMAGE_GENERATION_BASELINE_CATEGORY" due to name inconsistency
-    flux_schnell = auto() # FIXME
-    flux_dev = auto() # FIXME
+    flux_schnell = auto()  # FIXME
+    flux_dev = auto()  # FIXME
+
 
 STABLE_DIFFUSION_BASELINE_CATEGORY = KNOWN_IMAGE_GENERATION_BASELINE
 """Deprecated: Use KNOWN_IMAGE_GENERATION_BASELINE instead."""
