@@ -1,6 +1,6 @@
 import json
 
-from horde_model_reference import MODEL_PURPOSE, MODEL_STYLE, STABLE_DIFFUSION_BASELINE_CATEGORY
+from horde_model_reference import KNOWN_IMAGE_GENERATION_BASELINE, MODEL_PURPOSE, MODEL_STYLE
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
     RawLegacy_StableDiffusion_ModelReference,
 )
@@ -33,7 +33,7 @@ def main():
         style=MODEL_STYLE.generalist,
         config={"download": [example_download_record]},
         purpose=MODEL_PURPOSE.image_generation,
-        baseline=STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_1,
+        baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1,
         tags=["anime", "faces"],
         showcases=[
             "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/showcase/test/test_general_01.png",
@@ -59,7 +59,7 @@ def main():
         style=MODEL_STYLE.anime,
         config={"download": [example_download_record_2]},
         purpose=MODEL_PURPOSE.image_generation,
-        baseline=STABLE_DIFFUSION_BASELINE_CATEGORY.stable_diffusion_1,
+        baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1,
         tags=["anime", "faces"],
         showcases=[
             "https://raw.githubusercontent.com/db0/AI-Horde-image-model-reference/main/showcase/test/anime_01.png",
