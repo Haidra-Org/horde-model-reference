@@ -44,7 +44,7 @@ class StagingLegacy_Config_DownloadRecord(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     file_name: str
-    file_path: str = ""
+    # file_path: str = ""
     file_type: str | None = None
     file_url: str
     sha256sum: str | None = None

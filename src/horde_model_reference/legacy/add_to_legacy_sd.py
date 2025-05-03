@@ -244,7 +244,7 @@ class Legacy_StableDiffusionRecordHelper:
                 legacy_yaml_file_record = RawLegacy_FileRecord(path=legacy_yaml_filename)
                 new_download_record = RawLegacy_DownloadRecord(
                     file_name=model_on_disk_path.name,
-                    file_path="",
+                    # file_path="",
                     file_url=download_url,
                 )
                 new_model_record = RawLegacy_StableDiffusion_ModelRecord(
