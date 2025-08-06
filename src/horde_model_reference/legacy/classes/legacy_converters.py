@@ -37,6 +37,7 @@ from horde_model_reference.legacy.classes.staging_model_database_records import 
 from horde_model_reference.meta_consts import MODEL_PURPOSE
 from horde_model_reference.model_reference_records import (
     StableDiffusion_ModelRecord,
+    StableDiffusion_ModelReference,
 )
 from horde_model_reference.path_consts import (
     GITHUB_REPO_URL,
@@ -527,13 +528,15 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             for k, v in self.all_model_records.items()
         }
 
+        final_converted_model_records = {}
+
         try:
             # If this fails, we have a problem. By definition, the model reference should be converted by this point
             # and ready to be cast to the new model reference type.
             for model_entry in sanity_check.values():
                 model_entry_as_dict = model_entry.model_dump(by_alias=True)
                 model_entry_as_dict["purpose"] = MODEL_PURPOSE.image_generation
-                StableDiffusion_ModelRecord(**model_entry_as_dict)
+                final_converted_model_records[model_entry.name] = StableDiffusion_ModelRecord(**model_entry_as_dict)
         except ValidationError as e:
             logger.exception(e)
             logger.exception("CRITICAL: Failed to convert to new model reference type.")
@@ -542,11 +545,17 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         if self.dry_run:
             return
 
-        with open(self.converted_database_file_path, "w") as testfile:
-            testfile.write(
-                json.dumps(
-                    models_in_doc_root,
+        final_converted_model_reference = StableDiffusion_ModelReference(
+            root=final_converted_model_records,
+        )
+
+        with open(self.converted_database_file_path, "w") as converted_target_file:
+            converted_target_file.write(
+                final_converted_model_reference.model_dump_json(
                     indent=4,
+                    exclude_none=True,
+                    exclude_unset=True,
+                    exclude_defaults=True,
                 )
                 + "\n",
             )
