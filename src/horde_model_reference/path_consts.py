@@ -38,7 +38,7 @@ SHOWCASE_FOLDER_PATH: Path = BASE_PATH.joinpath(DEFAULT_SHOWCASE_FOLDER_NAME)
 """The path to the stable diffusion showcase folder."""
 
 
-def make_all_model_reference_folders():
+def make_all_model_reference_folders() -> None:
     """Make all the default model reference folders."""
     if not BASE_PATH.exists():
         BASE_PATH.mkdir(parents=True, exist_ok=True)
@@ -128,11 +128,11 @@ def get_model_reference_file_path(
     *,
     base_path: str | Path = BASE_PATH,
 ) -> Path:
-    """Returns the path to the model reference file for the given model reference category.
+    """Return the path to the model reference file for the given model reference category.
 
     Args:
         model_reference_category (MODEL_REFERENCE_CATEGORY): The category of model reference to get the filename for.
-        basePath (str | Path): If provided, the base path to the model reference file. Defaults to BASE_PATH.
+        base_path (str | Path): If provided, the base path to the model reference file. Defaults to BASE_PATH.
 
     Returns:
         path:
@@ -146,10 +146,10 @@ def get_all_model_reference_file_paths(
     *,
     base_path: str | Path = BASE_PATH,
 ) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
-    """Returns the path to the model reference file for the given model reference category.
+    """Return the path to the model reference file for the given model reference category.
 
     Args:
-        basePath (str | Path): If provided, the base path to the model reference file. Defaults to BASE_PATH.
+        base_path (str | Path): If provided, the base path to the model reference file. Defaults to BASE_PATH.
 
     Returns:
         path:
@@ -174,11 +174,11 @@ def get_legacy_model_reference_file_path(
     *,
     base_path: str | Path = BASE_PATH,
 ) -> Path:
-    """Returns the path to the legacy model reference file for the given model reference category.
+    """Return the path to the legacy model reference file for the given model reference category.
 
     Args:
         model_reference_category (MODEL_REFERENCE_CATEGORY): The category of model reference to get the filename for.
-        basePath (str | Path): If provided, the base path to the model reference file. Defaults to BASE_PATH.
+        base_path (str | Path): If provided, the base path to the model reference file. Defaults to BASE_PATH.
 
     Returns:
         path:

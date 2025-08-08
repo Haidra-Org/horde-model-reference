@@ -19,7 +19,7 @@ def download_all_models(
     return reference_dm.download_all_legacy_model_references(overwrite_existing=override_existing)
 
 
-def main():
+def main() -> None:
     reference_download_manager = LegacyReferenceDownloadManager()
     references_and_paths = reference_download_manager.download_all_legacy_model_references(overwrite_existing=True)
 

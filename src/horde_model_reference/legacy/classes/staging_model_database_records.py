@@ -18,15 +18,11 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 class StagingLegacy_Config_FileRecord(BaseModel):
     """An entry in the `config` field of a `StagingLegacy_Generic_ModelRecord`."""
 
-    # class Config:
-    #     extra = "forbid"
-
     path: str
-    # md5sum: str | None
     sha256sum: str | None = None
 
     @model_validator(mode="after")
-    def validate_model_file_has_sha256sum(self):
+    def validate_model_file_has_sha256sum(self) -> StagingLegacy_Config_FileRecord:
         if ".yaml" in self.path or ".json" in self.path:
             return self
 
