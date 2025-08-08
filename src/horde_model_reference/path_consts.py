@@ -86,7 +86,8 @@ GITHUB_REPO_URL: str = (
 HORDE_PROXY_URL_BASE = os.getenv("HORDE_PROXY_URL_BASE", "")
 
 if HORDE_PROXY_URL_BASE:
-    logger.info("Using proxy for all outbound URLs.")
+    HORDE_PROXY_URL_BASE = urlparse(HORDE_PROXY_URL_BASE, allow_fragments=False).geturl()
+    logger.info(f"Using proxy for all outbound URLs. Parsed as {HORDE_PROXY_URL_BASE}")
 
 LEGACY_MODEL_GITHUB_URLS = {}
 """A lookup of all the fully qualified file URLs to the given model reference."""
