@@ -97,7 +97,7 @@ _MODEL_REFERENCE_FILENAMES: dict[MODEL_REFERENCE_CATEGORY, str] = {}
 for category in MODEL_REFERENCE_CATEGORY:
     filename = f"{category}.json"
     _MODEL_REFERENCE_FILENAMES[category] = filename
-    LEGACY_MODEL_GITHUB_URLS[category] = urlparse(GITHUB_REPO_URL + filename).geturl()
+    LEGACY_MODEL_GITHUB_URLS[category] = urlparse(GITHUB_REPO_URL + filename, allow_fragments=False).geturl()
 
 
 def get_model_reference_filename(
