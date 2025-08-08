@@ -9,9 +9,10 @@
 
 import glob
 import json
-import typing
 import urllib.parse
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 from pydantic import ValidationError
@@ -22,7 +23,7 @@ from horde_model_reference import (
     DEFAULT_SHOWCASE_FOLDER_NAME,
     LEGACY_REFERENCE_FOLDER,
     LOG_FOLDER,
-    MODEL_PURPOSE_LOOKUP,
+    MODEL_CLASSIFICATION_LOOKUP,
     MODEL_REFERENCE_CATEGORY,
     path_consts,
 )
@@ -34,7 +35,6 @@ from horde_model_reference.legacy.classes.staging_model_database_records import 
     StagingLegacy_Config_FileRecord,
     StagingLegacy_Generic_ModelRecord,
 )
-from horde_model_reference.meta_consts import MODEL_PURPOSE
 from horde_model_reference.model_reference_records import (
     StableDiffusion_ModelRecord,
     StableDiffusion_ModelReference,
@@ -48,7 +48,9 @@ from horde_model_reference.util import model_name_to_showcase_folder_name
 
 class BaseLegacyConverter:
     """The logic applicable to all legacy model reference converters.
-    See normalize_and_convert() for the order of operations critical to the conversion process."""
+
+    See normalize_and_convert() for the order of operations critical to the conversion process.
+    """
 
     legacy_folder_path: Path
     """The folder path to the legacy model reference."""
@@ -94,6 +96,7 @@ class BaseLegacyConverter:
         Args:
             legacy_folder_path (str | Path, optional): The legacy database folder. Defaults to LEGACY_REFERENCE_FOLDER.
             target_file_folder (str | Path): The folder to write the converted database to.
+            log_folder (str | Path): The folder to write the log files to.
             model_reference_category (MODEL_REFERENCE_CATEGORY): The category of model reference to convert.
             debug_mode (bool, optional): If true, include extra information in the error log. Defaults to False.
             dry_run (bool, optional): If true, don't write out the converted database or any logs. Defaults to False.
@@ -121,7 +124,7 @@ class BaseLegacyConverter:
         self.dry_run = dry_run
 
     def normalize_and_convert(self) -> bool:
-        """Normalizes and converts the legacy model reference database to the new format.
+        """Normalize and converts the legacy model reference database to the new format.
 
         Returns:
             bool: `True` if the conversion was successful, False otherwise.
@@ -147,8 +150,8 @@ class BaseLegacyConverter:
     def _iterate_over_input_records(
         self,
         model_record_type: type[StagingLegacy_Generic_ModelRecord],
-    ) -> typing.Iterator[tuple[str, StagingLegacy_Generic_ModelRecord]]:
-        raw_legacy_json_data: dict = {}
+    ) -> Iterator[tuple[str, StagingLegacy_Generic_ModelRecord]]:
+        raw_legacy_json_data: dict[str, Any] = {}
         """Return an iterator over the legacy model reference database.
 
         Yields:
@@ -179,7 +182,7 @@ class BaseLegacyConverter:
     def config_record_pre_parse(
         self,
         model_record_key: str,
-        model_record_contents: dict,
+        model_record_contents: dict[str, Any],
     ) -> list[StagingLegacy_Config_DownloadRecord]:
         """Parse the config record of the legacy model reference. Changes `model_record_contents`.
 
@@ -281,7 +284,7 @@ class BaseLegacyConverter:
     def post_parse_records(self) -> None:
         """Override and call super().post_parse_records() to perform any model category specific post parsing."""
         for model_record in self.all_model_records.values():
-            model_record.purpose = MODEL_PURPOSE_LOOKUP[self.model_reference_category]
+            model_record.purpose = MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category]  # type: ignore
 
     def write_out_records(self) -> None:
         """Write out the parsed records."""
@@ -363,7 +366,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_category=path_consts.MODEL_REFERENCE_CATEGORY.stable_diffusion,
+            model_reference_category=MODEL_REFERENCE_CATEGORY.stable_diffusion,
             debug_mode=debug_mode,
         )
         self.all_baseline_categories = {}
@@ -534,8 +537,12 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             # If this fails, we have a problem. By definition, the model reference should be converted by this point
             # and ready to be cast to the new model reference type.
             for model_entry in sanity_check.values():
-                model_entry_as_dict = model_entry.model_dump(by_alias=True)
-                model_entry_as_dict["purpose"] = MODEL_PURPOSE.image_generation
+                model_entry_as_dict = model_entry.model_dump(
+                    by_alias=True,
+                    exclude_defaults=True,
+                    exclude_none=True,
+                    exclude_unset=True,
+                )
                 final_converted_model_records[model_entry.name] = StableDiffusion_ModelRecord(**model_entry_as_dict)
         except ValidationError as e:
             logger.exception(e)
@@ -583,11 +590,10 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
 
         return existing_showcase_files
 
-    def convert_legacy_baseline(self, baseline: str):
+    def convert_legacy_baseline(self, baseline: str) -> str:
         """Returns the new standardized baseline name for the given legacy baseline name."""
         if baseline == "stable diffusion 1":
             baseline = "stable_diffusion_1"
-            # new_record.baseline_trained_resolution = 256
         elif baseline == "stable diffusion 2":
             baseline = "stable_diffusion_2_768"
         elif baseline == "stable diffusion 2 512":
@@ -712,7 +718,7 @@ class LegacyClipConverter(BaseLegacyConverter):
     def config_record_pre_parse(
         self,
         model_record_key: str,
-        model_record_contents: dict,
+        model_record_contents: dict[str, Any],
     ) -> list[StagingLegacy_Config_DownloadRecord]:
         new_record_config_download_list: list[StagingLegacy_Config_DownloadRecord] = []
         if len(model_record_contents["config"]) > 2:

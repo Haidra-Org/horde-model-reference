@@ -10,11 +10,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from loguru import logger
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from horde_model_reference.model_reference_records import MODEL_PURPOSE
-from horde_model_reference.path_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
 class StagingLegacy_Config_FileRecord(BaseModel):
@@ -66,16 +64,7 @@ class StagingLegacy_Generic_ModelRecord(BaseModel):
     config: dict[str, list[StagingLegacy_Config_FileRecord | StagingLegacy_Config_DownloadRecord]]
     available: bool | None = None
 
-    purpose: MODEL_PURPOSE | str | None = None
     features_not_supported: list[str] | None = None
-
-    @model_validator(mode="after")
-    def validator_known_purpose(self) -> StagingLegacy_Generic_ModelRecord:
-        """Check if the purpose is known."""
-        if self.purpose is not None and str(self.purpose) not in MODEL_PURPOSE.__members__:
-            logger.warning(f"Unknown purpose {self.purpose} for model {self.name}")
-
-        return self
 
 
 class Legacy_CLIP_ModelRecord(StagingLegacy_Generic_ModelRecord):
@@ -125,6 +114,6 @@ MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[StagingL
     MODEL_REFERENCE_CATEGORY.esrgan: StagingLegacy_Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORY.gfpgan: StagingLegacy_Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORY.safety_checker: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.stable_diffusion: Legacy_StableDiffusion_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.image_generation: Legacy_StableDiffusion_ModelRecord,
     MODEL_REFERENCE_CATEGORY.miscellaneous: StagingLegacy_Generic_ModelRecord,
 }

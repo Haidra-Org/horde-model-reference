@@ -7,7 +7,9 @@ from create_example_json import (
 )
 
 
-def test_create_example_json():
+def test_create_example_json() -> None:
+    """Test the creation of example JSON files."""
+
     create_example_json.main()
     assert Path(STABLE_DIFFUSION_EXAMPLE_JSON_FILENAME).exists()
     assert Path(STABLE_DIFFUSION_SCHEMA_JSON_FILENAME).exists()

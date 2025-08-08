@@ -1,6 +1,13 @@
 import json
 
-from horde_model_reference import KNOWN_IMAGE_GENERATION_BASELINE, MODEL_PURPOSE, MODEL_STYLE
+from horde_model_reference import (
+    KNOWN_IMAGE_GENERATION_BASELINE,
+    MODEL_DOMAIN,
+    MODEL_PURPOSE,
+    MODEL_STYLE,
+    MODEL_REFERENCE_CATEGORY,
+    ModelClassification,
+)
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
     RawLegacy_StableDiffusion_ModelReference,
 )
@@ -16,7 +23,7 @@ STABLE_DIFFUSION_SCHEMA_JSON_FILENAME = "stable_diffusion.schema.json"
 LEGACY_STABLE_DIFFUSION_SCHEMA_JSON_FILENAME = "legacy_stable_diffusion.schema.json"
 
 
-def main():
+def main() -> None:
     example_record_name = "Example General Model"
     example_download_record = DownloadRecord(
         file_name="example_general_model.ckpt",
@@ -32,7 +39,11 @@ def main():
         inpainting=False,
         style=MODEL_STYLE.generalist,
         config={"download": [example_download_record]},
-        purpose=MODEL_PURPOSE.image_generation,
+        model_reference_category=MODEL_REFERENCE_CATEGORY.image_generation,
+        model_classification=ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.generation,
+        ),
         baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1,
         tags=["anime", "faces"],
         showcases=[
@@ -58,7 +69,11 @@ def main():
         inpainting=False,
         style=MODEL_STYLE.anime,
         config={"download": [example_download_record_2]},
-        purpose=MODEL_PURPOSE.image_generation,
+        model_reference_category=MODEL_REFERENCE_CATEGORY.image_generation,
+        model_classification=ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.generation,
+        ),
         baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1,
         tags=["anime", "faces"],
         showcases=[

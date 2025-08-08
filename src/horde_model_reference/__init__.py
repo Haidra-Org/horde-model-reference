@@ -6,10 +6,12 @@ load_dotenv()
 from .meta_consts import (  # noqa: E402
     KNOWN_IMAGE_GENERATION_BASELINE,
     KNOWN_TAGS,
+    MODEL_CLASSIFICATION_LOOKUP,
+    MODEL_DOMAIN,
     MODEL_PURPOSE,
-    MODEL_PURPOSE_LOOKUP,
     MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
+    ModelClassification,
 )
 from .path_consts import (  # noqa: E402
     BASE_PATH,
@@ -22,9 +24,11 @@ from .path_consts import (  # noqa: E402
 
 __all__ = [
     "KNOWN_TAGS",
+    "MODEL_DOMAIN",
     "MODEL_REFERENCE_CATEGORY",
     "MODEL_PURPOSE",
-    "MODEL_PURPOSE_LOOKUP",
+    "ModelClassification",
+    "MODEL_CLASSIFICATION_LOOKUP",
     "MODEL_STYLE",
     "KNOWN_IMAGE_GENERATION_BASELINE",
     "BASE_PATH",
