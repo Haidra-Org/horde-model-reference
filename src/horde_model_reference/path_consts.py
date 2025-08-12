@@ -92,12 +92,22 @@ if HORDE_PROXY_URL_BASE:
 LEGACY_MODEL_GITHUB_URLS = {}
 """A lookup of all the fully qualified file URLs to the given model reference."""
 
-_MODEL_REFERENCE_FILENAMES: dict[MODEL_REFERENCE_CATEGORY, str] = {}
+_MODEL_REFERENCE_FILENAMES: dict[MODEL_REFERENCE_CATEGORY, str] = {
+    MODEL_REFERENCE_CATEGORY.image_generation: "stable_diffusion.json",
+}
 
 for category in MODEL_REFERENCE_CATEGORY:
-    filename = f"{category}.json"
-    _MODEL_REFERENCE_FILENAMES[category] = filename
+    filename: str
+
+    if category not in _MODEL_REFERENCE_FILENAMES:
+        filename = f"{category}.json"
+        _MODEL_REFERENCE_FILENAMES[category] = filename
+    else:
+        filename = _MODEL_REFERENCE_FILENAMES[category]
+        logger.debug(f"Using fixed filename for {category}: {filename}")
+
     LEGACY_MODEL_GITHUB_URLS[category] = urlparse(GITHUB_REPO_URL + filename, allow_fragments=False).geturl()
+    logger.debug(f"Parsed legacy model GitHub URL for {category}: {LEGACY_MODEL_GITHUB_URLS[category]}")
 
 
 def get_model_reference_filename(
