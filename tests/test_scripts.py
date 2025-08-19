@@ -16,7 +16,7 @@ def test_validate_stable_diffusion_model_reference(legacy_folder_for_tests: Path
     if os.environ.get("HORDELIB_CI_ONGOING"):
         assert validate_legacy_stable_diffusion_db(
             sd_db=get_model_reference_file_path(
-                MODEL_REFERENCE_CATEGORY.stable_diffusion,
+                MODEL_REFERENCE_CATEGORY.image_generation,
                 base_path=legacy_folder_for_tests,
             ),
             fail_on_extra=True,
@@ -24,7 +24,7 @@ def test_validate_stable_diffusion_model_reference(legacy_folder_for_tests: Path
     else:
         assert validate_legacy_stable_diffusion_db(
             sd_db=get_model_reference_file_path(
-                MODEL_REFERENCE_CATEGORY.stable_diffusion,
+                MODEL_REFERENCE_CATEGORY.image_generation,
                 base_path=legacy_folder_for_tests,
             ),
             fail_on_extra=False,

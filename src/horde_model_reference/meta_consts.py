@@ -65,8 +65,7 @@ class MODEL_REFERENCE_CATEGORY(StrEnum):
     esrgan = auto()
     gfpgan = auto()
     safety_checker = auto()
-    image_generation = "image_generation"
-    stable_diffusion = "image_generation"  # alias for backward compatibility
+    image_generation = auto()
     miscellaneous = auto()
 
 

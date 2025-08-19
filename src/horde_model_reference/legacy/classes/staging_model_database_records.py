@@ -69,7 +69,7 @@ class Legacy_CLIP_ModelRecord(StagingLegacy_Generic_ModelRecord):
     pretrained_name: str | None = None
 
 
-class Legacy_StableDiffusion_ModelRecord(StagingLegacy_Generic_ModelRecord):
+class Legacy_ImageGeneration_ModelRecord(StagingLegacy_Generic_ModelRecord):
     """A model entry in the legacy model reference."""
 
     inpainting: bool
@@ -99,7 +99,7 @@ class Staging_StableDiffusion_ModelReference(Legacy_Generic_ModelReference):
     styles: dict[str, int]
     tags: dict[str, int]
     download_hosts: dict[str, int]
-    models: Mapping[str, Legacy_StableDiffusion_ModelRecord]
+    models: Mapping[str, Legacy_ImageGeneration_ModelRecord]
 
 
 MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[StagingLegacy_Generic_ModelRecord]] = {
@@ -110,6 +110,6 @@ MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[StagingL
     MODEL_REFERENCE_CATEGORY.esrgan: StagingLegacy_Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORY.gfpgan: StagingLegacy_Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORY.safety_checker: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.image_generation: Legacy_StableDiffusion_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.image_generation: Legacy_ImageGeneration_ModelRecord,
     MODEL_REFERENCE_CATEGORY.miscellaneous: StagingLegacy_Generic_ModelRecord,
 }

@@ -48,7 +48,7 @@ def test_all_base_legacy_converters(base_path_for_tests: Path, legacy_folder_for
 
 def test_validate_converted_stable_diffusion_database(base_path_for_tests) -> None:
     stable_diffusion_model_database_path = path_consts.get_model_reference_file_path(
-        path_consts.MODEL_REFERENCE_CATEGORY.stable_diffusion,
+        MODEL_REFERENCE_CATEGORY.image_generation,
         base_path=base_path_for_tests,
     )
     sd_model_database_file_contents: str = ""
@@ -57,7 +57,7 @@ def test_validate_converted_stable_diffusion_database(base_path_for_tests) -> No
 
     sd_model_database_file_json = json.loads(sd_model_database_file_contents)
     model_reference = StableDiffusion_ModelReference(
-        root={k: StableDiffusion_ModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()},
+        root={k: ImageGeneration_ModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()},
     )
 
     assert len(model_reference.baseline) >= 3

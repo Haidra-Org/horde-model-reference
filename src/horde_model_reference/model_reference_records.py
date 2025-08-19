@@ -104,7 +104,7 @@ class ImageGeneration_ModelRecord(Generic_ModelRecord):
     size_on_disk_bytes: int | None = None
 
     @model_validator(mode="after")
-    def validator_set_arrays_to_empty_if_none(self) -> StableDiffusion_ModelRecord:
+    def validator_set_arrays_to_empty_if_none(self) -> ImageGeneration_ModelRecord:
         """Set any `None` values to empty lists."""
         if self.tags is None:
             self.tags = []
@@ -171,7 +171,7 @@ class ImageGeneration_ModelReference(Generic_ModelReference[ImageGeneration_Mode
     """A dictionary of all the tags and how many models use them."""
     _models_hosts: dict[str, int] = PrivateAttr(default_factory=dict)
     """A dictionary of all the model hosts and how many models use them."""
-    root: dict[str, StableDiffusion_ModelRecord]
+    root: dict[str, ImageGeneration_ModelRecord]
     """A dictionary of all the models."""
 
     _models_dict_hash: int | None = None
@@ -255,19 +255,19 @@ class ImageGeneration_ModelReference(Generic_ModelReference[ImageGeneration_Mode
 
     def get_model_baseline(self, model_name: str) -> KNOWN_IMAGE_GENERATION_BASELINE | str | None:
         """Return the baseline for a given model name."""
-        model: StableDiffusion_ModelRecord | None = self.root.get(model_name)
+        model: ImageGeneration_ModelRecord | None = self.root.get(model_name)
 
         return model.baseline if model else None
 
     def get_model_style(self, model_name: str) -> MODEL_STYLE | str | None:
         """Return the style for a given model name."""
-        model: StableDiffusion_ModelRecord | None = self.root.get(model_name)
+        model: ImageGeneration_ModelRecord | None = self.root.get(model_name)
 
         return model.style if model else None
 
     def get_model_tags(self, model_name: str) -> list[str] | None:
         """Return the tags for a given model name."""
-        model: StableDiffusion_ModelRecord | None = self.root.get(model_name)
+        model: ImageGeneration_ModelRecord | None = self.root.get(model_name)
 
         return model.tags if model else None
 

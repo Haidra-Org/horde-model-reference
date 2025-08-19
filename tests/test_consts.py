@@ -26,7 +26,7 @@ def test_stable_diffusion_mapped_to_new_name() -> None:
 
     image_generation = str(MODEL_REFERENCE_CATEGORY.image_generation)
 
-    assert image_generation == MODEL_REFERENCE_CATEGORY.stable_diffusion
+    assert image_generation == MODEL_REFERENCE_CATEGORY.image_generation
 
     from horde_model_reference.model_reference_records import (
         MODEL_REFERENCE_RECORD_TYPE_LOOKUP,
@@ -35,10 +35,10 @@ def test_stable_diffusion_mapped_to_new_name() -> None:
 
     assert (
         MODEL_REFERENCE_RECORD_TYPE_LOOKUP[MODEL_REFERENCE_CATEGORY.image_generation]
-        == MODEL_REFERENCE_RECORD_TYPE_LOOKUP[MODEL_REFERENCE_CATEGORY.stable_diffusion]
+        == MODEL_REFERENCE_RECORD_TYPE_LOOKUP[MODEL_REFERENCE_CATEGORY.image_generation]
     )
 
     assert (
         MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP[MODEL_REFERENCE_CATEGORY.image_generation]
-        == MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP[MODEL_REFERENCE_CATEGORY.stable_diffusion]
+        == MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP[MODEL_REFERENCE_CATEGORY.image_generation]
     )

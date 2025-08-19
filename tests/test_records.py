@@ -9,7 +9,7 @@ from horde_model_reference.model_reference_records import (
     KNOWN_MODEL_REFERENCE_TYPES,
     MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP,
     DownloadRecord,
-    StableDiffusion_ModelRecord,
+    ImageGeneration_ModelRecord,
 )
 
 
@@ -40,9 +40,9 @@ def test_ensure_KNOWN_MODEL_consistency() -> None:
     ), "Found reference types do not match unique category lookup types"
 
 
-def test_stable_diffusion_model_record() -> None:
-    """Tests the StableDiffusion_ModelRecord class."""
-    StableDiffusion_ModelRecord(
+def test_image_generation_model_record() -> None:
+    """Tests the ImageGeneration_ModelRecord class."""
+    ImageGeneration_ModelRecord(
         name="test_name",
         description="test_description",
         version="test_version",

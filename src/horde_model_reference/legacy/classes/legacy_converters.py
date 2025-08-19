@@ -29,14 +29,14 @@ from horde_model_reference import (
 )
 from horde_model_reference.legacy.classes.staging_model_database_records import (
     MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
-    Legacy_StableDiffusion_ModelRecord,
+    Legacy_ImageGeneration_ModelRecord,
     Staging_StableDiffusion_ModelReference,
     StagingLegacy_Config_DownloadRecord,
     StagingLegacy_Config_FileRecord,
     StagingLegacy_Generic_ModelRecord,
 )
 from horde_model_reference.model_reference_records import (
-    StableDiffusion_ModelRecord,
+    ImageGeneration_ModelRecord,
     StableDiffusion_ModelReference,
 )
 from horde_model_reference.path_consts import (
@@ -366,7 +366,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_category=MODEL_REFERENCE_CATEGORY.stable_diffusion,
+            model_reference_category=MODEL_REFERENCE_CATEGORY.image_generation,
             debug_mode=debug_mode,
         )
         self.all_baseline_categories = {}
@@ -385,7 +385,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         model_record_key: str,
         model_record_in_progress: StagingLegacy_Generic_ModelRecord,
     ) -> None:
-        if not isinstance(model_record_in_progress, Legacy_StableDiffusion_ModelRecord):
+        if not isinstance(model_record_in_progress, Legacy_ImageGeneration_ModelRecord):
             raise TypeError(f"Expected {model_record_key} to be a Stable Diffusion record.")
         if model_record_in_progress.style is not None:
             self.all_styles[model_record_in_progress.style] = (
@@ -506,10 +506,10 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
 
     @override
     def write_out_records(self) -> None:
-        sanity_check: dict[str, Legacy_StableDiffusion_ModelRecord] = {
+        sanity_check: dict[str, Legacy_ImageGeneration_ModelRecord] = {
             key: value
             for key, value in self.all_model_records.items()
-            if isinstance(value, Legacy_StableDiffusion_ModelRecord)
+            if isinstance(value, Legacy_ImageGeneration_ModelRecord)
         }
         if len(sanity_check) != len(self.all_model_records):
             raise ValueError("CRITICAL: Not all records are of the correct type.")
@@ -543,7 +543,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                     exclude_none=True,
                     exclude_unset=True,
                 )
-                final_converted_model_records[model_entry.name] = StableDiffusion_ModelRecord(**model_entry_as_dict)
+                final_converted_model_records[model_entry.name] = ImageGeneration_ModelRecord(**model_entry_as_dict)
         except ValidationError as e:
             logger.exception(e)
             logger.exception("CRITICAL: Failed to convert to new model reference type.")

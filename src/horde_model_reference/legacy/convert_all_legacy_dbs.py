@@ -44,7 +44,7 @@ def convert_all_legacy_model_references(
 
     # Convert other model references
     non_generic_converter_categories = [
-        MODEL_REFERENCE_CATEGORY.stable_diffusion,
+        MODEL_REFERENCE_CATEGORY.image_generation,
         MODEL_REFERENCE_CATEGORY.clip,
         # MODEL_REFERENCE_CATEGORY.lora,
         # MODEL_REFERENCE_CATEGORY.ti,

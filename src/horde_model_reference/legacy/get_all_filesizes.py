@@ -5,7 +5,7 @@ from loguru import logger
 
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
     RawLegacy_FileRecord,
-    RawLegacy_StableDiffusion_ModelRecord,
+    RawLegacy_ImageGeneration_ModelRecord,
 )
 from horde_model_reference.path_consts import AIWORKER_CACHE_HOME
 
@@ -29,8 +29,8 @@ def get_all_file_sizes(sd_db: Path, write_to_path: Path | str) -> bool:
         else:
             return False
 
-    parsed_db_records: dict[str, RawLegacy_StableDiffusion_ModelRecord] = {
-        k: RawLegacy_StableDiffusion_ModelRecord.model_validate(v) for k, v in loaded_json_sd_db.items()
+    parsed_db_records: dict[str, RawLegacy_ImageGeneration_ModelRecord] = {
+        k: RawLegacy_ImageGeneration_ModelRecord.model_validate(v) for k, v in loaded_json_sd_db.items()
     }
 
     for _, model_details in parsed_db_records.items():
