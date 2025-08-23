@@ -1,6 +1,5 @@
 import json
 import urllib.parse
-from pathlib import Path
 
 import pytest
 
@@ -18,19 +17,19 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import ImageGeneration_ModelRecord, StableDiffusion_ModelReference
 
 
-def test_convert_legacy_stable_diffusion_database(base_path_for_tests: Path) -> None:
+def test_convert_legacy_stable_diffusion_database() -> None:
     """Test converting the legacy stable diffusion database to the new format."""
     sd_converter = LegacyStableDiffusionConverter()
     assert sd_converter.normalize_and_convert()
 
 
-def test_convert_legacy_clip_database(base_path_for_tests: Path) -> None:
+def test_convert_legacy_clip_database() -> None:
     """Test converting the legacy clip database to the new format."""
     clip_converter = LegacyClipConverter()
     assert clip_converter.normalize_and_convert()
 
 
-def test_all_base_legacy_converters(base_path_for_tests: Path) -> None:
+def test_all_base_legacy_converters() -> None:
     """Test converting all legacy databases using the base converter."""
     generic_references = {
         k: v for k, v in MODEL_REFERENCE_LEGACY_TYPE_LOOKUP.items() if v is StagingLegacy_Generic_ModelRecord
@@ -42,7 +41,7 @@ def test_all_base_legacy_converters(base_path_for_tests: Path) -> None:
         assert base_converter.normalize_and_convert()
 
 
-def test_validate_converted_stable_diffusion_database(base_path_for_tests: Path) -> None:
+def test_validate_converted_stable_diffusion_database() -> None:
     """Test validating the converted stable diffusion database."""
     stable_diffusion_model_database_path = horde_model_reference_paths.get_model_reference_file_path(
         MODEL_REFERENCE_CATEGORY.image_generation,
