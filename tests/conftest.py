@@ -67,11 +67,9 @@ def model_reference_manager() -> ModelReferenceManager:
 
 
 @pytest.fixture(scope="session")
-def legacy_reference_download_manager(base_path_for_tests: Path) -> LegacyReferenceDownloadManager:
+def legacy_reference_download_manager() -> LegacyReferenceDownloadManager:
     """Return a LegacyReferenceDownloadManager instance for tests."""
-    return LegacyReferenceDownloadManager(
-        base_path=base_path_for_tests,
-    )
+    return LegacyReferenceDownloadManager()
 
 
 def pytest_collection_modifyitems(items) -> None:  # type: ignore #  # noqa: ANN001

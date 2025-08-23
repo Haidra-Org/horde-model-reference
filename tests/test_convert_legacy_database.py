@@ -20,17 +20,13 @@ from horde_model_reference.model_reference_records import ImageGeneration_ModelR
 
 def test_convert_legacy_stable_diffusion_database(base_path_for_tests: Path) -> None:
     """Test converting the legacy stable diffusion database to the new format."""
-    sd_converter = LegacyStableDiffusionConverter(
-        target_file_folder=base_path_for_tests,
-    )
+    sd_converter = LegacyStableDiffusionConverter()
     assert sd_converter.normalize_and_convert()
 
 
 def test_convert_legacy_clip_database(base_path_for_tests: Path) -> None:
     """Test converting the legacy clip database to the new format."""
-    clip_converter = LegacyClipConverter(
-        target_file_folder=base_path_for_tests,
-    )
+    clip_converter = LegacyClipConverter()
     assert clip_converter.normalize_and_convert()
 
 
@@ -41,7 +37,6 @@ def test_all_base_legacy_converters(base_path_for_tests: Path) -> None:
     }
     for reference_category in generic_references:
         base_converter = BaseLegacyConverter(
-            target_file_folder=base_path_for_tests,
             model_reference_category=reference_category,
         )
         assert base_converter.normalize_and_convert()
@@ -51,7 +46,6 @@ def test_validate_converted_stable_diffusion_database(base_path_for_tests: Path)
     """Test validating the converted stable diffusion database."""
     stable_diffusion_model_database_path = horde_model_reference_paths.get_model_reference_file_path(
         MODEL_REFERENCE_CATEGORY.image_generation,
-        base_path=base_path_for_tests,
     )
     sd_model_database_file_contents: str = ""
     with open(stable_diffusion_model_database_path) as f:
