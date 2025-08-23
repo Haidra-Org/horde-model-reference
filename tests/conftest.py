@@ -74,7 +74,11 @@ def legacy_reference_download_manager() -> LegacyReferenceDownloadManager:
 
 def pytest_collection_modifyitems(items) -> None:  # type: ignore #  # noqa: ANN001
     """Modify test items to ensure test modules run in a given order."""
-    MODULES_TO_RUN_FIRST = ["tests.test_model_reference_manager", "tests.test_scripts"]
+    MODULES_TO_RUN_FIRST = [
+        "tests.test_model_reference_manager",
+        "tests.test_convert_legacy_database",
+        "tests.test_scripts",
+    ]
 
     MODULES_TO_RUN_LAST = []  # type: ignore  # FIXME make dynamic
     module_mapping = {item: item.module.__name__ for item in items}
