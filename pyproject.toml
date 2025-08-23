@@ -148,3 +148,7 @@ exclude = [
   'dist',
   'docs',
 ]
+
+[[tool.mypy.overrides]]
+module = ["settings_doc.*"]
+ignore_missing_imports = true

@@ -1,4 +1,3 @@
-import sys
 
 from horde_model_reference.meta_consts import (
     MODEL_DOMAIN,

@@ -12,8 +12,8 @@ from pydantic import BaseModel, Field, PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from strenum import StrEnum
 
-ai_horde_ci_settings = AIHordeCISettings()
-ai_horde_worker_settings = AIHordeWorkerSettings()
+ai_horde_ci_settings: AIHordeCISettings = AIHordeCISettings()
+ai_horde_worker_settings: AIHordeWorkerSettings = AIHordeWorkerSettings()
 
 GITHUB_REPO_OWNER = "Haidra-Org"
 GITHUB_IMAGE_REPO_NAME = "AI-Horde-image-model-reference"
@@ -145,7 +145,7 @@ class HordeModelReferenceSettings(BaseSettings):
     """The time-to-live for in memory caches of model reference files, in seconds."""
 
 
-horde_model_reference_settings = HordeModelReferenceSettings()
+horde_model_reference_settings: HordeModelReferenceSettings = HordeModelReferenceSettings()
 
 # Print the github repo settings if they are not the default
 if horde_model_reference_settings.image_github_repo != ImageGithubRepoSettings():
