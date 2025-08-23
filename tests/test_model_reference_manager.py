@@ -43,11 +43,17 @@ def test_manager_new_format(model_reference_manager: ModelReferenceManager, capl
         """Assert that all model references exist."""
         all_model_references = model_reference_manager.get_all_model_references(override_existing=override_existing)
         for model_reference_category in MODEL_REFERENCE_CATEGORY:
-            assert model_reference_category in all_model_references
+            assert (
+                model_reference_category in all_model_references
+            ), f"Model reference category {model_reference_category} is missing"
             model_reference_instance = all_model_references[model_reference_category]
-            assert model_reference_instance is not None
+            assert (
+                model_reference_instance is not None
+            ), f"Model reference instance for {model_reference_category} is None"
             for _, model_entry in model_reference_instance:
-                assert model_entry.model_classification == MODEL_CLASSIFICATION_LOOKUP[model_reference_category]
+                assert (
+                    model_entry.model_classification == MODEL_CLASSIFICATION_LOOKUP[model_reference_category]
+                ), f"Model entry for {model_reference_category} is not classified correctly"
 
     assert_all_model_references_exist(model_reference_manager, override_existing=True)
 
