@@ -6,8 +6,7 @@ from pathlib import Path
 def extract_block_nodes(
     tree: ast.AST,
 ) -> tuple[list[ast.stmt] | None, list[ast.stmt] | None]:
-    """
-    Locate and extract the two code blocks under a Python version check in the AST.
+    """Locate and extract the two code blocks under a Python version check in the AST.
 
     This function searches for an `if` statement that checks `sys.version_info` (or similar)
     and returns the body and orelse blocks. This is useful for ensuring that code paths
@@ -33,8 +32,7 @@ def extract_block_nodes(
 
 
 def normalize_block(block: list[ast.stmt]) -> str:
-    """
-    Normalize a block of AST statements for comparison.
+    """Normalize a block of AST statements for comparison.
 
     This function removes docstrings and type alias annotations, then unparses the
     remaining statements to source code. This normalization is necessary to compare
@@ -63,8 +61,7 @@ def normalize_block(block: list[ast.stmt]) -> str:
 
 
 def main() -> None:
-    """
-    Entry point: checks that the two code blocks under the version check are consistent.
+    """Entry point: checks that the two code blocks under the version check are consistent.
 
     This script is intended to be run as a CI or pre-commit check to ensure that
     the code paths for different Python versions do not diverge unintentionally.

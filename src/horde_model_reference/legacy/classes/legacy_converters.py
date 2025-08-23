@@ -19,12 +19,9 @@ from pydantic import ValidationError
 from typing_extensions import override
 
 from horde_model_reference import (
-    BASE_PATH,
-    DEFAULT_SHOWCASE_FOLDER_NAME,
-    LEGACY_REFERENCE_FOLDER,
-    LOG_FOLDER,
     MODEL_CLASSIFICATION_LOOKUP,
     MODEL_REFERENCE_CATEGORY,
+    horde_model_reference_paths,
     path_consts,
 )
 from horde_model_reference.legacy.classes.staging_model_database_records import (
@@ -38,10 +35,6 @@ from horde_model_reference.legacy.classes.staging_model_database_records import 
 from horde_model_reference.model_reference_records import (
     ImageGeneration_ModelRecord,
     StableDiffusion_ModelReference,
-)
-from horde_model_reference.path_consts import (
-    GITHUB_REPO_URL,
-    PACKAGE_NAME,
 )
 from horde_model_reference.util import model_name_to_showcase_folder_name
 
@@ -75,7 +68,7 @@ class BaseLegacyConverter:
     debug_mode: bool = False
     """If true, include extra information in the error log."""
 
-    log_folder: Path = LOG_FOLDER
+    log_folder: Path
     """The folder to write the validation error log to."""
 
     dry_run: bool = False
@@ -84,13 +77,13 @@ class BaseLegacyConverter:
     def __init__(
         self,
         *,
-        legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
-        target_file_folder: str | Path = BASE_PATH,
-        log_folder: str | Path = LOG_FOLDER,
+        legacy_folder_path: str | Path = horde_model_reference_paths.legacy_path,
+        target_file_folder: str | Path = horde_model_reference_paths.base_path,
+        log_folder: str | Path = horde_model_reference_paths.log_folder,
         model_reference_category: MODEL_REFERENCE_CATEGORY,
         debug_mode: bool = False,
         dry_run: bool = False,
-    ):
+    ) -> None:
         """Initialize an instance of the LegacyConverterBase class.
 
         Args:
@@ -108,12 +101,12 @@ class BaseLegacyConverter:
         self.model_reference_type = MODEL_REFERENCE_LEGACY_TYPE_LOOKUP[model_reference_category]
 
         self.legacy_folder_path = Path(legacy_folder_path)
-        self.legacy_database_path = path_consts.get_model_reference_file_path(
+        self.legacy_database_path = horde_model_reference_paths.get_model_reference_file_path(
             model_reference_category=model_reference_category,
             base_path=legacy_folder_path,
         )
         self.converted_folder_path = Path(target_file_folder)
-        self.converted_database_file_path = path_consts.get_model_reference_file_path(
+        self.converted_database_file_path = horde_model_reference_paths.get_model_reference_file_path(
             model_reference_category=model_reference_category,
             base_path=target_file_folder,
         )
@@ -333,6 +326,8 @@ class BaseLegacyConverter:
 
 
 class LegacyStableDiffusionConverter(BaseLegacyConverter):
+    """A converter for legacy stable diffusion model reference records."""
+
     showcase_glob_pattern: str = "horde_model_reference/showcase/*"
     """The glob pattern used to find all showcase folders. Defaults to `'horde_model_reference/showcase/*'`."""
     # todo: extract to consts
@@ -352,10 +347,10 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
     def __init__(
         self,
         *,
-        legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
-        target_file_folder: str | Path = BASE_PATH,
+        legacy_folder_path: str | Path = horde_model_reference_paths.legacy_path,
+        target_file_folder: str | Path = horde_model_reference_paths.base_path,
         debug_mode: bool = False,
-    ):
+    ) -> None:
         """Initialize an instance of the LegacyStableDiffusionConverter class.
 
         Args:
@@ -431,18 +426,19 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 )
                 self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
-            model_record_in_progress.showcases = []
-            for file in self.existing_showcase_files[expected_showcase_foldername]:
-                url_friendly_name = urllib.parse.quote(Path(file).name)
-                # if not any(url_friendly_name in showcase for showcase in new_record.showcases):
-                #     logger.debug(f"{model_record_key} is missing a showcase for {url_friendly_name}.")
-                #     logger.debug(f"{new_record.showcases=}")
-                #     continue
-                expected_github_location = urllib.parse.urljoin(
-                    GITHUB_REPO_URL,
-                    f"{PACKAGE_NAME}/{DEFAULT_SHOWCASE_FOLDER_NAME}/{expected_showcase_foldername}/{url_friendly_name}",
-                )
-                model_record_in_progress.showcases.append(expected_github_location)
+            # model_record_in_progress.showcases = []
+            # for file in self.existing_showcase_files[expected_showcase_foldername]:
+            #     url_friendly_name = urllib.parse.quote(Path(file).name)
+            #     # if not any(url_friendly_name in showcase for showcase in new_record.showcases):
+            #     #     logger.debug(f"{model_record_key} is missing a showcase for {url_friendly_name}.")
+            #     #     logger.debug(f"{new_record.showcases=}")
+            #     #     continue
+            #     expected_github_location = urllib.parse.urljoin(
+            #         GITHUB_REPO_URL,
+            #         f"{PACKAGE_NAME}/{DEFAULT_SHOWCASE_FOLDER_NAME}"
+            #         f"/{expected_showcase_foldername}/{url_friendly_name}",
+            #     )
+            #     model_record_in_progress.showcases.append(expected_github_location)
         #
         # Increment tag counter
         #
@@ -522,7 +518,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             models=sanity_check,
         )
 
-        models_in_doc_root = {
+        {
             k: v.model_dump(
                 exclude_none=True,
                 exclude_unset=True,
@@ -591,7 +587,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         return existing_showcase_files
 
     def convert_legacy_baseline(self, baseline: str) -> str:
-        """Returns the new standardized baseline name for the given legacy baseline name."""
+        """Return the new standardized baseline name for the given legacy baseline name."""
         if baseline == "stable diffusion 1":
             baseline = "stable_diffusion_1"
         elif baseline == "stable diffusion 2":
@@ -610,7 +606,6 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         Args:
             showcase_foldername (str): The name of the showcase folder to create.
         """
-
         if showcase_foldername not in self.existing_showcase_files:
             self.existing_showcase_files[showcase_foldername] = []
 
@@ -700,13 +695,24 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
 
 
 class LegacyClipConverter(BaseLegacyConverter):
+    """A converter for legacy CLIP model reference records."""
+
     def __init__(
         self,
         *,
-        legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
-        target_file_folder: str | Path = BASE_PATH,
+        legacy_folder_path: str | Path = horde_model_reference_paths.legacy_path,
+        target_file_folder: str | Path = horde_model_reference_paths.base_path,
         debug_mode: bool = False,
-    ):
+    ) -> None:
+        """Initialize the legacy CLIP converter.
+
+        Args:
+            legacy_folder_path (str | Path, optional): The path to the legacy folder.
+                Defaults to horde_model_reference_paths.legacy_path.
+            target_file_folder (str | Path, optional): The path to the target file folder.
+                Defaults to horde_model_reference_paths.base_path.
+            debug_mode (bool, optional): Whether to enable debug mode. Defaults to False.
+        """
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,

@@ -67,4 +67,4 @@ class RawLegacy_ImageGeneration_ModelRecord(BaseModel):
 
 
 class RawLegacy_StableDiffusion_ModelReference(RootModel[Mapping[str, RawLegacy_ImageGeneration_ModelRecord]]):
-    pass
+    """A legacy stable diffusion model reference file."""

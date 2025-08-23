@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-from ast import TypeAlias
 import sys
 import urllib.parse
-from collections.abc import Iterator
-from typing import TYPE_CHECKING, TypeVar
+from collections.abc import Callable, Iterator
+from typing import TypeVar
 
 from loguru import logger
 from pydantic import (
@@ -45,6 +44,8 @@ class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
 
 
 class Generic_ModelRecord(BaseModel):
+    """A generic model reference record."""
+
     # TODO forbid extra?
     name: str
     """The name of the model."""
@@ -65,6 +66,27 @@ class Generic_ModelRecord(BaseModel):
     features_not_supported: list[str] | None = None
 
 
+MODEL_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[Generic_ModelRecord]] = {}
+
+
+def register_record_type(
+    category: MODEL_REFERENCE_CATEGORY,
+) -> Callable[[type[Generic_ModelRecord]], type[Generic_ModelRecord]]:
+    """Register a model record type with its category."""
+
+    def decorator(cls: type[Generic_ModelRecord]) -> type[Generic_ModelRecord]:
+        if category in MODEL_RECORD_TYPE_LOOKUP:
+            logger.warning(
+                f"Overriding existing record type for category {category}: "
+                f"{MODEL_RECORD_TYPE_LOOKUP[category]} -> {cls}",
+            )
+        MODEL_RECORD_TYPE_LOOKUP[category] = cls
+        return cls
+
+    return decorator
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.image_generation)
 class ImageGeneration_ModelRecord(Generic_ModelRecord):
     """A model entry in the model reference."""
 
@@ -76,6 +98,7 @@ class ImageGeneration_ModelRecord(Generic_ModelRecord):
             purpose=MODEL_PURPOSE.generation,
         ),
     )
+    """The domain (e.g., image, text) and purpose (e.g., generation, classification) of the model."""
 
     inpainting: bool | None = False
     """If this is an inpainting model or not."""
@@ -115,7 +138,7 @@ class ImageGeneration_ModelRecord(Generic_ModelRecord):
         return self
 
     @model_validator(mode="after")
-    def validator_is_baseline_and_style_known(self) -> StableDiffusion_ModelRecord:
+    def validator_is_baseline_and_style_known(self) -> ImageGeneration_ModelRecord:
         """Check if the baseline is known."""
         if str(self.baseline) not in KNOWN_IMAGE_GENERATION_BASELINE.__members__:
             logger.debug(f"Unknown baseline {self.baseline} for model {self.name}")
@@ -126,16 +149,20 @@ class ImageGeneration_ModelRecord(Generic_ModelRecord):
         return self
 
 
-StableDiffusion_ModelRecord = ImageGeneration_ModelRecord
-
-
+@register_record_type(MODEL_REFERENCE_CATEGORY.clip)
 class CLIP_ModelRecord(Generic_ModelRecord):
+    """A CLIP model entry in the model reference."""
+
     pretrained_name: str | None = None
-    # TODO docstring
+    """The huggingface-style pretrained model name."""
 
 
+@register_record_type(MODEL_REFERENCE_CATEGORY.controlnet)
 class ControlNet_ModelRecord(Generic_ModelRecord):
+    """A ControlNet model entry in the model reference."""
+
     style: CONTROLNET_STYLE | str | None = None
+    """The 'style' (purpose) of the controlnet. See `CONTROLNET_STYLE` for all possible values and more info."""
 
     @model_validator(mode="after")
     def validator_is_style_known(self) -> ControlNet_ModelRecord:
@@ -150,6 +177,8 @@ MR = TypeVar("MR", bound=Generic_ModelRecord)
 
 
 class Generic_ModelReference(RootModel[dict[str, MR]]):
+    """A generic model reference."""
+
     root: dict[str, MR]
     """A dictionary of all the models."""
 
@@ -182,7 +211,6 @@ class ImageGeneration_ModelReference(Generic_ModelReference[ImageGeneration_Mode
         Note: this only checks if the keys differ, and does not check into the value objects.
         You should call `rebuild_metadata` if you want to be sure the metadata is up to date.
         """
-
         if not self._models_dict_hash or self._models_dict_hash != hash(frozenset(self.root.keys())):
             self._models_dict_hash = hash(frozenset(self.root.keys()))
             self.rebuild_metadata()
@@ -276,27 +304,23 @@ StableDiffusion_ModelReference = ImageGeneration_ModelReference
 
 
 class CLIP_ModelReference(Generic_ModelReference[CLIP_ModelRecord]):
+    """A CLIP model reference."""
+
     root: dict[str, CLIP_ModelRecord]
     """A dictionary of all the models."""
 
 
 class ControlNet_ModelReference(Generic_ModelReference[ControlNet_ModelRecord]):
+    """A ControlNet model reference."""
+
     root: dict[str, ControlNet_ModelRecord]
     """A dictionary of all the models."""
 
 
-MODEL_REFERENCE_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[Generic_ModelRecord]] = {
-    MODEL_REFERENCE_CATEGORY.image_generation: ImageGeneration_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.controlnet: ControlNet_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.clip: CLIP_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.blip: Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.esrgan: Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.gfpgan: Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.safety_checker: Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.codeformer: Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.miscellaneous: Generic_ModelRecord,
-}
-"""A lookup for the model record type based on the model category. See also `MODEL_REFERENCE_TYPE_LOOKUP`."""
+for category in MODEL_REFERENCE_CATEGORY:
+    if category not in MODEL_RECORD_TYPE_LOOKUP:
+        logger.trace(f"No record type registered for category {category}. Using Generic_ModelReference.")
+        MODEL_RECORD_TYPE_LOOKUP[category] = Generic_ModelRecord
 
 if sys.version_info >= (3, 12):
     type KNOWN_MODEL_REFERENCE_INSTANCES = (
@@ -318,6 +342,7 @@ if sys.version_info >= (3, 12):
         object."""
 
 else:
+    # Python 3.10 and 3.11 version
     KNOWN_MODEL_REFERENCE_INSTANCES = (
         ImageGeneration_ModelReference
         | ControlNet_ModelReference
@@ -327,8 +352,6 @@ else:
     """A type alias for any known model reference instance. Note the absence of `type[]` here. \
         Use `KNOWN_MODEL_REFERENCE_TYPES` for the corresponding `type[]` objects."""
 
-    KNOWN_MODEL_REFERENCE_INSTANCES: TypeAlias  # type: ignore
-
     KNOWN_MODEL_REFERENCE_TYPES = (
         type[Generic_ModelReference[Generic_ModelRecord]]
         | type[ImageGeneration_ModelReference]
@@ -337,8 +360,6 @@ else:
     )
     """A type alias for any known model reference (python) type. Note the use of `type[]` to indicate a `type` \
         object."""
-
-    KNOWN_MODEL_REFERENCE_TYPES: TypeAlias  # type: ignore
 
 MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, KNOWN_MODEL_REFERENCE_TYPES] = {
     MODEL_REFERENCE_CATEGORY.image_generation: ImageGeneration_ModelReference,
@@ -351,4 +372,4 @@ MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, KNOWN_MODEL
     MODEL_REFERENCE_CATEGORY.codeformer: Generic_ModelReference[Generic_ModelRecord],
     MODEL_REFERENCE_CATEGORY.miscellaneous: Generic_ModelReference[Generic_ModelRecord],
 }
-"""A lookup for the model reference type based on the model category. See also `MODEL_REFERENCE_RECORD_TYPE_LOOKUP`."""
+"""A lookup for the model reference type based on the model category. See also `MODEL_RECORD_TYPE_LOOKUP`."""

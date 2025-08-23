@@ -4,8 +4,8 @@ from horde_model_reference import (
     KNOWN_IMAGE_GENERATION_BASELINE,
     MODEL_DOMAIN,
     MODEL_PURPOSE,
-    MODEL_STYLE,
     MODEL_REFERENCE_CATEGORY,
+    MODEL_STYLE,
     ModelClassification,
 )
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
@@ -13,7 +13,7 @@ from horde_model_reference.legacy.classes.raw_legacy_model_database_records impo
 )
 from horde_model_reference.model_reference_records import (
     DownloadRecord,
-    StableDiffusion_ModelRecord,
+    ImageGeneration_ModelRecord,
     StableDiffusion_ModelReference,
 )
 
@@ -23,7 +23,8 @@ STABLE_DIFFUSION_SCHEMA_JSON_FILENAME = "stable_diffusion.schema.json"
 LEGACY_STABLE_DIFFUSION_SCHEMA_JSON_FILENAME = "legacy_stable_diffusion.schema.json"
 
 
-def main() -> None:
+def create_example_json_schema() -> None:
+    """Create an example JSON file for the StableDiffusion_ModelReference."""
     example_record_name = "Example General Model"
     example_download_record = DownloadRecord(
         file_name="example_general_model.ckpt",
@@ -31,8 +32,8 @@ def main() -> None:
         sha256sum="DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
     )
 
-    # An example StableDiffusion_ModelRecord with test data
-    example_model_record = StableDiffusion_ModelRecord(
+    # An example ImageGeneration_ModelRecord with test data
+    example_model_record = ImageGeneration_ModelRecord(
         name=example_record_name,
         description="This would be a description of the model.",
         version="1.0",
@@ -62,7 +63,7 @@ def main() -> None:
         file_url="https://www.some_website.com/a_different_name_on_the_website.ckpt",
         sha256sum="DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
     )
-    example_model_record_2 = StableDiffusion_ModelRecord(
+    example_model_record_2 = ImageGeneration_ModelRecord(
         name=example_record_2_name,
         description="This would be a description of the model.",
         version="2.5",
@@ -104,4 +105,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    create_example_json_schema()

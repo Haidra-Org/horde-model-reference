@@ -23,6 +23,7 @@ class StagingLegacy_Config_FileRecord(BaseModel):
 
     @model_validator(mode="after")
     def validate_model_file_has_sha256sum(self) -> StagingLegacy_Config_FileRecord:
+        """Validate that a model file has a sha256sum, unless it's a yaml or json file."""
         if ".yaml" in self.path or ".json" in self.path:
             return self
 

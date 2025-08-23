@@ -19,6 +19,11 @@ class MODEL_STYLE(StrEnum):
 
 
 class CONTROLNET_STYLE(StrEnum):
+    """An enum of all the ControlNet 'styles' - the process that defines the model's behavior.
+
+    Examples include canny, depth, and openpose.
+    """
+
     control_seg = auto()
     control_scribble = auto()
     control_fakescribbles = auto()

@@ -1,9 +1,11 @@
 import os
 import sys
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
 from loguru import logger
+from pytest import LogCaptureFixture
 
 from horde_model_reference.legacy.legacy_download_manager import LegacyReferenceDownloadManager
 from horde_model_reference.model_reference_manager import ModelReferenceManager
@@ -34,6 +36,17 @@ def legacy_folder_for_tests(base_path_for_tests: Path) -> Path:
     return legacy_folder
 
 
+@pytest.fixture
+def caplog(caplog: LogCaptureFixture) -> Generator[LogCaptureFixture, None, None]:
+    """Fixture to capture log messages during tests.
+
+    See https://loguru.readthedocs.io/en/stable/resources/migration.html#migration-caplog for more information.
+    """
+    handler_id = logger.add(caplog.handler, format="{message}")
+    yield caplog
+    logger.remove(handler_id)
+
+
 @pytest.fixture(scope="session", autouse=True)
 def setup_logging(base_path_for_tests: Path) -> None:
     """Set up logging for tests."""
@@ -44,9 +57,10 @@ def setup_logging(base_path_for_tests: Path) -> None:
                 "sink": base_path_for_tests.joinpath("test_log.txt"),
                 "format": "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}",
             },
-            # add sinks for stdout and stderr
-            {"sink": sys.stdout, "format": "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"},
-            {"sink": sys.stderr, "format": "{time:YYYY-MM-DD HH:mm:ss} | {level} | {message}"},
+            {
+                "sink": sys.stderr,
+                "format": "{time:YYYY-MM-DD HH:mm:ss} | {name}:{function}:{line} | {level} | {message}",
+            },
         ],
     )
 

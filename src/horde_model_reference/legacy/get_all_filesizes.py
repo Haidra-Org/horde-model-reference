@@ -3,16 +3,27 @@ from pathlib import Path
 
 from loguru import logger
 
+from horde_model_reference import ai_horde_worker_settings
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
     RawLegacy_FileRecord,
     RawLegacy_ImageGeneration_ModelRecord,
 )
-from horde_model_reference.path_consts import AIWORKER_CACHE_HOME
 
 
-def get_all_file_sizes(sd_db: Path, write_to_path: Path | str) -> bool:
+def get_all_file_sizes(
+    sd_db: Path,
+    write_to_path: Path | str,
+) -> bool:
+    """Get the file sizes of all files in the stable diffusion database and write them to a new file.
 
-    if AIWORKER_CACHE_HOME is None:
+    Args:
+        sd_db (Path): Path to the stable diffusion model database (should be a .json file)
+        write_to_path (Path | str): Path to write the file sizes to.
+
+    Returns:
+        bool: True if the operation was successful, False otherwise.
+    """
+    if ai_horde_worker_settings.aiworker_cache_home is None:
         logger.error("AIWORKER_CACHE_HOME is not set.")
         return False
 
@@ -40,7 +51,7 @@ def get_all_file_sizes(sd_db: Path, write_to_path: Path | str) -> bool:
 
         filename = model_details.config["files"][0].path
 
-        full_file_path = Path(AIWORKER_CACHE_HOME) / "compvis" / filename
+        full_file_path = Path(ai_horde_worker_settings.aiworker_cache_home) / "compvis" / filename
         if not full_file_path.exists():
             logger.error(f"File {full_file_path} does not exist.")
             continue

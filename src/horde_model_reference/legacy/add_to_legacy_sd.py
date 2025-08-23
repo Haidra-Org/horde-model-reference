@@ -12,10 +12,9 @@ from loguru import logger
 
 from horde_model_reference import (
     KNOWN_TAGS,
-    LEGACY_REFERENCE_FOLDER,
     MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
-    get_model_reference_file_path,
+    horde_model_reference_paths,
 )
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
     RawLegacy_DownloadRecord,
@@ -29,15 +28,24 @@ class Legacy_StableDiffusionRecordHelper:
 
     target_folder: pathlib.Path
 
-    def __init__(self, target_folder: str | pathlib.Path):
+    def __init__(self, target_folder: str | pathlib.Path) -> None:
+        """Initialize the helper with the target folder to look for models in.
+
+        Args:
+            target_folder (str | pathlib.Path): The target folder to look for models in.
+        """
         if not isinstance(target_folder, pathlib.Path):
             target_folder = pathlib.Path(target_folder)
         self.target_folder = target_folder
 
     def load_legacy_sd_model_reference(self) -> dict[str, RawLegacy_ImageGeneration_ModelRecord]:
-        path_to_legacy_stablediffusion = get_model_reference_file_path(
+        """Load the legacy stable diffusion model reference from disk.
+
+        Returns:
+            dict[str, RawLegacy_ImageGeneration_ModelRecord]: The legacy stable diffusion model reference.
+        """
+        path_to_legacy_stablediffusion = horde_model_reference_paths.get_legacy_model_reference_file_path(
             MODEL_REFERENCE_CATEGORY.image_generation,
-            base_path=LEGACY_REFERENCE_FOLDER,
         )
         sd_legacy_model_reference: dict[str, RawLegacy_ImageGeneration_ModelRecord] = {}
         with open(str(path_to_legacy_stablediffusion)) as f:
@@ -54,6 +62,11 @@ class Legacy_StableDiffusionRecordHelper:
         return sd_legacy_model_reference
 
     def get_sd_models_on_disk(self) -> list[str]:
+        """Get a list of all stable diffusion models on disk.
+
+        Returns:
+            list[str]: A list of all stable diffusion model file paths.
+        """
         all_sd_models = []
         all_sd_models.extend(glob.glob(str(f"{self.target_folder}/*.ckpt"), recursive=True))
         all_sd_models.extend(glob.glob(str(f"{self.target_folder}/*.safetensors"), recursive=True))
@@ -64,6 +77,18 @@ class Legacy_StableDiffusionRecordHelper:
         model_filename: str,
         sd_legacy_model_reference: dict[str, RawLegacy_ImageGeneration_ModelRecord],
     ) -> bool:
+        """Check if a model is in the legacy stable diffusion model reference.
+
+        Args:
+            model_filename (str): The filename of the model to check.
+            sd_legacy_model_reference (dict[str, RawLegacy_ImageGeneration_ModelRecord]): The legacy model reference.
+
+        Raises:
+            TypeError: If the download record is not of the expected type.
+
+        Returns:
+            bool: True if the model is in the legacy model reference, False otherwise.
+        """
         for legacy_model_record in sd_legacy_model_reference.values():
             download = legacy_model_record.config["download"][0]
             if not isinstance(download, RawLegacy_DownloadRecord):
@@ -74,6 +99,11 @@ class Legacy_StableDiffusionRecordHelper:
         return False
 
     def add_models_from_disk(self, file_out: pathlib.Path) -> None:
+        """Add models from disk to the legacy model reference.
+
+        Args:
+            file_out (pathlib.Path): Path to the output file.
+        """
         all_sd_models_on_disk = self.get_sd_models_on_disk()
         sd_legacy_model_reference = self.load_legacy_sd_model_reference()
         new_models: dict[str, RawLegacy_ImageGeneration_ModelRecord] = {}

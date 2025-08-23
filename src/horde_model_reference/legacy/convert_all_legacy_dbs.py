@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from horde_model_reference import BASE_PATH, LEGACY_REFERENCE_FOLDER, MODEL_REFERENCE_CATEGORY
+from horde_model_reference import MODEL_REFERENCE_CATEGORY, horde_model_reference_paths
 from horde_model_reference.legacy.classes.legacy_converters import (
     BaseLegacyConverter,
     LegacyClipConverter,
@@ -9,11 +9,10 @@ from horde_model_reference.legacy.classes.legacy_converters import (
 
 
 def convert_all_legacy_model_references(
-    legacy_path: str | Path = LEGACY_REFERENCE_FOLDER,
-    target_path: str | Path = BASE_PATH,
+    legacy_path: str | Path = horde_model_reference_paths.legacy_path,
+    target_path: str | Path = horde_model_reference_paths.base_path,
 ) -> bool:
-    """
-    Convert all legacy model references in the specified folder to the new format.
+    """Convert all legacy model references in the specified folder to the new format.
 
     Args:
         legacy_path: The path to the folder containing the legacy model references.
@@ -70,13 +69,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--legacy_path",
         type=str,
-        default=LEGACY_REFERENCE_FOLDER,
+        default=horde_model_reference_paths.legacy_path,
         help="Path to legacy model reference databases",
     )
     parser.add_argument(
         "--target_path",
         type=str,
-        default=BASE_PATH,
+        default=horde_model_reference_paths.base_path,
         help="Path to save converted model reference databases",
     )
     args = parser.parse_args()

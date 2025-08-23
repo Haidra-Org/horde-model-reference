@@ -1,23 +1,20 @@
 from __future__ import annotations
 
 import json
-from copy import deepcopy
 from pathlib import Path
 from threading import RLock
-from typing import Any, TypeVar
+from typing import Any
 
 from loguru import logger
 
 import horde_model_reference.path_consts as path_consts
+from horde_model_reference import horde_model_reference_paths
 from horde_model_reference.legacy import LegacyReferenceDownloadManager
 from horde_model_reference.meta_consts import MODEL_CLASSIFICATION_LOOKUP, MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import (
     KNOWN_MODEL_REFERENCE_INSTANCES,
     MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP,
-    Generic_ModelRecord,
 )
-
-MR = TypeVar("MR", bound=Generic_ModelRecord)
 
 
 class ModelReferenceManager:
@@ -36,7 +33,7 @@ class ModelReferenceManager:
         *,
         override_existing: bool = False,
         lazy_mode: bool = True,
-        base_path: str | Path = path_consts.BASE_PATH,
+        base_path: str | Path = horde_model_reference_paths.base_path,
         proxy_url: str = path_consts.HORDE_PROXY_URL_BASE,
     ) -> ModelReferenceManager:
         """Create a new instance of ModelReferenceManager.
@@ -57,11 +54,7 @@ class ModelReferenceManager:
                     cls._instance.download_and_convert_legacy_references(override_existing=override_existing)
 
                 if lazy_mode and override_existing:
-                    logger.warning(
-                        "lazy_mode and override_existing are both enabled. "
-                        "lazy_mode prevents downloading model references when initializing "
-                        "even if override_existing is True.",
-                    )
+                    raise ValueError("Cannot use lazy_mode with override_existing=True.")
 
         return cls._instance
 
@@ -80,16 +73,6 @@ class ModelReferenceManager:
         return self.legacy_reference_download_manager.download_all_legacy_model_references(
             overwrite_existing=override_existing,
         )
-
-    @property
-    def all_model_references(self) -> dict[MODEL_REFERENCE_CATEGORY, KNOWN_MODEL_REFERENCE_INSTANCES | None]:
-        """Get all model references.
-
-        Returns:
-            dict[MODEL_REFERENCE_CATEGORY, KNOWN_MODEL_REFERENCE_INSTANCES | None]: A mapping of model reference
-            categories to their corresponding model reference objects.
-        """
-        return self.get_all_model_references(override_existing=False)
 
     def file_json_to_model_reference(
         self,
@@ -158,7 +141,9 @@ class ModelReferenceManager:
 
             self.download_and_convert_legacy_references(override_existing=override_existing)
 
-            all_files: dict[MODEL_REFERENCE_CATEGORY, Path | None] = path_consts.get_all_model_reference_file_paths()
+            all_files: dict[MODEL_REFERENCE_CATEGORY, Path | None] = (
+                horde_model_reference_paths.get_all_model_reference_file_paths()
+            )
 
             for category, file_path in all_files.items():
                 if file_path is None:

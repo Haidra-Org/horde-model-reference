@@ -2,13 +2,13 @@ import json
 
 from loguru import logger
 
-from horde_model_reference.model_reference_records import StableDiffusion_ModelRecord
+from horde_model_reference.model_reference_records import ImageGeneration_ModelRecord
 
-parsed_db_records: dict[str, StableDiffusion_ModelRecord] | None = None
+parsed_db_records: dict[str, ImageGeneration_ModelRecord] | None = None
 with open("horde_model_reference/stable_diffusion.json") as f:
     sd_model_database_file_json = json.load(f)
     parsed_db_records = {
-        k: StableDiffusion_ModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()
+        k: ImageGeneration_ModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()
     }
 
 

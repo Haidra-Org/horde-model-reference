@@ -1,3 +1,5 @@
+import sys
+
 from horde_model_reference.meta_consts import (
     MODEL_DOMAIN,
     MODEL_PURPOSE,
@@ -22,22 +24,33 @@ def test_ensure_KNOWN_MODEL_consistency() -> None:
     `KNOWN_MODEL_REFERENCE_TYPES` should contain all of the `type[]` types, suitable for type hinting values which are
     *types* of all of the model reference instances.
     """
-
     assert KNOWN_MODEL_REFERENCE_INSTANCES
     assert KNOWN_MODEL_REFERENCE_TYPES
-
     found_reference_types = []
 
-    for model_reference_instance in KNOWN_MODEL_REFERENCE_INSTANCES.__args__:
-        assert type[model_reference_instance] in KNOWN_MODEL_REFERENCE_TYPES.__args__
-        found_reference_types.append(type[model_reference_instance])
+    if sys.version_info >= (3, 12):
+        for model_reference_instance in KNOWN_MODEL_REFERENCE_INSTANCES.__value__.__args__:
+            assert type[model_reference_instance] in KNOWN_MODEL_REFERENCE_TYPES.__value__.__args__
+            found_reference_types.append(type[model_reference_instance])
 
-    for model_reference_type in KNOWN_MODEL_REFERENCE_TYPES.__args__:
-        assert model_reference_type in found_reference_types
+        for model_reference_type in KNOWN_MODEL_REFERENCE_TYPES.__value__.__args__:
+            assert model_reference_type in found_reference_types
 
-    assert set(KNOWN_MODEL_REFERENCE_INSTANCES.__args__) == set(
-        MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP.values(),
-    ), "Found reference types do not match unique category lookup types"
+        assert set(KNOWN_MODEL_REFERENCE_INSTANCES.__value__.__args__) == set(
+            MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP.values(),
+        ), "Found reference types do not match unique category lookup types"
+
+    else:
+        for model_reference_instance in KNOWN_MODEL_REFERENCE_INSTANCES.__args__:
+            assert type[model_reference_instance] in KNOWN_MODEL_REFERENCE_TYPES.__args__
+            found_reference_types.append(type[model_reference_instance])
+
+        for model_reference_type in KNOWN_MODEL_REFERENCE_TYPES.__args__:
+            assert model_reference_type in found_reference_types
+
+        assert set(KNOWN_MODEL_REFERENCE_INSTANCES.__args__) == set(
+            MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP.values(),
+        ), "Found reference types do not match unique category lookup types"
 
 
 def test_image_generation_model_record() -> None:
