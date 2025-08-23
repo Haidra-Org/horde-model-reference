@@ -24,7 +24,7 @@ def env_var_checks() -> None:
 def base_path_for_tests() -> Path:
     """Return the base path for tests."""
     target_path = Path(__file__).parent.joinpath("test_data_results/horde_model_reference")
-    target_path.mkdir(exist_ok=True)
+    target_path.mkdir(parents=True, exist_ok=True)
     return target_path
 
 
@@ -32,7 +32,7 @@ def base_path_for_tests() -> Path:
 def legacy_folder_for_tests(base_path_for_tests: Path) -> Path:
     """Return the legacy folder for tests."""
     legacy_folder = base_path_for_tests.joinpath(LEGACY_REFERENCE_FOLDER_NAME)
-    legacy_folder.mkdir(exist_ok=True)
+    legacy_folder.mkdir(parents=True, exist_ok=True)
     return legacy_folder
 
 
