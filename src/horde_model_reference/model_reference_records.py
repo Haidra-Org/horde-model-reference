@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 import urllib.parse
 from collections.abc import Callable, Iterator
 from typing import TypeVar
@@ -322,44 +321,24 @@ for category in MODEL_REFERENCE_CATEGORY:
         logger.trace(f"No record type registered for category {category}. Using Generic_ModelReference.")
         MODEL_RECORD_TYPE_LOOKUP[category] = Generic_ModelRecord
 
-if sys.version_info >= (3, 12):
-    type KNOWN_MODEL_REFERENCE_INSTANCES = (
-        ImageGeneration_ModelReference
-        | ControlNet_ModelReference
-        | CLIP_ModelReference
-        | Generic_ModelReference[Generic_ModelRecord]
-    )
-    """A type alias for any known model reference instance. Note the absence of `type[]` here. \
-        Use `KNOWN_MODEL_REFERENCE_TYPES` for the corresponding `type[]` objects."""
+KNOWN_MODEL_REFERENCE_INSTANCES = (
+    ImageGeneration_ModelReference
+    | ControlNet_ModelReference
+    | CLIP_ModelReference
+    | Generic_ModelReference[Generic_ModelRecord]
+)
+"""A type alias for any known model reference instance. Note the absence of `type[]` here. \
+    Use `KNOWN_MODEL_REFERENCE_TYPES` for the corresponding `type[]` objects."""
 
-    type KNOWN_MODEL_REFERENCE_TYPES = (
-        type[Generic_ModelReference[Generic_ModelRecord]]
-        | type[ImageGeneration_ModelReference]
-        | type[CLIP_ModelReference]
-        | type[ControlNet_ModelReference]
-    )
-    """A type alias for any known model reference (python) type. Note the use of `type[]` to indicate a `type` \
-        object."""
+KNOWN_MODEL_REFERENCE_TYPES = (
+    type[Generic_ModelReference[Generic_ModelRecord]]
+    | type[ImageGeneration_ModelReference]
+    | type[CLIP_ModelReference]
+    | type[ControlNet_ModelReference]
+)
+"""A type alias for any known model reference (python) type. Note the use of `type[]` to indicate a `type` \
+    object."""
 
-else:
-    # Python 3.10 and 3.11 version
-    KNOWN_MODEL_REFERENCE_INSTANCES = (
-        ImageGeneration_ModelReference
-        | ControlNet_ModelReference
-        | CLIP_ModelReference
-        | Generic_ModelReference[Generic_ModelRecord]
-    )
-    """A type alias for any known model reference instance. Note the absence of `type[]` here. \
-        Use `KNOWN_MODEL_REFERENCE_TYPES` for the corresponding `type[]` objects."""
-
-    KNOWN_MODEL_REFERENCE_TYPES = (
-        type[Generic_ModelReference[Generic_ModelRecord]]
-        | type[ImageGeneration_ModelReference]
-        | type[CLIP_ModelReference]
-        | type[ControlNet_ModelReference]
-    )
-    """A type alias for any known model reference (python) type. Note the use of `type[]` to indicate a `type` \
-        object."""
 
 MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, KNOWN_MODEL_REFERENCE_TYPES] = {
     MODEL_REFERENCE_CATEGORY.image_generation: ImageGeneration_ModelReference,

@@ -28,29 +28,16 @@ def test_ensure_KNOWN_MODEL_consistency() -> None:
     assert KNOWN_MODEL_REFERENCE_TYPES
     found_reference_types = []
 
-    if sys.version_info >= (3, 12):
-        for model_reference_instance in KNOWN_MODEL_REFERENCE_INSTANCES.__value__.__args__:
-            assert type[model_reference_instance] in KNOWN_MODEL_REFERENCE_TYPES.__value__.__args__
-            found_reference_types.append(type[model_reference_instance])
+    for model_reference_instance in KNOWN_MODEL_REFERENCE_INSTANCES.__args__:
+        assert type[model_reference_instance] in KNOWN_MODEL_REFERENCE_TYPES.__args__
+        found_reference_types.append(type[model_reference_instance])
 
-        for model_reference_type in KNOWN_MODEL_REFERENCE_TYPES.__value__.__args__:
-            assert model_reference_type in found_reference_types
+    for model_reference_type in KNOWN_MODEL_REFERENCE_TYPES.__args__:
+        assert model_reference_type in found_reference_types
 
-        assert set(KNOWN_MODEL_REFERENCE_INSTANCES.__value__.__args__) == set(
-            MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP.values(),
-        ), "Found reference types do not match unique category lookup types"
-
-    else:
-        for model_reference_instance in KNOWN_MODEL_REFERENCE_INSTANCES.__args__:
-            assert type[model_reference_instance] in KNOWN_MODEL_REFERENCE_TYPES.__args__
-            found_reference_types.append(type[model_reference_instance])
-
-        for model_reference_type in KNOWN_MODEL_REFERENCE_TYPES.__args__:
-            assert model_reference_type in found_reference_types
-
-        assert set(KNOWN_MODEL_REFERENCE_INSTANCES.__args__) == set(
-            MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP.values(),
-        ), "Found reference types do not match unique category lookup types"
+    assert set(KNOWN_MODEL_REFERENCE_INSTANCES.__args__) == set(
+        MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP.values(),
+    ), "Found reference types do not match unique category lookup types"
 
 
 def test_image_generation_model_record() -> None:
