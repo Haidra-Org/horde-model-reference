@@ -111,12 +111,14 @@ class HordeModelReferencePaths:
         self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.image_generation] = "stable_diffusion.json"
 
         for category in MODEL_REFERENCE_CATEGORY:
-            filename = f"{category}.json"
+            filename: str | None = None
             if category not in self.model_reference_filenames:
+                filename = f"{category}.json"
                 self.model_reference_filenames[category] = filename
             else:
+                filename = self.model_reference_filenames[category]
                 logger.debug(
-                    f"Using fixed filename for {category}: {self.model_reference_filenames[category]}",
+                    f"Using fixed filename for {category}: {filename}",
                 )
 
             self.legacy_image_model_github_urls[category] = urlparse(
