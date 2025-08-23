@@ -14,7 +14,10 @@
                 }
             ]
         },
-        "purpose": "image_generation",
+        "model_classification": {
+            "domain": "image",
+            "purpose": "generation"
+        },
         "features_not_supported": null,
         "inpainting": false,
         "baseline": "stable_diffusion_1",
@@ -52,7 +55,10 @@
                 }
             ]
         },
-        "purpose": "image_generation",
+        "model_classification": {
+            "domain": "image",
+            "purpose": "generation"
+        },
         "features_not_supported": null,
         "inpainting": false,
         "baseline": "stable_diffusion_1",

@@ -9,45 +9,41 @@
 
 import glob
 import json
-import typing
 import urllib.parse
+from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 from pydantic import ValidationError
 from typing_extensions import override
 
 from horde_model_reference import (
-    BASE_PATH,
-    DEFAULT_SHOWCASE_FOLDER_NAME,
-    LEGACY_REFERENCE_FOLDER,
-    LOG_FOLDER,
-    MODEL_PURPOSE_LOOKUP,
+    MODEL_CLASSIFICATION_LOOKUP,
     MODEL_REFERENCE_CATEGORY,
+    horde_model_reference_paths,
     path_consts,
 )
 from horde_model_reference.legacy.classes.staging_model_database_records import (
     MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
-    Legacy_StableDiffusion_ModelRecord,
+    Legacy_ImageGeneration_ModelRecord,
     Staging_StableDiffusion_ModelReference,
     StagingLegacy_Config_DownloadRecord,
     StagingLegacy_Config_FileRecord,
     StagingLegacy_Generic_ModelRecord,
 )
-from horde_model_reference.meta_consts import MODEL_PURPOSE
 from horde_model_reference.model_reference_records import (
-    StableDiffusion_ModelRecord,
-)
-from horde_model_reference.path_consts import (
-    GITHUB_REPO_URL,
-    PACKAGE_NAME,
+    ImageGeneration_ModelRecord,
+    StableDiffusion_ModelReference,
 )
 from horde_model_reference.util import model_name_to_showcase_folder_name
 
 
 class BaseLegacyConverter:
     """The logic applicable to all legacy model reference converters.
-    See normalize_and_convert() for the order of operations critical to the conversion process."""
+
+    See normalize_and_convert() for the order of operations critical to the conversion process.
+    """
 
     legacy_folder_path: Path
     """The folder path to the legacy model reference."""
@@ -72,7 +68,7 @@ class BaseLegacyConverter:
     debug_mode: bool = False
     """If true, include extra information in the error log."""
 
-    log_folder: Path = LOG_FOLDER
+    log_folder: Path
     """The folder to write the validation error log to."""
 
     dry_run: bool = False
@@ -81,18 +77,19 @@ class BaseLegacyConverter:
     def __init__(
         self,
         *,
-        legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
-        target_file_folder: str | Path = BASE_PATH,
-        log_folder: str | Path = LOG_FOLDER,
+        legacy_folder_path: str | Path = horde_model_reference_paths.legacy_path,
+        target_file_folder: str | Path = horde_model_reference_paths.base_path,
+        log_folder: str | Path = horde_model_reference_paths.log_folder,
         model_reference_category: MODEL_REFERENCE_CATEGORY,
         debug_mode: bool = False,
         dry_run: bool = False,
-    ):
+    ) -> None:
         """Initialize an instance of the LegacyConverterBase class.
 
         Args:
             legacy_folder_path (str | Path, optional): The legacy database folder. Defaults to LEGACY_REFERENCE_FOLDER.
             target_file_folder (str | Path): The folder to write the converted database to.
+            log_folder (str | Path): The folder to write the log files to.
             model_reference_category (MODEL_REFERENCE_CATEGORY): The category of model reference to convert.
             debug_mode (bool, optional): If true, include extra information in the error log. Defaults to False.
             dry_run (bool, optional): If true, don't write out the converted database or any logs. Defaults to False.
@@ -104,12 +101,12 @@ class BaseLegacyConverter:
         self.model_reference_type = MODEL_REFERENCE_LEGACY_TYPE_LOOKUP[model_reference_category]
 
         self.legacy_folder_path = Path(legacy_folder_path)
-        self.legacy_database_path = path_consts.get_model_reference_file_path(
+        self.legacy_database_path = horde_model_reference_paths.get_model_reference_file_path(
             model_reference_category=model_reference_category,
             base_path=legacy_folder_path,
         )
         self.converted_folder_path = Path(target_file_folder)
-        self.converted_database_file_path = path_consts.get_model_reference_file_path(
+        self.converted_database_file_path = horde_model_reference_paths.get_model_reference_file_path(
             model_reference_category=model_reference_category,
             base_path=target_file_folder,
         )
@@ -120,7 +117,7 @@ class BaseLegacyConverter:
         self.dry_run = dry_run
 
     def normalize_and_convert(self) -> bool:
-        """Normalizes and converts the legacy model reference database to the new format.
+        """Normalize and converts the legacy model reference database to the new format.
 
         Returns:
             bool: `True` if the conversion was successful, False otherwise.
@@ -146,8 +143,8 @@ class BaseLegacyConverter:
     def _iterate_over_input_records(
         self,
         model_record_type: type[StagingLegacy_Generic_ModelRecord],
-    ) -> typing.Iterator[tuple[str, StagingLegacy_Generic_ModelRecord]]:
-        raw_legacy_json_data: dict = {}
+    ) -> Iterator[tuple[str, StagingLegacy_Generic_ModelRecord]]:
+        raw_legacy_json_data: dict[str, Any] = {}
         """Return an iterator over the legacy model reference database.
 
         Yields:
@@ -178,7 +175,7 @@ class BaseLegacyConverter:
     def config_record_pre_parse(
         self,
         model_record_key: str,
-        model_record_contents: dict,
+        model_record_contents: dict[str, Any],
     ) -> list[StagingLegacy_Config_DownloadRecord]:
         """Parse the config record of the legacy model reference. Changes `model_record_contents`.
 
@@ -280,7 +277,7 @@ class BaseLegacyConverter:
     def post_parse_records(self) -> None:
         """Override and call super().post_parse_records() to perform any model category specific post parsing."""
         for model_record in self.all_model_records.values():
-            model_record.purpose = MODEL_PURPOSE_LOOKUP[self.model_reference_category]
+            model_record.purpose = MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category]  # type: ignore
 
     def write_out_records(self) -> None:
         """Write out the parsed records."""
@@ -329,6 +326,8 @@ class BaseLegacyConverter:
 
 
 class LegacyStableDiffusionConverter(BaseLegacyConverter):
+    """A converter for legacy stable diffusion model reference records."""
+
     showcase_glob_pattern: str = "horde_model_reference/showcase/*"
     """The glob pattern used to find all showcase folders. Defaults to `'horde_model_reference/showcase/*'`."""
     # todo: extract to consts
@@ -348,10 +347,10 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
     def __init__(
         self,
         *,
-        legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
-        target_file_folder: str | Path = BASE_PATH,
+        legacy_folder_path: str | Path = horde_model_reference_paths.legacy_path,
+        target_file_folder: str | Path = horde_model_reference_paths.base_path,
         debug_mode: bool = False,
-    ):
+    ) -> None:
         """Initialize an instance of the LegacyStableDiffusionConverter class.
 
         Args:
@@ -362,7 +361,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
-            model_reference_category=path_consts.MODEL_REFERENCE_CATEGORY.stable_diffusion,
+            model_reference_category=MODEL_REFERENCE_CATEGORY.image_generation,
             debug_mode=debug_mode,
         )
         self.all_baseline_categories = {}
@@ -381,7 +380,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         model_record_key: str,
         model_record_in_progress: StagingLegacy_Generic_ModelRecord,
     ) -> None:
-        if not isinstance(model_record_in_progress, Legacy_StableDiffusion_ModelRecord):
+        if not isinstance(model_record_in_progress, Legacy_ImageGeneration_ModelRecord):
             raise TypeError(f"Expected {model_record_key} to be a Stable Diffusion record.")
         if model_record_in_progress.style is not None:
             self.all_styles[model_record_in_progress.style] = (
@@ -427,18 +426,19 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
                 )
                 self.add_validation_error_to_log(model_record_key=model_record_key, error=error)
 
-            model_record_in_progress.showcases = []
-            for file in self.existing_showcase_files[expected_showcase_foldername]:
-                url_friendly_name = urllib.parse.quote(Path(file).name)
-                # if not any(url_friendly_name in showcase for showcase in new_record.showcases):
-                #     logger.debug(f"{model_record_key} is missing a showcase for {url_friendly_name}.")
-                #     logger.debug(f"{new_record.showcases=}")
-                #     continue
-                expected_github_location = urllib.parse.urljoin(
-                    GITHUB_REPO_URL,
-                    f"{PACKAGE_NAME}/{DEFAULT_SHOWCASE_FOLDER_NAME}/{expected_showcase_foldername}/{url_friendly_name}",
-                )
-                model_record_in_progress.showcases.append(expected_github_location)
+            # model_record_in_progress.showcases = []
+            # for file in self.existing_showcase_files[expected_showcase_foldername]:
+            #     url_friendly_name = urllib.parse.quote(Path(file).name)
+            #     # if not any(url_friendly_name in showcase for showcase in new_record.showcases):
+            #     #     logger.debug(f"{model_record_key} is missing a showcase for {url_friendly_name}.")
+            #     #     logger.debug(f"{new_record.showcases=}")
+            #     #     continue
+            #     expected_github_location = urllib.parse.urljoin(
+            #         GITHUB_REPO_URL,
+            #         f"{PACKAGE_NAME}/{DEFAULT_SHOWCASE_FOLDER_NAME}"
+            #         f"/{expected_showcase_foldername}/{url_friendly_name}",
+            #     )
+            #     model_record_in_progress.showcases.append(expected_github_location)
         #
         # Increment tag counter
         #
@@ -502,10 +502,10 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
 
     @override
     def write_out_records(self) -> None:
-        sanity_check: dict[str, Legacy_StableDiffusion_ModelRecord] = {
+        sanity_check: dict[str, Legacy_ImageGeneration_ModelRecord] = {
             key: value
             for key, value in self.all_model_records.items()
-            if isinstance(value, Legacy_StableDiffusion_ModelRecord)
+            if isinstance(value, Legacy_ImageGeneration_ModelRecord)
         }
         if len(sanity_check) != len(self.all_model_records):
             raise ValueError("CRITICAL: Not all records are of the correct type.")
@@ -518,7 +518,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             models=sanity_check,
         )
 
-        models_in_doc_root = {
+        {
             k: v.model_dump(
                 exclude_none=True,
                 exclude_unset=True,
@@ -527,13 +527,19 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             for k, v in self.all_model_records.items()
         }
 
+        final_converted_model_records = {}
+
         try:
             # If this fails, we have a problem. By definition, the model reference should be converted by this point
             # and ready to be cast to the new model reference type.
             for model_entry in sanity_check.values():
-                model_entry_as_dict = model_entry.model_dump(by_alias=True)
-                model_entry_as_dict["purpose"] = MODEL_PURPOSE.image_generation
-                StableDiffusion_ModelRecord(**model_entry_as_dict)
+                model_entry_as_dict = model_entry.model_dump(
+                    by_alias=True,
+                    exclude_defaults=True,
+                    exclude_none=True,
+                    exclude_unset=True,
+                )
+                final_converted_model_records[model_entry.name] = ImageGeneration_ModelRecord(**model_entry_as_dict)
         except ValidationError as e:
             logger.exception(e)
             logger.exception("CRITICAL: Failed to convert to new model reference type.")
@@ -542,11 +548,17 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         if self.dry_run:
             return
 
-        with open(self.converted_database_file_path, "w") as testfile:
-            testfile.write(
-                json.dumps(
-                    models_in_doc_root,
+        final_converted_model_reference = StableDiffusion_ModelReference(
+            root=final_converted_model_records,
+        )
+
+        with open(self.converted_database_file_path, "w") as converted_target_file:
+            converted_target_file.write(
+                final_converted_model_reference.model_dump_json(
                     indent=4,
+                    exclude_none=True,
+                    exclude_unset=True,
+                    exclude_defaults=True,
                 )
                 + "\n",
             )
@@ -574,11 +586,10 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
 
         return existing_showcase_files
 
-    def convert_legacy_baseline(self, baseline: str):
-        """Returns the new standardized baseline name for the given legacy baseline name."""
+    def convert_legacy_baseline(self, baseline: str) -> str:
+        """Return the new standardized baseline name for the given legacy baseline name."""
         if baseline == "stable diffusion 1":
             baseline = "stable_diffusion_1"
-            # new_record.baseline_trained_resolution = 256
         elif baseline == "stable diffusion 2":
             baseline = "stable_diffusion_2_768"
         elif baseline == "stable diffusion 2 512":
@@ -595,7 +606,6 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         Args:
             showcase_foldername (str): The name of the showcase folder to create.
         """
-
         if showcase_foldername not in self.existing_showcase_files:
             self.existing_showcase_files[showcase_foldername] = []
 
@@ -685,13 +695,24 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
 
 
 class LegacyClipConverter(BaseLegacyConverter):
+    """A converter for legacy CLIP model reference records."""
+
     def __init__(
         self,
         *,
-        legacy_folder_path: str | Path = LEGACY_REFERENCE_FOLDER,
-        target_file_folder: str | Path = BASE_PATH,
+        legacy_folder_path: str | Path = horde_model_reference_paths.legacy_path,
+        target_file_folder: str | Path = horde_model_reference_paths.base_path,
         debug_mode: bool = False,
-    ):
+    ) -> None:
+        """Initialize the legacy CLIP converter.
+
+        Args:
+            legacy_folder_path (str | Path, optional): The path to the legacy folder.
+                Defaults to horde_model_reference_paths.legacy_path.
+            target_file_folder (str | Path, optional): The path to the target file folder.
+                Defaults to horde_model_reference_paths.base_path.
+            debug_mode (bool, optional): Whether to enable debug mode. Defaults to False.
+        """
         super().__init__(
             legacy_folder_path=legacy_folder_path,
             target_file_folder=target_file_folder,
@@ -703,7 +724,7 @@ class LegacyClipConverter(BaseLegacyConverter):
     def config_record_pre_parse(
         self,
         model_record_key: str,
-        model_record_contents: dict,
+        model_record_contents: dict[str, Any],
     ) -> list[StagingLegacy_Config_DownloadRecord]:
         new_record_config_download_list: list[StagingLegacy_Config_DownloadRecord] = []
         if len(model_record_contents["config"]) > 2:

@@ -10,25 +10,20 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from loguru import logger
 from pydantic import BaseModel, ConfigDict, model_validator
 
-from horde_model_reference.model_reference_records import MODEL_PURPOSE
-from horde_model_reference.path_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
 class StagingLegacy_Config_FileRecord(BaseModel):
     """An entry in the `config` field of a `StagingLegacy_Generic_ModelRecord`."""
 
-    # class Config:
-    #     extra = "forbid"
-
     path: str
-    # md5sum: str | None
     sha256sum: str | None = None
 
     @model_validator(mode="after")
-    def validate_model_file_has_sha256sum(self):
+    def validate_model_file_has_sha256sum(self) -> StagingLegacy_Config_FileRecord:
+        """Validate that a model file has a sha256sum, unless it's a yaml or json file."""
         if ".yaml" in self.path or ".json" in self.path:
             return self
 
@@ -66,16 +61,7 @@ class StagingLegacy_Generic_ModelRecord(BaseModel):
     config: dict[str, list[StagingLegacy_Config_FileRecord | StagingLegacy_Config_DownloadRecord]]
     available: bool | None = None
 
-    purpose: MODEL_PURPOSE | str | None = None
     features_not_supported: list[str] | None = None
-
-    @model_validator(mode="after")
-    def validator_known_purpose(self) -> StagingLegacy_Generic_ModelRecord:
-        """Check if the purpose is known."""
-        if self.purpose is not None and str(self.purpose) not in MODEL_PURPOSE.__members__:
-            logger.warning(f"Unknown purpose {self.purpose} for model {self.name}")
-
-        return self
 
 
 class Legacy_CLIP_ModelRecord(StagingLegacy_Generic_ModelRecord):
@@ -84,7 +70,7 @@ class Legacy_CLIP_ModelRecord(StagingLegacy_Generic_ModelRecord):
     pretrained_name: str | None = None
 
 
-class Legacy_StableDiffusion_ModelRecord(StagingLegacy_Generic_ModelRecord):
+class Legacy_ImageGeneration_ModelRecord(StagingLegacy_Generic_ModelRecord):
     """A model entry in the legacy model reference."""
 
     inpainting: bool
@@ -114,7 +100,7 @@ class Staging_StableDiffusion_ModelReference(Legacy_Generic_ModelReference):
     styles: dict[str, int]
     tags: dict[str, int]
     download_hosts: dict[str, int]
-    models: Mapping[str, Legacy_StableDiffusion_ModelRecord]
+    models: Mapping[str, Legacy_ImageGeneration_ModelRecord]
 
 
 MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[StagingLegacy_Generic_ModelRecord]] = {
@@ -125,6 +111,6 @@ MODEL_REFERENCE_LEGACY_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[StagingL
     MODEL_REFERENCE_CATEGORY.esrgan: StagingLegacy_Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORY.gfpgan: StagingLegacy_Generic_ModelRecord,
     MODEL_REFERENCE_CATEGORY.safety_checker: StagingLegacy_Generic_ModelRecord,
-    MODEL_REFERENCE_CATEGORY.stable_diffusion: Legacy_StableDiffusion_ModelRecord,
+    MODEL_REFERENCE_CATEGORY.image_generation: Legacy_ImageGeneration_ModelRecord,
     MODEL_REFERENCE_CATEGORY.miscellaneous: StagingLegacy_Generic_ModelRecord,
 }

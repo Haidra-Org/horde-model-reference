@@ -1,269 +1,169 @@
+from __future__ import annotations
+
 import json
 from pathlib import Path
+from threading import RLock
+from typing import Any
+
+from loguru import logger
 
 import horde_model_reference.path_consts as path_consts
-from horde_model_reference.legacy.convert_all_legacy_dbs import convert_all_legacy_model_references
-from horde_model_reference.legacy.download_live_legacy_dbs import LegacyReferenceDownloadManager
+from horde_model_reference import horde_model_reference_paths
+from horde_model_reference.legacy import LegacyReferenceDownloadManager
+from horde_model_reference.meta_consts import MODEL_CLASSIFICATION_LOOKUP, MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import (
-    MODEL_REFERENCE_TYPE_LOOKUP,
-    CLIP_ModelReference,
-    ControlNet_ModelReference,
-    Generic_ModelReference,
-    StableDiffusion_ModelReference,
+    KNOWN_MODEL_REFERENCE_INSTANCES,
+    MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP,
 )
-from horde_model_reference.path_consts import MODEL_REFERENCE_CATEGORY
 
 
 class ModelReferenceManager:
     """Class for downloading and reading model reference files."""
 
-    _legacy_reference_download_manager: LegacyReferenceDownloadManager
-    _cached_new_references: dict[MODEL_REFERENCE_CATEGORY, Generic_ModelReference | None] = {}
+    legacy_reference_download_manager: LegacyReferenceDownloadManager
+    _cached_file_json: dict[MODEL_REFERENCE_CATEGORY, dict[Any, Any] | None]
 
-    def __init__(
+    _instance: ModelReferenceManager | None = None
+    _lazy_mode: bool = True
+
+    _lock: RLock = RLock()
+
+    def __new__(
+        cls,
+        *,
+        override_existing: bool = False,
+        lazy_mode: bool = True,
+        base_path: str | Path = horde_model_reference_paths.base_path,
+        proxy_url: str = path_consts.HORDE_PROXY_URL_BASE,
+    ) -> ModelReferenceManager:
+        """Create a new instance of ModelReferenceManager.
+
+        Use the singleton pattern to ensure only one instance exists to avoid multiple downloads and conversions.
+        """
+        with cls._lock:
+            if not cls._instance:
+                cls._instance = super().__new__(cls)
+
+                cls._instance._cached_file_json = {}
+                cls._instance.legacy_reference_download_manager = LegacyReferenceDownloadManager(
+                    base_path=base_path,
+                    proxy_url=proxy_url,
+                )
+                cls._instance._lazy_mode = lazy_mode
+                if not lazy_mode:
+                    cls._instance.download_and_convert_legacy_references(override_existing=override_existing)
+
+                if lazy_mode and override_existing:
+                    raise ValueError("Cannot use lazy_mode with override_existing=True.")
+
+        return cls._instance
+
+    def download_and_convert_legacy_references(
         self,
-        download_and_convert_legacy_dbs: bool = True,
-        override_existing: bool = True,
-    ) -> None:
-        """
-        Initialize a new ModelReferenceManager instance.
+        override_existing: bool = False,
+    ) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
+        """Download and convert all legacy model reference files.
 
         Args:
-            download_and_convert_legacy_dbs: Whether to download and convert legacy model references.
-            override_existing: Whether to override existing model reference files.
-        """
-        self._legacy_reference_download_manager = LegacyReferenceDownloadManager()
-        if download_and_convert_legacy_dbs:
-            self.download_and_convert_all_legacy_dbs(override_existing)
+            override_existing (bool, optional): Whether to override existing model reference files. Defaults to False.
 
-    def download_and_convert_all_legacy_dbs(self, override_existing: bool = True) -> bool:
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, Path | None]: A mapping of model reference categories to file paths.
         """
-        Download and convert all legacy model reference files.
-
-        Args:
-            override_existing: Whether to override existing model reference files.
-        """
-        self._legacy_reference_download_manager.download_all_legacy_model_references(
+        return self.legacy_reference_download_manager.download_all_legacy_model_references(
             overwrite_existing=override_existing,
         )
-        return convert_all_legacy_model_references()
 
-    @property
-    def all_legacy_model_reference_file_paths(self) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
-        """
-        Get all legacy model reference files.
-
-        Returns:
-            A dictionary mapping model reference categories to file paths.
-        """
-        return self.get_all_legacy_model_reference_file_paths(redownload_all=False)
-
-    def get_all_legacy_model_reference_file_paths(
+    def file_json_to_model_reference(
         self,
-        redownload_all: bool = False,
-    ) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
-        """
-        Get all legacy model reference files.
+        category: MODEL_REFERENCE_CATEGORY,
+        file_json: dict[str, Any] | None,
+    ) -> KNOWN_MODEL_REFERENCE_INSTANCES | None:
+        """Convert a file JSON object to a model reference.
 
         Args:
-            redownload_all: Whether to redownload all legacy model reference files.
+            category (MODEL_REFERENCE_CATEGORY): The category of the model reference.
+            file_json (dict): The JSON object representing the model reference.
 
         Returns:
-            A dictionary mapping model reference categories to file paths.
+            KNOWN_MODEL_REFERENCE_INSTANCES | None: The model reference object, or None if conversion failed.
         """
-        return self._legacy_reference_download_manager.get_all_legacy_model_references(
-            redownload_all=redownload_all,
-        )
+        if file_json is None:
+            logger.warning(f"File JSON is None for {category}.")
+            return None
 
-    @property
-    def all_model_references(self) -> dict[MODEL_REFERENCE_CATEGORY, Generic_ModelReference | None]:
-        """
-        Get all model reference files.
+        try:
+            for model_value in file_json.values():
+                if "model_classification" not in model_value:
+                    model_value["model_classification"] = MODEL_CLASSIFICATION_LOOKUP[category]
+
+            return MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP[category].model_validate(file_json)
+        except Exception as e:
+            logger.exception(f"Failed to convert file JSON to model reference for {category}: {e}")
+            return None
+
+    def _get_all_cached_model_references(
+        self,
+    ) -> dict[MODEL_REFERENCE_CATEGORY, KNOWN_MODEL_REFERENCE_INSTANCES | None]:
+        """Get all cached model references.
 
         Returns:
-            A dictionary mapping model reference categories to file paths. Values of None indicate that the file does
-            not exist (failed to download or convert).
+            dict[MODEL_REFERENCE_CATEGORY, KNOWN_MODEL_REFERENCE_INSTANCES | None]: A mapping of model reference
+                categories to their corresponding model reference objects.
         """
-        return self.get_all_model_references(redownload_all=False)
+        return_dict = {}
+        with self._lock:
+            for category, file_json in self._cached_file_json.items():
+                model_reference = self.file_json_to_model_reference(category, file_json)
+                return_dict[category] = model_reference
+
+        logger.debug(f"Returning {len(return_dict)} cached model references.")
+        return return_dict
 
     def get_all_model_references(
         self,
-        redownload_all: bool = False,
-    ) -> dict[MODEL_REFERENCE_CATEGORY, Generic_ModelReference | None]:
-        """
-        Get all model reference files.
+        override_existing: bool = False,
+    ) -> dict[MODEL_REFERENCE_CATEGORY, KNOWN_MODEL_REFERENCE_INSTANCES | None]:
+        """Get a mapping of model reference categories labels and the corresponding model reference objects.
 
         Args:
-            redownload_all: Whether to redownload all legacy model reference files.
+            override_existing (bool, optional): Whether to force a redownload of all model reference files.
+                Defaults to False.
 
         Returns:
-            A dictionary mapping model reference categories to file paths. Values of None indicate that the file does
-            not exist (failed to download or convert).
+            dict[MODEL_REFERENCE_CATEGORY, KNOWN_MODEL_REFERENCE_INSTANCES | None]: A mapping of model reference
+                categories to their corresponding model reference objects.
         """
+        with self._lock:
+            if not override_existing and self._cached_file_json:
+                logger.debug("Using cached model references.")
+                return self._get_all_cached_model_references()
 
-        if not redownload_all and self._cached_new_references:
-            return self._cached_new_references
+            self.download_and_convert_legacy_references(override_existing=override_existing)
 
-        if redownload_all:
-            self.download_and_convert_all_legacy_dbs()
+            all_files: dict[MODEL_REFERENCE_CATEGORY, Path | None] = (
+                horde_model_reference_paths.get_all_model_reference_file_paths()
+            )
 
-        all_files: dict[MODEL_REFERENCE_CATEGORY, Path | None] = path_consts.get_all_model_reference_file_paths()
+            for category, file_path in all_files.items():
+                if file_path is None:
+                    self._cached_file_json[category] = None
+                    continue
 
-        self._cached_new_references: dict[MODEL_REFERENCE_CATEGORY, Generic_ModelReference | None] = {}
+                if not file_path.exists():
+                    logger.warning(
+                        f"Model reference file for {category} does not exist at {file_path}.",
+                    )
+                    self._cached_file_json[category] = None
+                    continue
 
-        for category, file_path in all_files.items():
-            if file_path is None:
-                self._cached_new_references[category] = None
-            else:
                 with open(file_path) as f:
                     file_contents = f.read()
-                file_json: dict = json.loads(file_contents)
+                try:
+                    file_json = json.loads(file_contents)
+                    self._cached_file_json[category] = file_json
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse JSON for {category} from {file_path}: {e}")
+                    self._cached_file_json[category] = None
 
-                parsed_model = MODEL_REFERENCE_TYPE_LOOKUP[category].model_validate(file_json)
-
-                self._cached_new_references[category] = parsed_model
-
-        return_dict: dict[MODEL_REFERENCE_CATEGORY, Generic_ModelReference | None] = {}
-        for reference_type, reference in self._cached_new_references.items():
-            if reference is None:
-                return_dict[reference_type] = None
-                continue
-            return_dict[reference_type] = reference.model_copy(deep=True)
-
-        return return_dict
-
-    @property
-    def blip(self) -> Generic_ModelReference:
-        """
-        Get the BLIP model reference.
-
-        Returns:
-            The BLIP model reference.
-        """
-        blip = self.all_model_references[MODEL_REFERENCE_CATEGORY.blip]
-        if blip is None:
-            raise ValueError("BLIP model reference not found.")
-
-        return blip
-
-    @property
-    def clip(self) -> CLIP_ModelReference:
-        """
-        Get the CLIP model reference.
-
-        Returns:
-            The CLIP model reference.
-        """
-        clip = self.all_model_references[MODEL_REFERENCE_CATEGORY.clip]
-        if clip is None:
-            raise ValueError("CLIP model reference not found.")
-
-        if not isinstance(clip, CLIP_ModelReference):
-            raise TypeError("CLIP model reference is not of the correct type.")
-
-        return clip
-
-    @property
-    def codeformer(self) -> Generic_ModelReference:
-        """
-        Get the codeformer model reference.
-
-        Returns:
-            The codeformer model reference.
-        """
-        codeformer = self.all_model_references[MODEL_REFERENCE_CATEGORY.codeformer]
-        if codeformer is None:
-            raise ValueError("Codeformer model reference not found.")
-
-        return codeformer
-
-    @property
-    def controlnet(self) -> ControlNet_ModelReference:
-        """
-        Get the controlnet model reference.
-
-        Returns:
-            The controlnet model reference.
-        """
-        controlnet = self.all_model_references[MODEL_REFERENCE_CATEGORY.controlnet]
-        if controlnet is None:
-            raise ValueError("ControlNet model reference not found.")
-
-        if not isinstance(controlnet, ControlNet_ModelReference):
-            raise TypeError("ControlNet model reference is not of the correct type.")
-
-        return controlnet
-
-    @property
-    def esrgan(self) -> Generic_ModelReference:
-        """
-        Get the ESRGAN model reference.
-
-        Returns:
-            The ESRGAN model reference.
-        """
-        esrgan = self.all_model_references[MODEL_REFERENCE_CATEGORY.esrgan]
-        if esrgan is None:
-            raise ValueError("ESRGAN model reference not found.")
-
-        return esrgan
-
-    @property
-    def gfpgan(self) -> Generic_ModelReference:
-        """
-        Get the GfPGAN model reference.
-
-        Returns:
-            The GfPGAN model reference.
-        """
-        gfpgan = self.all_model_references[MODEL_REFERENCE_CATEGORY.gfpgan]
-        if gfpgan is None:
-            raise ValueError("GfPGAN model reference not found.")
-
-        return gfpgan
-
-    @property
-    def safety_checker(self) -> Generic_ModelReference:
-        """
-        Get the safety checker model reference.
-
-        Returns:
-            The safety checker model reference.
-        """
-        safety_checker = self.all_model_references[MODEL_REFERENCE_CATEGORY.safety_checker]
-        if safety_checker is None:
-            raise ValueError("Safety checker model reference not found.")
-
-        return safety_checker
-
-    @property
-    def stable_diffusion(self) -> StableDiffusion_ModelReference:
-        """
-        Get the stable diffusion model reference.
-
-        Returns:
-            The stable diffusion model reference.
-        """
-        stable_diffusion = self.all_model_references[MODEL_REFERENCE_CATEGORY.stable_diffusion]
-
-        if stable_diffusion is None:
-            raise ValueError("Stable diffusion model reference not found.")
-
-        if not isinstance(stable_diffusion, StableDiffusion_ModelReference):
-            raise TypeError("Stable diffusion model reference is not of the correct type.")
-
-        return stable_diffusion
-
-    @property
-    def miscellaneous(self) -> Generic_ModelReference:
-        """
-        Get the miscellaneous model reference.
-
-        Returns:
-            The miscellaneous model reference.
-        """
-        miscellaneous = self.all_model_references[MODEL_REFERENCE_CATEGORY.miscellaneous]
-        if miscellaneous is None:
-            raise ValueError("Miscellaneous model reference not found.")
-
-        return miscellaneous
+            return self._get_all_cached_model_references()

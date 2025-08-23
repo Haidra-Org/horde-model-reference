@@ -12,7 +12,7 @@
             "type": "string"
         },
         "RawLegacy_DownloadRecord": {
-            "description": "An entry in the `config` field of a `RawLegacy_StableDiffusion_ModelRecord`.",
+            "description": "An entry in the `config` field of a `RawLegacy_ImageGeneration_ModelRecord`.",
             "properties": {
                 "file_name": {
                     "title": "File Name",
@@ -48,7 +48,7 @@
             "type": "object"
         },
         "RawLegacy_FileRecord": {
-            "description": "An entry in the `config` field of a `RawLegacy_StableDiffusion_ModelRecord`.",
+            "description": "An entry in the `config` field of a `RawLegacy_ImageGeneration_ModelRecord`.",
             "properties": {
                 "path": {
                     "title": "Path",
@@ -97,7 +97,7 @@
             "title": "RawLegacy_FileRecord",
             "type": "object"
         },
-        "RawLegacy_StableDiffusion_ModelRecord": {
+        "RawLegacy_ImageGeneration_ModelRecord": {
             "additionalProperties": true,
             "description": "A model entry in the legacy model reference.",
             "properties": {
@@ -347,13 +347,14 @@
                 "download_all",
                 "config"
             ],
-            "title": "RawLegacy_StableDiffusion_ModelRecord",
+            "title": "RawLegacy_ImageGeneration_ModelRecord",
             "type": "object"
         }
     },
     "additionalProperties": {
-        "$ref": "#/$defs/RawLegacy_StableDiffusion_ModelRecord"
+        "$ref": "#/$defs/RawLegacy_ImageGeneration_ModelRecord"
     },
+    "description": "A legacy stable diffusion model reference file.",
     "title": "RawLegacy_StableDiffusion_ModelReference",
     "type": "object"
 }

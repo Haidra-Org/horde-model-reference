@@ -48,48 +48,7 @@
             "title": "DownloadRecord",
             "type": "object"
         },
-        "KNOWN_IMAGE_GENERATION_BASELINE": {
-            "description": "An enum of all the image generation baselines.",
-            "enum": [
-                "infer",
-                "stable_diffusion_1",
-                "stable_diffusion_2_768",
-                "stable_diffusion_2_512",
-                "stable_diffusion_xl",
-                "stable_cascade",
-                "flux_1",
-                "flux_schnell",
-                "flux_dev"
-            ],
-            "title": "KNOWN_IMAGE_GENERATION_BASELINE",
-            "type": "string"
-        },
-        "MODEL_PURPOSE": {
-            "enum": [
-                "image_generation",
-                "controlnet",
-                "clip",
-                "blip",
-                "post_processor",
-                "miscellaneous"
-            ],
-            "title": "MODEL_PURPOSE",
-            "type": "string"
-        },
-        "MODEL_STYLE": {
-            "description": "An enum of all the model styles.",
-            "enum": [
-                "generalist",
-                "anime",
-                "furry",
-                "artistic",
-                "other",
-                "realistic"
-            ],
-            "title": "MODEL_STYLE",
-            "type": "string"
-        },
-        "StableDiffusion_ModelRecord": {
+        "ImageGeneration_ModelRecord": {
             "description": "A model entry in the model reference.",
             "properties": {
                 "name": {
@@ -130,16 +89,8 @@
                     "title": "Config",
                     "type": "object"
                 },
-                "purpose": {
-                    "anyOf": [
-                        {
-                            "$ref": "#/$defs/MODEL_PURPOSE"
-                        },
-                        {
-                            "type": "string"
-                        }
-                    ],
-                    "title": "Purpose"
+                "model_classification": {
+                    "$ref": "#/$defs/ModelClassification"
                 },
                 "features_not_supported": {
                     "anyOf": [
@@ -341,18 +292,104 @@
             "required": [
                 "name",
                 "config",
-                "purpose",
                 "baseline",
                 "nsfw"
             ],
-            "title": "StableDiffusion_ModelRecord",
+            "title": "ImageGeneration_ModelRecord",
+            "type": "object"
+        },
+        "KNOWN_IMAGE_GENERATION_BASELINE": {
+            "description": "An enum of all the image generation baselines.",
+            "enum": [
+                "infer",
+                "stable_diffusion_1",
+                "stable_diffusion_2_768",
+                "stable_diffusion_2_512",
+                "stable_diffusion_xl",
+                "stable_cascade",
+                "flux_1",
+                "flux_schnell",
+                "flux_dev"
+            ],
+            "title": "KNOWN_IMAGE_GENERATION_BASELINE",
+            "type": "string"
+        },
+        "MODEL_DOMAIN": {
+            "description": "The domain of a model, i.e., what it pertains to (image, text, video, etc.).",
+            "enum": [
+                "image",
+                "text",
+                "video",
+                "audio",
+                "rendered_3d"
+            ],
+            "title": "MODEL_DOMAIN",
+            "type": "string"
+        },
+        "MODEL_PURPOSE": {
+            "description": "The primary purpose of a model, for example, image generation or feature extraction.",
+            "enum": [
+                "generation",
+                "post_processing",
+                "auxiliary_or_patch",
+                "feature_extractor",
+                "safety_checker",
+                "miscellaneous"
+            ],
+            "title": "MODEL_PURPOSE",
+            "type": "string"
+        },
+        "MODEL_STYLE": {
+            "description": "An enum of all the model styles.",
+            "enum": [
+                "generalist",
+                "anime",
+                "furry",
+                "artistic",
+                "other",
+                "realistic"
+            ],
+            "title": "MODEL_STYLE",
+            "type": "string"
+        },
+        "ModelClassification": {
+            "description": "Contains specific information about how to categorize a model.\n\nThis includes the model's `MODEL_DOMAIN` and `MODEL_PURPOSE`.",
+            "properties": {
+                "domain": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/MODEL_DOMAIN"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "title": "Domain"
+                },
+                "purpose": {
+                    "anyOf": [
+                        {
+                            "$ref": "#/$defs/MODEL_PURPOSE"
+                        },
+                        {
+                            "type": "string"
+                        }
+                    ],
+                    "title": "Purpose"
+                }
+            },
+            "required": [
+                "domain",
+                "purpose"
+            ],
+            "title": "ModelClassification",
             "type": "object"
         }
     },
     "additionalProperties": {
-        "$ref": "#/$defs/StableDiffusion_ModelRecord"
+        "$ref": "#/$defs/ImageGeneration_ModelRecord"
     },
     "description": "The combined metadata and model list.",
-    "title": "StableDiffusion_ModelReference",
+    "title": "ImageGeneration_ModelReference",
     "type": "object"
 }

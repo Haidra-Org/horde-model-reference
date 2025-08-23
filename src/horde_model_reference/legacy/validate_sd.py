@@ -5,7 +5,7 @@ from pathlib import Path
 from loguru import logger
 
 from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
-    RawLegacy_StableDiffusion_ModelRecord,
+    RawLegacy_ImageGeneration_ModelRecord,
 )
 
 
@@ -14,6 +14,19 @@ def validate_legacy_stable_diffusion_db(
     write_to_path: Path | None = None,
     fail_on_extra: bool = False,
 ) -> bool:
+    """Validate the ('legacy') stable diffusion model database.
+
+    Args:
+        sd_db (Path): Path to the stable diffusion model database (should be a .json file)
+        write_to_path (Path | None, optional): Path to write the corrected database to. Defaults to None.
+        fail_on_extra (bool, optional): Whether to fail validation if extra fields are found. Defaults to False.
+
+    Raises:
+        ValueError: If the validation fails.
+
+    Returns:
+        bool: True if the validation passes, False otherwise.
+    """
     raw_json_sd_db: str
     with open(sd_db) as sd_db_file:
         raw_json_sd_db = sd_db_file.read()
@@ -27,8 +40,8 @@ def validate_legacy_stable_diffusion_db(
         else:
             return False
 
-    parsed_db_records: dict[str, RawLegacy_StableDiffusion_ModelRecord] = {
-        k: RawLegacy_StableDiffusion_ModelRecord.model_validate(v) for k, v in loaded_json_sd_db.items()
+    parsed_db_records: dict[str, RawLegacy_ImageGeneration_ModelRecord] = {
+        k: RawLegacy_ImageGeneration_ModelRecord.model_validate(v) for k, v in loaded_json_sd_db.items()
     }
 
     # # Write out a list of keys formatted as a python list
@@ -86,6 +99,7 @@ def validate_legacy_stable_diffusion_db(
 
 
 def main() -> None:
+    """Validate the ('legacy') stable diffusion model database."""
     argParser = argparse.ArgumentParser()
     argParser.description = "Validate the ('legacy') stable diffusion model database."
     argParser.add_argument(

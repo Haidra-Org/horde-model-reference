@@ -10,6 +10,16 @@ def download_all_models(
     override_existing: bool = False,
     proxy_url: str = HORDE_PROXY_URL_BASE,
 ) -> dict[MODEL_REFERENCE_CATEGORY, pathlib.Path | None]:
+    """Download all models from the specified proxy URL.
+
+    Args:
+        override_existing (bool, optional): Whether to override existing files. Defaults to False.
+        proxy_url (str, optional): The proxy URL to use for downloading models. Defaults to HORDE_PROXY_URL_BASE.
+
+    Returns:
+        dict[MODEL_REFERENCE_CATEGORY, pathlib.Path | None]: A dictionary mapping model reference categories to their
+            downloaded file paths.
+    """
     reference_dm = LegacyReferenceDownloadManager(proxy_url=proxy_url)
     warnings.warn(
         "download_all_models() is deprecated, use the class `LegacyReferenceDownloadManager` instead.",
@@ -19,7 +29,8 @@ def download_all_models(
     return reference_dm.download_all_legacy_model_references(overwrite_existing=override_existing)
 
 
-def main():
+def main() -> None:
+    """Download all legacy model reference files and print their paths."""
     reference_download_manager = LegacyReferenceDownloadManager()
     references_and_paths = reference_download_manager.download_all_legacy_model_references(overwrite_existing=True)
 

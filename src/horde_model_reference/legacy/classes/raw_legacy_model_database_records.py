@@ -10,7 +10,7 @@ from strenum import StrEnum
 
 
 class RawLegacy_DownloadRecord(BaseModel):
-    """An entry in the `config` field of a `RawLegacy_StableDiffusion_ModelRecord`."""
+    """An entry in the `config` field of a `RawLegacy_ImageGeneration_ModelRecord`."""
 
     file_name: str
     file_path: str
@@ -19,7 +19,7 @@ class RawLegacy_DownloadRecord(BaseModel):
 
 
 class RawLegacy_FileRecord(BaseModel):
-    """An entry in the `config` field of a `RawLegacy_StableDiffusion_ModelRecord`."""
+    """An entry in the `config` field of a `RawLegacy_ImageGeneration_ModelRecord`."""
 
     path: str
     md5sum: str | None = None
@@ -36,7 +36,7 @@ class FEATURE_SUPPORTED(StrEnum):
     controlnet = auto()
 
 
-class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
+class RawLegacy_ImageGeneration_ModelRecord(BaseModel):
     """A model entry in the legacy model reference."""
 
     # This is a better representation of the legacy model reference than the one in `staging_model_database_records.py`
@@ -66,5 +66,5 @@ class RawLegacy_StableDiffusion_ModelRecord(BaseModel):
     size_on_disk_bytes: int | None = None
 
 
-class RawLegacy_StableDiffusion_ModelReference(RootModel[Mapping[str, RawLegacy_StableDiffusion_ModelRecord]]):
-    pass
+class RawLegacy_StableDiffusion_ModelReference(RootModel[Mapping[str, RawLegacy_ImageGeneration_ModelRecord]]):
+    """A legacy stable diffusion model reference file."""
