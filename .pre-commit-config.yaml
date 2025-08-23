@@ -17,7 +17,7 @@ repos:
     rev: 'v1.17.1'
     hooks:
     -   id: mypy
-        additional_dependencies: [pydantic, pydantic-settings, types-requests, types-pytz, types-setuptools, types-urllib3, types-cachetools, StrEnum]
+        additional_dependencies: [pydantic, pydantic-settings, pytest, types-requests, types-pytz, types-setuptools, types-urllib3, types-cachetools, StrEnum]
 ci:
     autofix_commit_msg: |
         [pre-commit.ci] auto fixes from pre-commit.com hooks
