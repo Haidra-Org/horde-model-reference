@@ -18,7 +18,7 @@ def test_manager_legacy(model_reference_manager: ModelReferenceManager, caplog: 
     legacy_references = model_reference_manager.legacy_reference_download_manager.get_all_legacy_model_references(
         redownload_all=True,
     )
-    assert "cache" not in caplog.records[-1].message
+    assert "cached" not in caplog.records[-1].message
     assert len(legacy_references) > 0
     assert all(ref_cat in legacy_references for ref_cat in MODEL_REFERENCE_CATEGORY)
 
@@ -28,7 +28,7 @@ def test_manager_legacy(model_reference_manager: ModelReferenceManager, caplog: 
     )
 
     legacy_references = model_reference_manager.legacy_reference_download_manager.get_all_legacy_model_references()
-    assert "cache" in caplog.records[-1].message
+    assert "cached" in caplog.records[-1].message
     assert len(legacy_references) > 0
     assert all(ref_cat in legacy_references for ref_cat in MODEL_REFERENCE_CATEGORY)
 
