@@ -40,7 +40,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Check that no extra fields are present
-        run: uv run pytest -k "test_validate_stable_diffusion_model_reference" # Enabled by HORDELIB_CI_ONGOING
+        run: uv run pytest -k "test_scripts" # Enabled by HORDELIB_CI_ONGOING
 
   build:
     env:
