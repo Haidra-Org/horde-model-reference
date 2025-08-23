@@ -1,7 +1,7 @@
-name: Unstable Tests
+name: horde_model_reference Pull Request Tests
 
 on:
-  pull_request_target:
+  pull_request:
     branches:
       - main
     types:
@@ -9,39 +9,44 @@ on:
       - synchronize
     paths:
       - '**.py'
+      - '**.md'
       - '**.json'
-      - 'tox.ini'
       - '.github/workflows/maintests.yml'
       - '.github/workflows/prtests.yml'
       - '.github/workflows/release.yml'
-      - 'requirements.txt'
-      - 'requirements.dev.txt'
-      - 'requirements.docs.txt'
+      - 'uv.lock'
+      - 'pyproject.toml'
 jobs:
   no_extra_fields:
     env:
       AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
-      HORDELIB_CI_ONGOING: "1"
       TESTS_ONGOING: "1"
+      HORDELIB_CI_ONGOING: "1"
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ["3.10", "3.11"]
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
 
     steps:
       - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
         with:
-          python-version: ${{ matrix.python }}
-      - name: Install any required packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade -r requirements.dev.txt
-      - name: Run no_extra_fields check # Enabled by HORDELIB_CI_ONGOING
-        run: tox -e tests
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Check that no extra fields are present
+        run: uv run pytest -k "test_validate_stable_diffusion_model_reference" # Enabled by HORDELIB_CI_ONGOING
+
   build:
     env:
       AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
@@ -49,21 +54,24 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python: ["3.10", "3.11"]
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
 
     steps:
       - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - name: Setup Python
-        uses: actions/setup-python@v4
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v6
         with:
-          python-version: ${{ matrix.python }}
-      - name: Install tox and any other packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install --upgrade -r requirements.dev.txt
-      - name: Run unit tests
-        run: |
-          tox -e ast-tests
-          tox -e tests
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
+      - name: Run tests
+        run: uv run pytest tests
