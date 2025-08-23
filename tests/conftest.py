@@ -28,14 +28,6 @@ def base_path_for_tests() -> Path:
     return target_path
 
 
-@pytest.fixture(scope="session")
-def legacy_folder_for_tests(base_path_for_tests: Path) -> Path:
-    """Return the legacy folder for tests."""
-    legacy_folder = base_path_for_tests.joinpath(LEGACY_REFERENCE_FOLDER_NAME)
-    legacy_folder.mkdir(parents=True, exist_ok=True)
-    return legacy_folder
-
-
 @pytest.fixture
 def caplog(caplog: LogCaptureFixture) -> Generator[LogCaptureFixture, None, None]:
     """Fixture to capture log messages during tests.

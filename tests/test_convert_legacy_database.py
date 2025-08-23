@@ -18,32 +18,29 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import ImageGeneration_ModelRecord, StableDiffusion_ModelReference
 
 
-def test_convert_legacy_stable_diffusion_database(base_path_for_tests: Path, legacy_folder_for_tests: Path) -> None:
+def test_convert_legacy_stable_diffusion_database(base_path_for_tests: Path) -> None:
     """Test converting the legacy stable diffusion database to the new format."""
     sd_converter = LegacyStableDiffusionConverter(
-        legacy_folder_path=legacy_folder_for_tests,
         target_file_folder=base_path_for_tests,
     )
     assert sd_converter.normalize_and_convert()
 
 
-def test_convert_legacy_clip_database(base_path_for_tests: Path, legacy_folder_for_tests: Path) -> None:
+def test_convert_legacy_clip_database(base_path_for_tests: Path) -> None:
     """Test converting the legacy clip database to the new format."""
     clip_converter = LegacyClipConverter(
-        legacy_folder_path=legacy_folder_for_tests,
         target_file_folder=base_path_for_tests,
     )
     assert clip_converter.normalize_and_convert()
 
 
-def test_all_base_legacy_converters(base_path_for_tests: Path, legacy_folder_for_tests: Path) -> None:
+def test_all_base_legacy_converters(base_path_for_tests: Path) -> None:
     """Test converting all legacy databases using the base converter."""
     generic_references = {
         k: v for k, v in MODEL_REFERENCE_LEGACY_TYPE_LOOKUP.items() if v is StagingLegacy_Generic_ModelRecord
     }
     for reference_category in generic_references:
         base_converter = BaseLegacyConverter(
-            legacy_folder_path=legacy_folder_for_tests,
             target_file_folder=base_path_for_tests,
             model_reference_category=reference_category,
         )
