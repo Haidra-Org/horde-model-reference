@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 import urllib.parse
 from enum import auto
 
@@ -12,8 +13,12 @@ from pydantic import BaseModel, Field, PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from strenum import StrEnum
 
+
 ai_horde_ci_settings: AIHordeCISettings = AIHordeCISettings()
+"""Environment settings for AI Horde CI. See `haidra_core.ai_horde.meta.AIHordeCISettings` for details."""
+
 ai_horde_worker_settings: AIHordeWorkerSettings = AIHordeWorkerSettings()
+"""Environment settings for AI Horde workers. See `haidra_core.ai_horde.settings.AIHordeWorkerSettings` for details."""
 
 GITHUB_REPO_OWNER = "Haidra-Org"
 GITHUB_IMAGE_REPO_NAME = "AI-Horde-image-model-reference"
@@ -34,12 +39,11 @@ class GithubProxySettings(BaseSettings):
 
 
 github_proxy_settings = GithubProxySettings()
+"""Settings for GitHub proxying, if any."""
 
 
 class GithubRepoSettings(BaseModel):
     """Settings for GitHub integration."""
-
-    # TODO: HORDE_PROXY_URL_BASE
 
     model_config = SettingsConfigDict(
         use_attribute_docstrings=True,
@@ -78,6 +82,10 @@ class GithubRepoSettings(BaseModel):
 
     def compose_full_file_url(self, filename: str) -> str:
         """Compose the full URL to a file in the repository.
+
+        For example, if the base URL is `https://raw.githubusercontent.com/owner/name/branch/` and the filename is
+        `models/model1.json`, the resulting URL will be
+        `https://raw.githubusercontent.com/owner/name/branch/models/model1.json`.
 
         Args:
             filename (str): The filename to compose the URL for.
@@ -144,6 +152,12 @@ class HordeModelReferenceSettings(BaseSettings):
     cache_ttl_seconds: int = 60
     """The time-to-live for in memory caches of model reference files, in seconds."""
 
+    legacy_download_retry_max_attempts: int = 3
+    """The maximum number of attempts to retry downloading a legacy model reference file."""
+
+    legacy_download_retry_backoff_seconds: int = 2
+    """The backoff time in seconds between retry attempts when downloading a legacy model reference file."""
+
 
 horde_model_reference_settings: HordeModelReferenceSettings = HordeModelReferenceSettings()
 
@@ -151,13 +165,17 @@ horde_model_reference_settings: HordeModelReferenceSettings = HordeModelReferenc
 if horde_model_reference_settings.image_github_repo != ImageGithubRepoSettings():
     logger.info("Image GitHub Repo Settings:")
     logger.info(horde_model_reference_settings.image_github_repo)
+    if horde_model_reference_settings.replicate_mode != ReplicateMode.REPLICA:
+        logger.info(f"Replicate mode is set to {horde_model_reference_settings.replicate_mode}.")
 
 if horde_model_reference_settings.text_github_repo != TextGithubRepoSettings():
     logger.info("Text GitHub Repo Settings:")
     logger.info(horde_model_reference_settings.text_github_repo)
+    if horde_model_reference_settings.replicate_mode != ReplicateMode.REPLICA:
+        logger.info(f"Replicate mode is set to {horde_model_reference_settings.replicate_mode}.")
 
 
-from .meta_consts import (  # noqa: E402
+from .meta_consts import (  # noqa: E402, I001
     KNOWN_IMAGE_GENERATION_BASELINE,
     KNOWN_TAGS,
     MODEL_CLASSIFICATION_LOOKUP,
@@ -172,6 +190,8 @@ from .path_consts import (  # noqa: E402
     horde_model_reference_paths,
 )
 
+from .model_reference_manager import ModelReferenceManager  # noqa: E402
+
 __all__ = [
     "BASE_PATH",
     "DEFAULT_SHOWCASE_FOLDER_NAME",
@@ -183,6 +203,7 @@ __all__ = [
     "MODEL_REFERENCE_CATEGORY",
     "MODEL_STYLE",
     "ModelClassification",
+    "ModelReferenceManager",
     "get_model_reference_file_path",
     "get_model_reference_filename",
     "horde_model_reference_paths",

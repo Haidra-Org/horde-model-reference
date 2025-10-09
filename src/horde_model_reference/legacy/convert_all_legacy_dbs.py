@@ -1,10 +1,13 @@
 from pathlib import Path
 
+from loguru import logger
+
 from horde_model_reference import MODEL_REFERENCE_CATEGORY, horde_model_reference_paths
 from horde_model_reference.legacy.classes.legacy_converters import (
     BaseLegacyConverter,
     LegacyClipConverter,
     LegacyStableDiffusionConverter,
+    LegacyTextGenerationConverter,
 )
 
 
@@ -29,8 +32,12 @@ def convert_all_legacy_model_references(
         target_file_folder=target_path,
         debug_mode=False,
     )
-    sd_succeeded = sd_converter.normalize_and_convert()
-    all_succeeded = all_succeeded and sd_succeeded
+
+    try:
+        sd_converter.convert_to_new_format()
+    except Exception as e:
+        print(f"Error converting stable diffusion models: {e}")
+    all_succeeded = all_succeeded and sd_converter.converted_successfully
 
     # Convert clip model references
     clip_converter = LegacyClipConverter(
@@ -38,16 +45,30 @@ def convert_all_legacy_model_references(
         target_file_folder=target_path,
         debug_mode=False,
     )
-    clip_succeeded = clip_converter.normalize_and_convert()
-    all_succeeded = all_succeeded and clip_succeeded
+    try:
+        clip_converter.convert_to_new_format()
+    except Exception as e:
+        print(f"Error converting clip models: {e}")
+    all_succeeded = all_succeeded and clip_converter.converted_successfully
+
+    text_converter = LegacyTextGenerationConverter(
+        legacy_folder_path=legacy_path,
+        target_file_folder=target_path,
+        debug_mode=False,
+    )
+    try:
+        text_converter.convert_to_new_format()
+    except Exception as e:
+        print(f"Error converting text models: {e}")
+    all_succeeded = all_succeeded and text_converter.converted_successfully
 
     # Convert other model references
     non_generic_converter_categories = [
         MODEL_REFERENCE_CATEGORY.image_generation,
         MODEL_REFERENCE_CATEGORY.clip,
-        # MODEL_REFERENCE_CATEGORY.lora,
-        # MODEL_REFERENCE_CATEGORY.ti,
+        MODEL_REFERENCE_CATEGORY.text_generation,
     ]
+
     generic_converted_categories = [x for x in MODEL_REFERENCE_CATEGORY if x not in non_generic_converter_categories]
     for model_category in generic_converted_categories:
         converter = BaseLegacyConverter(
@@ -56,9 +77,13 @@ def convert_all_legacy_model_references(
             model_reference_category=model_category,
             debug_mode=False,
         )
-        other_succeeded = converter.normalize_and_convert()
-        all_succeeded = all_succeeded and other_succeeded
+        try:
+            converter.convert_to_new_format()
+        except Exception as e:
+            print(f"Error converting {model_category} models: {e}")
+        all_succeeded = all_succeeded and converter.converted_successfully
 
+    logger.info("Finished converting all legacy model references.")
     return all_succeeded
 
 

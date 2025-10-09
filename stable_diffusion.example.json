@@ -8,20 +8,11 @@
                 {
                     "file_name": "example_general_model.ckpt",
                     "file_url": "https://www.some_website.com/a_different_name_on_the_website.ckpt",
-                    "sha256sum": "DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
-                    "file_type": null,
-                    "known_slow_download": null
+                    "sha256sum": "DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF"
                 }
             ]
         },
-        "model_classification": {
-            "domain": "image",
-            "purpose": "generation"
-        },
-        "features_not_supported": null,
-        "inpainting": false,
         "baseline": "stable_diffusion_1",
-        "optimization": null,
         "tags": [
             "anime",
             "faces"
@@ -37,7 +28,6 @@
         "homepage": "https://www.not.a.real_website.com",
         "nsfw": false,
         "style": "generalist",
-        "requirements": null,
         "size_on_disk_bytes": 123456789
     },
     "example model 2": {
@@ -49,20 +39,11 @@
                 {
                     "file_name": "example_general_model.ckpt",
                     "file_url": "https://www.some_website.com/a_different_name_on_the_website.ckpt",
-                    "sha256sum": "DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
-                    "file_type": null,
-                    "known_slow_download": null
+                    "sha256sum": "DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF"
                 }
             ]
         },
-        "model_classification": {
-            "domain": "image",
-            "purpose": "generation"
-        },
-        "features_not_supported": null,
-        "inpainting": false,
         "baseline": "stable_diffusion_1",
-        "optimization": null,
         "tags": [
             "anime",
             "faces"
@@ -78,7 +59,6 @@
         "homepage": "https://www.another_fake_website.com",
         "nsfw": true,
         "style": "anime",
-        "requirements": null,
         "size_on_disk_bytes": 123456789
     }
 }

@@ -1,3 +1,6 @@
+.venv*
+logs/*
+
 *_version.py
 
 .vscode/

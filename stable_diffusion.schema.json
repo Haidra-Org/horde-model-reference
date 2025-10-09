@@ -92,21 +92,6 @@
                 "model_classification": {
                     "$ref": "#/$defs/ModelClassification"
                 },
-                "features_not_supported": {
-                    "anyOf": [
-                        {
-                            "items": {
-                                "type": "string"
-                            },
-                            "type": "array"
-                        },
-                        {
-                            "type": "null"
-                        }
-                    ],
-                    "default": null,
-                    "title": "Features Not Supported"
-                },
                 "inpainting": {
                     "anyOf": [
                         {

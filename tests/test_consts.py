@@ -21,25 +21,10 @@ def test_get_all_model_reference_file_paths() -> None:
         assert model_reference_category.value in all_model_reference_file_paths
 
 
-def test_stable_diffusion_mapped_to_new_name() -> None:
-    """Test that the stable diffusion model reference category is mapped to the new name."""
-    from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+def test_classifications() -> None:
+    """Test that all model reference categories have valid classifications."""
+    model_classifications = meta_consts.MODEL_CLASSIFICATION_LOOKUP
 
-    image_generation = str(MODEL_REFERENCE_CATEGORY.image_generation)
-
-    assert image_generation == MODEL_REFERENCE_CATEGORY.image_generation
-
-    from horde_model_reference.model_reference_records import (
-        MODEL_RECORD_TYPE_LOOKUP,
-        MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP,
-    )
-
-    assert (
-        MODEL_RECORD_TYPE_LOOKUP[MODEL_REFERENCE_CATEGORY.image_generation]
-        == MODEL_RECORD_TYPE_LOOKUP[MODEL_REFERENCE_CATEGORY.image_generation]
-    )
-
-    assert (
-        MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP[MODEL_REFERENCE_CATEGORY.image_generation]
-        == MODEL_REFERENCE_CATEGORY_TYPE_LOOKUP[MODEL_REFERENCE_CATEGORY.image_generation]
-    )
+    for category, classification in model_classifications.items():
+        if "generation" in category:
+            assert classification.purpose == meta_consts.MODEL_PURPOSE.generation
