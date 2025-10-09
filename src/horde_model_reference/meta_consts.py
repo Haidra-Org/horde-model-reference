@@ -71,7 +71,34 @@ class MODEL_REFERENCE_CATEGORY(StrEnum):
     gfpgan = auto()
     safety_checker = auto()
     image_generation = auto()
+    text_generation = auto()
+    video_generation = auto()
+    audio_generation = auto()
     miscellaneous = auto()
+
+
+github_image_model_reference_categories = [
+    MODEL_REFERENCE_CATEGORY.blip,
+    MODEL_REFERENCE_CATEGORY.clip,
+    MODEL_REFERENCE_CATEGORY.codeformer,
+    MODEL_REFERENCE_CATEGORY.controlnet,
+    MODEL_REFERENCE_CATEGORY.esrgan,
+    MODEL_REFERENCE_CATEGORY.gfpgan,
+    MODEL_REFERENCE_CATEGORY.safety_checker,
+    MODEL_REFERENCE_CATEGORY.image_generation,
+    MODEL_REFERENCE_CATEGORY.miscellaneous,
+]
+"""This distinguishes the original github repo locations and has no other meaning."""
+
+github_text_model_reference_categories = [
+    MODEL_REFERENCE_CATEGORY.text_generation,
+]
+"""This distinguishes the original github repo locations and has no other meaning."""
+
+no_legacy_format_available_categories = [
+    MODEL_REFERENCE_CATEGORY.video_generation,
+    MODEL_REFERENCE_CATEGORY.audio_generation,
+]
 
 
 class MODEL_DOMAIN(StrEnum):
@@ -244,11 +271,23 @@ MODEL_CLASSIFICATION_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, ModelClassification]
     ),
     MODEL_REFERENCE_CATEGORY.image_generation: ModelClassification(
         domain=MODEL_DOMAIN.image,
-        purpose=MODEL_PURPOSE.post_processing,
+        purpose=MODEL_PURPOSE.generation,
+    ),
+    MODEL_REFERENCE_CATEGORY.text_generation: ModelClassification(
+        domain=MODEL_DOMAIN.text,
+        purpose=MODEL_PURPOSE.generation,
     ),
     MODEL_REFERENCE_CATEGORY.miscellaneous: ModelClassification(
         domain=MODEL_DOMAIN.image,
         purpose=MODEL_PURPOSE.miscellaneous,
+    ),
+    MODEL_REFERENCE_CATEGORY.video_generation: ModelClassification(
+        domain=MODEL_DOMAIN.video,
+        purpose=MODEL_PURPOSE.generation,
+    ),
+    MODEL_REFERENCE_CATEGORY.audio_generation: ModelClassification(
+        domain=MODEL_DOMAIN.audio,
+        purpose=MODEL_PURPOSE.generation,
     ),
 }
 

@@ -33,7 +33,7 @@ requests==2.32.5
     # via horde-model-reference
 strenum==0.4.15
     # via horde-model-reference
-typing-extensions==4.14.1
+typing-extensions==4.15.0
     # via
     #   horde-model-reference
     #   pydantic

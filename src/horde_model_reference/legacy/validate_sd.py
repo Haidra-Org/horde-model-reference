@@ -4,9 +4,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
-    RawLegacy_ImageGeneration_ModelRecord,
-)
+from horde_model_reference.legacy.classes.legacy_models import LegacyStableDiffusionRecord
 
 
 def validate_legacy_stable_diffusion_db(
@@ -40,9 +38,10 @@ def validate_legacy_stable_diffusion_db(
         else:
             return False
 
-    parsed_db_records: dict[str, RawLegacy_ImageGeneration_ModelRecord] = {
-        k: RawLegacy_ImageGeneration_ModelRecord.model_validate(v) for k, v in loaded_json_sd_db.items()
+    parsed_db_records: dict[str, LegacyStableDiffusionRecord] = {
+        k: LegacyStableDiffusionRecord.model_validate(v) for k, v in loaded_json_sd_db.items()
     }
+    logger.debug(f"Parsed {len(parsed_db_records)} stable diffusion model records.")
 
     # # Write out a list of keys formatted as a python list
     # with open("stable_diffusion_model_keys.txt", "w") as sd_db_keys_file:
@@ -70,6 +69,9 @@ def validate_legacy_stable_diffusion_db(
 
     if any_extra_fields and fail_on_extra:
         raise ValueError("Extra fields found in stable diffusion model database.")
+
+    logger.debug(f"Length of original sd db json: {len(raw_json_sd_db)}")
+    logger.debug(f"Length of corrected sd db json: {len(correct_json_layout)}")
 
     if raw_json_sd_db != correct_json_layout:
         logger.error("Invalid stable diffusion model database.")

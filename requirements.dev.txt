@@ -115,7 +115,7 @@ types-pytz==2025.2.0.20250809
 types-pywin32==311.0.0.20250822
 types-requests==2.32.4.20250809
 types-tabulate==0.9.0.20241207
-typing-extensions==4.14.1
+typing-extensions==4.15.0
     # via
     #   black
     #   exceptiongroup

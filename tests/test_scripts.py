@@ -1,5 +1,4 @@
 import os
-from pathlib import Path
 
 from horde_model_reference import horde_model_reference_paths
 from horde_model_reference.legacy import LegacyReferenceDownloadManager

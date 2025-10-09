@@ -9,7 +9,6 @@ from pytest import LogCaptureFixture
 
 from horde_model_reference.legacy.legacy_download_manager import LegacyReferenceDownloadManager
 from horde_model_reference.model_reference_manager import ModelReferenceManager
-from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER_NAME
 
 os.environ["TESTS_ONGOING"] = "1"
 
@@ -61,7 +60,6 @@ def setup_logging(base_path_for_tests: Path) -> None:
 def model_reference_manager() -> ModelReferenceManager:
     """Return a ModelReferenceManager instance for tests."""
     return ModelReferenceManager(
-        override_existing=False,
         lazy_mode=True,
     )
 
