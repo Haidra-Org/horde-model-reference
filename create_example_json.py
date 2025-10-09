@@ -8,13 +8,9 @@ from horde_model_reference import (
     MODEL_STYLE,
     ModelClassification,
 )
-from horde_model_reference.legacy.classes.raw_legacy_model_database_records import (
-    RawLegacy_StableDiffusion_ModelReference,
-)
 from horde_model_reference.model_reference_records import (
     DownloadRecord,
-    ImageGeneration_ModelRecord,
-    StableDiffusion_ModelReference,
+    ImageGenerationModelRecord,
 )
 
 STABLE_DIFFUSION_EXAMPLE_JSON_FILENAME = "stable_diffusion.example.json"
@@ -33,7 +29,7 @@ def create_example_json_schema() -> None:
     )
 
     # An example ImageGeneration_ModelRecord with test data
-    example_model_record = ImageGeneration_ModelRecord(
+    example_model_record = ImageGenerationModelRecord(
         name=example_record_name,
         description="This would be a description of the model.",
         version="1.0",
@@ -63,7 +59,7 @@ def create_example_json_schema() -> None:
         file_url="https://www.some_website.com/a_different_name_on_the_website.ckpt",
         sha256sum="DEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEFDEADBEEF",
     )
-    example_model_record_2 = ImageGeneration_ModelRecord(
+    example_model_record_2 = ImageGenerationModelRecord(
         name=example_record_2_name,
         description="This would be a description of the model.",
         version="2.5",
@@ -87,21 +83,25 @@ def create_example_json_schema() -> None:
         size_on_disk_bytes=123456789,
     )
 
-    reference = StableDiffusion_ModelReference(
-        root={
-            "example model 1": example_model_record,
-            "example model 2": example_model_record_2,
-        },
-    )
+    reference = {
+        "example model 1": example_model_record,
+        "example model 2": example_model_record_2,
+    }
 
     with open(STABLE_DIFFUSION_EXAMPLE_JSON_FILENAME, "w") as example_file:
-        example_file.write(reference.model_dump_json(indent=4) + "\n")
-
-    with open(STABLE_DIFFUSION_SCHEMA_JSON_FILENAME, "w") as schema_file:
-        schema_file.write(json.dumps(StableDiffusion_ModelReference.model_json_schema(), indent=4) + "\n")
-
-    with open(LEGACY_STABLE_DIFFUSION_SCHEMA_JSON_FILENAME, "w") as schema_file:
-        schema_file.write(json.dumps(RawLegacy_StableDiffusion_ModelReference.model_json_schema(), indent=4) + "\n")
+        example_file.write(
+            json.dumps(
+                reference,
+                indent=4,
+                default=lambda o: o.model_dump(
+                    exclude_none=True,
+                    exclude_unset=True,
+                    exclude_defaults=True,
+                    by_alias=True,
+                ),
+            )
+            + "\n",
+        )
 
 
 if __name__ == "__main__":

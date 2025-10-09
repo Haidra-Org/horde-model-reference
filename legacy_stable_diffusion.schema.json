@@ -11,7 +11,7 @@
             "title": "FEATURE_SUPPORTED",
             "type": "string"
         },
-        "RawLegacy_DownloadRecord": {
+        "_RawLegacy_DownloadRecord": {
             "description": "An entry in the `config` field of a `RawLegacy_ImageGeneration_ModelRecord`.",
             "properties": {
                 "file_name": {
@@ -44,10 +44,10 @@
                 "file_path",
                 "file_url"
             ],
-            "title": "RawLegacy_DownloadRecord",
+            "title": "_RawLegacy_DownloadRecord",
             "type": "object"
         },
-        "RawLegacy_FileRecord": {
+        "_RawLegacy_FileRecord": {
             "description": "An entry in the `config` field of a `RawLegacy_ImageGeneration_ModelRecord`.",
             "properties": {
                 "path": {
@@ -94,10 +94,10 @@
             "required": [
                 "path"
             ],
-            "title": "RawLegacy_FileRecord",
+            "title": "_RawLegacy_FileRecord",
             "type": "object"
         },
-        "RawLegacy_ImageGeneration_ModelRecord": {
+        "_RawLegacy_ImageGeneration_ModelRecord": {
             "additionalProperties": true,
             "description": "A model entry in the legacy model reference.",
             "properties": {
@@ -285,10 +285,10 @@
                         "items": {
                             "anyOf": [
                                 {
-                                    "$ref": "#/$defs/RawLegacy_FileRecord"
+                                    "$ref": "#/$defs/_RawLegacy_FileRecord"
                                 },
                                 {
-                                    "$ref": "#/$defs/RawLegacy_DownloadRecord"
+                                    "$ref": "#/$defs/_RawLegacy_DownloadRecord"
                                 }
                             ]
                         },
@@ -347,14 +347,14 @@
                 "download_all",
                 "config"
             ],
-            "title": "RawLegacy_ImageGeneration_ModelRecord",
+            "title": "_RawLegacy_ImageGeneration_ModelRecord",
             "type": "object"
         }
     },
     "additionalProperties": {
-        "$ref": "#/$defs/RawLegacy_ImageGeneration_ModelRecord"
+        "$ref": "#/$defs/_RawLegacy_ImageGeneration_ModelRecord"
     },
     "description": "A legacy stable diffusion model reference file.",
-    "title": "RawLegacy_StableDiffusion_ModelReference",
+    "title": "_RawLegacy_StableDiffusion_ModelReference",
     "type": "object"
 }

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -13,7 +12,10 @@ from horde_model_reference import (
     ai_horde_worker_settings,
     horde_model_reference_settings,
 )
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.meta_consts import (
+    MODEL_REFERENCE_CATEGORY,
+    github_image_model_reference_categories,
+)
 
 PACKAGE_NAME = "horde_model_reference"
 """The name of this package. Also used as the name of the base folder name for all model reference files."""
@@ -25,9 +27,6 @@ If you need the default path, use `LEGACY_REFERENCE_FOLDER`."""
 
 DEFAULT_SHOWCASE_FOLDER_NAME: str = "showcase"
 """The default name of the stable diffusion showcase folder. If you need the path, use `SHOWCASE_FOLDER_PATH`."""
-
-
-HORDE_PROXY_URL_BASE = os.getenv("HORDE_PROXY_URL_BASE", "")
 
 
 class HordeModelReferencePaths:
@@ -59,15 +58,8 @@ class HordeModelReferencePaths:
         model_reference_settings: HordeModelReferenceSettings,
         cache_home: str | Path,
         log_folder: str | Path | None,
-        *args: object,
-        **kwargs: object,
     ) -> HordeModelReferencePaths:
         """Create a singleton instance of HordeModelReferencePaths, if it doesn't already exist."""
-        if len(args) > 0 or len(kwargs) > 0:
-            logger.warning(
-                f"HordeModelReferencePaths.__new__() received unexpected arguments: args={args}, kwargs={kwargs}",
-            )
-
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             cls.__init__(
@@ -109,6 +101,7 @@ class HordeModelReferencePaths:
             self.make_all_model_reference_folders()
 
         self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.image_generation] = "stable_diffusion.json"
+        self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "db.json"
 
         for category in MODEL_REFERENCE_CATEGORY:
             filename: str | None = None
@@ -120,14 +113,27 @@ class HordeModelReferencePaths:
                 logger.debug(
                     f"Using fixed filename for {category}: {filename}",
                 )
+            composed_url: str | None = None
+            if category in github_image_model_reference_categories:
+                composed_url = urlparse(
+                    horde_model_reference_settings.image_github_repo.compose_full_file_url(filename),
+                    allow_fragments=False,
+                ).geturl()
+                self.legacy_image_model_github_urls[category] = composed_url
+            else:
+                composed_url = urlparse(
+                    horde_model_reference_settings.text_github_repo.compose_full_file_url(filename),
+                    allow_fragments=False,
+                ).geturl()
+                self.legacy_text_model_github_urls[category] = composed_url
 
-            self.legacy_image_model_github_urls[category] = urlparse(
-                horde_model_reference_settings.image_github_repo.compose_full_file_url(filename),
-                allow_fragments=False,
-            ).geturl()
-            logger.debug(
-                f"Parsed legacy model GitHub URL for {category}: " f"{self.legacy_image_model_github_urls[category]}",
-            )
+            logger.debug(f"Parsed legacy model GitHub URL for {category}: {composed_url}")
+
+        self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "text_generation.json"
+        logger.debug(
+            f"Renaming {MODEL_REFERENCE_CATEGORY.text_generation}: "
+            f"{self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation]}",
+        )
 
     def make_all_model_reference_folders(self) -> None:
         """Create all model reference folders if they don't already exist."""

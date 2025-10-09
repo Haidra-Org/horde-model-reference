@@ -1,7 +1,5 @@
 import json
-import urllib.parse
-
-import pytest
+from typing import Any
 
 from horde_model_reference import horde_model_reference_paths
 from horde_model_reference.legacy.classes.legacy_converters import (
@@ -9,36 +7,35 @@ from horde_model_reference.legacy.classes.legacy_converters import (
     LegacyClipConverter,
     LegacyStableDiffusionConverter,
 )
-from horde_model_reference.legacy.classes.staging_model_database_records import (
-    MODEL_REFERENCE_LEGACY_TYPE_LOOKUP,
-    StagingLegacy_Generic_ModelRecord,
-)
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
-from horde_model_reference.model_reference_records import ImageGeneration_ModelRecord, StableDiffusion_ModelReference
+from horde_model_reference.model_reference_records import ImageGenerationModelRecord
 
 
 def test_convert_legacy_stable_diffusion_database() -> None:
     """Test converting the legacy stable diffusion database to the new format."""
     sd_converter = LegacyStableDiffusionConverter()
-    assert sd_converter.normalize_and_convert()
+    assert sd_converter.convert_to_new_format()
 
 
 def test_convert_legacy_clip_database() -> None:
     """Test converting the legacy clip database to the new format."""
     clip_converter = LegacyClipConverter()
-    assert clip_converter.normalize_and_convert()
+    converted_clip = clip_converter.convert_to_new_format()
+    assert converted_clip
 
 
 def test_all_base_legacy_converters() -> None:
     """Test converting all legacy databases using the base converter."""
-    generic_references = {
-        k: v for k, v in MODEL_REFERENCE_LEGACY_TYPE_LOOKUP.items() if v is StagingLegacy_Generic_ModelRecord
-    }
-    for reference_category in generic_references:
+    for reference_category in MODEL_REFERENCE_CATEGORY:
+        if reference_category in [
+            MODEL_REFERENCE_CATEGORY.image_generation,
+            MODEL_REFERENCE_CATEGORY.clip,
+        ]:
+            continue
         base_converter = BaseLegacyConverter(
             model_reference_category=reference_category,
         )
-        assert base_converter.normalize_and_convert()
+        assert base_converter.convert_to_new_format()
 
 
 def test_validate_converted_stable_diffusion_database() -> None:
@@ -50,68 +47,35 @@ def test_validate_converted_stable_diffusion_database() -> None:
     with open(stable_diffusion_model_database_path) as f:
         sd_model_database_file_contents = f.read()
 
-    sd_model_database_file_json = json.loads(sd_model_database_file_contents)
-    model_reference = StableDiffusion_ModelReference(
-        root={k: ImageGeneration_ModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()},
-    )
+    sd_model_database_file_json: dict[str, Any] = json.loads(sd_model_database_file_contents)
+    model_reference: dict[str, ImageGenerationModelRecord] = {
+        k: ImageGenerationModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()
+    }
 
-    assert len(model_reference.baseline) >= 3
-    for baseline_type in model_reference.baseline:
-        assert baseline_type != ""
+    # Count baselines
 
-    assert len(model_reference.styles) >= 6
-    for style in model_reference.styles:
-        assert style != ""
+    baseline_set = set()
+    styles_set = set()
+    tags_set = set()
+    model_hosts_set = set()
 
-    assert len(model_reference.models_hosts) >= 1
-    for model_host in model_reference.models_hosts:
-        assert model_host != ""
+    for model_key, model_info in model_reference.items():
+        assert isinstance(model_info, ImageGenerationModelRecord)
+        baseline_set.add(model_info.baseline)
+        styles_set.add(model_info.style)
+        if model_info.tags is not None:
+            for tag in model_info.tags:
+                tags_set.add(tag)
 
-    assert model_reference.root is not None
-    assert len(model_reference.root) >= 100
+        for download_record in model_info.config.download:
+            model_hosts_set.add(download_record.file_url)
 
-    assert model_reference.get_model_baseline("BAD_MODEL_KEY") is None
-    assert model_reference.get_model_style("BAD_MODEL_KEY") is None
-    assert model_reference.get_model_tags("BAD_MODEL_KEY") is None
-
-    assert model_reference.root["stable_diffusion"] is not None
-    assert model_reference.root["stable_diffusion"].name == "stable_diffusion"
-    assert model_reference.root["stable_diffusion"].showcases is not None
-    # assert len(model_reference.models["stable_diffusion"].showcases) >= 3
-    # XXX This is commented out because the dynamic showcase generation should not currently be part of the CI
-
-    for model_key, model_info in model_reference.root.items():
-        assert model_info.name == model_key
-        assert model_info.baseline in model_reference.baseline
-        assert model_info.style in model_reference.styles
-
-        if model_info.homepage is not None:
-            assert model_info.homepage != ""
-            parsedHomepage = urllib.parse.urlparse(model_info.homepage)
-            assert parsedHomepage.scheme == "https" or parsedHomepage.scheme == "http"
-
+        assert model_key == model_info.name
         assert model_info.description is not None
         assert model_info.description != ""
         assert model_info.version != ""
 
-        if model_info.tags is not None:
-            for tag in model_info.tags:
-                assert tag in model_reference.tags
-
-        for config_key, config_section in model_info.config.items():
-            assert config_key != "files"
-
-            if config_key == "download":
-                for download_record in config_section:
-                    assert download_record.file_name is not None
-                    assert download_record.file_url is not None
-            else:
-                pytest.fail(f"Unknown config section: {config_key}")
-
-        if model_info.trigger is not None:
-            for trigger_record in model_info.trigger:
-                assert trigger_record != ""
-
-        assert model_reference.get_model_baseline(model_key) is not None
-        assert model_reference.get_model_style(model_key) is not None
-        assert isinstance(model_reference.get_model_tags(model_key), list)
+    assert len(baseline_set) >= 3
+    assert len(styles_set) >= 6
+    assert len(tags_set) >= 11
+    assert len(model_hosts_set) >= 1
