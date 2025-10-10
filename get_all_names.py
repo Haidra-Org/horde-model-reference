@@ -22,8 +22,8 @@ def configure_logger(quiet: bool) -> None:
 def get_all_names(model_reference_category: MODEL_REFERENCE_CATEGORY) -> list[str]:
     """Get all model names for a given model reference category."""
     logger.debug(f"Getting all names for category: {model_reference_category}")
-    model_reference_manager = ModelReferenceManager()
-    all_references = model_reference_manager.get_all_model_reference_safe()
+    model_reference_manager = ModelReferenceManager(lazy_mode=False)
+    all_references = model_reference_manager.get_all_model_references()
 
     if model_reference_category not in all_references:
         logger.warning(f"No references found for category: {model_reference_category}")

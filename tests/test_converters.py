@@ -20,7 +20,6 @@ def test_stable_diffusion_converter_uses_legacy_models() -> None:
     sd_converter = LegacyStableDiffusionConverter()
     assert sd_converter.model_reference_type == LegacyStableDiffusionRecord
 
-    # Run conversion to verify it works
     converted = sd_converter.convert_to_new_format()
     assert len(converted) > 0
 
@@ -30,7 +29,6 @@ def test_clip_converter_uses_legacy_models() -> None:
     clip_converter = LegacyClipConverter()
     assert clip_converter.model_reference_type == LegacyClipRecord
 
-    # Run conversion to verify it works
     converted = clip_converter.convert_to_new_format()
     assert len(converted) > 0
 
@@ -40,14 +38,12 @@ def test_text_generation_converter_uses_legacy_models() -> None:
     text_gen_converter = LegacyTextGenerationConverter()
     assert text_gen_converter.model_reference_type == LegacyTextGenerationRecord
 
-    # Run conversion to verify it works
     converted = text_gen_converter.convert_to_new_format()
     assert len(converted) > 0
 
 
 def test_base_converter_uses_legacy_generic_model() -> None:
     """Test that base converter uses LegacyGenericRecord."""
-    # Test with a category that uses the generic record
     base_converter = BaseLegacyConverter(
         model_reference_category=MODEL_REFERENCE_CATEGORY.miscellaneous,
     )
@@ -59,9 +55,7 @@ def test_converters_track_validation_issues() -> None:
     sd_converter = LegacyStableDiffusionConverter(debug_mode=True)
     sd_converter.convert_to_new_format()
 
-    # The converter should have collected some validation issues
-    # (most legacy databases have at least some issues)
-    assert isinstance(sd_converter.all_validation_errors_log, dict)
+    assert isinstance(sd_converter.all_validation_errors_log, dict), "Validation errors log should be a dictionary"
 
 
 def test_converted_records_have_correct_type() -> None:

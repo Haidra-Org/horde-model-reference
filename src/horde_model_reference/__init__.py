@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 import urllib.parse
 from enum import auto
 
@@ -12,7 +11,6 @@ from loguru import logger
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from strenum import StrEnum
-
 
 ai_horde_ci_settings: AIHordeCISettings = AIHordeCISettings()
 """Environment settings for AI Horde CI. See `haidra_core.ai_horde.meta.AIHordeCISettings` for details."""
@@ -127,6 +125,41 @@ class ReplicateMode(StrEnum):
     """The model references are replicas (non-canonical copies). Changes are not tracked and may be lost."""
 
 
+class RedisSettings(BaseModel):
+    """Settings for Redis distributed caching in PRIMARY mode."""
+
+    model_config = SettingsConfigDict(
+        use_attribute_docstrings=True,
+    )
+
+    url: str = "redis://localhost:6379/0"
+    """Redis connection URL. Format: redis://[:password]@host:port/db"""
+
+    pool_size: int = 10
+    """Connection pool size for Redis connections."""
+
+    socket_timeout: int = 5
+    """Socket timeout in seconds for Redis operations."""
+
+    socket_connect_timeout: int = 5
+    """Connection timeout in seconds when establishing Redis connection."""
+
+    retry_max_attempts: int = 3
+    """Maximum number of retry attempts for failed Redis operations."""
+
+    retry_backoff_seconds: float = 0.5
+    """Backoff time in seconds between retry attempts for Redis operations."""
+
+    key_prefix: str = "horde:model_ref"
+    """Prefix for all Redis keys to namespace model reference data."""
+
+    ttl_seconds: int | None = None
+    """TTL for cached entries in seconds. If None, uses cache_ttl_seconds from main settings."""
+
+    use_pubsub: bool = True
+    """Enable pub/sub for cache invalidation across multiple PRIMARY workers."""
+
+
 class HordeModelReferenceSettings(BaseSettings):
     """Settings for the Horde Model Reference package."""
 
@@ -157,6 +190,58 @@ class HordeModelReferenceSettings(BaseSettings):
 
     legacy_download_retry_backoff_seconds: int = 2
     """The backoff time in seconds between retry attempts when downloading a legacy model reference file."""
+
+    redis: RedisSettings | None = None
+    """Redis settings for distributed caching. Only used in PRIMARY mode for multi-worker deployments."""
+
+    primary_api_url: str | None = None
+    """URL of PRIMARY server API for REPLICA clients to fetch model references from. \
+If None, REPLICA clients will only use GitHub. Example: https://stablehorde.net/api"""
+
+    primary_api_timeout: int = 10
+    """Timeout in seconds for HTTP requests to PRIMARY API."""
+
+    enable_github_fallback: bool = True
+    """Whether REPLICA clients should fallback to GitHub if PRIMARY API is unavailable."""
+
+    github_seed_enabled: bool = False
+    """Whether PRIMARY mode should seed from GitHub on first initialization if local files don't exist. \
+Only used in PRIMARY mode. If True, will download and convert legacy references once on startup."""
+
+    @model_validator(mode="after")
+    def validate_mode_configuration(self) -> HordeModelReferenceSettings:
+        """Validate that settings are appropriate for the configured replication mode."""
+        if self.replicate_mode == ReplicateMode.REPLICA and self.redis is not None:
+            logger.warning(
+                "Redis settings detected in REPLICA mode. "
+                "Redis is only useful in PRIMARY mode for distributed caching across workers. "
+                "REPLICA instances should use file-based caching. Redis settings will be ignored."
+            )
+            self.redis = None
+
+        if self.replicate_mode == ReplicateMode.REPLICA and not self.primary_api_url:
+            logger.warning(
+                "REPLICA mode without primary_api_url configured: "
+                "Will only use GitHub for model references (slower, higher bandwidth usage). "
+                "Consider setting HORDE_MODEL_REFERENCE_PRIMARY_API_URL to fetch from PRIMARY server."
+            )
+
+        if self.replicate_mode == ReplicateMode.PRIMARY and self.redis is None:
+            logger.info(
+                "PRIMARY mode without Redis: Single-worker deployment assumed. "
+                "For multi-worker PRIMARY deployments, configure Redis for distributed caching "
+                "via HORDE_MODEL_REFERENCE_REDIS_URL."
+            )
+
+        if self.replicate_mode == ReplicateMode.REPLICA and self.github_seed_enabled:
+            logger.warning(
+                "github_seed_enabled is set in REPLICA mode. "
+                "This setting only applies to PRIMARY mode for initial seeding. "
+                "REPLICA instances always fetch from PRIMARY API or GitHub. Setting will be ignored."
+            )
+            self.github_seed_enabled = False
+
+        return self
 
 
 horde_model_reference_settings: HordeModelReferenceSettings = HordeModelReferenceSettings()
