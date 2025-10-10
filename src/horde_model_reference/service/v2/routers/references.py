@@ -33,7 +33,7 @@ model_reference_manager = ModelReferenceManager()
 @router.get("/model_categories", response_model=list[MODEL_REFERENCE_CATEGORY | str])
 async def read_reference_names() -> list[MODEL_REFERENCE_CATEGORY | str]:
     """Get all legacy model reference names."""
-    return list(model_reference_manager.get_all_model_references().keys())
+    return list(model_reference_manager.get_all_model_references_unsafe().keys())
 
 
 @router.get(

@@ -157,7 +157,6 @@ class BaseLegacyConverter:
                 )
                 self._all_legacy_records[model_record_key] = legacy_record
 
-                # Collect any validation issues that were recorded
                 if issues:
                     for issue in issues:
                         self.add_validation_error_to_log(model_record_key=model_record_key, error=issue)
@@ -201,10 +200,8 @@ class BaseLegacyConverter:
 
     def _convert_model_record_config(self, legacy_record: LegacyGenericRecord) -> GenericModelRecordConfig:
         """Convert the config section of a legacy record to the new format."""
-        # Convert config downloads to new DownloadRecord format
         download_records: dict[str, DownloadRecord] = {}
 
-        # We have to get all of the paths and sha256sums from the "files" section first
         for file_entry in legacy_record.config.files:
             if file_entry.path and "yaml" not in file_entry.path.lower():
                 download_records[file_entry.path] = DownloadRecord(
@@ -219,7 +216,7 @@ class BaseLegacyConverter:
 
         for download_entry in legacy_record.config.download:
             if download_entry.file_name in download_records:
-                # Update existing record with URL
+
                 download_records[download_entry.file_name].file_url = download_entry.file_url or ""
             else:
                 raise ValueError(f"Unknown download entry: {download_entry.file_name}")
@@ -368,7 +365,6 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
         if not isinstance(legacy_record, LegacyStableDiffusionRecord):
             raise TypeError(f"Expected {legacy_record.name} to be a LegacyStableDiffusionRecord.")
 
-        # Track statistics
         if legacy_record.baseline:
             self.all_baseline_categories[legacy_record.baseline] = (
                 self.all_baseline_categories.get(legacy_record.baseline, 0) + 1

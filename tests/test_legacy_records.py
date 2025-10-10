@@ -1,4 +1,7 @@
+import json
+
 from horde_model_reference import MODEL_REFERENCE_CATEGORY, ModelReferenceManager
+from horde_model_reference.backends import GitHubBackend
 from horde_model_reference.legacy.classes.legacy_models import (
     LegacyClipRecord,
     LegacyGenericRecord,
@@ -10,7 +13,6 @@ def test_legacy_record_read_and_init(
     model_reference_manager: ModelReferenceManager,
 ) -> None:
     """Tests reading and initializing legacy records."""
-    # Get legacy file paths from backend
     legacy_reference_locations = model_reference_manager.backend.get_all_category_file_paths()
 
     assert len(legacy_reference_locations) > 0
@@ -18,15 +20,9 @@ def test_legacy_record_read_and_init(
 
     assert all(ref_cat in legacy_reference_locations for ref_cat in MODEL_REFERENCE_CATEGORY)
 
-    # Force fetch all categories and read legacy data
     model_reference_manager.backend.fetch_all_categories(force_refresh=True)
 
-    # Read legacy format data from files (not converted)
-    import json
-
-    from horde_model_reference.backends import LegacyGitHubBackend
-
-    assert isinstance(model_reference_manager.backend, LegacyGitHubBackend)
+    assert isinstance(model_reference_manager.backend, GitHubBackend)
 
     legacy_references = {}
     for category, file_path in model_reference_manager.backend._references_paths_cache.items():

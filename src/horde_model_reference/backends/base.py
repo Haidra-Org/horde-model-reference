@@ -6,8 +6,9 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any
 
-import aiohttp
+import httpx
 
+from horde_model_reference import ReplicateMode
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
@@ -21,6 +22,22 @@ class ModelReferenceBackend(ABC):
     The ModelReferenceManager uses backends as pluggable data sources and handles
     caching, TTL management, and conversion to pydantic models.
     """
+
+    _replicate_mode = ReplicateMode.REPLICA
+
+    def __init__(
+        self,
+        mode: ReplicateMode = ReplicateMode.REPLICA,
+    ) -> None:
+        """Initialize the backend."""
+        super().__init__()
+
+        self._replicate_mode = mode
+
+    @property
+    def replicate_mode(self) -> ReplicateMode:
+        """Get the replicate mode of this backend."""
+        return self._replicate_mode
 
     @abstractmethod
     def fetch_category(
@@ -63,14 +80,14 @@ class ModelReferenceBackend(ABC):
         self,
         category: MODEL_REFERENCE_CATEGORY,
         *,
-        aiohttp_client_session: aiohttp.ClientSession,
+        httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
     ) -> dict[str, Any] | None:
         """Asynchronously fetch model reference data for a specific category.
 
         Args:
             category (MODEL_REFERENCE_CATEGORY): The category to fetch.
-            aiohttp_client_session (aiohttp.ClientSession): An existing aiohttp client session.
+            httpx_client (httpx.AsyncClient | None): An optional httpx async client.
             force_refresh (bool, optional): If True, bypass any backend-level caching. Defaults to False.
 
         Returns:
@@ -81,13 +98,13 @@ class ModelReferenceBackend(ABC):
     async def fetch_all_categories_async(
         self,
         *,
-        aiohttp_client_session: aiohttp.ClientSession,
+        httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
     ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
         """Asynchronously fetch model reference data for all categories.
 
         Args:
-            aiohttp_client_session (aiohttp.ClientSession): An existing aiohttp client session.
+            httpx_client (httpx.AsyncClient | None): An optional httpx async client.
             force_refresh (bool, optional): If True, bypass any backend-level caching. Defaults to False.
 
         Returns:
@@ -177,3 +194,144 @@ class ModelReferenceBackend(ABC):
         Returns:
             str | None: The raw legacy JSON string, or None if not found.
         """
+
+    def supports_writes(self) -> bool:
+        """Check if this backend supports write operations.
+
+        Write operations include update_model() and delete_model().
+        Typically only PRIMARY mode backends support writes.
+
+        Returns:
+            bool: True if write operations are supported, False otherwise.
+        """
+        return False
+
+    def supports_cache_warming(self) -> bool:
+        """Check if this backend supports cache warming operations.
+
+        Cache warming pre-populates the cache with data to improve initial request performance.
+        Typically only backends with distributed caching (like Redis) support this.
+
+        Returns:
+            bool: True if cache warming is supported, False otherwise.
+        """
+        return False
+
+    def supports_health_checks(self) -> bool:
+        """Check if this backend supports health check operations.
+
+        Health checks verify that the backend's external dependencies (Redis, databases, etc.)
+        are accessible and functioning correctly.
+
+        Returns:
+            bool: True if health checks are supported, False otherwise.
+        """
+        return False
+
+    def supports_statistics(self) -> bool:
+        """Check if this backend supports statistics retrieval.
+
+        Statistics provide insights into backend performance, cache hits/misses, etc.
+
+        Returns:
+            bool: True if statistics are supported, False otherwise.
+        """
+        return False
+
+    def update_model(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        record_dict: dict[str, Any],
+    ) -> None:
+        """Update or create a model reference.
+
+        This is an optional method that write-capable backends can implement.
+        Read-only backends should leave the default implementation which raises NotImplementedError.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category to update.
+            model_name (str): The name of the model to update or create.
+            record_dict (dict[str, Any]): The model record data as a dictionary.
+
+        Raises:
+            NotImplementedError: If the backend does not support write operations.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support write operations")
+
+    def delete_model(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+    ) -> None:
+        """Delete a model reference.
+
+        This is an optional method that write-capable backends can implement.
+        Read-only backends should leave the default implementation which raises NotImplementedError.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category containing the model.
+            model_name (str): The name of the model to delete.
+
+        Raises:
+            NotImplementedError: If the backend does not support write operations.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support write operations")
+
+    def warm_cache(self) -> None:
+        """Pre-populate cache with all categories for faster initial requests.
+
+        This is an optional method that backends with cache warming support can implement.
+        Backends without cache warming should leave the default implementation.
+
+        Raises:
+            NotImplementedError: If the backend does not support cache warming.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support cache warming")
+
+    async def warm_cache_async(self) -> None:
+        """Asynchronously pre-populate cache with all categories for faster initial requests.
+
+        This is an optional method that backends with cache warming support can implement.
+        Backends without cache warming should leave the default implementation.
+
+        Raises:
+            NotImplementedError: If the backend does not support async cache warming.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support async cache warming")
+
+    def health_check(self) -> bool:
+        """Check the health of the backend's external dependencies.
+
+        This is an optional method that backends with health check support can implement.
+        Backends without external dependencies should leave the default implementation.
+
+        Returns:
+            bool: True if healthy, False otherwise.
+
+        Raises:
+            NotImplementedError: If the backend does not support health checks.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support health checks")
+
+    def get_statistics(self) -> dict[str, Any]:
+        """Get backend performance and usage statistics.
+
+        This is an optional method that backends with statistics support can implement.
+        The structure of returned statistics is backend-specific.
+
+        Returns:
+            dict[str, Any]: Backend-specific statistics.
+
+        Raises:
+            NotImplementedError: If the backend does not support statistics.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support statistics")
+
+    def get_replicate_mode(self) -> ReplicateMode:
+        """Get the replication mode of this backend.
+
+        Returns:
+            ReplicateMode: The replicate mode (PRIMARY or REPLICA).
+        """
+        return self._replicate_mode
