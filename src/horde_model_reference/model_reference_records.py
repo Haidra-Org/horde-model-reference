@@ -17,15 +17,22 @@ from horde_model_reference import (
     MODEL_DOMAIN,
     MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
+    SCHEMA_VERSION,
     ModelClassification,
+    ai_horde_ci_settings,
 )
 from horde_model_reference.meta_consts import CONTROLNET_STYLE, MODEL_PURPOSE
+
+
+def get_default_config() -> ConfigDict:
+    """Get the default config for model records based on whether AI Horde is being tested or not."""
+    return ConfigDict(extra="ignore") if not ai_horde_ci_settings.ai_horde_testing else ConfigDict(extra="forbid")
 
 
 class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
     """A record of a file to download for a model. Typically a ckpt file."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = get_default_config()
 
     file_name: str
     """The horde specific filename. This is not necessarily the same as the file's name on the model host."""
@@ -33,7 +40,8 @@ class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
     """The fully qualified URL to download the file from."""
     sha256sum: str = "FIXME"
     """The sha256sum of the file."""
-    file_type: str | None = None
+    file_purpose: str | None = None
+    """"""
     known_slow_download: bool | None = None
     """Whether the download is known to be slow or not."""
 
@@ -41,7 +49,7 @@ class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
 class GenericModelRecordConfig(BaseModel):
     """Configuration for a generic model record."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = get_default_config()
 
     download: list[DownloadRecord] = Field(
         default_factory=list,
@@ -49,16 +57,40 @@ class GenericModelRecordConfig(BaseModel):
     """A list of files to download for the model."""
 
 
+class GenericModelRecordMetadata(BaseModel):
+    """Metadata for a generic model record."""
+
+    model_config = get_default_config()
+
+    schema_version: str = SCHEMA_VERSION
+    """The version of the schema used to create this record."""
+
+    created_at: int | None = None
+    """The Unix time of when the record was created."""
+    updated_at: int | None = None
+    """The Unix time of when the record was last updated."""
+
+    created_by: str | None = None
+    """The name or identifier of the person or system which created the record."""
+    updated_by: str | None = None
+    """The name or identifier of the person or system which last updated the record."""
+
+
 class GenericModelRecord(BaseModel):
     """A generic model reference record."""
 
-    # TODO forbid extra?
+    model_config = get_default_config()
+
     name: str
     """The name of the model."""
     description: str | None = None
     """A short description of the model."""
     version: str | None = None
     """The version of the  model (not the version of SD it is based on, see `baseline` for that info)."""
+    metadata: GenericModelRecordMetadata = Field(
+        default_factory=GenericModelRecordMetadata,
+    )
+    """Metadata about the record itself, such as creation and update times."""
 
     config: GenericModelRecordConfig = Field(
         default_factory=GenericModelRecordConfig,
@@ -92,8 +124,6 @@ def register_record_type(
 @register_record_type(MODEL_REFERENCE_CATEGORY.image_generation)
 class ImageGenerationModelRecord(GenericModelRecord):
     """A model entry in the model reference."""
-
-    model_config = ConfigDict(extra="ignore")
 
     model_classification: ModelClassification = Field(
         default_factory=lambda: ModelClassification(

@@ -26,6 +26,39 @@ def print_title(title: str) -> None:
     print(f"\n{'#' * 80}\n# {title}\n{'#' * 80}\n")
 
 
+def print_deployment_guide() -> None:
+    """Print deployment configuration guide."""
+    print("\n" + "=" * 80)
+    print("DEPLOYMENT QUICK START GUIDE")
+    print("=" * 80)
+    print()
+    print("Choose your deployment scenario and uncomment the relevant settings below:")
+    print()
+    print("1. REPLICA MODE (Default) - Client/Worker nodes")
+    print("   - Uses GitHub or PRIMARY API to fetch model references")
+    print("   - Set: HORDE_MODEL_REFERENCE_REPLICATE_MODE=REPLICA")
+    print("   - Optionally set: HORDE_MODEL_REFERENCE_PRIMARY_API_URL=<your-primary-url>")
+    print()
+    print("2. PRIMARY MODE - Single Worker (No Redis)")
+    print("   - Authoritative source for model references")
+    print("   - Set: HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY")
+    print("   - No Redis configuration needed")
+    print("   - Ideal for: Development, testing, low-traffic deployments")
+    print()
+    print("3. PRIMARY MODE - Multi-Worker (With Redis)")
+    print("   - Authoritative source with distributed caching")
+    print("   - Set: HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY")
+    print("   - Configure all HORDE_MODEL_REFERENCE_REDIS_* settings")
+    print("   - Ideal for: Production, high-traffic deployments")
+    print()
+    print("For detailed deployment instructions, see:")
+    print("  - Docker: docker-compose.yml (single-worker)")
+    print("  - Docker + Redis: docker-compose.redis.yml (multi-worker)")
+    print("  - Non-Docker: scripts/start_primary.sh or scripts/start_primary.bat")
+    print("=" * 80)
+    print()
+
+
 TIMESTAMP_LINE_INDEX = 4
 
 
@@ -46,6 +79,8 @@ def generate_env_example(target_file: Path | str | None = None) -> str:
 
         print(f"# Generated on (UTC): {time.strftime('%Y-%m-%d %H:%M:%S', time.gmtime())}")
         print()
+
+        print_deployment_guide()
 
         print_title("Horde Model Reference Settings")
         get_env_file_string("horde_model_reference.HordeModelReferenceSettings")

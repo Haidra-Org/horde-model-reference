@@ -12,6 +12,8 @@ from pydantic import BaseModel, Field, PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from strenum import StrEnum
 
+SCHEMA_VERSION = "2.0.0"
+
 ai_horde_ci_settings: AIHordeCISettings = AIHordeCISettings()
 """Environment settings for AI Horde CI. See `haidra_core.ai_horde.meta.AIHordeCISettings` for details."""
 
@@ -132,6 +134,9 @@ class RedisSettings(BaseModel):
         use_attribute_docstrings=True,
     )
 
+    use_redis: bool = False
+    """Whether to use Redis for distributed caching. Only should be used in PRIMARY mode."""
+
     url: str = "redis://localhost:6379/0"
     """Redis connection URL. Format: redis://[:password]@host:port/db"""
 
@@ -191,7 +196,7 @@ class HordeModelReferenceSettings(BaseSettings):
     legacy_download_retry_backoff_seconds: int = 2
     """The backoff time in seconds between retry attempts when downloading a legacy model reference file."""
 
-    redis: RedisSettings | None = None
+    redis: RedisSettings = RedisSettings()
     """Redis settings for distributed caching. Only used in PRIMARY mode for multi-worker deployments."""
 
     primary_api_url: str | None = None
@@ -211,13 +216,13 @@ Only used in PRIMARY mode. If True, will download and convert legacy references 
     @model_validator(mode="after")
     def validate_mode_configuration(self) -> HordeModelReferenceSettings:
         """Validate that settings are appropriate for the configured replication mode."""
-        if self.replicate_mode == ReplicateMode.REPLICA and self.redis is not None:
+        if self.replicate_mode == ReplicateMode.REPLICA and self.redis.use_redis is not None:
             logger.warning(
                 "Redis settings detected in REPLICA mode. "
                 "Redis is only useful in PRIMARY mode for distributed caching across workers. "
                 "REPLICA instances should use file-based caching. Redis settings will be ignored."
             )
-            self.redis = None
+            self.redis.use_redis = False
 
         if self.replicate_mode == ReplicateMode.REPLICA and not self.primary_api_url:
             logger.warning(
@@ -226,7 +231,7 @@ Only used in PRIMARY mode. If True, will download and convert legacy references 
                 "Consider setting HORDE_MODEL_REFERENCE_PRIMARY_API_URL to fetch from PRIMARY server."
             )
 
-        if self.replicate_mode == ReplicateMode.PRIMARY and self.redis is None:
+        if self.replicate_mode == ReplicateMode.PRIMARY and not self.redis.use_redis:
             logger.info(
                 "PRIMARY mode without Redis: Single-worker deployment assumed. "
                 "For multi-worker PRIMARY deployments, configure Redis for distributed caching "

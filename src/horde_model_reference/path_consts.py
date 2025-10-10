@@ -83,10 +83,10 @@ class HordeModelReferencePaths:
             cache_home (str | Path): The path to the cache home directory.
             log_folder (str | Path | None): The path to the log folder.
         """
-        if self._initialized:
+        if HordeModelReferencePaths._initialized:
             return
 
-        self._initialized = True
+        HordeModelReferencePaths._initialized = True
 
         self.model_reference_filenames = {}
         self.legacy_image_model_github_urls = {}
@@ -221,7 +221,7 @@ class HordeModelReferencePaths:
         for model_reference_category in MODEL_REFERENCE_CATEGORY:
             file_path = self.get_model_reference_file_path(model_reference_category, base_path=base_path)
             if not file_path.exists():
-                logger.debug("Model reference file does not exist", extra={"file_path": file_path})
+                logger.trace(f"Model reference file does not exist for {model_reference_category}: {file_path}")
                 return_dict[model_reference_category] = None
             else:
                 return_dict[model_reference_category] = file_path

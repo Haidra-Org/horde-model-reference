@@ -85,7 +85,7 @@ class ModelReferenceManager:
                 else:
                     logger.debug("All files exist, skipping GitHub seeding")
 
-            if horde_model_reference_settings.redis is not None:
+            if horde_model_reference_settings.redis.use_redis:
                 logger.info("Wrapping FileSystemBackend with RedisBackend for distributed caching")
                 return RedisBackend(
                     file_backend=filesystem_backend,
@@ -402,7 +402,7 @@ class ModelReferenceManager:
 
     def get_all_model_references_unsafe(
         self,
-        override_existing: bool = False,
+        overwrite_existing: bool = False,
         *,
         safe_mode: bool = False,
     ) -> dict[
@@ -414,7 +414,7 @@ class ModelReferenceManager:
         Note that values may be None if the model reference file could not be found or parsed.
 
         Args:
-            override_existing (bool, optional): Whether to force a redownload of all model reference files.
+            overwrite_existing (bool, optional): Whether to force a redownload of all model reference files.
                 Defaults to False.
             safe_mode (bool, optional): Whether to raise exceptions on failure. If False, exceptions are caught
                 and None is returned for that category. Defaults to False. Use `get_all_model_references()`
@@ -430,22 +430,35 @@ class ModelReferenceManager:
             all_files: dict[MODEL_REFERENCE_CATEGORY, Path | None]
             all_files = self.backend.get_all_category_file_paths()
 
-            all_categories_cached = all(cat in self._cached_file_json for cat in all_files)
+            all_categories_cached = all(cat in self._cached_file_json for cat in all_files) and len(
+                self._cached_file_json
+            ) == len(all_files)
 
-            needs_backend_refresh = override_existing or any(
+            all_categories_on_disk = all(file.exists() for file in all_files.values() if file is not None)
+
+            needs_backend_refresh = overwrite_existing or any(
                 self.backend.needs_refresh(cat) for cat in MODEL_REFERENCE_CATEGORY
             )
 
-            if not override_existing and all_categories_cached and not needs_backend_refresh:
+            if (
+                not overwrite_existing
+                and all_categories_cached
+                and all_categories_on_disk
+                and not needs_backend_refresh
+            ):
                 logger.debug("Using fully cached model references.")
                 return self._get_all_cached_model_references(safe_mode=safe_mode)
 
-            if needs_backend_refresh:
-                self._fetch_from_backend_if_needed(force_refresh=override_existing)
+            logger.debug("Fetching model references from backend as needed.")
+            self._fetch_from_backend_if_needed(force_refresh=overwrite_existing or all_categories_on_disk)
 
             categories_to_load = []
             for category in all_files:
-                if override_existing or category not in self._cached_file_json or self.backend.needs_refresh(category):
+                if (
+                    overwrite_existing
+                    or category not in self._cached_file_json
+                    or self.backend.needs_refresh(category)
+                ):
                     categories_to_load.append(category)
 
             if categories_to_load:
@@ -477,7 +490,7 @@ class ModelReferenceManager:
 
     def get_all_model_references(
         self,
-        override_existing: bool = False,
+        overwrite_existing: bool = False,
     ) -> dict[
         MODEL_REFERENCE_CATEGORY,
         dict[str, GenericModelRecord],
@@ -488,29 +501,31 @@ class ModelReferenceManager:
         missing model references, use `get_all_model_references_unsafe()` instead.
 
         Args:
-            override_existing (bool, optional): Whether to force a redownload of all model reference files.
+            overwrite_existing (bool, optional): Whether to force a redownload of all model reference files.
                 Defaults to False.
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]: A mapping of model reference
                 categories to their corresponding model reference objects.
         """
-        all_references = self.get_all_model_references_unsafe(override_existing=override_existing)
+        all_references = self.get_all_model_references_unsafe(overwrite_existing=overwrite_existing)
         safe_references: dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]] = {}
         missing_references = []
         for category, reference in all_references.items():
             if reference is None:
                 missing_references.append(category)
+                safe_references[category] = {}
             else:
                 safe_references[category] = reference
         if missing_references:
-            raise ValueError(f"Missing model references for categories: {missing_references}")
+            logger.error(f"Missing model references for categories: {missing_references}")
+
         return safe_references
 
     def get_raw_model_reference_json(
         self,
         category: MODEL_REFERENCE_CATEGORY,
-        override_existing: bool = False,
+        overwrite_existing: bool = False,
     ) -> dict[str, Any] | None:
         """Return the raw JSON dict for a specific category without pydantic validation.
 
@@ -519,7 +534,7 @@ class ModelReferenceManager:
 
         Args:
             category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
-            override_existing (bool, optional): Whether to force a redownload. Defaults to False.
+            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
 
         Returns:
             dict[str, Any] | None: The raw JSON dict for the category, or None if not found.
@@ -530,16 +545,16 @@ class ModelReferenceManager:
             all_files: dict[MODEL_REFERENCE_CATEGORY, Path | None]
             all_files = self.backend.get_all_category_file_paths()
 
-            needs_backend_refresh = override_existing or self.backend.needs_refresh(category)
+            needs_backend_refresh = overwrite_existing or self.backend.needs_refresh(category)
 
-            if not override_existing and category in self._cached_file_json and not needs_backend_refresh:
+            if not overwrite_existing and category in self._cached_file_json and not needs_backend_refresh:
                 logger.debug(f"Returning cached raw JSON for category: {category}")
                 return self._cached_file_json[category]
 
             if needs_backend_refresh:
-                self._fetch_from_backend_if_needed(force_refresh=override_existing)
+                self._fetch_from_backend_if_needed(force_refresh=overwrite_existing)
 
-            if override_existing or category not in self._cached_file_json or self.backend.needs_refresh(category):
+            if overwrite_existing or category not in self._cached_file_json or self.backend.needs_refresh(category):
                 file_path = all_files.get(category)
                 if file_path is None:
                     logger.warning(f"No file path for category: {category}")
