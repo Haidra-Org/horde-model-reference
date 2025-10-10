@@ -208,7 +208,7 @@ class BaseLegacyConverter:
                     file_name=file_entry.path,
                     file_url="",
                     sha256sum=file_entry.sha256sum if file_entry.sha256sum else "FIXME",
-                    file_type=None,
+                    file_purpose=file_entry.file_type,
                     known_slow_download=any(
                         slow_url in file_entry.path.lower() for slow_url in _SLOW_DOWNLOAD_HOST_SUBSTRINGS
                     ),
@@ -216,7 +216,6 @@ class BaseLegacyConverter:
 
         for download_entry in legacy_record.config.download:
             if download_entry.file_name in download_records:
-
                 download_records[download_entry.file_name].file_url = download_entry.file_url or ""
             else:
                 raise ValueError(f"Unknown download entry: {download_entry.file_name}")

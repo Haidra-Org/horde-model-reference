@@ -7,7 +7,7 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 def test_download_all_model_references(model_reference_manager: ModelReferenceManager) -> None:
     """Test downloading all model references script."""
-    download_models = model_reference_manager.get_all_model_references(override_existing=True)
+    download_models = model_reference_manager.get_all_model_references(overwrite_existing=True)
     assert len(download_models) == len(MODEL_REFERENCE_CATEGORY.__members__)
 
 
