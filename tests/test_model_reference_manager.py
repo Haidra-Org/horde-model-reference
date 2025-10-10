@@ -130,7 +130,7 @@ def test_manager(
     ), "Expected 'Building' in log messages during cache construction"
 
     all_references: dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]
-    all_references = model_reference_manager.get_all_model_references(override_existing=False)
+    all_references = model_reference_manager.get_all_model_references(overwrite_existing=False)
 
     assert len(all_references) > 0
     assert all(ref_cat in all_references for ref_cat in MODEL_REFERENCE_CATEGORY)
@@ -138,7 +138,7 @@ def test_manager(
 
     verify_model_references_structure(all_references)
 
-    cached_references = model_reference_manager.get_all_model_references_unsafe(override_existing=False)
+    cached_references = model_reference_manager.get_all_model_references_unsafe(overwrite_existing=False)
     assert len(cached_references) == len(all_references)
 
 
@@ -172,14 +172,14 @@ async def test_manager_async(
     finally:
         await httpx_client.aclose()
 
-    all_references = model_reference_manager.get_all_model_references(override_existing=False)
+    all_references = model_reference_manager.get_all_model_references(overwrite_existing=False)
 
     assert len(all_references) > 0
     assert all(ref_cat in all_references for ref_cat in MODEL_REFERENCE_CATEGORY)
 
     verify_model_references_structure(all_references)
 
-    cached_references = model_reference_manager.get_all_model_references_unsafe(override_existing=False)
+    cached_references = model_reference_manager.get_all_model_references_unsafe(overwrite_existing=False)
     assert len(cached_references) == len(all_references)
 
 
@@ -188,11 +188,11 @@ def test_manager_new_format(model_reference_manager: ModelReferenceManager, capl
 
     def assert_all_model_references_exist(
         model_reference_manager: ModelReferenceManager,
-        override_existing: bool,
+        overwrite_existing: bool,
     ) -> None:
         """Assert that all model references exist."""
         all_model_references = model_reference_manager.get_all_model_references_unsafe(
-            override_existing=override_existing
+            overwrite_existing=overwrite_existing
         )
         for model_reference_category in MODEL_REFERENCE_CATEGORY:
             if model_reference_category == MODEL_REFERENCE_CATEGORY.text_generation:
@@ -217,9 +217,9 @@ def test_manager_new_format(model_reference_manager: ModelReferenceManager, capl
                     model_entry.model_classification == MODEL_CLASSIFICATION_LOOKUP[model_reference_category]
                 ), f"Model entry for {model_reference_category} is not classified correctly"
 
-    assert_all_model_references_exist(model_reference_manager, override_existing=True)
+    assert_all_model_references_exist(model_reference_manager, overwrite_existing=True)
 
-    assert_all_model_references_exist(model_reference_manager, override_existing=False)
+    assert_all_model_references_exist(model_reference_manager, overwrite_existing=False)
 
 
 class TestSingleton:
@@ -272,7 +272,7 @@ class TestCacheAndStaleness:
         """Test that the cache invalidation works."""
         manager = ModelReferenceManager(lazy_mode=True)
 
-        manager.get_all_model_references_unsafe(override_existing=False)
+        manager.get_all_model_references_unsafe(overwrite_existing=False)
         assert manager._cached_file_json
         manager._invalidate_cache()
         assert manager._cached_file_json == {}
@@ -281,7 +281,7 @@ class TestCacheAndStaleness:
         """Test that cache can be selectively invalidated by category."""
         manager = ModelReferenceManager(lazy_mode=True)
 
-        manager.get_all_model_references_unsafe(override_existing=False)
+        manager.get_all_model_references_unsafe(overwrite_existing=False)
         initial_cache_size = len(manager._cached_file_json)
         assert initial_cache_size > 0, "Cache should be populated for this test"
 
@@ -817,7 +817,7 @@ class TestFileJsonIO:
         second_result = manager.get_raw_model_reference_json(category)
         assert second_result == test_data
 
-        third_result = manager.get_raw_model_reference_json(category, override_existing=True)
+        third_result = manager.get_raw_model_reference_json(category, overwrite_existing=True)
         assert third_result == test_data
 
     def test_get_raw_model_reference_json_missing_file(self, tmp_path: Path) -> None:

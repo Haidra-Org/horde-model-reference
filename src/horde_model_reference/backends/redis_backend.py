@@ -45,7 +45,7 @@ class RedisBackend(ModelReferenceBackend):
     _ttl: int
 
     _lock: RLock
-    _sync_redis: redis.Redis[str]
+    _sync_redis: redis.Redis[bytes]
 
     _pubsub: redis.client.PubSub
     _pubsub_thread: threading.Thread | None
@@ -95,7 +95,7 @@ class RedisBackend(ModelReferenceBackend):
         if redis_settings.use_pubsub:
             self._setup_pubsub()
 
-    def _create_sync_pool(self) -> redis.Redis:
+    def _create_sync_pool(self) -> redis.Redis[bytes]:
         """Create synchronous Redis connection pool."""
         return redis.from_url(
             self._redis_settings.url,
@@ -136,7 +136,7 @@ class RedisBackend(ModelReferenceBackend):
         """Listen for cache invalidation events from other workers."""
         logger.debug("Redis pub/sub listener started")
         try:
-            messages = self._pubsub.listen()
+            messages = self._pubsub.listen()  # type: ignore[no-untyped-call]
             if not isinstance(messages, Iterable):
                 raise ValueError("Expected iterable from pubsub.listen()")
             for message in messages:
@@ -158,10 +158,10 @@ class RedisBackend(ModelReferenceBackend):
 
     def _retry_redis_operation(
         self,
-        operation: Callable[..., str | bool | int | None],
+        operation: Callable[..., str | bool | bytes | int | None],
         *args: str | int | float | None,
         **kwargs: str | int | float | None,
-    ) -> str | bool | int | None:
+    ) -> str | bool | int | bytes | None:
         """Retry a Redis operation with exponential backoff."""
         for attempt in range(self._redis_settings.retry_max_attempts):
             try:
@@ -195,7 +195,6 @@ class RedisBackend(ModelReferenceBackend):
         data: dict[str, Any] | None = None
 
         if not force_refresh:
-
             try:
                 cached = self._retry_redis_operation(self._sync_redis.get, key)
                 if cached:

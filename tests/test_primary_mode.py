@@ -229,11 +229,12 @@ def test_manager_detects_external_file_update(
     assert "initial" not in refreshed_category_refs
 
 
-def test_get_all_model_references_raises_when_missing(
+def test_get_all_model_references_returns_empty_dicts_when_missing(
     primary_base: Path,
     restore_manager_singleton: None,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Verify safe accessor raises when any category is unavailable."""
+    """Verify safe accessor returns empty dicts and logs error when categories are unavailable."""
     backend = FileSystemBackend(
         base_path=primary_base,
         cache_ttl_seconds=60,
@@ -245,8 +246,90 @@ def test_get_all_model_references_raises_when_missing(
         replicate_mode=ReplicateMode.PRIMARY,
     )
 
-    with pytest.raises(ValueError, match="Missing model references") as excinfo:
-        manager.get_all_model_references()
+    all_refs = manager.get_all_model_references()
 
-    missing_message = str(excinfo.value)
-    assert MODEL_REFERENCE_CATEGORY.miscellaneous.value in missing_message
+    for _, refs in all_refs.items():
+        assert refs == {}
+
+    assert "Missing model references for categories" in caplog.text
+    assert MODEL_REFERENCE_CATEGORY.miscellaneous.value in caplog.text
+
+
+def test_filesystem_backend_separates_legacy_and_v2_formats(primary_base: Path) -> None:
+    """Ensure FileSystemBackend properly separates legacy and v2 format files.
+
+    This test verifies that:
+    - fetch_category() reads from v2 files (base_path/stable_diffusion.json)
+    - get_legacy_json() reads from legacy files (base_path/legacy/stable_diffusion.json)
+    - get_legacy_json_string() reads from legacy files (base_path/legacy/stable_diffusion.json)
+    - Both formats can coexist with different data
+    """
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+
+    v2_payload = _minimal_record_dict("v2_model", description="This is v2 format")
+    v2_file_path = _write_category_file(primary_base, category, v2_payload)
+    assert v2_file_path.exists()
+
+    legacy_payload = _minimal_record_dict("legacy_model", description="This is legacy format")
+    legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+        category,
+        base_path=primary_base,
+    )
+    legacy_file_path.parent.mkdir(parents=True, exist_ok=True)
+    legacy_file_path.write_text(json.dumps(legacy_payload))
+    assert legacy_file_path.exists()
+
+    assert v2_file_path != legacy_file_path
+    assert "legacy" in str(legacy_file_path)
+    assert "legacy" not in str(v2_file_path)
+
+    backend = FileSystemBackend(
+        base_path=primary_base,
+        cache_ttl_seconds=60,
+        replicate_mode=ReplicateMode.PRIMARY,
+    )
+
+    v2_data = backend.fetch_category(category)
+    assert v2_data is not None
+    assert "v2_model" in v2_data
+    assert "legacy_model" not in v2_data
+    assert v2_data["v2_model"]["description"] == "This is v2 format"
+
+    legacy_data = backend.get_legacy_json(category)
+    assert legacy_data is not None
+    assert "legacy_model" in legacy_data
+    assert "v2_model" not in legacy_data
+    assert legacy_data["legacy_model"]["description"] == "This is legacy format"
+
+    legacy_string = backend.get_legacy_json_string(category)
+    assert legacy_string is not None
+    legacy_data_from_string = json.loads(legacy_string)
+    assert "legacy_model" in legacy_data_from_string
+    assert "v2_model" not in legacy_data_from_string
+    assert legacy_data_from_string["legacy_model"]["description"] == "This is legacy format"
+
+    assert v2_data != legacy_data
+    assert v2_data != legacy_data_from_string
+
+
+def test_filesystem_backend_legacy_methods_return_none_when_missing(primary_base: Path) -> None:
+    """Ensure get_legacy_json methods return None when legacy files don't exist."""
+    category = MODEL_REFERENCE_CATEGORY.miscellaneous
+
+    backend = FileSystemBackend(
+        base_path=primary_base,
+        cache_ttl_seconds=60,
+        replicate_mode=ReplicateMode.PRIMARY,
+    )
+
+    legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+        category,
+        base_path=primary_base,
+    )
+    assert not legacy_file_path.exists()
+
+    legacy_data = backend.get_legacy_json(category)
+    assert legacy_data is None
+
+    legacy_string = backend.get_legacy_json_string(category)
+    assert legacy_string is None

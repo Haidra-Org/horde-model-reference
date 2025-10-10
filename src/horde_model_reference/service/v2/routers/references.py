@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Response
 from fastapi.responses import JSONResponse
 from haidra_core.service_base import ContainsMessage
 
@@ -33,7 +33,7 @@ model_reference_manager = ModelReferenceManager()
 @router.get("/model_categories", response_model=list[MODEL_REFERENCE_CATEGORY | str])
 async def read_reference_names() -> list[MODEL_REFERENCE_CATEGORY | str]:
     """Get all legacy model reference names."""
-    return list(model_reference_manager.get_all_model_references_unsafe().keys())
+    return list(model_reference_manager.get_all_model_references().keys())
 
 
 @router.get(
@@ -50,11 +50,9 @@ async def read_reference(
     model_category_name: MODEL_REFERENCE_CATEGORY,
 ) -> JSONResponse:
     """Get a specific model reference by category name."""
-    # Get raw cached JSON directly - no pydantic overhead
     raw_json = model_reference_manager.get_raw_model_reference_json(model_category_name)
 
     if raw_json is None:
         raise HTTPException(status_code=404, detail=f"Model category '{model_category_name}' not found")
 
-    # Return JSONResponse directly with cached JSON data
-    return JSONResponse(content=raw_json)
+    return JSONResponse(content=raw_json, media_type="application/json")

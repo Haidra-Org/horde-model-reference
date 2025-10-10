@@ -19,11 +19,11 @@ def configure_logger(quiet: bool) -> None:
         logger.add(lambda msg: print(msg, end=""))
 
 
-def get_all_names(model_reference_category: MODEL_REFERENCE_CATEGORY) -> list[str]:
+def get_all_names(model_reference_category: MODEL_REFERENCE_CATEGORY, refresh: bool) -> list[str]:
     """Get all model names for a given model reference category."""
     logger.debug(f"Getting all names for category: {model_reference_category}")
     model_reference_manager = ModelReferenceManager(lazy_mode=False)
-    all_references = model_reference_manager.get_all_model_references()
+    all_references = model_reference_manager.get_all_model_references(overwrite_existing=refresh)
 
     if model_reference_category not in all_references:
         logger.warning(f"No references found for category: {model_reference_category}")
@@ -46,6 +46,13 @@ def main() -> None:
         action="store_true",
         help="If set, enables all logs.",
     )
+
+    parser.add_argument(
+        "-r",
+        "--refresh",
+        action="store_true",
+        help="If set, refreshes the model references from the backend.",
+    )
     args = parser.parse_args()
 
     configure_logger(not args.debug)
@@ -63,7 +70,7 @@ def main() -> None:
         )
         sys.exit(1)
 
-    names = get_all_names(category_enum)
+    names = get_all_names(category_enum, args.refresh)
 
     if names:
         logger.info(f"Model names in category '{category_str}':")

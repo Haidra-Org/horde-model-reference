@@ -22,17 +22,7 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
 class FileSystemBackend(ModelReferenceBackend):
-    """Backend that reads/writes model references directly on the local filesystem.
-
-    This backend is the source of truth for PRIMARY mode instances. It:
-    - Reads from stable_diffusion.json, text_generation.json, etc. (new format)
-    - Writes directly to these files (CRUD operations)
-    - Never touches the legacy/ folder
-    - Never downloads from GitHub
-    - Only works in PRIMARY mode
-
-    The files are expected to be in the new format already (no conversion needed).
-    """
+    """Backend that reads/writes model references directly on the local filesystem."""
 
     def __init__(
         self,
@@ -270,16 +260,32 @@ class FileSystemBackend(ModelReferenceBackend):
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
     ) -> dict[str, Any] | None:
-        """Get JSON for a category (same as fetch_category for filesystem backend).
+        """Get legacy format JSON from legacy/ folder.
 
         Args:
             category: Category to retrieve.
             redownload: Ignored (files are already local).
 
         Returns:
-            dict[str, Any] | None: The JSON data.
+            dict[str, Any] | None: The legacy format JSON data, or None if file doesn't exist.
         """
-        return self.fetch_category(category, force_refresh=redownload)
+        legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+            category,
+            base_path=self.base_path,
+        )
+
+        if not legacy_file_path.exists():
+            logger.debug(f"Legacy file not found for {category}: {legacy_file_path}")
+            return None
+
+        try:
+            with open(legacy_file_path, encoding="utf-8") as f:
+                data: dict[str, Any] = json.load(f)
+            logger.debug(f"Loaded legacy JSON for {category} from {legacy_file_path}")
+            return data
+        except Exception as e:
+            logger.error(f"Failed to read legacy file {legacy_file_path}: {e}")
+            return None
 
     @override
     def get_legacy_json_string(
@@ -287,19 +293,32 @@ class FileSystemBackend(ModelReferenceBackend):
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
     ) -> str | None:
-        """Get JSON string for a category.
+        """Get legacy format JSON string from legacy/ folder.
 
         Args:
             category: Category to retrieve.
             redownload: Ignored (files are already local).
 
         Returns:
-            str | None: The JSON string.
+            str | None: The legacy format JSON string, or None if file doesn't exist.
         """
-        data = self.fetch_category(category, force_refresh=redownload)
-        if data is None:
+        legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+            category,
+            base_path=self.base_path,
+        )
+
+        if not legacy_file_path.exists():
+            logger.debug(f"Legacy file not found for {category}: {legacy_file_path}")
             return None
-        return json.dumps(data, indent=2, ensure_ascii=False)
+
+        try:
+            with open(legacy_file_path, encoding="utf-8") as f:
+                content = f.read()
+            logger.debug(f"Loaded legacy JSON string for {category} from {legacy_file_path}")
+            return content
+        except Exception as e:
+            logger.error(f"Failed to read legacy file {legacy_file_path}: {e}")
+            return None
 
     @override
     def supports_writes(self) -> bool:

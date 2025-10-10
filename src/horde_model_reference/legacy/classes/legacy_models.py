@@ -54,6 +54,7 @@ class LegacyConfigFile(BaseModel):
     path: str
     md5sum: str | None = None
     sha256sum: str | None = None
+    file_type: str | None = None
 
     @model_validator(mode="after")
     def _ensure_sha256sum_for_model_files(self, info: ValidationInfo) -> LegacyConfigFile:
@@ -76,7 +77,6 @@ class LegacyConfigDownload(BaseModel):
 
     file_name: str | None = None
     file_path: str | None = ""
-    file_type: str | None = None
     file_url: str | None = None
 
     @model_validator(mode="after")

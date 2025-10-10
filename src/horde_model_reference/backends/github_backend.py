@@ -133,7 +133,7 @@ class GitHubBackend(ReplicaBackendBase):
         with self._lock:
 
             if force_refresh or category in self._stale_categories:
-                self._download_and_convert_single(category, override_existing=force_refresh)
+                self._download_and_convert_single(category, overwrite_existing=force_refresh)
 
             return self._get_cached_category(category)
 
@@ -154,15 +154,7 @@ class GitHubBackend(ReplicaBackendBase):
             dict mapping categories to their converted model reference data.
         """
         with self._lock:
-
-            if (
-                force_refresh
-                or any(category in self._stale_categories for category in MODEL_REFERENCE_CATEGORY)
-                or any(category not in self._references_paths_cache for category in MODEL_REFERENCE_CATEGORY)
-                or any(references is None for references in self._references_paths_cache.values())
-            ):
-                self._download_and_convert_all(overwrite_existing=force_refresh)
-
+            self._download_and_convert_all(overwrite_existing=force_refresh)
             return self._build_converted_cache()
 
     @override
@@ -189,15 +181,14 @@ class GitHubBackend(ReplicaBackendBase):
 
         async with lock:
 
-            if force_refresh or category in self._stale_categories:
-                await self._download_legacy_async(
-                    category,
-                    httpx_client,
-                    override_existing=force_refresh,
-                )
+            await self._download_legacy_async(
+                category,
+                httpx_client,
+                overwrite_existing=force_refresh,
+            )
 
-                if self._is_cache_expired():
-                    convert_all_legacy_model_references()
+            if self._is_cache_expired():
+                convert_all_legacy_model_references()
 
             return self._get_cached_category(category)
 
@@ -225,12 +216,11 @@ class GitHubBackend(ReplicaBackendBase):
 
             tasks = []
             for category in MODEL_REFERENCE_CATEGORY:
-                override = force_refresh or category in self._stale_categories
                 tasks.append(
                     self._download_legacy_async(
                         category,
                         httpx_client,
-                        override_existing=override,
+                        overwrite_existing=force_refresh,
                     )
                 )
 
@@ -302,14 +292,23 @@ class GitHubBackend(ReplicaBackendBase):
         """
         return horde_model_reference_paths.get_all_model_reference_file_paths(base_path=self.base_path)
 
+    _cache_expired: bool = False
+
     def _is_cache_expired(self) -> bool:
         """Check if internal cache has expired."""
+        if self._cache_expired:
+            return True
+
         if self._converted_cache is None:
             return True
         ttl = self.cache_ttl_seconds
         if ttl is None:
             return False
         return (time.time() - self._cache_timestamp) > ttl
+
+    def _expire_cache(self) -> None:
+        """Manually expire the internal cache."""
+        self._cache_expired = True
 
     def _get_cached_category(self, category: MODEL_REFERENCE_CATEGORY) -> dict[str, Any] | None:
         """Get a single category from cache."""
@@ -373,9 +372,7 @@ class GitHubBackend(ReplicaBackendBase):
             dict[str, Any] | None: The raw legacy JSON dict, or None if not found.
         """
         with self._lock:
-            if redownload:
-
-                self._download_legacy(category, override_existing=True)
+            self._download_legacy(category, overwrite_existing=redownload)
 
             if category in self._legacy_cache:
                 logger.debug(f"Returning cached legacy JSON for category {category!r}")
@@ -407,9 +404,7 @@ class GitHubBackend(ReplicaBackendBase):
             str | None: The raw legacy JSON string, or None if not found.
         """
         with self._lock:
-            if redownload:
-
-                self._download_legacy(category, override_existing=True)
+            self._download_legacy(category, overwrite_existing=redownload)
 
             if category in self._legacy_string_cache:
                 cached_value = self._legacy_string_cache[category]
@@ -459,10 +454,10 @@ class GitHubBackend(ReplicaBackendBase):
     def _download_and_convert_single(
         self,
         category: MODEL_REFERENCE_CATEGORY,
-        override_existing: bool = False,
+        overwrite_existing: bool = False,
     ) -> None:
         """Download a single category's legacy file and convert it."""
-        self._download_legacy(category, override_existing=override_existing)
+        self._download_legacy(category, overwrite_existing=overwrite_existing)
 
         if self._is_cache_expired():
             convert_all_legacy_model_references()
@@ -472,8 +467,7 @@ class GitHubBackend(ReplicaBackendBase):
     def _download_and_convert_all(self, overwrite_existing: bool = False) -> None:
         """Download all legacy files and convert them."""
         for category in MODEL_REFERENCE_CATEGORY:
-            override = overwrite_existing or category in self._stale_categories
-            self._download_legacy(category, override_existing=override)
+            self._download_legacy(category, overwrite_existing=overwrite_existing)
 
         if self._is_cache_expired():
             convert_all_legacy_model_references()
@@ -484,7 +478,7 @@ class GitHubBackend(ReplicaBackendBase):
     def _download_legacy(
         self,
         category: MODEL_REFERENCE_CATEGORY,
-        override_existing: bool = False,
+        overwrite_existing: bool = False,
     ) -> Path | None:
         """Download a single legacy file from GitHub (synchronous)."""
         if self._replicate_mode != ReplicateMode.REPLICA:
@@ -496,8 +490,13 @@ class GitHubBackend(ReplicaBackendBase):
             base_path=self.legacy_path,
         )
 
+        needs_refresh = self.needs_refresh(category)
+        if needs_refresh:
+            logger.debug(f"Category {category} needs refresh, proceeding to download")
+            overwrite_existing = True
+
         with self._lock:
-            if target_file_path.exists() and not override_existing:
+            if target_file_path.exists() and not overwrite_existing:
                 logger.debug(f"Legacy file {target_file_path} already exists, skipping download")
                 return target_file_path
 
@@ -507,8 +506,10 @@ class GitHubBackend(ReplicaBackendBase):
             elif category in github_text_model_reference_categories:
                 target_url = horde_model_reference_paths.legacy_text_model_github_urls[category]
             else:
-                logger.debug(f"No known GitHub URL for {category}")
-                return None
+                logger.debug(f"No known GitHub URL for {category}, creating empty file")
+                target_file_path.parent.mkdir(parents=True, exist_ok=True)
+                target_file_path.touch(exist_ok=True)
+                return target_file_path
 
             for attempt in range(1, self.retry_max_attempts + 1):
                 if attempt > 1:
@@ -560,6 +561,8 @@ class GitHubBackend(ReplicaBackendBase):
                 self._legacy_string_cache[category] = response.content.decode("utf-8")
                 logger.debug(f"Populated legacy cache for {category} after download")
 
+                self._expire_cache()
+
                 return target_file_path
 
             return None
@@ -568,7 +571,7 @@ class GitHubBackend(ReplicaBackendBase):
         self,
         category: MODEL_REFERENCE_CATEGORY,
         httpx_client: httpx.AsyncClient | None = None,
-        override_existing: bool = False,
+        overwrite_existing: bool = False,
     ) -> Path | None:
         """Download a single legacy file from GitHub (asynchronous)."""
         if self._replicate_mode != ReplicateMode.REPLICA:
@@ -580,7 +583,12 @@ class GitHubBackend(ReplicaBackendBase):
             base_path=self.legacy_path,
         )
 
-        if target_file_path.exists() and not override_existing:
+        needs_refresh = self.needs_refresh(category)
+        if needs_refresh:
+            logger.debug(f"Category {category} needs refresh, proceeding to download")
+            overwrite_existing = True
+
+        if target_file_path.exists() and not overwrite_existing:
             logger.debug(f"Legacy file {target_file_path} already exists, skipping download")
             return target_file_path
 
