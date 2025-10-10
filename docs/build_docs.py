@@ -3,27 +3,21 @@ from pathlib import Path
 
 def dynamically_create_library_markdown_stubs() -> None:
     """Dynamically create markdown stubs for every .py file in the project directory and its subdirectories."""
-    # Create mkdocs documentation using mkdocstrings
     project_root = Path(__file__).parent.parent
     code_root = Path(__file__).parent.parent / "src" / "horde_model_reference"
 
-    # Get every .py file in the code_root directory and all subdirectories
     py_files = list(code_root.glob("**/*.py"))
 
-    # Sort the files by path
     sorted_py_files = sorted(py_files, key=lambda x: str(x))
 
     pyfile_lookup = convert_list_of_paths_to_namespaces(sorted_py_files, project_root)
 
-    # Get all the folders in code_root and its subdirectories
     code_root_paths = list(code_root.glob("**/*"))
     code_root_paths.append(code_root)
     code_root_paths = [path for path in code_root_paths if path.is_dir()]
 
     folder_lookup = convert_list_of_paths_to_namespaces(code_root_paths, project_root)
-    # Remove any files from the folder_lookup
 
-    # For each folder in the folder_lookup, create a file in the docs folder
     for folder, _namespace in folder_lookup.items():
         relative_folder = folder.relative_to(project_root)
         if relative_folder.parts[0] == "src":
@@ -37,13 +31,10 @@ def dynamically_create_library_markdown_stubs() -> None:
             else:
                 f.write(f"title: {relative_folder.name}\n")
 
-        # Get all the files in the folder
         files_in_folder = list(folder.glob("*.py"))
 
-        # Remove any files that start with a dunderscore
         files_in_folder = [file for file in files_in_folder if "__" not in str(file)]
 
-        # Sort the files by path
         sorted_files_in_folder = sorted(files_in_folder, key=lambda x: str(x))
 
         if len(sorted_files_in_folder) == 0:

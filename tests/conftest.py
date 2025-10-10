@@ -7,7 +7,6 @@ import pytest
 from loguru import logger
 from pytest import LogCaptureFixture
 
-from horde_model_reference.legacy.legacy_download_manager import LegacyReferenceDownloadManager
 from horde_model_reference.model_reference_manager import ModelReferenceManager
 
 os.environ["TESTS_ONGOING"] = "1"
@@ -64,21 +63,30 @@ def model_reference_manager() -> ModelReferenceManager:
     )
 
 
-@pytest.fixture(scope="session")
-def legacy_reference_download_manager() -> LegacyReferenceDownloadManager:
-    """Return a LegacyReferenceDownloadManager instance for tests."""
-    return LegacyReferenceDownloadManager()
+@pytest.fixture
+def primary_base(tmp_path: Path) -> Path:
+    """Return an isolated base directory for PRIMARY-mode file operations."""
+    base = tmp_path / "primary"
+    base.mkdir()
+    return base
+
+
+@pytest.fixture
+def restore_manager_singleton() -> Generator[None, None, None]:
+    """Reset the ModelReferenceManager singleton around a test."""
+    previous = ModelReferenceManager._instance
+    ModelReferenceManager._instance = None
+    try:
+        yield
+    finally:
+        ModelReferenceManager._instance = previous
 
 
 def pytest_collection_modifyitems(items) -> None:  # type: ignore #  # noqa: ANN001
     """Modify test items to ensure test modules run in a given order."""
-    MODULES_TO_RUN_FIRST = [
-        "tests.test_scripts",
-        "tests.test_convert_legacy_database",
-        "tests.test_model_reference_manager",
-    ]
+    MODULES_TO_RUN_FIRST: list[str] = []
+    MODULES_TO_RUN_LAST: list[str] = []
 
-    MODULES_TO_RUN_LAST = []  # type: ignore  # FIXME make dynamic
     module_mapping = {item: item.module.__name__ for item in items}
 
     sorted_items = []

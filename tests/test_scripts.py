@@ -1,14 +1,13 @@
 import os
 
-from horde_model_reference import horde_model_reference_paths
-from horde_model_reference.legacy import LegacyReferenceDownloadManager
+from horde_model_reference import ModelReferenceManager, horde_model_reference_paths
 from horde_model_reference.legacy.validate_sd import validate_legacy_stable_diffusion_db
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
-def test_download_all_model_references(legacy_reference_download_manager: LegacyReferenceDownloadManager) -> None:
+def test_download_all_model_references(model_reference_manager: ModelReferenceManager) -> None:
     """Test downloading all model references script."""
-    download_models = legacy_reference_download_manager.download_all_legacy_model_references(overwrite_existing=True)
+    download_models = model_reference_manager.get_all_model_references(override_existing=True)
     assert len(download_models) == len(MODEL_REFERENCE_CATEGORY.__members__)
 
 
