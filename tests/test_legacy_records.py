@@ -1,6 +1,6 @@
 import json
 
-from horde_model_reference import MODEL_REFERENCE_CATEGORY, ModelReferenceManager
+from horde_model_reference import MODEL_REFERENCE_CATEGORY, ModelReferenceManager, ReplicateMode
 from horde_model_reference.backends import GitHubBackend
 from horde_model_reference.legacy.classes.legacy_models import (
     LegacyClipRecord,
@@ -10,9 +10,11 @@ from horde_model_reference.legacy.classes.legacy_models import (
 
 
 def test_legacy_record_read_and_init(
-    model_reference_manager: ModelReferenceManager,
+    restore_manager_singleton: None,
 ) -> None:
     """Tests reading and initializing legacy records."""
+    model_reference_manager = ModelReferenceManager(replicate_mode=ReplicateMode.REPLICA, lazy_mode=True)
+
     legacy_reference_locations = model_reference_manager.backend.get_all_category_file_paths()
 
     assert len(legacy_reference_locations) > 0

@@ -102,7 +102,7 @@ class GithubRepoSettings(BaseModel):
         return full_url
 
 
-# These child classes exist so the generated `.env.example` files are filled in as intended
+# These `GithubRepoSettings` child classes exist so the generated `.env.example` files are filled in as intended
 # They have no practical purpose beyond that.
 class TextGithubRepoSettings(GithubRepoSettings):
     """Settings for the GitHub repository used for text model references."""

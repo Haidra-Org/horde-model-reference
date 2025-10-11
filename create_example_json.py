@@ -4,7 +4,6 @@ from horde_model_reference import (
     KNOWN_IMAGE_GENERATION_BASELINE,
     MODEL_DOMAIN,
     MODEL_PURPOSE,
-    MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
     ModelClassification,
 )
@@ -36,7 +35,6 @@ def create_example_json_schema() -> None:
         inpainting=False,
         style=MODEL_STYLE.generalist,
         config={"download": [example_download_record]},
-        model_reference_category=MODEL_REFERENCE_CATEGORY.image_generation,
         model_classification=ModelClassification(
             domain=MODEL_DOMAIN.image,
             purpose=MODEL_PURPOSE.generation,
@@ -66,7 +64,6 @@ def create_example_json_schema() -> None:
         inpainting=False,
         style=MODEL_STYLE.anime,
         config={"download": [example_download_record_2]},
-        model_reference_category=MODEL_REFERENCE_CATEGORY.image_generation,
         model_classification=ModelClassification(
             domain=MODEL_DOMAIN.image,
             purpose=MODEL_PURPOSE.generation,

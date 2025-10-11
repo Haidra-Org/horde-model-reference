@@ -102,8 +102,8 @@ class _InMemoryReplicaBackend(ModelReferenceBackend):
 
 
 def test_manager(
-    model_reference_manager: ModelReferenceManager,
     caplog: LogCaptureFixture,
+    restore_manager_singleton: None,
 ) -> None:
     """Test that the manager can fetch and cache all model reference categories via the backend.
 
@@ -114,6 +114,8 @@ def test_manager(
     - Data quality of fetched references
     """
     from tests.helpers import verify_model_references_structure
+
+    model_reference_manager = ModelReferenceManager(replicate_mode=ReplicateMode.REPLICA, lazy_mode=True)
 
     legacy_reference_locations = model_reference_manager.backend.get_all_category_file_paths()
 

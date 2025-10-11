@@ -17,8 +17,9 @@ jobs:
   no_extra_fields:
     env:
       AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
-      HORDELIB_CI_ONGOING: "1"
       TESTS_ONGOING: "1"
+      AI_HORDE_TESTING: "1"
+      HORDELIB_CI_ONGOING: "1"
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -46,6 +47,7 @@ jobs:
     env:
       AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
       TESTS_ONGOING: "1"
+      AI_HORDE_TESTING: "1"
     runs-on: ubuntu-latest
     strategy:
       matrix:
