@@ -1,6 +1,7 @@
 import json
 import os
 from pathlib import Path
+import re
 from typing import Any
 
 import pytest
@@ -107,37 +108,6 @@ def test_filesystem_backend_primary_update_and_delete(primary_base: Path) -> Non
     stored_after_delete = json.loads(file_path.read_text())
     assert stored_after_delete == {}
     assert category in backend._stale_categories
-
-
-def test_model_reference_manager_primary_skips_replica_fetch(
-    primary_base: Path,
-    restore_manager_singleton: None,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Confirm PRIMARY manager never triggers replica fetch pathways."""
-    category = MODEL_REFERENCE_CATEGORY.miscellaneous
-    _write_category_file(primary_base, category, _minimal_record_dict("on_disk"))
-
-    backend = FileSystemBackend(
-        base_path=primary_base,
-        cache_ttl_seconds=60,
-        replicate_mode=ReplicateMode.PRIMARY,
-    )
-    manager = ModelReferenceManager(
-        backend=backend,
-        lazy_mode=True,
-        replicate_mode=ReplicateMode.PRIMARY,
-    )
-
-    def fail_fetch(*_args: object, **_kwargs: object) -> None:
-        pytest.fail("fetch_all_categories should not be called in PRIMARY mode")
-
-    monkeypatch.setattr(manager.backend, "fetch_all_categories", fail_fetch)
-
-    all_refs = manager.get_all_model_references_unsafe()
-    assert manager._replicate_mode == ReplicateMode.PRIMARY
-    assert category in all_refs
-    assert all_refs[category] is not None
 
 
 def test_model_reference_manager_primary_write_paths(
@@ -333,3 +303,129 @@ def test_filesystem_backend_legacy_methods_return_none_when_missing(primary_base
 
     legacy_string = backend.get_legacy_json_string(category)
     assert legacy_string is None
+
+
+def test_manager_cache_invalidated_on_update(
+    primary_base: Path,
+    restore_manager_singleton: None,
+) -> None:
+    """Manager cache should be invalidated when model is updated."""
+    category = MODEL_REFERENCE_CATEGORY.miscellaneous
+    initial_payload = _minimal_record_dict("test_model", description="initial")
+    _write_category_file(primary_base, category, initial_payload)
+
+    backend = FileSystemBackend(
+        base_path=primary_base,
+        cache_ttl_seconds=60,
+        replicate_mode=ReplicateMode.PRIMARY,
+    )
+    manager = ModelReferenceManager(
+        backend=backend,
+        lazy_mode=True,
+        replicate_mode=ReplicateMode.PRIMARY,
+    )
+
+    initial_refs = manager.get_all_model_references_unsafe()
+    assert category in initial_refs
+    initial_refs_record = initial_refs[category]
+    assert initial_refs_record is not None
+    assert "test_model" in initial_refs_record
+    assert initial_refs_record["test_model"].description == "initial"
+
+    updated_record = GenericModelRecord(
+        name="test_model",
+        description="updated",
+        model_classification=ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.miscellaneous,
+        ),
+    )
+
+    manager.update_model(category, "test_model", updated_record)
+
+    refreshed_refs = manager.get_all_model_references_unsafe()
+    refreshed_refs_record = refreshed_refs[category]
+    assert refreshed_refs_record is not None
+    assert "test_model" in refreshed_refs_record
+    assert refreshed_refs_record["test_model"].description == "updated"
+
+
+def test_manager_cache_invalidated_on_delete(
+    primary_base: Path,
+    restore_manager_singleton: None,
+) -> None:
+    """Manager cache should be invalidated when model is deleted."""
+    category = MODEL_REFERENCE_CATEGORY.miscellaneous
+    initial_payload = {
+        "model1": _minimal_record_dict("model1")["model1"],
+        "model2": _minimal_record_dict("model2")["model2"],
+    }
+    _write_category_file(primary_base, category, initial_payload)
+
+    backend = FileSystemBackend(
+        base_path=primary_base,
+        cache_ttl_seconds=60,
+        replicate_mode=ReplicateMode.PRIMARY,
+    )
+    manager = ModelReferenceManager(
+        backend=backend,
+        lazy_mode=True,
+        replicate_mode=ReplicateMode.PRIMARY,
+    )
+
+    initial_refs = manager.get_all_model_references_unsafe()
+    assert category in initial_refs
+
+    initial_refs_record = initial_refs[category]
+    assert initial_refs_record is not None
+
+    assert "model1" in initial_refs_record
+    assert "model2" in initial_refs_record
+
+    manager.delete_model(category, "model1")
+
+    refreshed_refs = manager.get_all_model_references_unsafe()
+
+    refreshed_refs_record = refreshed_refs[category]
+    assert refreshed_refs_record is not None
+
+    assert "model1" not in refreshed_refs_record
+    assert "model2" in refreshed_refs_record
+
+
+def test_manager_detects_backend_invalidation(
+    primary_base: Path,
+    restore_manager_singleton: None,
+) -> None:
+    """Manager should detect when backend marks category as stale."""
+    category = MODEL_REFERENCE_CATEGORY.miscellaneous
+    initial_payload = _minimal_record_dict("test_model")
+    _write_category_file(primary_base, category, initial_payload)
+
+    backend = FileSystemBackend(
+        base_path=primary_base,
+        cache_ttl_seconds=60,
+        replicate_mode=ReplicateMode.PRIMARY,
+    )
+    manager = ModelReferenceManager(
+        backend=backend,
+        lazy_mode=True,
+        replicate_mode=ReplicateMode.PRIMARY,
+    )
+
+    initial_refs = manager.get_all_model_references_unsafe()
+    assert category in initial_refs
+    assert initial_refs[category] is not None
+
+    updated_payload = _minimal_record_dict("test_model", description="changed")
+    file_path = horde_model_reference_paths.get_model_reference_file_path(category, base_path=primary_base)
+    file_path.write_text(json.dumps(updated_payload))
+
+    backend.mark_stale(category)
+
+    refreshed_refs = manager.get_all_model_references_unsafe()
+    assert category in refreshed_refs
+    refreshed_refs_record = refreshed_refs[category]
+    assert refreshed_refs_record is not None
+
+    assert refreshed_refs_record["test_model"].description == "changed"

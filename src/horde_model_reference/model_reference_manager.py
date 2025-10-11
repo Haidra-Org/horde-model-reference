@@ -9,11 +9,13 @@ import httpx
 from loguru import logger
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
-from horde_model_reference.backends.base import ModelReferenceBackend
-from horde_model_reference.backends.filesystem_backend import FileSystemBackend
-from horde_model_reference.backends.github_backend import GitHubBackend
-from horde_model_reference.backends.http_backend import HTTPBackend
-from horde_model_reference.backends.redis_backend import RedisBackend
+from horde_model_reference.backends import (
+    FileSystemBackend,
+    GitHubBackend,
+    HTTPBackend,
+    ModelReferenceBackend,
+    RedisBackend,
+)
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import MODEL_RECORD_TYPE_LOOKUP, GenericModelRecord
 
@@ -57,6 +59,7 @@ class ModelReferenceManager:
         Returns:
             ModelReferenceBackend: The configured backend instance.
         """
+        logger.debug(f"Creating backend with replicate_mode={replicate_mode}, base_path={base_path}")
         if replicate_mode == ReplicateMode.PRIMARY:
             logger.debug("Creating backend for PRIMARY mode")
 
@@ -266,10 +269,7 @@ class ModelReferenceManager:
         Args:
             force_refresh (bool): Whether to force refresh all categories.
         """
-        if self._replicate_mode == ReplicateMode.REPLICA:
-            self.backend.fetch_all_categories(force_refresh=force_refresh)
-        else:
-            logger.debug(f"Not fetching from backend due to replicate mode: {self._replicate_mode}")
+        self.backend.fetch_all_categories(force_refresh=force_refresh)
 
     async def _fetch_from_backend_if_needed_async(
         self,
@@ -282,13 +282,10 @@ class ModelReferenceManager:
             force_refresh (bool): Whether to force refresh all categories.
             httpx_client (httpx.AsyncClient | None): An optional httpx async client to use.
         """
-        if self._replicate_mode == ReplicateMode.REPLICA:
-            await self.backend.fetch_all_categories_async(
-                force_refresh=force_refresh,
-                httpx_client=httpx_client,
-            )
-        else:
-            logger.debug(f"Not fetching from backend due to replicate mode: {self._replicate_mode}")
+        await self.backend.fetch_all_categories_async(
+            force_refresh=force_refresh,
+            httpx_client=httpx_client,
+        )
 
     @staticmethod
     def _file_json_dict_to_model_reference(
@@ -544,22 +541,26 @@ class ModelReferenceManager:
 
             all_files: dict[MODEL_REFERENCE_CATEGORY, Path | None]
             all_files = self.backend.get_all_category_file_paths()
+            file_path = all_files.get(category)
+            if file_path is None:
+                logger.debug(f"No file path for category: {category}")
 
-            needs_backend_refresh = overwrite_existing or self.backend.needs_refresh(category)
+            needs_backend_refresh = overwrite_existing or self.backend.needs_refresh(category) or file_path is None
 
             if not overwrite_existing and category in self._cached_file_json and not needs_backend_refresh:
                 logger.debug(f"Returning cached raw JSON for category: {category}")
                 return self._cached_file_json[category]
 
             if needs_backend_refresh:
-                self._fetch_from_backend_if_needed(force_refresh=overwrite_existing)
+                self._fetch_from_backend_if_needed(force_refresh=needs_backend_refresh)
+
+            file_path = all_files.get(category)
+            if file_path is None:
+                logger.debug(f"No file path for category: {category}")
+                self._cached_file_json[category] = None
+                return None
 
             if overwrite_existing or category not in self._cached_file_json or self.backend.needs_refresh(category):
-                file_path = all_files.get(category)
-                if file_path is None:
-                    logger.warning(f"No file path for category: {category}")
-                    self._cached_file_json[category] = None
-                    return None
 
                 if not file_path.exists():
                     logger.warning(f"Model reference file for {category} does not exist at {file_path}.")

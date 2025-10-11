@@ -17,18 +17,16 @@ def test_image_generation_model_record() -> None:
         description="test_description",
         version="test_version",
         style="test_style",
-        model_reference_category=MODEL_REFERENCE_CATEGORY.image_generation,
         model_classification=ModelClassification(
             domain=MODEL_DOMAIN.image,
             purpose=MODEL_PURPOSE.generation,
         ),
-        purpose="test_purpose",
         inpainting=False,
         baseline="test_baseline",
         tags=["test_tag"],
         nsfw=False,
         config={
-            "test_config": [
+            "download": [
                 DownloadRecord(file_name="test_file_name", file_url="test_file_url", sha256sum="test_sha256sum"),
             ],
         },
