@@ -145,9 +145,22 @@ class RedisBackend(ModelReferenceBackend):
 
                 if message["type"] == "message":
                     try:
-                        category_str = message["data"].decode("utf-8")
+                        data = message["data"]
+                        if isinstance(data, bytes):
+                            category_str = data.decode("utf-8")
+                        else:
+                            category_str = str(data)
                         category = MODEL_REFERENCE_CATEGORY(category_str)
                         logger.debug(f"Received invalidation for {category} from another worker")
+
+                        key = self._category_key(category)
+                        try:
+                            self._sync_redis.delete(key)
+                            logger.debug(f"Invalidated local Redis cache for {category}")
+                        except Exception as delete_error:
+                            logger.warning(f"Failed to invalidate Redis cache for {category}: {delete_error}")
+
+                        self._file_backend.mark_stale(category)
 
                     except Exception as e:
                         logger.warning(f"Failed to process invalidation message: {e}")

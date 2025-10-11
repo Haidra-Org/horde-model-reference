@@ -1131,3 +1131,361 @@ class TestRedisBackendCapabilities:
         )
 
         assert backend.supports_statistics()
+
+
+class TestRedisMultiWorkerScenarios:
+    """Tests for multi-worker coordination via Redis pub/sub."""
+
+    def test_multi_worker_write_invalidation(
+        self,
+        primary_base: Path,
+        redis_settings: RedisSettings,
+        fake_redis_server: fakeredis.FakeRedis,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Worker A writes, Worker B should see invalidation and fetch fresh data."""
+        monkeypatch.setattr(
+            "horde_model_reference.backends.redis_backend.redis.from_url",
+            lambda *args, **kwargs: fake_redis_server,
+        )
+
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+
+        file_backend_a = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        redis_settings.use_pubsub = True
+        backend_a = RedisBackend(
+            file_backend=file_backend_a,
+            redis_settings=redis_settings,
+        )
+
+        file_backend_b = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        backend_b = RedisBackend(
+            file_backend=file_backend_b,
+            redis_settings=redis_settings,
+        )
+
+        initial_data = {"model1": {"name": "model1", "description": "initial"}}
+        file_path = primary_base / "miscellaneous.json"
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(json.dumps(initial_data))
+
+        result_b_initial = backend_b.fetch_category(category)
+        assert result_b_initial == initial_data
+
+        key = backend_a._category_key(category)
+        cached_in_redis = json.loads(fake_redis_server.get(key) or "{}")
+        assert cached_in_redis == initial_data
+
+        updated_data = {"model1": {"name": "model1", "description": "updated"}}
+        backend_a.update_model(category, "model1", updated_data["model1"])
+
+        time.sleep(0.2)
+
+        cached_after_invalidation = fake_redis_server.get(key)
+        assert cached_after_invalidation is None
+
+        result_b_after = backend_b.fetch_category(category)
+        assert result_b_after is not None
+        assert result_b_after["model1"]["description"] == "updated"
+
+        backend_a._pubsub_running = False
+        backend_b._pubsub_running = False
+        if backend_a._pubsub_thread:
+            backend_a._pubsub_thread.join(timeout=1)
+        if backend_b._pubsub_thread:
+            backend_b._pubsub_thread.join(timeout=1)
+
+    def test_multi_worker_delete_invalidation(
+        self,
+        primary_base: Path,
+        redis_settings: RedisSettings,
+        fake_redis_server: fakeredis.FakeRedis,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Worker A deletes, Worker B should see invalidation."""
+        monkeypatch.setattr(
+            "horde_model_reference.backends.redis_backend.redis.from_url",
+            lambda *args, **kwargs: fake_redis_server,
+        )
+
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+
+        file_backend_a = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        redis_settings.use_pubsub = True
+        backend_a = RedisBackend(
+            file_backend=file_backend_a,
+            redis_settings=redis_settings,
+        )
+
+        file_backend_b = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        backend_b = RedisBackend(
+            file_backend=file_backend_b,
+            redis_settings=redis_settings,
+        )
+
+        initial_data = {"model1": {"name": "model1"}, "model2": {"name": "model2"}}
+        file_path = primary_base / "miscellaneous.json"
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(json.dumps(initial_data))
+
+        result_b_initial = backend_b.fetch_category(category)
+        assert result_b_initial is not None
+        assert "model1" in result_b_initial
+        assert "model2" in result_b_initial
+
+        backend_a.delete_model(category, "model1")
+
+        time.sleep(0.2)
+
+        key = backend_a._category_key(category)
+        cached_after_delete = fake_redis_server.get(key)
+        assert cached_after_delete is None
+
+        result_b_after = backend_b.fetch_category(category)
+        assert result_b_after is not None
+        assert "model1" not in result_b_after
+        assert "model2" in result_b_after
+
+        backend_a._pubsub_running = False
+        backend_b._pubsub_running = False
+        if backend_a._pubsub_thread:
+            backend_a._pubsub_thread.join(timeout=1)
+        if backend_b._pubsub_thread:
+            backend_b._pubsub_thread.join(timeout=1)
+
+    def test_pubsub_listener_actually_deletes_redis_key(
+        self,
+        primary_base: Path,
+        redis_settings: RedisSettings,
+        fake_redis_server: fakeredis.FakeRedis,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Verify pub/sub listener deletes Redis key on invalidation message."""
+        monkeypatch.setattr(
+            "horde_model_reference.backends.redis_backend.redis.from_url",
+            lambda *args, **kwargs: fake_redis_server,
+        )
+
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+
+        file_backend_a = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        redis_settings.use_pubsub = True
+        backend_a = RedisBackend(
+            file_backend=file_backend_a,
+            redis_settings=redis_settings,
+        )
+
+        file_backend_b = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        backend_b = RedisBackend(
+            file_backend=file_backend_b,
+            redis_settings=redis_settings,
+        )
+
+        key = backend_a._category_key(category)
+        test_data = {"test": "data"}
+        fake_redis_server.setex(key, 60, json.dumps(test_data))
+
+        assert fake_redis_server.get(key) is not None
+
+        channel = backend_a._invalidation_channel()
+        fake_redis_server.publish(channel, category.value)
+
+        time.sleep(0.2)
+
+        cached = fake_redis_server.get(key)
+        assert cached is None
+
+        backend_a._pubsub_running = False
+        backend_b._pubsub_running = False
+        if backend_a._pubsub_thread:
+            backend_a._pubsub_thread.join(timeout=1)
+        if backend_b._pubsub_thread:
+            backend_b._pubsub_thread.join(timeout=1)
+
+
+class TestDiskPersistence:
+    """Tests for disk persistence of write operations."""
+
+    def test_update_model_persists_to_disk(
+        self,
+        primary_base: Path,
+        redis_settings: RedisSettings,
+        fake_redis_server: fakeredis.FakeRedis,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """update_model should persist changes to disk atomically."""
+        monkeypatch.setattr(
+            "horde_model_reference.backends.redis_backend.redis.from_url",
+            lambda *args, **kwargs: fake_redis_server,
+        )
+
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        file_path = primary_base / "miscellaneous.json"
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(json.dumps({}))
+
+        file_backend = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        redis_settings.use_pubsub = False
+        backend = RedisBackend(
+            file_backend=file_backend,
+            redis_settings=redis_settings,
+        )
+
+        model_data = {"name": "new_model", "description": "test"}
+        backend.update_model(category, "new_model", model_data)
+
+        assert file_path.exists()
+        stored_data = json.loads(file_path.read_text())
+        assert "new_model" in stored_data
+        assert stored_data["new_model"] == model_data
+
+    def test_delete_model_removes_from_disk(
+        self,
+        primary_base: Path,
+        redis_settings: RedisSettings,
+        fake_redis_server: fakeredis.FakeRedis,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """delete_model should remove model from disk atomically."""
+        monkeypatch.setattr(
+            "horde_model_reference.backends.redis_backend.redis.from_url",
+            lambda *args, **kwargs: fake_redis_server,
+        )
+
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        file_path = primary_base / "miscellaneous.json"
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        initial_data = {"model1": {"name": "model1"}, "model2": {"name": "model2"}}
+        file_path.write_text(json.dumps(initial_data))
+
+        file_backend = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        redis_settings.use_pubsub = False
+        backend = RedisBackend(
+            file_backend=file_backend,
+            redis_settings=redis_settings,
+        )
+
+        backend.delete_model(category, "model1")
+
+        assert file_path.exists()
+        stored_data = json.loads(file_path.read_text())
+        assert "model1" not in stored_data
+        assert "model2" in stored_data
+
+    def test_write_updates_file_mtime(
+        self,
+        primary_base: Path,
+        redis_settings: RedisSettings,
+        fake_redis_server: fakeredis.FakeRedis,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Write operations should update file modification time."""
+        monkeypatch.setattr(
+            "horde_model_reference.backends.redis_backend.redis.from_url",
+            lambda *args, **kwargs: fake_redis_server,
+        )
+
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        file_path = primary_base / "miscellaneous.json"
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(json.dumps({}))
+
+        initial_mtime = file_path.stat().st_mtime
+        time.sleep(0.1)
+
+        file_backend = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        redis_settings.use_pubsub = False
+        backend = RedisBackend(
+            file_backend=file_backend,
+            redis_settings=redis_settings,
+        )
+
+        model_data = {"name": "new_model"}
+        backend.update_model(category, "new_model", model_data)
+
+        new_mtime = file_path.stat().st_mtime
+        assert new_mtime > initial_mtime
+
+    def test_external_file_change_detected(
+        self,
+        primary_base: Path,
+        redis_settings: RedisSettings,
+        fake_redis_server: fakeredis.FakeRedis,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Backend should detect external file changes via mtime."""
+        monkeypatch.setattr(
+            "horde_model_reference.backends.redis_backend.redis.from_url",
+            lambda *args, **kwargs: fake_redis_server,
+        )
+
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        file_path = primary_base / "miscellaneous.json"
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        initial_data = {"model1": {"name": "model1"}}
+        file_path.write_text(json.dumps(initial_data))
+
+        file_backend = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        redis_settings.use_pubsub = False
+        backend = RedisBackend(
+            file_backend=file_backend,
+            redis_settings=redis_settings,
+        )
+
+        result_initial = backend.fetch_category(category)
+        assert result_initial == initial_data
+
+        time.sleep(0.1)
+        updated_data = {"model2": {"name": "model2"}}
+        file_path.write_text(json.dumps(updated_data))
+        import os
+
+        stat = file_path.stat()
+        os.utime(file_path, (stat.st_atime, stat.st_mtime + 1))
+
+        assert backend.needs_refresh(category)
+
+        result_after = backend.fetch_category(category, force_refresh=True)
+        assert result_after == updated_data
