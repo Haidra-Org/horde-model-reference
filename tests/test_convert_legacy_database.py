@@ -24,6 +24,14 @@ def test_convert_legacy_clip_database() -> None:
     assert converted_clip
 
 
+def test_convert_legacy_controlnet_database() -> None:
+    """Test converting the legacy controlnet database to the new format."""
+    from horde_model_reference.legacy.classes.legacy_converters import BaseLegacyConverter
+
+    controlnet_converter = BaseLegacyConverter(model_reference_category=MODEL_REFERENCE_CATEGORY.controlnet)
+    assert controlnet_converter.convert_to_new_format()
+
+
 def test_all_base_legacy_converters() -> None:
     """Test converting all legacy databases using the base converter."""
     for reference_category in MODEL_REFERENCE_CATEGORY:
@@ -51,8 +59,6 @@ def test_validate_converted_stable_diffusion_database() -> None:
     model_reference: dict[str, ImageGenerationModelRecord] = {
         k: ImageGenerationModelRecord.model_validate(v) for k, v in sd_model_database_file_json.items()
     }
-
-    # Count baselines
 
     baseline_set = set()
     styles_set = set()

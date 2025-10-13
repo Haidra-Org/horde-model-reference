@@ -11,13 +11,10 @@ from horde_model_reference import ModelReferenceManager
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
-    CLIPModelRecord,
     GenericModelRecord,
-    ImageGenerationModelRecord,
-    TextGenerationModelRecord,
 )
 from horde_model_reference.service.shared import PathVariables, RouteNames, route_registry, v2_prefix
-from horde_model_reference.service.v2.models import ErrorResponse, ModelRecordUnion
+from horde_model_reference.service.v2.models import ErrorResponse, ModelRecordUnion, ModelRecordUnionType
 
 router = APIRouter(
     responses={404: {"description": "Not found"}},
@@ -78,7 +75,7 @@ route_registry.register_route(
     get_reference_by_category_route_subpath,
     response_model=dict[
         str,
-        GenericModelRecord | ImageGenerationModelRecord | TextGenerationModelRecord | CLIPModelRecord,
+        ModelRecordUnion,
     ],
     responses={
         404: {"description": "Model category not found"},
@@ -159,7 +156,7 @@ route_registry.register_route(
 
 @router.post(
     "/{model_category_name}/add",
-    response_model=GenericModelRecord | ImageGenerationModelRecord | TextGenerationModelRecord | CLIPModelRecord,
+    response_model=ModelRecordUnion,
     status_code=status.HTTP_201_CREATED,
     responses={
         201: {"description": "Model created successfully"},
@@ -191,11 +188,21 @@ async def create_model(
         HTTPException: 400 for invalid requests, 409 if model exists, 422 for validation errors,
             503 if backend doesn't support writes (REPLICA mode).
     """
+    from horde_model_reference import horde_model_reference_settings
+
     if not manager.backend.supports_writes():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="This instance is in REPLICA mode and does not support write operations. "
             "Only PRIMARY instances can create models.",
+        )
+
+    if horde_model_reference_settings.canonical_format != "v2":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="This instance uses legacy format as canonical. "
+            "Write operations are only available via v1 API when canonical_format='legacy'. "
+            "To use v2 CRUD, set canonical_format='v2'.",
         )
 
     existing_models = manager.get_raw_model_reference_json(model_category_name)
@@ -282,11 +289,21 @@ async def update_model(
         HTTPException: 400 for invalid requests, 422 for validation errors,
             503 if backend doesn't support writes (REPLICA mode).
     """
+    from horde_model_reference import horde_model_reference_settings
+
     if not manager.backend.supports_writes():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="This instance is in REPLICA mode and does not support write operations. "
             "Only PRIMARY instances can update models.",
+        )
+
+    if horde_model_reference_settings.canonical_format != "v2":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="This instance uses legacy format as canonical. "
+            "Write operations are only available via v1 API when canonical_format='legacy'. "
+            "To use v2 CRUD, set canonical_format='v2'.",
         )
 
     if "name" not in request_body:
@@ -386,11 +403,21 @@ async def delete_model(
     Raises:
         HTTPException: 404 if model not found, 503 if backend doesn't support writes (REPLICA mode).
     """
+    from horde_model_reference import horde_model_reference_settings
+
     if not manager.backend.supports_writes():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="This instance is in REPLICA mode and does not support write operations. "
             "Only PRIMARY instances can delete models.",
+        )
+
+    if horde_model_reference_settings.canonical_format != "v2":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="This instance uses legacy format as canonical. "
+            "Write operations are only available via v1 API when canonical_format='legacy'. "
+            "To use v2 CRUD, set canonical_format='v2'.",
         )
 
     existing_models = manager.get_raw_model_reference_json(model_category_name)

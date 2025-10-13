@@ -484,3 +484,180 @@ class FileSystemBackend(ModelReferenceBackend):
                     pass
                 logger.error(f"Failed to delete model {model_name} from {category}: {e}")
                 raise
+
+    @override
+    def supports_legacy_writes(self) -> bool:
+        """Check if backend supports legacy format writes.
+
+        Returns True only when canonical_format='legacy' in settings.
+
+        Returns:
+            bool: True if legacy writes are supported.
+        """
+        from horde_model_reference import horde_model_reference_settings
+
+        return horde_model_reference_settings.canonical_format == "legacy"
+
+    @override
+    def update_model_legacy(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        record_dict: dict[str, Any],
+    ) -> None:
+        """Update or create a model reference in legacy format.
+
+        This method modifies the legacy format JSON file on disk atomically.
+
+        Args:
+            category: The category to update.
+            model_name: The name of the model to update or create.
+            record_dict: The model record data in legacy format as a dictionary.
+
+        Raises:
+            FileNotFoundError: If the legacy category file path is not configured.
+            RuntimeError: If canonical_format is not set to 'legacy'.
+        """
+        from horde_model_reference import horde_model_reference_settings
+
+        if not self.supports_legacy_writes():
+            raise RuntimeError(
+                "Legacy writes are only supported when canonical_format='legacy'. "
+                f"Current setting: canonical_format='{horde_model_reference_settings.canonical_format}'"
+            )
+
+        with self._lock:
+            legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
+
+            if not legacy_file_path:
+                raise FileNotFoundError(f"No legacy file path configured for category {category}")
+
+            if legacy_file_path.exists():
+                try:
+                    with open(legacy_file_path, encoding="utf-8") as f:
+                        existing_data: dict[str, Any] = json.load(f)
+                except Exception as e:
+                    logger.error(f"Failed to read {legacy_file_path}: {e}")
+                    raise
+            else:
+                existing_data = {}
+                legacy_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            existing_data[model_name] = record_dict
+
+            temp_path = legacy_file_path.with_suffix(f".tmp.{time.time()}")
+            try:
+                with open(temp_path, "w", encoding="utf-8") as f:
+                    json.dump(existing_data, f, indent=2, ensure_ascii=False)
+                    f.flush()
+                    try:
+                        import os
+
+                        os.fsync(f.fileno())
+                    except Exception:
+                        pass
+
+                if legacy_file_path.exists():
+                    backup_path = legacy_file_path.with_suffix(".bak")
+                    legacy_file_path.replace(backup_path)
+                    temp_path.replace(legacy_file_path)
+                    with contextlib.suppress(Exception):
+                        backup_path.unlink()
+                else:
+                    temp_path.replace(legacy_file_path)
+
+                logger.info(f"Updated legacy model {model_name} in category {category} at {legacy_file_path}")
+
+                self._stale_categories.add(category)
+
+            except Exception as e:
+                try:
+                    if temp_path.exists():
+                        temp_path.unlink()
+                except Exception:
+                    pass
+                logger.error(f"Failed to update legacy model {model_name} in {category}: {e}")
+                raise
+
+    @override
+    def delete_model_legacy(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+    ) -> None:
+        """Delete a model reference from legacy format files.
+
+        This method removes the model from the legacy format JSON file on disk atomically.
+
+        Args:
+            category: The category containing the model.
+            model_name: The name of the model to delete.
+
+        Raises:
+            FileNotFoundError: If the legacy category file doesn't exist.
+            KeyError: If the model doesn't exist in the category.
+            RuntimeError: If canonical_format is not set to 'legacy'.
+        """
+        from horde_model_reference import horde_model_reference_settings
+
+        if not self.supports_legacy_writes():
+            raise RuntimeError(
+                "Legacy writes are only supported when canonical_format='legacy'. "
+                f"Current setting: canonical_format='{horde_model_reference_settings.canonical_format}'"
+            )
+
+        with self._lock:
+            legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
+
+            if not legacy_file_path or not legacy_file_path.exists():
+                raise FileNotFoundError(f"Legacy category file not found: {legacy_file_path}")
+
+            try:
+                with open(legacy_file_path, encoding="utf-8") as f:
+                    existing_data: dict[str, Any] = json.load(f)
+            except Exception as e:
+                logger.error(f"Failed to read {legacy_file_path}: {e}")
+                raise
+
+            if model_name not in existing_data:
+                raise KeyError(f"Model {model_name} not found in legacy category {category}")
+
+            del existing_data[model_name]
+
+            temp_path = legacy_file_path.with_suffix(f".tmp.{time.time()}")
+            try:
+                with open(temp_path, "w", encoding="utf-8") as f:
+                    json.dump(existing_data, f, indent=2, ensure_ascii=False)
+                    f.flush()
+                    try:
+                        import os
+
+                        os.fsync(f.fileno())
+                    except Exception:
+                        pass
+
+                backup_path = legacy_file_path.with_suffix(".bak")
+                legacy_file_path.replace(backup_path)
+                temp_path.replace(legacy_file_path)
+
+                with contextlib.suppress(Exception):
+                    backup_path.unlink()
+
+                logger.info(f"Deleted legacy model {model_name} from category {category} at {legacy_file_path}")
+
+                self._stale_categories.add(category)
+
+            except Exception as e:
+                try:
+                    if temp_path.exists():
+                        temp_path.unlink()
+                except Exception:
+                    pass
+                logger.error(f"Failed to delete legacy model {model_name} from {category}: {e}")
+                raise

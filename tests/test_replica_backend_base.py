@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -19,14 +20,14 @@ class _ReplicaBackendProbe(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         *,
         force_refresh: bool = False,
-    ) -> dict[str, Any] | None:  # type: ignore[override]
+    ) -> dict[str, Any] | None:
         raise NotImplementedError
 
     def fetch_all_categories(
         self,
         *,
         force_refresh: bool = False,
-    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:  # type: ignore[override]
+    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
         raise NotImplementedError
 
     async def fetch_category_async(
@@ -35,7 +36,7 @@ class _ReplicaBackendProbe(ReplicaBackendBase):
         *,
         httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
-    ) -> dict[str, Any] | None:  # type: ignore[override]
+    ) -> dict[str, Any] | None:
         raise NotImplementedError
 
     async def fetch_all_categories_async(
@@ -43,27 +44,27 @@ class _ReplicaBackendProbe(ReplicaBackendBase):
         *,
         httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
-    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:  # type: ignore[override]
+    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
         raise NotImplementedError
 
-    def get_category_file_path(self, category: MODEL_REFERENCE_CATEGORY) -> None:  # type: ignore[override]
+    def get_category_file_path(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         return None
 
-    def get_all_category_file_paths(self) -> dict[MODEL_REFERENCE_CATEGORY, None]:  # type: ignore[override]
+    def get_all_category_file_paths(self) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
         return {category: None for category in MODEL_REFERENCE_CATEGORY}
 
     def get_legacy_json(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
-    ) -> dict[str, Any] | None:  # type: ignore[override]
+    ) -> dict[str, Any] | None:
         return None
 
     def get_legacy_json_string(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
-    ) -> str | None:  # type: ignore[override]
+    ) -> str | None:
         return None
 
 

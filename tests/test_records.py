@@ -1,7 +1,6 @@
 from horde_model_reference.meta_consts import (
     MODEL_DOMAIN,
     MODEL_PURPOSE,
-    MODEL_REFERENCE_CATEGORY,
     ModelClassification,
 )
 from horde_model_reference.model_reference_records import (

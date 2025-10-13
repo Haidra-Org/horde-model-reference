@@ -18,9 +18,7 @@ from threading import RLock
 from typing import Any, override
 
 import httpx
-import redis
 import redis.asyncio
-import redis.asyncio.client
 from loguru import logger
 
 from horde_model_reference import RedisSettings, ReplicateMode
@@ -146,10 +144,7 @@ class RedisBackend(ModelReferenceBackend):
                 if message["type"] == "message":
                     try:
                         data = message["data"]
-                        if isinstance(data, bytes):
-                            category_str = data.decode("utf-8")
-                        else:
-                            category_str = str(data)
+                        category_str = data.decode("utf-8") if isinstance(data, bytes) else str(data)
                         category = MODEL_REFERENCE_CATEGORY(category_str)
                         logger.debug(f"Received invalidation for {category} from another worker")
 
@@ -268,17 +263,16 @@ class RedisBackend(ModelReferenceBackend):
         data: dict[str, Any] | None = None
 
         if not force_refresh:
-
+            cached: bytes | None = None
             try:
-                async_redis = redis.asyncio.from_url(
+                async with redis.asyncio.from_url(
                     self._redis_settings.url,
                     max_connections=self._redis_settings.pool_size,
                     socket_timeout=self._redis_settings.socket_timeout,
                     socket_connect_timeout=self._redis_settings.socket_connect_timeout,
                     decode_responses=False,
-                )
-                cached = await async_redis.get(key)
-                await async_redis.close()
+                ) as async_redis:
+                    cached = await async_redis.get(key)
 
                 if cached:
                     data = json.loads(cached)
@@ -296,16 +290,15 @@ class RedisBackend(ModelReferenceBackend):
 
         if data is not None:
             try:
-                async_redis = redis.asyncio.from_url(
+                async with redis.asyncio.from_url(
                     self._redis_settings.url,
                     max_connections=self._redis_settings.pool_size,
                     socket_timeout=self._redis_settings.socket_timeout,
                     socket_connect_timeout=self._redis_settings.socket_connect_timeout,
                     decode_responses=False,
-                )
-                json_data = json.dumps(data)
-                await async_redis.setex(key, self._ttl, json_data)
-                await async_redis.close()
+                ) as async_redis:
+                    json_data = json.dumps(data)
+                    await async_redis.setex(key, self._ttl, json_data)
                 logger.debug(f"Populated Redis cache for {category} (async)")
             except Exception as e:
                 logger.warning(f"Failed to cache {category} in Redis (async): {e}")
@@ -344,11 +337,6 @@ class RedisBackend(ModelReferenceBackend):
         Also publishes invalidation event to notify other workers.
         """
         key = self._category_key(category)
-        try:
-            self._retry_redis_operation(self._sync_redis.delete, key)
-            logger.debug(f"Invalidated Redis cache for {category}")
-        except Exception as e:
-            logger.warning(f"Failed to invalidate Redis cache for {category}: {e}")
 
         if self._redis_settings.use_pubsub:
             try:
@@ -361,6 +349,12 @@ class RedisBackend(ModelReferenceBackend):
                 logger.debug(f"Published invalidation for {category}")
             except Exception as e:
                 logger.warning(f"Failed to publish invalidation for {category}: {e}")
+
+        try:
+            self._retry_redis_operation(self._sync_redis.delete, key)
+            logger.debug(f"Invalidated Redis cache for {category}")
+        except Exception as e:
+            logger.warning(f"Failed to invalidate Redis cache for {category}: {e}")
 
         self._file_backend.mark_stale(category)
 

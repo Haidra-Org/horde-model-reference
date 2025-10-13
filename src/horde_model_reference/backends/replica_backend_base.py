@@ -58,13 +58,13 @@ class ReplicaBackendBase(ModelReferenceBackend):
         return (time.time() - last_updated) <= self._cache_ttl_seconds
 
     @override
-    def mark_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:  # type: ignore[override]
+    def mark_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         """Mark a category as stale so subclasses refetch on next access."""
         with self._lock:
             self._stale_categories.add(category)
 
     @override
-    def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:  # type: ignore[override]
+    def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
         """Determine whether a category should be refreshed."""
         with self._lock:
             if category in self._stale_categories:

@@ -196,13 +196,24 @@ class ModelReferenceBackend(ABC):
         """
 
     def supports_writes(self) -> bool:
-        """Check if this backend supports write operations.
+        """Check if this backend supports write operations (v2 format).
 
         Write operations include update_model() and delete_model().
         Typically only PRIMARY mode backends support writes.
 
         Returns:
             bool: True if write operations are supported, False otherwise.
+        """
+        return False
+
+    def supports_legacy_writes(self) -> bool:
+        """Check if this backend supports write operations in legacy format.
+
+        Legacy write operations include update_model_legacy() and delete_model_legacy().
+        Only available when canonical_format='legacy' in PRIMARY mode.
+
+        Returns:
+            bool: True if legacy write operations are supported, False otherwise.
         """
         return False
 
@@ -277,6 +288,46 @@ class ModelReferenceBackend(ABC):
             NotImplementedError: If the backend does not support write operations.
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support write operations")
+
+    def update_model_legacy(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        record_dict: dict[str, Any],
+    ) -> None:
+        """Update or create a model reference in legacy format.
+
+        This is an optional method that legacy-write-capable backends can implement.
+        Only available when canonical_format='legacy' in PRIMARY mode.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category to update.
+            model_name (str): The name of the model to update or create.
+            record_dict (dict[str, Any]): The model record data in legacy format as a dictionary.
+
+        Raises:
+            NotImplementedError: If the backend does not support legacy write operations.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support legacy write operations")
+
+    def delete_model_legacy(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+    ) -> None:
+        """Delete a model reference from legacy format files.
+
+        This is an optional method that legacy-write-capable backends can implement.
+        Only available when canonical_format='legacy' in PRIMARY mode.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category containing the model.
+            model_name (str): The name of the model to delete.
+
+        Raises:
+            NotImplementedError: If the backend does not support legacy write operations.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support legacy write operations")
 
     def warm_cache(self) -> None:
         """Pre-populate cache with all categories for faster initial requests.

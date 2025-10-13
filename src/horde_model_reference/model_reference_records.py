@@ -182,21 +182,6 @@ class ImageGenerationModelRecord(GenericModelRecord):
         return self
 
 
-@register_record_type(MODEL_REFERENCE_CATEGORY.clip)
-class CLIPModelRecord(GenericModelRecord):
-    """A CLIP model entry in the model reference."""
-
-    model_classification: ModelClassification = Field(
-        default_factory=lambda: ModelClassification(
-            domain=MODEL_DOMAIN.image,
-            purpose=MODEL_PURPOSE.feature_extractor,
-        )
-    )
-
-    pretrained_name: str | None = None
-    """The huggingface-style pretrained model name."""
-
-
 @register_record_type(MODEL_REFERENCE_CATEGORY.controlnet)
 class ControlNetModelRecord(GenericModelRecord):
     """A ControlNet model entry in the model reference."""
@@ -208,7 +193,7 @@ class ControlNetModelRecord(GenericModelRecord):
         )
     )
 
-    style: CONTROLNET_STYLE | str | None = None
+    style: CONTROLNET_STYLE | str
     """The 'style' (purpose) of the controlnet. See `CONTROLNET_STYLE` for all possible values and more info."""
 
     @model_validator(mode="after")
@@ -239,16 +224,6 @@ class TextGenerationModelRecord(GenericModelRecord):
     url: str | None = None
     tags: list[str] | None = []
     settings: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
-
-
-@register_record_type(MODEL_REFERENCE_CATEGORY.video_generation)
-class VideoGenerationModelRecord(GenericModelRecord):
-    """A video generation model entry in the model reference."""
-
-
-@register_record_type(MODEL_REFERENCE_CATEGORY.audio_generation)
-class AudioGenerationModelRecord(GenericModelRecord):
-    """An audio generation model entry in the model reference."""
 
 
 for category in MODEL_REFERENCE_CATEGORY:

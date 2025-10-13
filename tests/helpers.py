@@ -1,3 +1,4 @@
+from horde_model_reference import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import GenericModelRecord
 
@@ -34,3 +35,20 @@ def verify_model_references_structure(
             ), f"Model record for {model_name} should be GenericModelRecord or subclass"
             assert model_record.name == model_name, f"Model name mismatch for {model_name}"
             assert model_record.model_classification is not None, f"Model {model_name} missing classification"
+
+
+# All model categories for parameterized tests
+ALL_MODEL_CATEGORIES = [
+    MODEL_REFERENCE_CATEGORY.blip,
+    MODEL_REFERENCE_CATEGORY.clip,
+    MODEL_REFERENCE_CATEGORY.codeformer,
+    MODEL_REFERENCE_CATEGORY.controlnet,
+    MODEL_REFERENCE_CATEGORY.esrgan,
+    MODEL_REFERENCE_CATEGORY.gfpgan,
+    MODEL_REFERENCE_CATEGORY.safety_checker,
+    MODEL_REFERENCE_CATEGORY.image_generation,
+    MODEL_REFERENCE_CATEGORY.text_generation,
+    MODEL_REFERENCE_CATEGORY.video_generation,
+    MODEL_REFERENCE_CATEGORY.audio_generation,
+    MODEL_REFERENCE_CATEGORY.miscellaneous,
+]

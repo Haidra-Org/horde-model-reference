@@ -578,6 +578,9 @@ class GitHubBackend(ReplicaBackendBase):
             logger.debug(f"Replicate mode is not REPLICA, skipping download for {category}")
             return self._references_paths_cache.get(category)
 
+        if httpx_client is None:
+            logger.debug("No httpx_client provided, will create a new one for this download")
+
         target_file_path = horde_model_reference_paths.get_model_reference_file_path(
             category,
             base_path=self.legacy_path,

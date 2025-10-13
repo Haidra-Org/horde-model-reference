@@ -224,6 +224,9 @@ class HTTPBackend(ReplicaBackendBase):
             logger.debug(f"Local cache hit for {category} (async)")
             return self._cache[category]
 
+        if httpx_client is None:
+            logger.debug("Creating temporary httpx.AsyncClient for fetch_category_async")
+
         if httpx_client is not None:
             data = await self._fetch_from_primary_async(category, httpx_client)
         else:
