@@ -662,6 +662,7 @@ class RedisWriteOperationsTests:
 
 
 class RedisErrorHandlingTests:
+    """Tests for error handling in RedisBackend."""
 
     def test_fetch_category_redis_failure_falls_back_to_file_backend(
         self,

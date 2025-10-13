@@ -26,12 +26,12 @@ def _record_issue(info: ValidationInfo, message: str) -> None:
     """Append a validation issue message to the shared conversion context."""
     issues: list[str] | None = None
     if info.context is not None:
-        issues = info.context.get("issues")  # type: ignore[assignment]
+        issues = info.context.get("issues")
     if issues is None:
         return
     model_key = None
     if info.context is not None:
-        model_key = info.context.get("model_key")  # type: ignore[assignment]
+        model_key = info.context.get("model_key")
     if model_key:
         issues.append(f"{model_key} {message}")
     else:
@@ -41,7 +41,7 @@ def _record_issue(info: ValidationInfo, message: str) -> None:
 def _increment_host_counter(info: ValidationInfo, host: str) -> None:
     if info.context is None:
         return
-    host_counter = info.context.get("host_counter")  # type: ignore[assignment]
+    host_counter = info.context.get("host_counter")
     if isinstance(host_counter, dict):
         host_counter[host] = host_counter.get(host, 0) + 1
 
@@ -185,8 +185,8 @@ class LegacyGenericRecord(BaseModel):
         model_key = None
         debug_mode = False
         if info.context is not None:
-            model_key = info.context.get("model_key")  # type: ignore[assignment]
-            debug_mode = bool(info.context.get("debug_mode"))  # type: ignore[arg-type]
+            model_key = info.context.get("model_key")
+            debug_mode = bool(info.context.get("debug_mode"))
         if model_key and self.name != model_key:
             _record_issue(info, "name mismatch.")
         if self.available:
@@ -225,8 +225,8 @@ class LegacyStableDiffusionRecord(LegacyGenericRecord):
         model_key = self.name
         existing_showcases: dict[str, list[str]] = {}
         if info.context is not None:
-            model_key = info.context.get("model_key", self.name)  # type: ignore[assignment]
-            existing_showcases = info.context.get("existing_showcase_files", {})  # type: ignore[assignment]
+            model_key = info.context.get("model_key", self.name)
+            existing_showcases = info.context.get("existing_showcase_files", {})
         expected_showcase_foldername = model_name_to_showcase_folder_name(model_key)
         on_disk_showcases = existing_showcases.get(expected_showcase_foldername)
         if self.showcases:
@@ -311,3 +311,16 @@ class LegacyTextGenerationRecord(LegacyGenericRecord):
         if self.parameters is None:
             _record_issue(info, "has no parameters count.")
         return self
+
+
+LegacyRecordUnion = LegacyStableDiffusionRecord | LegacyTextGenerationRecord | LegacyClipRecord | LegacyGenericRecord
+
+
+def get_legacy_model_type(category: MODEL_REFERENCE_CATEGORY) -> type[LegacyRecordUnion]:
+    """Get the appropriate Pydantic model class for a given category."""
+    category_model_map: dict[MODEL_REFERENCE_CATEGORY, type[LegacyRecordUnion]] = {
+        MODEL_REFERENCE_CATEGORY.image_generation: LegacyStableDiffusionRecord,
+        MODEL_REFERENCE_CATEGORY.text_generation: LegacyTextGenerationRecord,
+        MODEL_REFERENCE_CATEGORY.clip: LegacyClipRecord,
+    }
+    return category_model_map.get(category, LegacyGenericRecord)

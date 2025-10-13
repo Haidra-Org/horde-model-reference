@@ -166,13 +166,12 @@ async def test_manager_async(
     assert all(ref_cat in legacy_reference_locations for ref_cat in MODEL_REFERENCE_CATEGORY)
 
     httpx_client = httpx.AsyncClient()
-    try:
+
+    async with httpx_client:
         await model_reference_manager.backend.fetch_all_categories_async(
             httpx_client=httpx_client,
             force_refresh=True,
         )
-    finally:
-        await httpx_client.aclose()
 
     all_references = model_reference_manager.get_all_model_references(overwrite_existing=False)
 
@@ -185,8 +184,13 @@ async def test_manager_async(
     assert len(cached_references) == len(all_references)
 
 
-def test_manager_new_format(model_reference_manager: ModelReferenceManager, caplog: LogCaptureFixture) -> None:
+def test_manager_new_format(
+    model_reference_manager: ModelReferenceManager,
+    caplog: LogCaptureFixture,
+    restore_manager_singleton: None,
+) -> None:
     """Test the new format model reference manager."""
+    ModelReferenceManager(replicate_mode=ReplicateMode.REPLICA, lazy_mode=False)
 
     def assert_all_model_references_exist(
         model_reference_manager: ModelReferenceManager,
@@ -600,12 +604,9 @@ async def test_fetch_from_backend_if_needed_async_forwards(restore_manager_singl
         replicate_mode=ReplicateMode.REPLICA,
     )
 
-    client = httpx.AsyncClient()
-    try:
+    async with httpx.AsyncClient() as client:
         await manager._fetch_from_backend_if_needed_async(force_refresh=False, httpx_client=client)
         await manager._fetch_from_backend_if_needed_async(force_refresh=True, httpx_client=None)
-    finally:
-        await client.aclose()
 
     assert len(backend.async_calls) == 2
     first_call = backend.async_calls[0]

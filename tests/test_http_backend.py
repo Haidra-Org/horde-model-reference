@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Any, cast, override
 
 import httpx
@@ -35,7 +36,7 @@ class StubGitHubBackend(ReplicaBackendBase):
         self,
         *,
         force_refresh: bool = False,
-    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:  # type: ignore[override]
+    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
         return {
             category: self.fetch_category(category, force_refresh=force_refresh)
             for category in MODEL_REFERENCE_CATEGORY
@@ -48,7 +49,7 @@ class StubGitHubBackend(ReplicaBackendBase):
         *,
         httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
-    ) -> dict[str, Any] | None:  # type: ignore[override]
+    ) -> dict[str, Any] | None:
         self.async_calls += 1
         return self._responses.get(category)
 
@@ -58,7 +59,7 @@ class StubGitHubBackend(ReplicaBackendBase):
         *,
         httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
-    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:  # type: ignore[override]
+    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
         return {
             category: await self.fetch_category_async(
                 category,
@@ -69,11 +70,11 @@ class StubGitHubBackend(ReplicaBackendBase):
         }
 
     @override
-    def get_category_file_path(self, category: MODEL_REFERENCE_CATEGORY) -> None:  # type: ignore[override]
+    def get_category_file_path(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         return None
 
     @override
-    def get_all_category_file_paths(self) -> dict[MODEL_REFERENCE_CATEGORY, None]:  # type: ignore[override]
+    def get_all_category_file_paths(self) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
         return {category: None for category in MODEL_REFERENCE_CATEGORY}
 
     @override
@@ -81,7 +82,7 @@ class StubGitHubBackend(ReplicaBackendBase):
         self,
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
-    ) -> dict[str, Any] | None:  # type: ignore[override]
+    ) -> dict[str, Any] | None:
         return None
 
     @override
@@ -89,7 +90,7 @@ class StubGitHubBackend(ReplicaBackendBase):
         self,
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
-    ) -> str | None:  # type: ignore[override]
+    ) -> str | None:
         return None
 
 
