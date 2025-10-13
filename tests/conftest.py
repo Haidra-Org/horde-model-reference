@@ -1,7 +1,8 @@
 import os
 import sys
-from collections.abc import Generator
+from collections.abc import Callable, Generator, Iterator
 from pathlib import Path
+from typing import Any
 
 # CRITICAL: Set environment variables BEFORE importing any package modules
 # This ensures settings singletons are initialized with test values
@@ -9,11 +10,14 @@ os.environ["TESTS_ONGOING"] = "1"
 os.environ["AI_HORDE_TESTING"] = "True"
 
 import pytest
+from fastapi.testclient import TestClient
 from loguru import logger
 from pytest import LogCaptureFixture
 
-from horde_model_reference import ai_horde_ci_settings
+from horde_model_reference import ReplicateMode, ai_horde_ci_settings, horde_model_reference_settings
+from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.model_reference_manager import ModelReferenceManager
+from horde_model_reference.service.app import app
 
 # Environment variable prefixes that should be cleared before tests
 _HORDE_MODEL_REFERENCE_ENV_PREFIX = "HORDE_MODEL_REFERENCE_"
@@ -27,6 +31,7 @@ _CRITICAL_ENV_VARS_TO_CLEAR = [
     "HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS",
     "HORDE_MODEL_REFERENCE_MAKE_FOLDERS",
     "HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED",
+    "HORDE_MODEL_REFERENCE_CANONICAL_FORMAT",
 ]
 
 
@@ -60,9 +65,7 @@ def env_var_checks() -> None:
         )
 
     # Verify critical environment variables were cleared
-    remaining_critical_vars = [
-        var for var in _CRITICAL_ENV_VARS_TO_CLEAR if var in os.environ
-    ]
+    remaining_critical_vars = [var for var in _CRITICAL_ENV_VARS_TO_CLEAR if var in os.environ]
     if remaining_critical_vars:
         pytest.fail(
             f"Critical environment variables were not cleared before tests: {remaining_critical_vars}. "
@@ -86,7 +89,6 @@ def ensure_test_environment(env_var_checks: None) -> None:
     This fixture automatically runs for every test to ensure AI_HORDE_TESTING
     is set and critical environment variables are cleared.
     """
-    pass
 
 
 @pytest.fixture
@@ -127,11 +129,77 @@ def model_reference_manager() -> ModelReferenceManager:
 
 
 @pytest.fixture
+def api_client() -> TestClient:
+    """Create a FastAPI test client for service tests."""
+    return TestClient(app)
+
+
+@pytest.fixture
+def dependency_override() -> Iterator[Callable[[Callable[[], Any], Callable[[], Any]], None]]:
+    """Register dependency overrides and ensure cleanup after tests."""
+    overrides: list[Callable[[], Any]] = []
+
+    def _register(dependency: Callable[[], Any], provider: Callable[[], Any]) -> None:
+        app.dependency_overrides[dependency] = provider
+        overrides.append(dependency)
+
+    yield _register
+
+    for dependency in reversed(overrides):
+        app.dependency_overrides.pop(dependency, None)
+
+
+@pytest.fixture
+def primary_manager_override_factory(
+    primary_base: Path,
+    restore_manager_singleton: None,
+    dependency_override: Callable[[Callable[[], Any], Callable[[], Any]], None],
+) -> Iterator[Callable[[Callable[[], ModelReferenceManager]], ModelReferenceManager]]:
+    """Provide a factory to create PRIMARY managers and set dependency overrides."""
+
+    def _create(dependency: Callable[[], ModelReferenceManager]) -> ModelReferenceManager:
+        backend = FileSystemBackend(
+            base_path=primary_base,
+            cache_ttl_seconds=60,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+        manager = ModelReferenceManager(
+            backend=backend,
+            lazy_mode=True,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+
+        dependency_override(dependency, lambda: manager)
+        return manager
+
+    yield _create
+
+
+@pytest.fixture
+def legacy_canonical_mode() -> Generator[None, None, None]:
+    """Temporarily switch canonical_format to legacy for the duration of a test."""
+    previous_format = horde_model_reference_settings.canonical_format
+    horde_model_reference_settings.canonical_format = "legacy"
+    try:
+        yield
+    finally:
+        horde_model_reference_settings.canonical_format = previous_format
+
+
+@pytest.fixture
 def primary_base(tmp_path: Path) -> Path:
     """Return an isolated base directory for PRIMARY-mode file operations."""
     base = tmp_path / "primary"
     base.mkdir()
     return base
+
+
+@pytest.fixture
+def legacy_path(primary_base: Path) -> Path:
+    """Return the legacy directory path for tests, creating it if needed."""
+    legacy_dir = primary_base / "legacy"
+    legacy_dir.mkdir(parents=True, exist_ok=True)
+    return legacy_dir
 
 
 @pytest.fixture

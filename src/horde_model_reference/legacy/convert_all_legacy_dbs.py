@@ -6,6 +6,7 @@ from horde_model_reference import MODEL_REFERENCE_CATEGORY, horde_model_referenc
 from horde_model_reference.legacy.classes.legacy_converters import (
     BaseLegacyConverter,
     LegacyClipConverter,
+    LegacyControlnetConverter,
     LegacyStableDiffusionConverter,
     LegacyTextGenerationConverter,
 )
@@ -62,11 +63,24 @@ def convert_all_legacy_model_references(
         print(f"Error converting text models: {e}")
     all_succeeded = all_succeeded and text_converter.converted_successfully
 
+    # Convert controlnet model references
+    controlnet_converter = LegacyControlnetConverter(
+        legacy_folder_path=legacy_path,
+        target_file_folder=target_path,
+        debug_mode=False,
+    )
+    try:
+        controlnet_converter.convert_to_new_format()
+    except Exception as e:
+        print(f"Error converting controlnet models: {e}")
+    all_succeeded = all_succeeded and controlnet_converter.converted_successfully
+
     # Convert other model references
     non_generic_converter_categories = [
         MODEL_REFERENCE_CATEGORY.image_generation,
         MODEL_REFERENCE_CATEGORY.clip,
         MODEL_REFERENCE_CATEGORY.text_generation,
+        MODEL_REFERENCE_CATEGORY.controlnet,
     ]
 
     generic_converted_categories = [x for x in MODEL_REFERENCE_CATEGORY if x not in non_generic_converter_categories]

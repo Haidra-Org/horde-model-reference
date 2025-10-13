@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import urllib.parse
 from enum import auto
+from typing import Literal
 
 from haidra_core.ai_horde.meta import AIHordeCISettings
 from haidra_core.ai_horde.settings import AIHordeWorkerSettings
@@ -213,6 +214,11 @@ If None, REPLICA clients will only use GitHub. Example: https://stablehorde.net/
     """Whether PRIMARY mode should seed from GitHub on first initialization if local files don't exist. \
 Only used in PRIMARY mode. If True, will download and convert legacy references once on startup."""
 
+    canonical_format: Literal["legacy", "v2"] = "v2"
+    """Which format is the canonical source of truth. Controls which API has write access. \
+'v2' (default): v2 API has CRUD, v1 API is read-only (converts from v2 to legacy). \
+'legacy': v1 API has CRUD, v2 API is read-only (converts from legacy to v2)."""
+
     @model_validator(mode="after")
     def validate_mode_configuration(self) -> HordeModelReferenceSettings:
         """Validate that settings are appropriate for the configured replication mode."""
@@ -245,6 +251,19 @@ Only used in PRIMARY mode. If True, will download and convert legacy references 
                 "REPLICA instances always fetch from PRIMARY API or GitHub. Setting will be ignored."
             )
             self.github_seed_enabled = False
+
+        if self.canonical_format == "legacy" and self.replicate_mode == ReplicateMode.REPLICA:
+            logger.warning(
+                "canonical_format='legacy' in REPLICA mode: "
+                "v1 API will be read-only. Write operations require PRIMARY mode."
+            )
+
+        if self.canonical_format == "legacy" and self.replicate_mode == ReplicateMode.PRIMARY:
+            logger.info(
+                "canonical_format='legacy' in PRIMARY mode: "
+                "v1 API has CRUD operations, v2 API is read-only. "
+                "Note: v2 → legacy conversion is not yet implemented."
+            )
 
         return self
 

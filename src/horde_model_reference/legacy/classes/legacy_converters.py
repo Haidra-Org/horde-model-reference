@@ -22,7 +22,7 @@ from horde_model_reference.legacy.classes.legacy_models import (
     LegacyTextGenerationRecord,
 )
 from horde_model_reference.model_reference_records import (
-    CLIPModelRecord,
+    ControlNetModelRecord,
     DownloadRecord,
     GenericModelRecord,
     GenericModelRecordConfig,
@@ -238,6 +238,53 @@ class BaseLegacyConverter:
             version=legacy_record.version,
             config=model_record_config,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
+        )
+
+    def _convert_single_record_to_legacy(
+        self,
+        v2_record: GenericModelRecord,
+    ) -> LegacyGenericRecord:
+        """Convert a single v2 record back to legacy format.
+
+        This is a stub for future implementation. Override this in subclasses for category-specific conversion.
+
+        Args:
+            v2_record: The v2 format record to convert back to legacy format.
+
+        Returns:
+            The legacy format record.
+
+        Raises:
+            NotImplementedError: This conversion is not yet implemented.
+        """
+        raise NotImplementedError(
+            "v2 → legacy conversion is not yet implemented. "
+            "This feature is planned for a future release. "
+            "For now, only legacy → v2 conversion is supported."
+        )
+
+    def convert_from_v2_to_legacy(
+        self,
+        v2_records: dict[str, GenericModelRecord],
+    ) -> dict[str, LegacyGenericRecord]:
+        """Convert all v2 records back to legacy format.
+
+        This is a stub for future implementation.
+
+        Args:
+            v2_records: Dictionary of v2 format records to convert.
+
+        Returns:
+            Dictionary of legacy format records.
+
+        Raises:
+            NotImplementedError: This conversion is not yet implemented.
+        """
+        raise NotImplementedError(
+            "v2 → legacy conversion is not yet implemented. "
+            "This feature is planned for a future release. "
+            "For now, only legacy → v2 conversion is supported. "
+            f"Attempted to convert {len(v2_records)} records from category: {self.model_reference_category}"
         )
 
     def pre_parse_records(self) -> None:
@@ -526,19 +573,19 @@ class LegacyClipConverter(BaseLegacyConverter):
     def _convert_single_record(
         self,
         legacy_record: LegacyGenericRecord,
-    ) -> CLIPModelRecord:
+    ) -> GenericModelRecord:
         """Convert a single legacy CLIP record to the new format."""
         if not isinstance(legacy_record, LegacyClipRecord):
             raise TypeError(f"Expected {legacy_record.name} to be a LegacyClipRecord.")
 
         model_record_config = self._convert_model_record_config(legacy_record)
 
-        return CLIPModelRecord(
+        return GenericModelRecord(
             name=legacy_record.name,
             description=legacy_record.description,
             version=legacy_record.version,
             config=model_record_config,
-            pretrained_name=legacy_record.pretrained_name,
+            # pretrained_name=legacy_record.pretrained_name,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
 
@@ -585,5 +632,44 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             url=legacy_record.url,
             tags=legacy_record.tags or [],
             settings=legacy_record.settings,
+            model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
+        )
+
+
+class LegacyControlnetConverter(BaseLegacyConverter):
+    """Converter for legacy ControlNet model reference records."""
+
+    def __init__(
+        self,
+        *,
+        legacy_folder_path: str | Path = horde_model_reference_paths.legacy_path,
+        target_file_folder: str | Path = horde_model_reference_paths.base_path,
+        debug_mode: bool = False,
+    ) -> None:
+        """Initialize the legacy ControlNet converter."""
+        super().__init__(
+            legacy_folder_path=legacy_folder_path,
+            target_file_folder=target_file_folder,
+            model_reference_category=MODEL_REFERENCE_CATEGORY.controlnet,
+            debug_mode=debug_mode,
+        )
+
+    @override
+    def _convert_single_record(
+        self,
+        legacy_record: LegacyGenericRecord,
+    ) -> GenericModelRecord:
+        """Convert a single legacy ControlNet record to the new format."""
+        if not isinstance(legacy_record, LegacyGenericRecord):
+            raise TypeError(f"Expected {legacy_record.name} to be a LegacyGenericRecord.")
+
+        model_record_config = self._convert_model_record_config(legacy_record)
+
+        return ControlNetModelRecord(
+            name=legacy_record.name,
+            description=legacy_record.description,
+            version=legacy_record.version,
+            config=model_record_config,
+            style=legacy_record.style,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )

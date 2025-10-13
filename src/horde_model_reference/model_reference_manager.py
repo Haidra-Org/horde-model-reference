@@ -96,6 +96,7 @@ class ModelReferenceManager:
                     cache_ttl_seconds=horde_model_reference_settings.cache_ttl_seconds,
                 )
 
+            logger.info("Using FileSystemBackend for single-worker PRIMARY deployment")
             return filesystem_backend
 
         logger.debug("Creating backend for REPLICA mode")
@@ -645,3 +646,71 @@ class ModelReferenceManager:
             self._invalidate_cache(category)
 
         logger.info(f"Deleted model {model_name} from category {category}")
+
+    def update_model_legacy(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        record_dict: dict[str, Any],
+    ) -> None:
+        """Update or create a model reference in legacy format.
+
+        This method is only available when canonical_format='legacy' in PRIMARY mode.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category to update.
+            model_name (str): The name of the model to update or create.
+            record_dict (dict[str, Any]): The model record data in legacy format as a dictionary.
+
+        Raises:
+            RuntimeError: If backend doesn't support legacy writes.
+            ValueError: If model_name doesn't match record_dict['name'].
+        """
+        if not self.backend.supports_legacy_writes():
+            raise RuntimeError(
+                "Cannot update legacy model: backend does not support legacy writes. "
+                "Legacy writes are only available when canonical_format='legacy' in PRIMARY mode."
+            )
+
+        if "name" not in record_dict:
+            raise ValueError("record_dict must contain 'name' field")
+
+        if model_name != record_dict["name"]:
+            raise ValueError(f"Model name mismatch: {model_name} != {record_dict['name']}")
+
+        self.backend.update_model_legacy(category, model_name, record_dict)
+
+        with self._lock:
+            self._invalidate_cache(category)
+
+        logger.info(f"Updated legacy model {model_name} in category {category}")
+
+    def delete_model_legacy(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+    ) -> None:
+        """Delete a model reference from legacy format files.
+
+        This method is only available when canonical_format='legacy' in PRIMARY mode.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category containing the model.
+            model_name (str): The name of the model to delete.
+
+        Raises:
+            RuntimeError: If backend doesn't support legacy writes.
+            KeyError: If model doesn't exist in the category.
+        """
+        if not self.backend.supports_legacy_writes():
+            raise RuntimeError(
+                "Cannot delete legacy model: backend does not support legacy writes. "
+                "Legacy writes are only available when canonical_format='legacy' in PRIMARY mode."
+            )
+
+        self.backend.delete_model_legacy(category, model_name)
+
+        with self._lock:
+            self._invalidate_cache(category)
+
+        logger.info(f"Deleted legacy model {model_name} from category {category}")

@@ -1,32 +1,26 @@
 """Request and response models for the v2 API."""
 
-from typing import Annotated, Any
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
 from horde_model_reference.model_reference_records import (
-    AudioGenerationModelRecord,
-    CLIPModelRecord,
     ControlNetModelRecord,
     GenericModelRecord,
     ImageGenerationModelRecord,
     TextGenerationModelRecord,
-    VideoGenerationModelRecord,
 )
 
 ModelRecordUnion = Annotated[
-    ImageGenerationModelRecord
-    | TextGenerationModelRecord
-    | CLIPModelRecord
-    | ControlNetModelRecord
-    | VideoGenerationModelRecord
-    | AudioGenerationModelRecord
-    | GenericModelRecord,
+    ImageGenerationModelRecord | TextGenerationModelRecord | ControlNetModelRecord | GenericModelRecord,
     Field(
         description="A model record conforming to one of the category-specific schemas",
     ),
 ]
 """Union of all possible model record types for OpenAPI documentation."""
+
+type ModelRecordUnionType = ImageGenerationModelRecord | TextGenerationModelRecord | ControlNetModelRecord | GenericModelRecord
+"""Union of all possible model record types for type hints."""
 
 
 class ErrorDetail(BaseModel):
