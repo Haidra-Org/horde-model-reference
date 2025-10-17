@@ -452,6 +452,9 @@ class ModelReferenceManager:
 
             categories_to_load = []
             for category in all_files:
+                # Initial fetch detection: "category not in self._cached_file_json"
+                # Refresh detection: "self.backend.needs_refresh(category)"
+                # These are separate concerns - initial load vs. re-fetch of stale data
                 if (
                     overwrite_existing
                     or category not in self._cached_file_json
@@ -561,6 +564,8 @@ class ModelReferenceManager:
                 self._cached_file_json[category] = None
                 return None
 
+            # Initial fetch check: category not in cache
+            # Refresh check: backend.needs_refresh() - are cached data stale?
             if overwrite_existing or category not in self._cached_file_json or self.backend.needs_refresh(category):
 
                 if not file_path.exists():

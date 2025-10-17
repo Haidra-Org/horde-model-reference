@@ -32,10 +32,7 @@ route_registry.register_route(
 
 @router.get(info_route_subpath)
 async def get_reference_info() -> ContainsMessage:
-    """Info about the legacy model reference API, as follows.
-
-    This is the  model reference API, which uses the new format established by horde_model_reference.
-    """
+    """The v2 model reference API, which uses the new format established by horde_model_reference."""
     info = get_reference_info.__doc__ or "No information available."
     return ContainsMessage(message=info.replace("\n\n", " ").replace("\n", " ").strip())
 

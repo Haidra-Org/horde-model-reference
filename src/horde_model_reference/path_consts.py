@@ -110,7 +110,7 @@ class HordeModelReferencePaths:
                 self.model_reference_filenames[category] = filename
             else:
                 filename = self.model_reference_filenames[category]
-                logger.debug(
+                logger.trace(
                     f"Using fixed filename for {category}: {filename}",
                 )
             composed_url: str | None = None
@@ -127,10 +127,10 @@ class HordeModelReferencePaths:
                 ).geturl()
                 self.legacy_text_model_github_urls[category] = composed_url
 
-            logger.debug(f"Parsed legacy model GitHub URL for {category}: {composed_url}")
+            logger.trace(f"Parsed legacy model GitHub URL for {category}: {composed_url}")
 
         self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "text_generation.json"
-        logger.debug(
+        logger.trace(
             f"Renaming {MODEL_REFERENCE_CATEGORY.text_generation}: "
             f"{self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation]}",
         )

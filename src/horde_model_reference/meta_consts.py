@@ -328,3 +328,29 @@ def get_baselines_by_resolution(resolution: int) -> list[KNOWN_IMAGE_GENERATION_
         for baseline, native_resolution in IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP.items()
         if native_resolution == resolution
     ]
+
+
+class TEXT_BACKENDS(StrEnum):
+    """An enum of all the text backends."""
+
+    aphrodite = auto()
+    koboldcpp = auto()
+
+
+_TEXT_LEGACY_CONVERT_BACKEND_PREFIXES = {
+    TEXT_BACKENDS.aphrodite: "aphrodite/",
+    TEXT_BACKENDS.koboldcpp: "koboldcpp/",
+}
+"""These prefixes exist on duplicate entries for backwards compatibility, in the legacy format."""
+
+
+def has_legacy_text_backend_prefix(model_name: str) -> bool:
+    """Check if a model name has a legacy text backend prefix.
+
+    Args:
+        model_name: The model name to check.
+
+    Returns:
+        True if the model name has a legacy text backend prefix, False otherwise.
+    """
+    return any(model_name.startswith(prefix) for prefix in _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES.values())

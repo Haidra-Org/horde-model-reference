@@ -10,18 +10,17 @@ import contextlib
 import json
 import time
 from pathlib import Path
-from threading import RLock
 from typing import Any, override
 
 import httpx
 from loguru import logger
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths
-from horde_model_reference.backends.base import ModelReferenceBackend
+from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
-class FileSystemBackend(ModelReferenceBackend):
+class FileSystemBackend(ReplicaBackendBase):
     """Backend that reads/writes model references directly on the local filesystem."""
 
     def __init__(
@@ -46,37 +45,65 @@ class FileSystemBackend(ModelReferenceBackend):
                 "FileSystemBackend can only be used in PRIMARY mode. "
                 "For REPLICA mode, use GitHubBackend or HTTPBackend."
             )
-        super().__init__(mode=replicate_mode)
+        super().__init__(mode=replicate_mode, cache_ttl_seconds=cache_ttl_seconds)
 
         self.base_path = Path(base_path)
-        self._cache_ttl_seconds = cache_ttl_seconds
-
-        self._lock = RLock()
-
-        self._cache: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None] = {}
-        self._cache_timestamp: dict[MODEL_REFERENCE_CATEGORY, float] = {}
-        self._last_known_mtimes: dict[MODEL_REFERENCE_CATEGORY, float] = {}
-        self._stale_categories: set[MODEL_REFERENCE_CATEGORY] = set()
-
-        for category in MODEL_REFERENCE_CATEGORY:
-            file_path = horde_model_reference_paths.get_model_reference_file_path(
-                category,
-                base_path=self.base_path,
-            )
-
-            if file_path and file_path.exists():
-                try:
-                    self._last_known_mtimes[category] = file_path.stat().st_mtime
-                except Exception:
-                    self._last_known_mtimes[category] = 0.0
 
         logger.debug(f"FileSystemBackend initialized with base_path={self.base_path}")
 
-    def _is_cache_expired(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
-        """Check if cache for a category has expired."""
-        if category not in self._cache_timestamp:
-            return True
-        return (time.time() - self._cache_timestamp[category]) > self._cache_ttl_seconds
+    @override
+    def _get_file_path_for_validation(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
+        """Return the file path for mtime validation.
+
+        Args:
+            category: The category to get the file path for.
+
+        Returns:
+            Path | None: Path to file for mtime validation.
+        """
+        return horde_model_reference_paths.get_model_reference_file_path(
+            category,
+            base_path=self.base_path,
+        )
+
+    @override
+    def _get_legacy_file_path_for_validation(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
+        """Return the legacy file path for mtime validation.
+
+        Args:
+            category: The category to get the legacy file path for.
+
+        Returns:
+            Path | None: Path to legacy file for mtime validation.
+        """
+        return horde_model_reference_paths.get_legacy_model_reference_file_path(
+            category,
+            base_path=self.base_path,
+        )
+
+    def _mark_category_modified(self, category: MODEL_REFERENCE_CATEGORY, file_path: Path) -> None:
+        """Mark a category as modified after a write operation.
+
+        This invalidates the cache (forcing reload on next fetch).
+
+        Args:
+            category: Category that was modified.
+            file_path: Path to the file that was modified.
+        """
+        self._invalidate_cache(category)
+        logger.debug(f"Marked category {category} as modified")
+
+    def _mark_legacy_category_modified(self, category: MODEL_REFERENCE_CATEGORY, legacy_file_path: Path) -> None:
+        """Mark a legacy category as modified after a write operation.
+
+        This invalidates the legacy cache (forcing reload on next fetch).
+
+        Args:
+            category: Category that was modified.
+            legacy_file_path: Path to the legacy file that was modified.
+        """
+        self._invalidate_legacy_cache(category)
+        logger.debug(f"Marked legacy category {category} as modified")
 
     @override
     def fetch_category(
@@ -95,45 +122,33 @@ class FileSystemBackend(ModelReferenceBackend):
             dict[str, Any] | None: The model reference data, or None if file doesn't exist.
         """
         with self._lock:
-            if (
-                not force_refresh
-                and not self._is_cache_expired(category)
-                and category not in self._stale_categories
-                and category in self._cache
-            ):
-                logger.debug(f"Cache hit for {category}")
-                return self._cache[category]
+            # Use helper to determine if we need to fetch
+            if force_refresh or self.should_fetch_data(category):
+                file_path = horde_model_reference_paths.get_model_reference_file_path(
+                    category,
+                    base_path=self.base_path,
+                )
 
-            file_path = horde_model_reference_paths.get_model_reference_file_path(
-                category,
-                base_path=self.base_path,
-            )
-
-            if not file_path or not file_path.exists():
-                logger.debug(f"File not found for {category}: {file_path}")
-                self._cache[category] = None
-                self._cache_timestamp[category] = time.time()
-                return None
-
-            try:
-                with open(file_path, encoding="utf-8") as f:
-                    data: dict[str, Any] = json.load(f)
-
-                self._cache[category] = data
-                self._cache_timestamp[category] = time.time()
-                self._stale_categories.discard(category)
+                if not file_path or not file_path.exists():
+                    logger.debug(f"File not found for {category}: {file_path}")
+                    self._store_in_cache(category, None)
+                    return None
 
                 try:
-                    self._last_known_mtimes[category] = file_path.stat().st_mtime
-                except Exception:
-                    self._last_known_mtimes[category] = 0.0
+                    with open(file_path, encoding="utf-8") as f:
+                        data: dict[str, Any] = json.load(f)
 
-                logger.debug(f"Loaded {category} from {file_path}")
-                return data
+                    self._store_in_cache(category, data)
+                    logger.debug(f"Loaded {category} from {file_path}")
+                    return data
 
-            except Exception as e:
-                logger.error(f"Failed to read {file_path}: {e}")
-                return None
+                except Exception as e:
+                    logger.error(f"Failed to read {file_path}: {e}")
+                    self._invalidate_cache(category)
+                    return None
+
+            # Return cached data
+            return self._get_from_cache(category)
 
     @override
     def fetch_all_categories(
@@ -189,48 +204,6 @@ class FileSystemBackend(ModelReferenceBackend):
         return self.fetch_all_categories(force_refresh=force_refresh)
 
     @override
-    def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
-        """Check if a category needs refresh.
-
-        Args:
-            category: The category to check.
-
-        Returns:
-            bool: True if needs refresh (stale or mtime changed).
-        """
-        with self._lock:
-            if category in self._stale_categories:
-                return True
-
-            file_path = horde_model_reference_paths.get_model_reference_file_path(
-                category,
-                base_path=self.base_path,
-            )
-
-            if file_path and file_path.exists():
-                try:
-                    current_mtime = file_path.stat().st_mtime
-                    last_known = self._last_known_mtimes.get(category, 0.0)
-                    if current_mtime != last_known:
-                        logger.debug(f"File {file_path.name} mtime changed, needs refresh")
-                        return True
-                except Exception:
-                    pass
-
-            return False
-
-    @override
-    def mark_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:
-        """Mark a category as stale, requiring refresh on next access.
-
-        Args:
-            category: The category to mark stale.
-        """
-        with self._lock:
-            logger.debug(f"Marking category {category} as stale")
-            self._stale_categories.add(category)
-
-    @override
     def get_category_file_path(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
         """Get the file path for a category's data.
 
@@ -264,28 +237,41 @@ class FileSystemBackend(ModelReferenceBackend):
 
         Args:
             category: Category to retrieve.
-            redownload: Ignored (files are already local).
+            redownload: If True, bypass cache and read from disk.
 
         Returns:
             dict[str, Any] | None: The legacy format JSON data, or None if file doesn't exist.
         """
-        legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
-            category,
-            base_path=self.base_path,
-        )
+        with self._lock:
+            # Check cache first unless redownload
+            if not redownload:
+                legacy_dict, _ = self._get_legacy_from_cache(category)
+                if legacy_dict is not None:
+                    return legacy_dict
 
-        if not legacy_file_path.exists():
-            logger.debug(f"Legacy file not found for {category}: {legacy_file_path}")
-            return None
+            legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
 
-        try:
-            with open(legacy_file_path, encoding="utf-8") as f:
-                data: dict[str, Any] = json.load(f)
-            logger.debug(f"Loaded legacy JSON for {category} from {legacy_file_path}")
-            return data
-        except Exception as e:
-            logger.error(f"Failed to read legacy file {legacy_file_path}: {e}")
-            return None
+            if not legacy_file_path.exists():
+                logger.debug(f"Legacy file not found for {category}: {legacy_file_path}")
+                self._store_legacy_in_cache(category, None, None)
+                return None
+
+            try:
+                with open(legacy_file_path, encoding="utf-8") as f:
+                    content = f.read()
+                    data: dict[str, Any] = json.loads(content)
+
+                self._store_legacy_in_cache(category, data, content)
+                logger.debug(f"Loaded legacy JSON for {category} from {legacy_file_path}")
+                return data
+
+            except Exception as e:
+                logger.error(f"Failed to read legacy file {legacy_file_path}: {e}")
+                self._invalidate_legacy_cache(category)
+                return None
 
     @override
     def get_legacy_json_string(
@@ -297,28 +283,41 @@ class FileSystemBackend(ModelReferenceBackend):
 
         Args:
             category: Category to retrieve.
-            redownload: Ignored (files are already local).
+            redownload: If True, bypass cache and read from disk.
 
         Returns:
             str | None: The legacy format JSON string, or None if file doesn't exist.
         """
-        legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
-            category,
-            base_path=self.base_path,
-        )
+        with self._lock:
+            # Check cache first unless redownload
+            if not redownload:
+                _, legacy_string = self._get_legacy_from_cache(category)
+                if legacy_string is not None:
+                    return legacy_string
 
-        if not legacy_file_path.exists():
-            logger.debug(f"Legacy file not found for {category}: {legacy_file_path}")
-            return None
+            legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
 
-        try:
-            with open(legacy_file_path, encoding="utf-8") as f:
-                content = f.read()
-            logger.debug(f"Loaded legacy JSON string for {category} from {legacy_file_path}")
-            return content
-        except Exception as e:
-            logger.error(f"Failed to read legacy file {legacy_file_path}: {e}")
-            return None
+            if not legacy_file_path.exists():
+                logger.debug(f"Legacy file not found for {category}: {legacy_file_path}")
+                self._store_legacy_in_cache(category, None, None)
+                return None
+
+            try:
+                with open(legacy_file_path, encoding="utf-8") as f:
+                    content = f.read()
+                    data: dict[str, Any] = json.loads(content)
+
+                self._store_legacy_in_cache(category, data, content)
+                logger.debug(f"Loaded legacy JSON string for {category} from {legacy_file_path}")
+                return content
+
+            except Exception as e:
+                logger.error(f"Failed to read legacy file {legacy_file_path}: {e}")
+                self._invalidate_legacy_cache(category)
+                return None
 
     @override
     def supports_writes(self) -> bool:
@@ -392,13 +391,7 @@ class FileSystemBackend(ModelReferenceBackend):
                     temp_path.replace(file_path)
 
                 logger.info(f"Updated model {model_name} in category {category} at {file_path}")
-
-                self._stale_categories.add(category)
-
-                try:
-                    self._last_known_mtimes[category] = file_path.stat().st_mtime
-                except Exception:
-                    self._last_known_mtimes[category] = 0.0
+                self._mark_category_modified(category, file_path)
 
             except Exception as e:
                 try:
@@ -468,13 +461,7 @@ class FileSystemBackend(ModelReferenceBackend):
                     backup_path.unlink()
 
                 logger.info(f"Deleted model {model_name} from category {category} at {file_path}")
-
-                self._stale_categories.add(category)
-
-                try:
-                    self._last_known_mtimes[category] = file_path.stat().st_mtime
-                except Exception:
-                    self._last_known_mtimes[category] = 0.0
+                self._mark_category_modified(category, file_path)
 
             except Exception as e:
                 try:
@@ -570,8 +557,7 @@ class FileSystemBackend(ModelReferenceBackend):
                     temp_path.replace(legacy_file_path)
 
                 logger.info(f"Updated legacy model {model_name} in category {category} at {legacy_file_path}")
-
-                self._stale_categories.add(category)
+                self._mark_legacy_category_modified(category, legacy_file_path)
 
             except Exception as e:
                 try:
@@ -650,8 +636,7 @@ class FileSystemBackend(ModelReferenceBackend):
                     backup_path.unlink()
 
                 logger.info(f"Deleted legacy model {model_name} from category {category} at {legacy_file_path}")
-
-                self._stale_categories.add(category)
+                self._mark_legacy_category_modified(category, legacy_file_path)
 
             except Exception as e:
                 try:

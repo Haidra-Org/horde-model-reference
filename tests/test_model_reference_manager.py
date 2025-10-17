@@ -128,8 +128,8 @@ def test_manager(
 
     log_messages = [record.message for record in caplog.records]
     assert any(
-        "Building" in msg for msg in log_messages
-    ), "Expected 'Building' in log messages during cache construction"
+        "Loaded converted JSON" in msg or "loading from disk" in msg for msg in log_messages
+    ), "Expected 'Loaded converted JSON' or 'loading from disk' in log messages during cache loading"
 
     all_references: dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]
     all_references = model_reference_manager.get_all_model_references(overwrite_existing=False)
@@ -302,7 +302,12 @@ class TestCacheAndStaleness:
         assert len(manager._cached_file_json) == 0, "Expected full cache invalidation"
 
     def test_mark_backend_stale(self, tmp_path: Path) -> None:
-        """Test that _mark_backend_stale properly delegates to backend."""
+        """Test that _mark_backend_stale properly delegates to backend.
+
+        Verifies the semantic distinction that needs_refresh() returns False for
+        a freshly initialized backend (no cached data to refresh), but returns True
+        after explicitly marking the category as stale.
+        """
         backend = FileSystemBackend(base_path=tmp_path, replicate_mode=ReplicateMode.PRIMARY)
         manager = ModelReferenceManager(
             backend=backend,
@@ -312,8 +317,11 @@ class TestCacheAndStaleness:
 
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
 
+        # Initially, no cached data exists, so nothing needs to be "refreshed"
+        # (needs_refresh is about RE-fetching stale data, not initial fetching)
         assert not backend.needs_refresh(category)
 
+        # After explicitly marking stale, the category needs refresh
         manager._mark_backend_stale(category)
 
         assert backend.needs_refresh(category)

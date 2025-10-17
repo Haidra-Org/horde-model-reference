@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from haidra_core.service_base import ContainsMessage, ContainsStatus
 
 import horde_model_reference.service.v1.routers.references as v1_references
@@ -7,6 +8,20 @@ from horde_model_reference import ReplicateMode
 from horde_model_reference.service.shared import v1_prefix, v2_prefix
 
 app = FastAPI(root_path="/api")
+
+origins = [
+    "http://localhost",
+    "http://localhost:4200",
+    "http://localhost:9877",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 app.include_router(v1_references.router, prefix=v1_prefix, tags=["model_reference_v1"])

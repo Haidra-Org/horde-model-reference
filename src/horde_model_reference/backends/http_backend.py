@@ -70,8 +70,6 @@ class HTTPBackend(ReplicaBackendBase):
         self._retry_backoff_seconds = retry_backoff_seconds
         self._enable_github_fallback = enable_github_fallback
 
-        self._cache: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None] = {}
-
         self._primary_hits = 0
         self._github_fallbacks = 0
 
@@ -80,6 +78,10 @@ class HTTPBackend(ReplicaBackendBase):
     def _category_api_url(self, category: MODEL_REFERENCE_CATEGORY) -> str:
         """Get the PRIMARY API URL for a category."""
         return f"{self._primary_api_url}/model_references/v2/{category.value}"
+
+    def _legacy_category_api_url(self, category: MODEL_REFERENCE_CATEGORY) -> str:
+        """Get the legacy PRIMARY API URL for a category."""
+        return f"{self._primary_api_url}/model_references/v1/{category.value}"
 
     def _fetch_from_primary(self, category: MODEL_REFERENCE_CATEGORY) -> dict[str, Any] | None:
         """Fetch from PRIMARY API with retries (synchronous)."""
@@ -113,6 +115,47 @@ class HTTPBackend(ReplicaBackendBase):
 
         logger.warning(f"Failed to fetch {category} from PRIMARY after {self._retry_max_attempts} attempts")
         return None
+
+    def _fetch_legacy_from_primary(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+    ) -> tuple[dict[str, Any] | None, str | None]:
+        """Fetch legacy JSON from PRIMARY API with retries (synchronous).
+
+        Returns:
+            tuple[dict | None, str | None]: (legacy_dict, legacy_string) or (None, None) on failure
+        """
+        url = self._legacy_category_api_url(category)
+
+        for attempt in range(self._retry_max_attempts):
+            if attempt > 0:
+                wait_time = self._retry_backoff_seconds * (2 ** (attempt - 1))
+                logger.debug(f"Retrying PRIMARY API for legacy {category} in {wait_time}s (attempt {attempt + 1})")
+                time.sleep(wait_time)
+
+            try:
+                response = httpx.get(url, timeout=self._timeout_seconds)
+
+                if response.status_code == 200:
+                    legacy_string = response.text
+                    legacy_dict: dict[str, Any] = response.json()
+                    logger.info(f"Fetched legacy {category} from PRIMARY API")
+                    self._primary_hits += 1
+                    return legacy_dict, legacy_string
+
+                if response.status_code == 404:
+                    logger.debug(f"PRIMARY API returned 404 for legacy {category}")
+                    return None, None
+
+                logger.warning(f"PRIMARY API returned {response.status_code} for legacy {category}")
+
+            except httpx.TimeoutException:
+                logger.warning(f"PRIMARY API timeout for legacy {category}")
+            except Exception as e:
+                logger.warning(f"PRIMARY API error for legacy {category}: {e}")
+
+        logger.warning(f"Failed to fetch legacy {category} from PRIMARY after {self._retry_max_attempts} attempts")
+        return None, None
 
     async def _fetch_from_primary_async(
         self,
@@ -153,6 +196,52 @@ class HTTPBackend(ReplicaBackendBase):
         logger.warning(f"Failed to fetch {category} from PRIMARY async after {self._retry_max_attempts} attempts")
         return None
 
+    async def _fetch_legacy_from_primary_async(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        client: httpx.AsyncClient,
+    ) -> tuple[dict[str, Any] | None, str | None]:
+        """Fetch legacy JSON from PRIMARY API with retries (asynchronous).
+
+        Returns:
+            tuple[dict | None, str | None]: (legacy_dict, legacy_string) or (None, None) on failure
+        """
+        import asyncio
+
+        url = self._legacy_category_api_url(category)
+
+        for attempt in range(self._retry_max_attempts):
+            if attempt > 0:
+                wait_time = self._retry_backoff_seconds * (2 ** (attempt - 1))
+                logger.debug(f"Retrying PRIMARY API for legacy {category} in {wait_time}s (attempt {attempt + 1})")
+                await asyncio.sleep(wait_time)
+
+            try:
+                response = await client.get(url, timeout=self._timeout_seconds)
+
+                if response.status_code == 200:
+                    legacy_string = response.text
+                    legacy_dict: dict[str, Any] = response.json()
+                    logger.info(f"Fetched legacy {category} from PRIMARY API (async)")
+                    self._primary_hits += 1
+                    return legacy_dict, legacy_string
+
+                if response.status_code == 404:
+                    logger.debug(f"PRIMARY API returned 404 for legacy {category}")
+                    return None, None
+
+                logger.warning(f"PRIMARY API returned {response.status_code} for legacy {category}")
+
+            except httpx.TimeoutException:
+                logger.warning(f"PRIMARY API timeout for legacy {category}")
+            except Exception as e:
+                logger.warning(f"PRIMARY API error for legacy {category}: {e}")
+
+        logger.warning(
+            f"Failed to fetch legacy {category} from PRIMARY async after {self._retry_max_attempts} attempts"
+        )
+        return None, None
+
     @override
     def fetch_category(
         self,
@@ -169,12 +258,8 @@ class HTTPBackend(ReplicaBackendBase):
         Returns:
             Model reference data or None
         """
-        with self._lock:
-
-            if not force_refresh and category in self._cache and self.is_cache_valid(category):
-                logger.debug(f"Local cache hit for {category}")
-                return self._cache[category]
-
+        # Use helper to determine if we need to fetch
+        if force_refresh or self.should_fetch_data(category):
             data = self._fetch_from_primary(category)
 
             if data is None and self._enable_github_fallback:
@@ -183,10 +268,12 @@ class HTTPBackend(ReplicaBackendBase):
                 data = self._github_backend.fetch_category(category, force_refresh=force_refresh)
 
             if data is not None:
-                self._cache[category] = data
-                self._mark_category_fresh(category)
+                self._store_in_cache(category, data)
 
             return data
+
+        # Return cached data
+        return self._get_from_cache(category)
 
     @override
     def fetch_all_categories(
@@ -220,33 +307,33 @@ class HTTPBackend(ReplicaBackendBase):
         Returns:
             Model reference data or None
         """
-        if not force_refresh and self.is_cache_valid(category) and category in self._cache:
-            logger.debug(f"Local cache hit for {category} (async)")
-            return self._cache[category]
+        # Use helper to determine if we need to fetch
+        if force_refresh or self.should_fetch_data(category):
+            if httpx_client is None:
+                logger.debug("Creating temporary httpx.AsyncClient for fetch_category_async")
 
-        if httpx_client is None:
-            logger.debug("Creating temporary httpx.AsyncClient for fetch_category_async")
+            if httpx_client is not None:
+                data = await self._fetch_from_primary_async(category, httpx_client)
+            else:
+                async with httpx.AsyncClient() as client:
+                    data = await self._fetch_from_primary_async(category, client)
 
-        if httpx_client is not None:
-            data = await self._fetch_from_primary_async(category, httpx_client)
-        else:
-            async with httpx.AsyncClient() as client:
-                data = await self._fetch_from_primary_async(category, client)
+            if data is None and self._enable_github_fallback:
+                logger.info(f"Falling back to GitHub for {category} (async)")
+                self._github_fallbacks += 1
+                data = await self._github_backend.fetch_category_async(
+                    category,
+                    httpx_client=httpx_client,
+                    force_refresh=force_refresh,
+                )
 
-        if data is None and self._enable_github_fallback:
-            logger.info(f"Falling back to GitHub for {category} (async)")
-            self._github_fallbacks += 1
-            data = await self._github_backend.fetch_category_async(
-                category,
-                httpx_client=httpx_client,
-                force_refresh=force_refresh,
-            )
+            if data is not None:
+                self._store_in_cache(category, data)
 
-        if data is not None:
-            self._cache[category] = data
-            self._mark_category_fresh(category)
+            return data
 
-        return data
+        # Return cached data
+        return self._get_from_cache(category)
 
     @override
     async def fetch_all_categories_async(
@@ -293,8 +380,38 @@ class HTTPBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
     ) -> dict[str, Any] | None:
-        """Get legacy JSON (delegates to GitHub backend)."""
-        return self._github_backend.get_legacy_json(category, redownload=redownload)
+        """Get legacy JSON from PRIMARY API with GitHub fallback.
+
+        Args:
+            category: The category to fetch
+            redownload: If True, bypass cache and force refetch
+
+        Returns:
+            Legacy JSON dict or None
+        """
+        # Check cache first unless redownload
+        if not redownload:
+            legacy_dict, _ = self._get_legacy_from_cache(category)
+            if legacy_dict is not None:
+                return legacy_dict
+
+        # Fetch from PRIMARY API
+        legacy_dict, legacy_string = self._fetch_legacy_from_primary(category)
+
+        # Fallback to GitHub if PRIMARY fails
+        if legacy_dict is None and self._enable_github_fallback:
+            logger.info(f"Falling back to GitHub for legacy {category}")
+            self._github_fallbacks += 1
+            legacy_dict = self._github_backend.get_legacy_json(category, redownload=redownload)
+            # GitHub backend may return string separately, get it if available
+            if legacy_dict is not None:
+                legacy_string = self._github_backend.get_legacy_json_string(category, redownload=False)
+
+        # Store in cache
+        if legacy_dict is not None or legacy_string is not None:
+            self._store_legacy_in_cache(category, legacy_dict, legacy_string)
+
+        return legacy_dict
 
     @override
     def get_legacy_json_string(
@@ -302,8 +419,38 @@ class HTTPBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
     ) -> str | None:
-        """Get legacy JSON string (delegates to GitHub backend)."""
-        return self._github_backend.get_legacy_json_string(category, redownload=redownload)
+        """Get legacy JSON string from PRIMARY API with GitHub fallback.
+
+        Args:
+            category: The category to fetch
+            redownload: If True, bypass cache and force refetch
+
+        Returns:
+            Legacy JSON string or None
+        """
+        # Check cache first unless redownload
+        if not redownload:
+            _, legacy_string = self._get_legacy_from_cache(category)
+            if legacy_string is not None:
+                return legacy_string
+
+        # Fetch from PRIMARY API
+        legacy_dict, legacy_string = self._fetch_legacy_from_primary(category)
+
+        # Fallback to GitHub if PRIMARY fails
+        if legacy_string is None and self._enable_github_fallback:
+            logger.info(f"Falling back to GitHub for legacy {category} string")
+            self._github_fallbacks += 1
+            legacy_string = self._github_backend.get_legacy_json_string(category, redownload=redownload)
+            # GitHub backend may return dict separately, get it if available
+            if legacy_string is not None and legacy_dict is None:
+                legacy_dict = self._github_backend.get_legacy_json(category, redownload=False)
+
+        # Store in cache
+        if legacy_dict is not None or legacy_string is not None:
+            self._store_legacy_in_cache(category, legacy_dict, legacy_string)
+
+        return legacy_string
 
     @override
     def get_statistics(self) -> dict[str, Any]:
