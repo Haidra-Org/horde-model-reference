@@ -21,6 +21,7 @@ from horde_model_reference.legacy.classes.legacy_models import (
     LegacyStableDiffusionRecord,
     LegacyTextGenerationRecord,
 )
+from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
 from horde_model_reference.model_reference_records import (
     ControlNetModelRecord,
     DownloadRecord,
@@ -170,7 +171,12 @@ class BaseLegacyConverter:
         for model_key, legacy_record in self._all_legacy_records.items():
             try:
                 converted_record = self._convert_single_record(legacy_record)
-                self._all_converted_records[model_key] = converted_record
+                if converted_record is None:
+                    self.add_validation_error_to_log(
+                        model_record_key=model_key, error="Failed to convert legacy record to new format"
+                    )
+                else:
+                    self._all_converted_records[model_key] = converted_record
             except Exception as e:
                 error = f"Failed to convert {model_key}: {e}"
                 self.add_validation_error_to_log(model_record_key=model_key, error=error)
@@ -225,7 +231,7 @@ class BaseLegacyConverter:
     def _convert_single_record(
         self,
         legacy_record: LegacyGenericRecord,
-    ) -> GenericModelRecord:
+    ) -> GenericModelRecord | None:
         """Convert a single legacy record to the new format.
 
         Override this in subclasses for category-specific conversion.
@@ -612,12 +618,22 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
     def _convert_single_record(
         self,
         legacy_record: LegacyGenericRecord,
-    ) -> TextGenerationModelRecord:
+    ) -> TextGenerationModelRecord | None:
         """Convert a single legacy text generation record to the new format."""
         if not isinstance(legacy_record, LegacyTextGenerationRecord):
             raise TypeError(f"Expected {legacy_record.name} to be a LegacyTextGenerationRecord.")
 
         model_record_config = self._convert_model_record_config(legacy_record)
+
+        if has_legacy_text_backend_prefix(legacy_record.name):
+            self.add_validation_error_to_log(
+                model_record_key=legacy_record.name,
+                error=(
+                    f"Model name '{legacy_record.name}' has a deprecated backend prefix. "
+                    "Dropping this record as it is necessarily a duplicate."
+                ),
+            )
+            return None
 
         return TextGenerationModelRecord(
             name=legacy_record.name,

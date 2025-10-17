@@ -113,17 +113,25 @@ class ModelReferenceBackend(ABC):
 
     @abstractmethod
     def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
-        """Check if a category's data needs to be refreshed.
+        """Check if existing cached data for a category needs to be refreshed.
 
-        This method is used by the manager to determine if cached data is stale
-        and should be refreshed from the backend. Backends can implement this
-        based on file modification times, database timestamps, ETags, etc.
+        This method indicates whether cached data has become stale and should be
+        re-fetched from the source. It does NOT indicate whether an initial fetch
+        is needed for data that has never been loaded.
+
+        Semantic distinction:
+        - Returns False when no cached data exists (no initial fetch needed via this method)
+        - Returns True when cached data exists but has become stale
+
+        Backends can implement staleness detection based on file modification times,
+        database timestamps, ETags, TTL expiration, explicit invalidation, etc.
 
         Args:
             category (MODEL_REFERENCE_CATEGORY): The category to check.
 
         Returns:
-            bool: True if the data needs refresh, False otherwise.
+            bool: True if cached data needs refresh due to staleness. False if no
+                  cached data exists or if cached data is still fresh.
         """
 
     @abstractmethod
