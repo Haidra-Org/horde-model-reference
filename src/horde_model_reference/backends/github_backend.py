@@ -20,11 +20,15 @@ from loguru import logger
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
-from horde_model_reference.legacy.convert_all_legacy_dbs import convert_all_legacy_model_references
+from horde_model_reference.legacy.convert_all_legacy_dbs import (
+    convert_all_legacy_model_references,
+    convert_legacy_database_by_category,
+)
 from horde_model_reference.meta_consts import (
     MODEL_REFERENCE_CATEGORY,
     github_image_model_reference_categories,
     github_text_model_reference_categories,
+    has_legacy_text_backend_prefix,
 )
 from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER_NAME
 
@@ -80,12 +84,6 @@ class GitHubBackend(ReplicaBackendBase):
         self.retry_backoff_seconds = retry_backoff_seconds
 
         self._references_paths_cache: dict[MODEL_REFERENCE_CATEGORY, Path | None] = {}
-        self._converted_cache: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None] | None = None
-        self._legacy_cache: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None] = {}
-        self._legacy_string_cache: dict[MODEL_REFERENCE_CATEGORY, str | None] = {}
-        self._cache_timestamp: float = 0.0
-
-        self._last_known_mtimes: dict[MODEL_REFERENCE_CATEGORY, float] = {}
         self._times_downloaded: dict[MODEL_REFERENCE_CATEGORY, int] = {}
 
         for category in MODEL_REFERENCE_CATEGORY:
@@ -96,21 +94,41 @@ class GitHubBackend(ReplicaBackendBase):
 
             if file_path.exists():
                 self._references_paths_cache[category] = file_path
-                try:
-                    self._last_known_mtimes[category] = file_path.stat().st_mtime
-                except Exception:
-                    self._last_known_mtimes[category] = 0.0
-
                 self._load_legacy_json_from_disk(category, file_path)
             else:
                 if self._replicate_mode == ReplicateMode.REPLICA:
                     self._references_paths_cache[category] = None
-                    self._legacy_cache[category] = None
-                    self._legacy_string_cache[category] = None
                 else:
                     raise FileNotFoundError(f"Model reference file not found for {category}.")
 
             self._times_downloaded[category] = 0
+
+    @override
+    def _get_file_path_for_validation(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
+        """Return the converted (v2) file path for mtime validation.
+
+        Args:
+            category: The category to get the file path for.
+
+        Returns:
+            Path | None: Path to converted file for mtime validation.
+        """
+        return horde_model_reference_paths.get_model_reference_file_path(
+            category,
+            base_path=self.base_path,
+        )
+
+    @override
+    def _get_legacy_file_path_for_validation(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
+        """Return the legacy file path for mtime validation.
+
+        Args:
+            category: The category to get the legacy file path for.
+
+        Returns:
+            Path | None: Path to legacy file for mtime validation.
+        """
+        return self._references_paths_cache.get(category)
 
     @override
     def fetch_category(
@@ -131,11 +149,13 @@ class GitHubBackend(ReplicaBackendBase):
             dict[str, Any] | None: The converted model reference data (new format).
         """
         with self._lock:
-
-            if force_refresh or category in self._stale_categories:
+            # Use helper to determine if we need to fetch
+            if force_refresh or self.should_fetch_data(category):
                 self._download_and_convert_single(category, overwrite_existing=force_refresh)
+                return self._load_converted_from_disk(category)
 
-            return self._get_cached_category(category)
+            # Return cached data
+            return self._get_from_cache(category)
 
     @override
     def fetch_all_categories(
@@ -154,8 +174,21 @@ class GitHubBackend(ReplicaBackendBase):
             dict mapping categories to their converted model reference data.
         """
         with self._lock:
-            self._download_and_convert_all(overwrite_existing=force_refresh)
-            return self._build_converted_cache()
+            if force_refresh:
+                self._download_and_convert_all(overwrite_existing=True)
+
+            result: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None] = {}
+            for category in MODEL_REFERENCE_CATEGORY:
+                # Use helper to determine if we need to fetch
+                if force_refresh or self.should_fetch_data(category):
+                    self._download_legacy(category, overwrite_existing=force_refresh)
+                    convert_legacy_database_by_category(category)
+                    result[category] = self._load_converted_from_disk(category)
+                else:
+                    # Return cached data
+                    result[category] = self._get_from_cache(category)
+
+            return result
 
     @override
     async def fetch_category_async(
@@ -180,17 +213,18 @@ class GitHubBackend(ReplicaBackendBase):
             raise RuntimeError("Async lock is unavailable for GitHubBackend")
 
         async with lock:
+            # Use helper to determine if we need to fetch
+            if force_refresh or self.should_fetch_data(category):
+                await self._download_legacy_async(
+                    category,
+                    httpx_client,
+                    overwrite_existing=force_refresh,
+                )
+                convert_legacy_database_by_category(category)
+                return self._load_converted_from_disk(category)
 
-            await self._download_legacy_async(
-                category,
-                httpx_client,
-                overwrite_existing=force_refresh,
-            )
-
-            if self._is_cache_expired():
-                convert_all_legacy_model_references()
-
-            return self._get_cached_category(category)
+            # Return cached data
+            return self._get_from_cache(category)
 
     @override
     async def fetch_all_categories_async(
@@ -213,27 +247,40 @@ class GitHubBackend(ReplicaBackendBase):
             raise RuntimeError("Async lock is unavailable for GitHubBackend")
 
         async with lock:
-
+            # Download all that need refresh
             tasks = []
+            categories_to_download = []
             for category in MODEL_REFERENCE_CATEGORY:
-                tasks.append(
-                    self._download_legacy_async(
-                        category,
-                        httpx_client,
-                        overwrite_existing=force_refresh,
+                # Use helper to determine if we need to fetch
+                if force_refresh or self.should_fetch_data(category):
+                    categories_to_download.append(category)
+                    tasks.append(
+                        self._download_legacy_async(
+                            category,
+                            httpx_client,
+                            overwrite_existing=force_refresh,
+                        )
                     )
-                )
 
-            await asyncio.gather(*tasks)
-
-            if self._is_cache_expired():
+            if tasks:
+                await asyncio.gather(*tasks)
                 convert_all_legacy_model_references()
 
-            return self._build_converted_cache()
+            # Collect results from cache or disk
+            result: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None] = {}
+            for category in MODEL_REFERENCE_CATEGORY:
+                if category in categories_to_download:
+                    result[category] = self._load_converted_from_disk(category)
+                else:
+                    result[category] = self._get_from_cache(category)
+
+            return result
 
     @override
     def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
         """Check if a category needs refresh.
+
+        Base class handles all validation including mtime checks via hooks.
 
         Args:
             category: The category to check.
@@ -241,22 +288,7 @@ class GitHubBackend(ReplicaBackendBase):
         Returns:
             bool: True if needs refresh (stale or mtime changed).
         """
-        if super().needs_refresh(category):
-            return True
-
-        with self._lock:
-            file_path = self._references_paths_cache.get(category)
-            if file_path and file_path.exists():
-                try:
-                    current_mtime = file_path.stat().st_mtime
-                    last_known = self._last_known_mtimes.get(category, 0.0)
-                    if current_mtime != last_known:
-                        logger.debug(f"Legacy file {file_path.name} mtime changed, needs refresh")
-                        return True
-                except Exception:
-                    return True
-
-        return False
+        return super().needs_refresh(category)
 
     @override
     def mark_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:
@@ -292,37 +324,12 @@ class GitHubBackend(ReplicaBackendBase):
         """
         return horde_model_reference_paths.get_all_model_reference_file_paths(base_path=self.base_path)
 
-    _cache_expired: bool = False
-
-    def _is_cache_expired(self) -> bool:
-        """Check if internal cache has expired."""
-        if self._cache_expired:
-            return True
-
-        if self._converted_cache is None:
-            return True
-        ttl = self.cache_ttl_seconds
-        if ttl is None:
-            return False
-        return (time.time() - self._cache_timestamp) > ttl
-
-    def _expire_cache(self) -> None:
-        """Manually expire the internal cache."""
-        self._cache_expired = True
-
-    def _get_cached_category(self, category: MODEL_REFERENCE_CATEGORY) -> dict[str, Any] | None:
-        """Get a single category from cache."""
-        if self._converted_cache is None or self._is_cache_expired():
-            self._build_converted_cache()
-
-        return self._converted_cache.get(category) if self._converted_cache else None
-
     def _load_legacy_json_from_disk(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         file_path: Path,
     ) -> dict[str, Any] | None:
-        """Load legacy JSON from disk and populate both dict and string caches.
+        """Load legacy JSON from disk and populate cache via base class.
 
         Args:
             category: The category to load.
@@ -333,8 +340,7 @@ class GitHubBackend(ReplicaBackendBase):
         """
         if not file_path.exists():
             logger.debug(f"Legacy file {file_path} does not exist")
-            self._legacy_cache[category] = None
-            self._legacy_string_cache[category] = None
+            self._store_legacy_in_cache(category, None, None)
             return None
 
         try:
@@ -342,15 +348,48 @@ class GitHubBackend(ReplicaBackendBase):
                 content = f.read()
 
             data: dict[str, Any] = ujson.loads(content)
+            content_str = content.decode("utf-8")
 
-            self._legacy_cache[category] = data
-            self._legacy_string_cache[category] = content.decode("utf-8")
+            self._store_legacy_in_cache(category, data, content_str)
             logger.debug(f"Loaded legacy JSON for category {category!r} from {file_path!r}")
             return data
         except Exception:
             logger.exception(f"Failed to load legacy JSON for category {category!r} from {file_path!r}")
-            self._legacy_cache[category] = None
-            self._legacy_string_cache[category] = None
+            self._store_legacy_in_cache(category, None, None)
+            return None
+
+    def _load_converted_from_disk(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+    ) -> dict[str, Any] | None:
+        """Load converted (v2 format) JSON from disk and cache via base class.
+
+        Args:
+            category: The category to load.
+
+        Returns:
+            dict[str, Any] | None: The loaded JSON data, or None on error.
+        """
+        file_path = horde_model_reference_paths.get_model_reference_file_path(
+            category,
+            base_path=self.base_path,
+        )
+
+        if not file_path.exists():
+            logger.debug(f"Converted file {file_path} does not exist")
+            self._store_in_cache(category, None)
+            return None
+
+        try:
+            with open(file_path) as f:
+                data: dict[str, Any] = ujson.load(f)
+
+            self._store_in_cache(category, data)
+            logger.debug(f"Loaded converted JSON for category {category!r} from {file_path!r}")
+            return data
+        except Exception:
+            logger.exception(f"Failed to load converted JSON for category {category!r} from {file_path!r}")
+            self._store_in_cache(category, None)
             return None
 
     @override
@@ -372,18 +411,21 @@ class GitHubBackend(ReplicaBackendBase):
             dict[str, Any] | None: The raw legacy JSON dict, or None if not found.
         """
         with self._lock:
-            self._download_legacy(category, overwrite_existing=redownload)
+            # Use helper to determine if we need to fetch
+            if redownload or self.should_fetch_data(category):
+                self._download_legacy(category, overwrite_existing=redownload)
 
-            if category in self._legacy_cache:
-                logger.debug(f"Returning cached legacy JSON for category {category!r}")
-                return self._legacy_cache[category]
+            # Try cache first
+            legacy_dict, _ = self._get_legacy_from_cache(category)
+            if legacy_dict is not None:
+                return legacy_dict
 
+            # Load from disk and cache if available
             file_path = self._references_paths_cache.get(category)
-            if not file_path:
-                self._legacy_cache[category] = None
-                return None
+            if file_path:
+                return self._load_legacy_json_from_disk(category, file_path)
 
-            return self._load_legacy_json_from_disk(category, file_path)
+            return None
 
     @override
     def get_legacy_json_string(
@@ -404,52 +446,23 @@ class GitHubBackend(ReplicaBackendBase):
             str | None: The raw legacy JSON string, or None if not found.
         """
         with self._lock:
-            self._download_legacy(category, overwrite_existing=redownload)
+            # Use helper to determine if we need to fetch
+            if redownload or self.should_fetch_data(category):
+                self._download_legacy(category, overwrite_existing=redownload)
 
-            if category in self._legacy_string_cache:
-                cached_value = self._legacy_string_cache[category]
-                if cached_value is not None:
-                    logger.debug(f"Returning cached legacy JSON string for category {category!r}")
-                    return cached_value
+            # Try cache first
+            _, legacy_string = self._get_legacy_from_cache(category)
+            if legacy_string is not None:
+                return legacy_string
 
+            # Load from disk and cache if available
             file_path = self._references_paths_cache.get(category)
-            if not file_path:
-                self._legacy_string_cache[category] = None
-                return None
+            if file_path:
+                self._load_legacy_json_from_disk(category, file_path)
+                _, legacy_string = self._get_legacy_from_cache(category)
+                return legacy_string
 
-            self._load_legacy_json_from_disk(category, file_path)
-            return self._legacy_string_cache.get(category)
-
-    def _build_converted_cache(self) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
-        """Build cache from converted (new format) files on disk."""
-        logger.debug("Building converted references cache from disk")
-
-        result: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None] = {}
-
-        for category in MODEL_REFERENCE_CATEGORY:
-
-            file_path = horde_model_reference_paths.get_model_reference_file_path(
-                category,
-                base_path=self.base_path,
-            )
-
-            if file_path and file_path.exists():
-                try:
-                    with open(file_path) as f:
-                        result[category] = ujson.load(f)
-                    self._mark_category_fresh(category)
-                except Exception as e:
-                    logger.warning(f"Error reading converted file {file_path}: {e}")
-                    result[category] = None
-                    self._invalidate_category_timestamp(category)
-            else:
-                result[category] = None
-                self._invalidate_category_timestamp(category)
-
-        self._converted_cache = result
-        self._cache_timestamp = time.time()
-
-        return result
+            return None
 
     def _download_and_convert_single(
         self,
@@ -459,21 +472,14 @@ class GitHubBackend(ReplicaBackendBase):
         """Download a single category's legacy file and convert it."""
         self._download_legacy(category, overwrite_existing=overwrite_existing)
 
-        if self._is_cache_expired():
-            convert_all_legacy_model_references()
-
-        self._mark_category_fresh(category)
+        convert_legacy_database_by_category(category)
 
     def _download_and_convert_all(self, overwrite_existing: bool = False) -> None:
         """Download all legacy files and convert them."""
         for category in MODEL_REFERENCE_CATEGORY:
             self._download_legacy(category, overwrite_existing=overwrite_existing)
 
-        if self._is_cache_expired():
-            convert_all_legacy_model_references()
-
-        for category in MODEL_REFERENCE_CATEGORY:
-            self._mark_category_fresh(category)
+        convert_all_legacy_model_references()
 
     def _download_legacy(
         self,
@@ -528,10 +534,7 @@ class GitHubBackend(ReplicaBackendBase):
                     continue
 
                 try:
-
                     try:
-                        import ujson
-
                         data = ujson.loads(response.content)
                     except ImportError:
                         data = ujson.loads(response.content)
@@ -541,10 +544,26 @@ class GitHubBackend(ReplicaBackendBase):
                         return None
                     continue
 
-                target_file_path.parent.mkdir(parents=True, exist_ok=True)
-                with open(target_file_path, "wb") as f:
-                    f.write(response.content)
+                record_keys_to_drop = []
+                if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                    for key in list(data.keys()):
+                        if has_legacy_text_backend_prefix(key):
+                            record_keys_to_drop.append(key)
 
+                    for key in record_keys_to_drop:
+                        logger.trace(f"Dropping legacy text generation key {key}")
+                        data.pop(key, None)
+
+                target_file_path.parent.mkdir(parents=True, exist_ok=True)
+                raw_json_str = response.content.decode("utf-8")
+                if len(record_keys_to_drop) == 0:
+                    with open(target_file_path, "wb") as f:
+                        f.write(response.content)
+                else:
+                    with open(target_file_path, "w", encoding="utf-8") as f:
+                        logger.warning(f"Dropping {len(record_keys_to_drop)} legacy text generation keys.")
+                        raw_json_str = ujson.dumps(data, escape_forward_slashes=False, indent=4)
+                        f.write(raw_json_str)
                 self._times_downloaded[category] += 1
                 if self._times_downloaded[category] > 1:
                     logger.debug(f"Downloaded {category} {self._times_downloaded[category]} times")
@@ -552,16 +571,9 @@ class GitHubBackend(ReplicaBackendBase):
                 logger.info(f"Downloaded {category} to {target_file_path}")
                 self._references_paths_cache[category] = target_file_path
 
-                try:
-                    self._last_known_mtimes[category] = target_file_path.stat().st_mtime
-                except Exception:
-                    self._last_known_mtimes[category] = 0.0
-
-                self._legacy_cache[category] = data
-                self._legacy_string_cache[category] = response.content.decode("utf-8")
+                # Store in base class cache
+                self._store_legacy_in_cache(category, data, raw_json_str)
                 logger.debug(f"Populated legacy cache for {category} after download")
-
-                self._expire_cache()
 
                 return target_file_path
 
@@ -651,13 +663,8 @@ class GitHubBackend(ReplicaBackendBase):
                 logger.info(f"Downloaded {category} to {target_file_path}")
                 self._references_paths_cache[category] = target_file_path
 
-                try:
-                    self._last_known_mtimes[category] = target_file_path.stat().st_mtime
-                except Exception:
-                    self._last_known_mtimes[category] = 0.0
-
-                self._legacy_cache[category] = data
-                self._legacy_string_cache[category] = content.decode("utf-8")
+                # Store in base class cache
+                self._store_legacy_in_cache(category, data, content.decode("utf-8"))
                 logger.debug(f"Populated legacy cache for {category} after async download")
 
                 return target_file_path

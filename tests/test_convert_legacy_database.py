@@ -6,6 +6,7 @@ from horde_model_reference.legacy.classes.legacy_converters import (
     BaseLegacyConverter,
     LegacyClipConverter,
     LegacyStableDiffusionConverter,
+    LegacyTextGenerationConverter,
 )
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import ImageGenerationModelRecord
@@ -26,10 +27,14 @@ def test_convert_legacy_clip_database() -> None:
 
 def test_convert_legacy_controlnet_database() -> None:
     """Test converting the legacy controlnet database to the new format."""
-    from horde_model_reference.legacy.classes.legacy_converters import BaseLegacyConverter
-
     controlnet_converter = BaseLegacyConverter(model_reference_category=MODEL_REFERENCE_CATEGORY.controlnet)
     assert controlnet_converter.convert_to_new_format()
+
+
+def test_convert_legacy_text_generation_database() -> None:
+    """Test converting the legacy text generation database to the new format."""
+    text_gen_converter = LegacyTextGenerationConverter()
+    assert text_gen_converter.convert_to_new_format()
 
 
 def test_all_base_legacy_converters() -> None:

@@ -14,12 +14,19 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 class StubGitHubBackend(ReplicaBackendBase):
     """GitHub backend stub wired for HTTP backend tests."""
 
-    def __init__(self, responses: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]) -> None:
+    def __init__(
+        self,
+        responses: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None],
+        legacy_responses: dict[MODEL_REFERENCE_CATEGORY, tuple[dict[str, Any] | None, str | None]] | None = None,
+    ) -> None:
         """Initialize with a mapping of category to response data."""
         super().__init__(mode=ReplicateMode.REPLICA, cache_ttl_seconds=None)
         self._responses = responses
+        self._legacy_responses = legacy_responses or {}
         self.sync_calls = 0
         self.async_calls = 0
+        self.legacy_json_calls = 0
+        self.legacy_json_string_calls = 0
 
     @override
     def fetch_category(
@@ -83,7 +90,9 @@ class StubGitHubBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
     ) -> dict[str, Any] | None:
-        return None
+        self.legacy_json_calls += 1
+        legacy_data = self._legacy_responses.get(category)
+        return legacy_data[0] if legacy_data else None
 
     @override
     def get_legacy_json_string(
@@ -91,16 +100,19 @@ class StubGitHubBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
     ) -> str | None:
-        return None
+        self.legacy_json_string_calls += 1
+        legacy_data = self._legacy_responses.get(category)
+        return legacy_data[1] if legacy_data else None
 
 
 class DummyResponse:
     """Minimal httpx.Response stub."""
 
-    def __init__(self, status_code: int, payload: dict[str, Any] | None) -> None:
+    def __init__(self, status_code: int, payload: dict[str, Any] | None, text: str | None = None) -> None:
         """Initialize with a status code and optional JSON payload."""
         self.status_code = status_code
         self._payload = payload or {}
+        self.text = text or ("{" if payload else "")
 
     def json(self) -> dict[str, Any]:
         """Return the preset payload."""
@@ -257,3 +269,131 @@ async def test_http_backend_async_caches_results(monkeypatch: pytest.MonkeyPatch
     assert second == {"async": 1}
     assert calls["count"] == 1
     assert github_stub.async_calls == 0
+
+
+def test_http_backend_legacy_json_primary_success_and_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Legacy JSON from PRIMARY should be cached and counted."""
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+    github_stub = StubGitHubBackend({})
+    backend = HTTPBackend(
+        primary_api_url="https://primary",
+        github_backend=cast(GitHubBackend, github_stub),
+        cache_ttl_seconds=60,
+    )
+    current_time = 4_000.0
+
+    def fake_time() -> float:
+        return current_time
+
+    monkeypatch.setattr("horde_model_reference.backends.replica_backend_base.time.time", fake_time)
+
+    calls = {"count": 0}
+    legacy_dict = {"legacy": "data"}
+    legacy_string = '{"legacy": "data"}'
+
+    def fake_get(url: str, timeout: float) -> DummyResponse:
+        calls["count"] += 1
+        return DummyResponse(200, legacy_dict, legacy_string)
+
+    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+
+    first = backend.get_legacy_json(category)
+    second = backend.get_legacy_json(category)
+    string_result = backend.get_legacy_json_string(category)
+
+    assert first == legacy_dict
+    assert second == legacy_dict
+    assert string_result == legacy_string
+    assert calls["count"] == 1  # Only one call due to caching
+    assert backend.get_statistics()["primary_hits"] == 1
+    assert github_stub.legacy_json_calls == 0
+
+
+def test_http_backend_legacy_json_fallback_to_github(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Legacy JSON should fallback to GitHub when PRIMARY fails."""
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+    legacy_dict = {"github": "legacy"}
+    legacy_string = '{"github": "legacy"}'
+    github_stub = StubGitHubBackend({}, {category: (legacy_dict, legacy_string)})
+    backend = HTTPBackend(
+        primary_api_url="https://primary",
+        github_backend=cast(GitHubBackend, github_stub),
+        cache_ttl_seconds=60,
+    )
+
+    def fake_get(url: str, timeout: float) -> DummyResponse:
+        return DummyResponse(500, None)
+
+    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+
+    result = backend.get_legacy_json(category)
+    string_result = backend.get_legacy_json_string(category)
+
+    assert result == legacy_dict
+    assert string_result == legacy_string
+    assert github_stub.legacy_json_calls == 1
+    # String result comes from cache after first fetch, so only 1 call
+    assert github_stub.legacy_json_string_calls == 1
+    # Only 1 fallback because string is cached from first call
+    assert backend.get_statistics()["github_fallbacks"] == 1
+
+
+def test_http_backend_legacy_json_redownload_bypasses_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    """redownload=True should bypass cache for legacy JSON."""
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+    github_stub = StubGitHubBackend({})
+    backend = HTTPBackend(
+        primary_api_url="https://primary",
+        github_backend=cast(GitHubBackend, github_stub),
+        cache_ttl_seconds=60,
+    )
+    current_time = 5_000.0
+
+    def fake_time() -> float:
+        return current_time
+
+    monkeypatch.setattr("horde_model_reference.backends.replica_backend_base.time.time", fake_time)
+
+    payloads = [{"version": 1}, {"version": 2}]
+    calls = {"index": 0}
+
+    def fake_get(url: str, timeout: float) -> DummyResponse:
+        response = payloads[calls["index"]]
+        calls["index"] += 1
+        return DummyResponse(200, response, str(response))
+
+    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+
+    first = backend.get_legacy_json(category)
+    cached = backend.get_legacy_json(category)
+    refreshed = backend.get_legacy_json(category, redownload=True)
+
+    assert first == {"version": 1}
+    assert cached == {"version": 1}
+    assert refreshed == {"version": 2}
+    assert calls["index"] == 2
+
+
+def test_http_backend_legacy_json_disable_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Disabling fallback should return None for legacy JSON when PRIMARY fails."""
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+    github_stub = StubGitHubBackend({}, {category: ({"github": "data"}, '{"github": "data"}')})
+    backend = HTTPBackend(
+        primary_api_url="https://primary",
+        github_backend=cast(GitHubBackend, github_stub),
+        cache_ttl_seconds=60,
+        enable_github_fallback=False,
+    )
+
+    def fake_get(url: str, timeout: float) -> DummyResponse:
+        return DummyResponse(503, None)
+
+    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+
+    result = backend.get_legacy_json(category)
+    string_result = backend.get_legacy_json_string(category)
+
+    assert result is None
+    assert string_result is None
+    assert github_stub.legacy_json_calls == 0
+    assert github_stub.legacy_json_string_calls == 0

@@ -46,7 +46,7 @@ def test_filesystem_backend_cache_expiry_respects_primary_mode(
     primary_base: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Ensure PRIMARY filesystem backend serves cache until TTL then refreshes from disk."""
+    """Ensure PRIMARY filesystem backend detects external file changes via mtime and respects TTL."""
     category = MODEL_REFERENCE_CATEGORY.miscellaneous
     initial_payload = _minimal_record_dict("cached")
     file_path = _write_category_file(primary_base, category, initial_payload)
@@ -76,13 +76,13 @@ def test_filesystem_backend_cache_expiry_respects_primary_mode(
     updated_payload = _minimal_record_dict("cached", description="updated")
     file_path.write_text(json.dumps(updated_payload))
 
-    cached = backend.fetch_category(category)
-    assert cached == initial_payload
+    refreshed_immediately = backend.fetch_category(category)
+    assert refreshed_immediately == updated_payload
 
     time_stub.value += 120
 
-    refreshed = backend.fetch_category(category)
-    assert refreshed == updated_payload
+    refreshed_after_ttl = backend.fetch_category(category)
+    assert refreshed_after_ttl == updated_payload
 
 
 def test_filesystem_backend_primary_update_and_delete(primary_base: Path) -> None:
