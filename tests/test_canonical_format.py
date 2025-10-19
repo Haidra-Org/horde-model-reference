@@ -193,7 +193,7 @@ class TestModelReferenceManagerLegacyWrites:
         legacy_canonical_mode: None,
         restore_manager_singleton: None,
     ) -> None:
-        """Test that ModelReferenceManager.update_model_legacy works."""
+        """Test that ModelReferencemanager.backend.update_model_legacy works."""
         from horde_model_reference import horde_model_reference_settings
 
         assert horde_model_reference_settings.canonical_format == "legacy"
@@ -206,7 +206,7 @@ class TestModelReferenceManagerLegacyWrites:
         test_model = create_test_legacy_model("manager_test_model")
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        manager.update_model_legacy(category, "manager_test_model", test_model)
+        manager.backend.update_model_legacy(category, "manager_test_model", test_model)
 
         legacy_file = legacy_path / "stable_diffusion.json"
         assert legacy_file.exists()
@@ -216,28 +216,6 @@ class TestModelReferenceManagerLegacyWrites:
 
         assert "manager_test_model" in data
 
-    def test_manager_update_model_legacy_validates_name_match(
-        self,
-        primary_base: Path,
-        legacy_canonical_mode: None,
-        restore_manager_singleton: None,
-    ) -> None:
-        """Test that update_model_legacy validates name matches."""
-        from horde_model_reference import horde_model_reference_settings
-
-        assert horde_model_reference_settings.canonical_format == "legacy"
-
-        manager = ModelReferenceManager(
-            base_path=primary_base,
-            replicate_mode=ReplicateMode.PRIMARY,
-        )
-
-        test_model = create_test_legacy_model("model_a")
-        category = MODEL_REFERENCE_CATEGORY.image_generation
-
-        with pytest.raises(ValueError, match="Model name mismatch"):
-            manager.update_model_legacy(category, "model_b", test_model)
-
     def test_manager_delete_model_legacy(
         self,
         primary_base: Path,
@@ -245,7 +223,7 @@ class TestModelReferenceManagerLegacyWrites:
         legacy_canonical_mode: None,
         restore_manager_singleton: None,
     ) -> None:
-        """Test that ModelReferenceManager.delete_model_legacy works."""
+        """Test that ModelReferencemanager.backend.delete_model_legacy works."""
         from horde_model_reference import horde_model_reference_settings
 
         assert horde_model_reference_settings.canonical_format == "legacy"
@@ -258,8 +236,8 @@ class TestModelReferenceManagerLegacyWrites:
         test_model = create_test_legacy_model("model_to_delete")
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        manager.update_model_legacy(category, "model_to_delete", test_model)
-        manager.delete_model_legacy(category, "model_to_delete")
+        manager.backend.update_model_legacy(category, "model_to_delete", test_model)
+        manager.backend.delete_model_legacy(category, "model_to_delete")
 
         legacy_file = legacy_path / "stable_diffusion.json"
         with open(legacy_file, encoding="utf-8") as f:
@@ -281,11 +259,11 @@ class TestModelReferenceManagerLegacyWrites:
         test_model = create_test_legacy_model("test_model")
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        with pytest.raises(RuntimeError, match="does not support legacy writes"):
-            manager.update_model_legacy(category, "test_model", test_model)
+        with pytest.raises(RuntimeError, match="Legacy writes are only"):
+            manager.backend.update_model_legacy(category, "test_model", test_model)
 
-        with pytest.raises(RuntimeError, match="does not support legacy writes"):
-            manager.delete_model_legacy(category, "test_model")
+        with pytest.raises(RuntimeError, match="Legacy writes are only"):
+            manager.backend.delete_model_legacy(category, "test_model")
 
 
 class TestLegacyConverterStubs:
@@ -341,8 +319,8 @@ class TestReplicaModeWriteRestrictions:
         test_model = create_test_legacy_model("test_model")
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        with pytest.raises(RuntimeError, match="does not support legacy writes"):
-            manager.update_model_legacy(category, "test_model", test_model)
+        with pytest.raises(NotImplementedError, match="does not support legacy write"):
+            manager.backend.update_model_legacy(category, "test_model", test_model)
 
     def test_replica_manager_rejects_legacy_deletes(
         self,
@@ -362,8 +340,8 @@ class TestReplicaModeWriteRestrictions:
 
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        with pytest.raises(RuntimeError, match="does not support legacy writes"):
-            manager.delete_model_legacy(category, "test_model")
+        with pytest.raises(NotImplementedError, match="does not support legacy write"):
+            manager.backend.delete_model_legacy(category, "test_model")
 
     def test_replica_manager_rejects_v2_writes(
         self,
@@ -390,8 +368,8 @@ class TestReplicaModeWriteRestrictions:
         )
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        with pytest.raises(RuntimeError, match="does not support writes"):
-            manager.update_model(category, "test_model", test_record)
+        with pytest.raises(NotImplementedError, match="does not support write"):
+            manager.backend.update_model_from_base_model(category, "test_model", test_record)
 
     def test_replica_manager_rejects_v2_deletes(
         self,
@@ -406,8 +384,8 @@ class TestReplicaModeWriteRestrictions:
 
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        with pytest.raises(RuntimeError, match="does not support writes"):
-            manager.delete_model(category, "test_model")
+        with pytest.raises(NotImplementedError, match="does not support write"):
+            manager.backend.delete_model(category, "test_model")
 
 
 class TestV2WriteOperations:
@@ -441,7 +419,7 @@ class TestV2WriteOperations:
         )
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        manager.update_model(category, "v2_test_model", test_record)
+        manager.backend.update_model_from_base_model(category, "v2_test_model", test_record)
 
         models = manager.get_raw_model_reference_json(category)
         assert models is not None
@@ -475,39 +453,11 @@ class TestV2WriteOperations:
         )
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        manager.update_model(category, "v2_model_to_delete", test_record)
-        manager.delete_model(category, "v2_model_to_delete")
+        manager.backend.update_model_from_base_model(category, "v2_model_to_delete", test_record)
+        manager.backend.delete_model(category, "v2_model_to_delete")
 
         models = manager.get_raw_model_reference_json(category)
         assert models is None or "v2_model_to_delete" not in models
-
-    def test_v2_update_model_validates_name_match(
-        self,
-        primary_base: Path,
-        restore_manager_singleton: None,
-    ) -> None:
-        """Test that v2 update_model validates name matches between parameter and record."""
-        from horde_model_reference.meta_consts import MODEL_DOMAIN, MODEL_PURPOSE, ModelClassification
-        from horde_model_reference.model_reference_records import GenericModelRecord
-
-        manager = ModelReferenceManager(
-            base_path=primary_base,
-            replicate_mode=ReplicateMode.PRIMARY,
-        )
-
-        test_record = GenericModelRecord(
-            name="model_a",
-            description="Test",
-            version="1.0",
-            model_classification=ModelClassification(
-                domain=MODEL_DOMAIN.image,
-                purpose=MODEL_PURPOSE.generation,
-            ),
-        )
-        category = MODEL_REFERENCE_CATEGORY.image_generation
-
-        with pytest.raises(ValueError, match="Model name mismatch"):
-            manager.update_model(category, "model_b", test_record)
 
     def test_v2_delete_nonexistent_model_raises_error(
         self,
@@ -523,7 +473,7 @@ class TestV2WriteOperations:
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
         with pytest.raises(FileNotFoundError):
-            manager.delete_model(category, "nonexistent_v2_model")
+            manager.backend.delete_model(category, "nonexistent_v2_model")
 
 
 class TestCrossFormatWriteRestrictions:
@@ -587,52 +537,6 @@ class TestCrossFormatWriteRestrictions:
 
 class TestInvalidDataValidation:
     """Test validation of invalid model data."""
-
-    def test_legacy_update_missing_name_field(
-        self,
-        primary_base: Path,
-        legacy_canonical_mode: None,
-        restore_manager_singleton: None,
-    ) -> None:
-        """Test that legacy update requires 'name' field in record_dict."""
-        from horde_model_reference import horde_model_reference_settings
-
-        assert horde_model_reference_settings.canonical_format == "legacy"
-
-        manager = ModelReferenceManager(
-            base_path=primary_base,
-            replicate_mode=ReplicateMode.PRIMARY,
-        )
-
-        invalid_model = {
-            "description": "Missing name field",
-            "version": "1.0",
-        }
-        category = MODEL_REFERENCE_CATEGORY.image_generation
-
-        with pytest.raises(ValueError, match="must contain 'name' field"):
-            manager.update_model_legacy(category, "test_model", invalid_model)
-
-    def test_legacy_update_empty_model_dict(
-        self,
-        primary_base: Path,
-        legacy_canonical_mode: None,
-        restore_manager_singleton: None,
-    ) -> None:
-        """Test that legacy update rejects empty dict."""
-        from horde_model_reference import horde_model_reference_settings
-
-        assert horde_model_reference_settings.canonical_format == "legacy"
-
-        manager = ModelReferenceManager(
-            base_path=primary_base,
-            replicate_mode=ReplicateMode.PRIMARY,
-        )
-
-        category = MODEL_REFERENCE_CATEGORY.image_generation
-
-        with pytest.raises(ValueError, match="must contain 'name' field"):
-            manager.update_model_legacy(category, "test_model", {})
 
     def test_backend_delete_from_empty_legacy_file(
         self,
@@ -711,7 +615,7 @@ class TestCanonicalFormatEdgeCases:
 
         for i in range(3):
             test_model = create_test_legacy_model(f"test_model_{i}")
-            manager.update_model_legacy(category, f"test_model_{i}", test_model)
+            manager.backend.update_model_legacy(category, f"test_model_{i}", test_model)
 
         legacy_file = legacy_path / "stable_diffusion.json"
         with open(legacy_file, encoding="utf-8") as f:
@@ -721,7 +625,7 @@ class TestCanonicalFormatEdgeCases:
         for i in range(3):
             assert f"test_model_{i}" in data
 
-        manager.delete_model_legacy(category, "test_model_1")
+        manager.backend.delete_model_legacy(category, "test_model_1")
 
         with open(legacy_file, encoding="utf-8") as f:
             data = json.load(f)
@@ -751,12 +655,12 @@ class TestCanonicalFormatEdgeCases:
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
         test_model = create_test_legacy_model("updatable_model")
-        manager.update_model_legacy(category, "updatable_model", test_model)
+        manager.backend.update_model_legacy(category, "updatable_model", test_model)
 
         test_model_updated = create_test_legacy_model("updatable_model")
         test_model_updated["description"] = "Updated description"
         test_model_updated["version"] = "2.0"
-        manager.update_model_legacy(category, "updatable_model", test_model_updated)
+        manager.backend.update_model_legacy(category, "updatable_model", test_model_updated)
 
         legacy_file = legacy_path / "stable_diffusion.json"
         with open(legacy_file, encoding="utf-8") as f:
@@ -840,10 +744,10 @@ class TestV2DeleteEdgeCases:
             ),
         )
         category = MODEL_REFERENCE_CATEGORY.image_generation
-        manager.update_model(category, "existing_model", test_record)
+        manager.backend.update_model_from_base_model(category, "existing_model", test_record)
 
         with pytest.raises(KeyError):
-            manager.delete_model(category, "nonexistent_model")
+            manager.backend.delete_model(category, "nonexistent_model")
 
 
 class TestLegacyDeleteEdgeCases:
@@ -871,9 +775,9 @@ class TestLegacyDeleteEdgeCases:
         models = ["model_a", "model_b", "model_c"]
         for model_name in models:
             test_model = create_test_legacy_model(model_name)
-            manager.update_model_legacy(category, model_name, test_model)
+            manager.backend.update_model_legacy(category, model_name, test_model)
 
-        manager.delete_model_legacy(category, "model_b")
+        manager.backend.delete_model_legacy(category, "model_b")
 
         legacy_file = legacy_path / "stable_diffusion.json"
         with open(legacy_file, encoding="utf-8") as f:
@@ -935,8 +839,8 @@ class TestManagerSingletonBehavior:
         )
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        with pytest.raises(RuntimeError, match="does not support writes"):
-            manager.update_model(category, "test_model", test_record)
+        with pytest.raises(NotImplementedError, match="does not support write"):
+            manager.backend.update_model_from_base_model(category, "test_model", test_record)
 
 
 class TestConcurrentOperations:
@@ -970,7 +874,7 @@ class TestConcurrentOperations:
                 purpose=MODEL_PURPOSE.generation,
             ),
         )
-        manager.update_model(category, "sequential_model", test_record)
+        manager.backend.update_model_from_base_model(category, "sequential_model", test_record)
 
         test_record_updated = GenericModelRecord(
             name="sequential_model",
@@ -981,14 +885,14 @@ class TestConcurrentOperations:
                 purpose=MODEL_PURPOSE.generation,
             ),
         )
-        manager.update_model(category, "sequential_model", test_record_updated)
+        manager.backend.update_model_from_base_model(category, "sequential_model", test_record_updated)
 
         models = manager.get_raw_model_reference_json(category)
         assert models is not None
         assert models["sequential_model"]["description"] == "Version 2"
         assert models["sequential_model"]["version"] == "2.0"
 
-        manager.delete_model(category, "sequential_model")
+        manager.backend.delete_model(category, "sequential_model")
 
         models = manager.get_raw_model_reference_json(category)
         assert models is None or "sequential_model" not in models
@@ -1019,7 +923,7 @@ class TestNameValidation:
 
         for name in special_names:
             test_model = create_test_legacy_model(name)
-            manager.update_model_legacy(category, name, test_model)
+            manager.backend.update_model_legacy(category, name, test_model)
 
         legacy_file = legacy_path / "stable_diffusion.json"
         with open(legacy_file, encoding="utf-8") as f:
@@ -1027,34 +931,6 @@ class TestNameValidation:
 
         for name in special_names:
             assert name in data
-
-    def test_v2_model_name_mismatch_in_update(
-        self,
-        primary_base: Path,
-        restore_manager_singleton: None,
-    ) -> None:
-        """Test that v2 update detects name mismatch between URL parameter and body."""
-        from horde_model_reference.meta_consts import MODEL_DOMAIN, MODEL_PURPOSE, ModelClassification
-        from horde_model_reference.model_reference_records import GenericModelRecord
-
-        manager = ModelReferenceManager(
-            base_path=primary_base,
-            replicate_mode=ReplicateMode.PRIMARY,
-        )
-
-        test_record = GenericModelRecord(
-            name="name_in_record",
-            description="Test",
-            version="1.0",
-            model_classification=ModelClassification(
-                domain=MODEL_DOMAIN.image,
-                purpose=MODEL_PURPOSE.generation,
-            ),
-        )
-        category = MODEL_REFERENCE_CATEGORY.image_generation
-
-        with pytest.raises(ValueError, match="Model name mismatch"):
-            manager.update_model(category, "name_in_url", test_record)
 
 
 if __name__ == "__main__":

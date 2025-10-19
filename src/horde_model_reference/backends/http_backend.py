@@ -359,12 +359,6 @@ class HTTPBackend(ReplicaBackendBase):
         return dict(zip(MODEL_REFERENCE_CATEGORY, results, strict=False))
 
     @override
-    def mark_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:
-        """Mark category as stale."""
-        logger.debug(f"Marking {category} as stale")
-        super().mark_stale(category)
-
-    @override
     def get_category_file_path(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
         """Get file path (delegates to GitHub backend)."""
         return self._github_backend.get_category_file_path(category)

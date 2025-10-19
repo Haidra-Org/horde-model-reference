@@ -156,6 +156,7 @@ class RedisBackend(ModelReferenceBackend):
                             logger.warning(f"Failed to invalidate Redis cache for {category}: {delete_error}")
 
                         self._file_backend.mark_stale(category)
+                        self._notify_invalidation(category)
 
                     except Exception as e:
                         logger.warning(f"Failed to process invalidation message: {e}")
@@ -331,7 +332,7 @@ class RedisBackend(ModelReferenceBackend):
         return self._file_backend.needs_refresh(category)
 
     @override
-    def mark_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:
+    def _mark_stale_impl(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         """Mark category as stale and invalidate Redis cache.
 
         Also publishes invalidation event to notify other workers.

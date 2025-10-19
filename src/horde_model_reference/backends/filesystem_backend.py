@@ -10,6 +10,7 @@ import contextlib
 import json
 import time
 from pathlib import Path
+import time
 from typing import Any, override
 
 import httpx
@@ -84,25 +85,27 @@ class FileSystemBackend(ReplicaBackendBase):
     def _mark_category_modified(self, category: MODEL_REFERENCE_CATEGORY, file_path: Path) -> None:
         """Mark a category as modified after a write operation.
 
-        This invalidates the cache (forcing reload on next fetch).
+        This invalidates the cache and triggers callbacks to notify manager.
 
         Args:
             category: Category that was modified.
             file_path: Path to the file that was modified.
         """
-        self._invalidate_cache(category)
+        # Use mark_stale() to trigger callbacks, not _invalidate_cache()
+        self.mark_stale(category)
         logger.debug(f"Marked category {category} as modified")
 
     def _mark_legacy_category_modified(self, category: MODEL_REFERENCE_CATEGORY, legacy_file_path: Path) -> None:
         """Mark a legacy category as modified after a write operation.
 
-        This invalidates the legacy cache (forcing reload on next fetch).
+        This invalidates the legacy cache and triggers callbacks.
 
         Args:
             category: Category that was modified.
             legacy_file_path: Path to the legacy file that was modified.
         """
-        self._invalidate_legacy_cache(category)
+        # Use mark_stale() to trigger callbacks
+        self.mark_stale(category)
         logger.debug(f"Marked legacy category {category} as modified")
 
     @override
@@ -338,6 +341,7 @@ class FileSystemBackend(ReplicaBackendBase):
         """Update or create a model reference.
 
         This method modifies the JSON file on disk atomically.
+        Preserves created_at and created_by metadata on updates.
 
         Args:
             category: The category to update.
@@ -366,6 +370,23 @@ class FileSystemBackend(ReplicaBackendBase):
             else:
                 existing_data = {}
                 file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Preserve creation metadata if model already exists
+            if model_name in existing_data:
+                existing_model = existing_data[model_name]
+                if "metadata" in existing_model:
+                    # Preserve created_at and created_by
+                    if "metadata" not in record_dict:
+                        record_dict["metadata"] = {}
+                    if "created_at" in existing_model["metadata"]:
+                        record_dict["metadata"]["created_at"] = existing_model["metadata"]["created_at"]
+                    if "created_by" in existing_model["metadata"]:
+                        record_dict["metadata"]["created_by"] = existing_model["metadata"]["created_by"]
+
+            # Set updated_at timestamp
+            if "metadata" not in record_dict:
+                record_dict["metadata"] = {}
+            record_dict["metadata"]["updated_at"] = int(time.time())
 
             existing_data[model_name] = record_dict
 

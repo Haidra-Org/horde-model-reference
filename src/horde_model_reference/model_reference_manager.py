@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from threading import RLock
 from typing import Any
@@ -36,8 +35,8 @@ class ModelReferenceManager:
 
     backend: ModelReferenceBackend
     """The backend provider for model reference data."""
-    _cached_file_json: dict[MODEL_REFERENCE_CATEGORY, dict[Any, Any] | None]
-    _cached_system_file_modified_times: dict[MODEL_REFERENCE_CATEGORY, float]
+    _cached_records: dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord] | None]
+    """Cache of pydantic model records by category."""
 
     _instance: ModelReferenceManager | None = None
     _lazy_mode: bool = True
@@ -172,15 +171,10 @@ class ModelReferenceManager:
                 cls._instance.backend = backend
                 cls._instance._replicate_mode = replicate_mode
                 cls._instance._lazy_mode = lazy_mode
-                cls._instance._cached_file_json = {}
-                cls._instance._cached_system_file_modified_times = {}
+                cls._instance._cached_records = {}
 
-                for category, file_path in cls._instance.backend.get_all_category_file_paths().items():
-                    if file_path and file_path.exists():
-                        try:
-                            cls._instance._cached_system_file_modified_times[category] = file_path.stat().st_mtime
-                        except Exception:
-                            cls._instance._cached_system_file_modified_times[category] = 0.0
+                # Register invalidation callback so backend can notify us when cache is stale
+                cls._instance.backend.register_invalidation_callback(cls._instance._on_backend_invalidated)
 
                 if not lazy_mode:
                     cls._instance._fetch_from_backend_if_needed(force_refresh=False)
@@ -201,8 +195,19 @@ class ModelReferenceManager:
 
         return cls._instance
 
+    def _on_backend_invalidated(self, category: MODEL_REFERENCE_CATEGORY) -> None:
+        """On callback invoked by backend when a category's cache is invalidated.
+
+        This ensures the pydantic model cache stays in sync with backend invalidations.
+
+        Args:
+            category: The category that was invalidated.
+        """
+        logger.debug(f"Backend invalidated category {category}, clearing pydantic cache")
+        self._invalidate_cache(category)
+
     def _invalidate_cache(self, category: MODEL_REFERENCE_CATEGORY | None = None) -> None:
-        """Invalidate the cached model references.
+        """Invalidate the cached pydantic model references.
 
         Args:
             category (MODEL_REFERENCE_CATEGORY | None): If provided, only invalidate the specific category.
@@ -210,56 +215,11 @@ class ModelReferenceManager:
         """
         with self._lock:
             if category is None:
-                logger.debug("Invalidating entire cached model references.")
-                self._cached_file_json = {}
+                logger.debug("Invalidating entire cached pydantic records.")
+                self._cached_records = {}
             else:
-                logger.debug(f"Invalidating cached model references for category: {category}.")
-                self._cached_file_json.pop(category, None)
-
-    def _mark_backend_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:
-        """Mark a category as stale in the backend.
-
-        When a model reference file changes, mark it in the backend so it knows
-        to refresh the data on next access.
-
-        Args:
-            category (MODEL_REFERENCE_CATEGORY): The category that needs refresh.
-        """
-        with self._lock:
-            logger.debug(f"Marking category {category} as stale in backend.")
-            self.backend.mark_stale(category)
-
-    def _check_file_modified_times(self) -> None:
-        """Check model reference file mtimes and mark categories that need refresh due to external changes.
-
-        This method detects when model reference files have been modified externally (e.g., by another process
-        or manual edit) and marks them for refresh in the backend.
-
-        When a category's mtime changes, only that category is invalidated from the cache.
-        """
-        with self._lock:
-            for category, file_path in self.backend.get_all_category_file_paths().items():
-                if file_path is None or not file_path.exists():
-                    continue
-
-                try:
-                    current_mtime = file_path.stat().st_mtime
-                    cached_modified_time = self._cached_system_file_modified_times.get(category)
-
-                    if cached_modified_time is None:
-                        self._cached_system_file_modified_times[category] = current_mtime
-                    elif current_mtime != cached_modified_time:
-                        logger.info(
-                            f"Model reference file for {category} mtime changed "
-                            f"(was {cached_modified_time}, now {current_mtime}), marking for refresh."
-                        )
-                        self._cached_system_file_modified_times[category] = current_mtime
-
-                        self._invalidate_cache(category=category)
-
-                        self._mark_backend_stale(category)
-                except Exception as e:
-                    logger.warning(f"Error checking mtime for {category}: {e}")
+                logger.debug(f"Invalidating cached pydantic records for category: {category}.")
+                self._cached_records.pop(category, None)
 
     def _fetch_from_backend_if_needed(
         self,
@@ -383,20 +343,15 @@ class ModelReferenceManager:
         self,
         safe_mode: bool = False,
     ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord] | None]:
-        """Get all cached model references.
+        """Get all cached pydantic model references.
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord] | None]: A mapping of model reference
-                categories to their corresponding model reference objects.
+                categories to their corresponding pydantic model objects.
         """
-        return_dict = {}
         with self._lock:
-            for category, file_json in self._cached_file_json.items():
-                model_reference = self._file_json_dict_to_model_reference(category, file_json, safe_mode=safe_mode)
-                return_dict[category] = model_reference
-
-        logger.debug(f"Returning {len(return_dict)} cached model references.")
-        return return_dict
+            logger.debug(f"Returning {len(self._cached_records)} cached pydantic model references.")
+            return dict(self._cached_records)
 
     def get_all_model_references_unsafe(
         self,
@@ -423,69 +378,39 @@ class ModelReferenceManager:
                 categories to their corresponding model reference objects.
         """
         with self._lock:
-            self._check_file_modified_times()
-
-            all_files: dict[MODEL_REFERENCE_CATEGORY, Path | None]
-            all_files = self.backend.get_all_category_file_paths()
-
-            all_categories_cached = all(cat in self._cached_file_json for cat in all_files) and len(
-                self._cached_file_json
-            ) == len(all_files)
-
-            all_categories_on_disk = all(file.exists() for file in all_files.values() if file is not None)
+            # Check if all categories are cached and don't need refresh
+            all_categories_cached = all(cat in self._cached_records for cat in MODEL_REFERENCE_CATEGORY)
 
             needs_backend_refresh = overwrite_existing or any(
                 self.backend.needs_refresh(cat) for cat in MODEL_REFERENCE_CATEGORY
             )
 
-            if (
-                not overwrite_existing
-                and all_categories_cached
-                and all_categories_on_disk
-                and not needs_backend_refresh
-            ):
-                logger.debug("Using fully cached model references.")
+            if not overwrite_existing and all_categories_cached and not needs_backend_refresh:
+                logger.debug("Using fully cached pydantic model references.")
                 return self._get_all_cached_model_references(safe_mode=safe_mode)
 
             logger.debug("Fetching model references from backend as needed.")
-            self._fetch_from_backend_if_needed(force_refresh=overwrite_existing or all_categories_on_disk)
+            self._fetch_from_backend_if_needed(force_refresh=overwrite_existing)
 
+            # Determine which categories need to be loaded/refreshed
             categories_to_load = []
-            for category in all_files:
-                # Initial fetch detection: "category not in self._cached_file_json"
-                # Refresh detection: "self.backend.needs_refresh(category)"
-                # These are separate concerns - initial load vs. re-fetch of stale data
-                if (
-                    overwrite_existing
-                    or category not in self._cached_file_json
-                    or self.backend.needs_refresh(category)
-                ):
+            for category in MODEL_REFERENCE_CATEGORY:
+                if overwrite_existing or category not in self._cached_records or self.backend.needs_refresh(category):
                     categories_to_load.append(category)
 
             if categories_to_load:
                 logger.debug(f"Loading {len(categories_to_load)} model reference categories: {categories_to_load}")
 
+            # Fetch from backend and convert to pydantic models
             for category in categories_to_load:
-                file_path = all_files[category]
-                if file_path is None:
-                    self._cached_file_json[category] = None
-                    continue
+                file_json: dict[str, Any] | None
+                file_json = self.backend.fetch_category(category, force_refresh=overwrite_existing)
 
-                if not file_path.exists():
-                    logger.warning(
-                        f"Model reference file for {category} does not exist at {file_path}.",
-                    )
-                    self._cached_file_json[category] = None
-                    continue
+                model_reference: dict[str, GenericModelRecord] | None
+                model_reference = self._file_json_dict_to_model_reference(category, file_json, safe_mode=safe_mode)
 
-                with open(file_path) as f:
-                    file_contents = f.read()
-                try:
-                    file_json = json.loads(file_contents)
-                    self._cached_file_json[category] = file_json
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse JSON for {category} from {file_path}: {e}")
-                    self._cached_file_json[category] = None
+                # Cache pydantic models (not raw JSON)
+                self._cached_records[category] = model_reference
 
             return self._get_all_cached_model_references(safe_mode=safe_mode)
 
@@ -523,6 +448,155 @@ class ModelReferenceManager:
 
         return safe_references
 
+    def get_model_reference_unsafe(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        overwrite_existing: bool = False,
+    ) -> dict[str, GenericModelRecord] | None:
+        """Return the model reference object for a specific category.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
+            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+
+        Returns:
+            dict[str, GenericModelRecord] | None: The model reference object for the category,
+                or None if not found.
+        """
+        all_references = self.get_all_model_references_unsafe(overwrite_existing=overwrite_existing)
+        return all_references.get(category)
+
+    def get_model_reference(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        overwrite_existing: bool = False,
+    ) -> dict[str, GenericModelRecord]:
+        """Return the model reference object for a specific category.
+
+        Raises an exception if the model reference could not be found or parsed.
+        If you want to allow missing model references, use `get_model_reference_unsafe()` instead.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
+            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+
+        Returns:
+            dict[str, GenericModelRecord]: The model reference object for the category.
+
+        """
+        model_reference = self.get_model_reference_unsafe(
+            category,
+            overwrite_existing=overwrite_existing,
+        )
+        if model_reference is None:
+            raise RuntimeError(f"Model reference for category {category} not found or could not be parsed.")
+
+        return model_reference
+
+    def get_model_names_unsafe(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        overwrite_existing: bool = False,
+    ) -> list[str] | None:
+        """Return a list of model names for a specific category.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
+            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+
+        Returns:
+            list[str] | None: The list of model names for the category, or None if not found.
+        """
+        model_reference = self.get_model_reference_unsafe(
+            category,
+            overwrite_existing=overwrite_existing,
+        )
+        if model_reference is None:
+            return None
+
+        return list(model_reference.keys())
+
+    def get_model_names(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        overwrite_existing: bool = False,
+    ) -> list[str]:
+        """Return a list of model names for a specific category.
+
+        Raises an exception if the model reference could not be found or parsed.
+        If you want to allow missing model references, use `get_model_names_unsafe()` instead.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
+            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+
+        Returns:
+            list[str]: The list of model names for the category.
+        """
+        model_reference = self.get_model_reference(
+            category,
+            overwrite_existing=overwrite_existing,
+        )
+        if model_reference is None:
+            raise RuntimeError(f"Model reference for category {category} not found or could not be parsed.")
+
+        return list(model_reference.keys())
+
+    def get_model_unsafe(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        overwrite_existing: bool = False,
+    ) -> GenericModelRecord | None:
+        """Return a specific model from a category.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
+            model_name (str): The name of the model within the category.
+            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+
+        Returns:
+            GenericModelRecord | None: The model record, or None if not found.
+        """
+        model_reference = self.get_model_reference_unsafe(
+            category,
+            overwrite_existing=overwrite_existing,
+        )
+        if model_reference is None:
+            return None
+
+        return model_reference.get(model_name)
+
+    def get_model(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        overwrite_existing: bool = False,
+    ) -> GenericModelRecord:
+        """Return a specific model from a category.
+
+        Raises an exception if the model could not be found or parsed.
+        If you want to allow missing models, use `get_model_unsafe()` instead.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
+            model_name (str): The name of the model within the category.
+            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+
+        Returns:
+            GenericModelRecord: The model record.
+        """
+        model_reference = self.get_model_reference(
+            category,
+            overwrite_existing=overwrite_existing,
+        )
+
+        model_record = model_reference.get(model_name)
+        if model_record is None:
+            raise RuntimeError(f"Model {model_name} not found in category {category}.")
+
+        return model_record
+
     def get_raw_model_reference_json(
         self,
         category: MODEL_REFERENCE_CATEGORY,
@@ -530,8 +604,9 @@ class ModelReferenceManager:
     ) -> dict[str, Any] | None:
         """Return the raw JSON dict for a specific category without pydantic validation.
 
-        This method returns the cached JSON data directly, avoiding the overhead of creating
-        and serializing pydantic models. Ideal for API endpoints that need fast JSON responses.
+        This method delegates to the backend to fetch the raw JSON data directly,
+        avoiding the overhead of creating pydantic models. Ideal for API endpoints
+        that need fast JSON responses.
 
         Args:
             category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
@@ -540,182 +615,31 @@ class ModelReferenceManager:
         Returns:
             dict[str, Any] | None: The raw JSON dict for the category, or None if not found.
         """
-        with self._lock:
-            self._check_file_modified_times()
+        return self.backend.fetch_category(category, force_refresh=overwrite_existing)
 
-            all_files: dict[MODEL_REFERENCE_CATEGORY, Path | None]
-            all_files = self.backend.get_all_category_file_paths()
-            file_path = all_files.get(category)
-            if file_path is None:
-                logger.debug(f"No file path for category: {category}")
-
-            needs_backend_refresh = overwrite_existing or self.backend.needs_refresh(category) or file_path is None
-
-            if not overwrite_existing and category in self._cached_file_json and not needs_backend_refresh:
-                logger.debug(f"Returning cached raw JSON for category: {category}")
-                return self._cached_file_json[category]
-
-            if needs_backend_refresh:
-                self._fetch_from_backend_if_needed(force_refresh=needs_backend_refresh)
-
-            file_path = all_files.get(category)
-            if file_path is None:
-                logger.debug(f"No file path for category: {category}")
-                self._cached_file_json[category] = None
-                return None
-
-            # Initial fetch check: category not in cache
-            # Refresh check: backend.needs_refresh() - are cached data stale?
-            if overwrite_existing or category not in self._cached_file_json or self.backend.needs_refresh(category):
-
-                if not file_path.exists():
-                    logger.warning(f"Model reference file for {category} does not exist at {file_path}.")
-                    self._cached_file_json[category] = None
-                    return None
-
-                with open(file_path) as f:
-                    file_contents = f.read()
-                try:
-                    file_json = json.loads(file_contents)
-                    self._cached_file_json[category] = file_json
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse JSON for {category} from {file_path}: {e}")
-                    self._cached_file_json[category] = None
-                    return None
-
-            return self._cached_file_json.get(category)
-
-    def update_model(
+    def get_raw_model_json(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
-        record: GenericModelRecord,
-    ) -> None:
-        """Update or create a model reference.
+        overwrite_existing: bool = False,
+    ) -> dict[str, Any] | None:
+        """Return the raw JSON dict for a specific model in a category without pydantic validation.
 
-        This method is only available in PRIMARY mode with a backend that supports writes.
-
-        Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to update.
-            model_name (str): The name of the model to update or create.
-            record (GenericModelRecord): The model record object to save.
-
-        Raises:
-            RuntimeError: If backend doesn't support writes (not in PRIMARY mode).
-            ValueError: If model_name doesn't match record.name.
-        """
-        if not self.backend.supports_writes():
-            raise RuntimeError(
-                "Cannot update model: backend does not support writes. "
-                "Only PRIMARY mode instances with FileSystemBackend support write operations."
-            )
-
-        if model_name != record.name:
-            raise ValueError(f"Model name mismatch: {model_name} != {record.name}")
-
-        record_dict = record.model_dump(exclude_unset=True)
-
-        self.backend.update_model(category, model_name, record_dict)
-
-        with self._lock:
-            self._invalidate_cache(category)
-
-        logger.info(f"Updated model {model_name} in category {category}")
-
-    def delete_model(
-        self,
-        category: MODEL_REFERENCE_CATEGORY,
-        model_name: str,
-    ) -> None:
-        """Delete a model reference.
-
-        This method is only available in PRIMARY mode with a backend that supports writes.
+        This method delegates to the backend to fetch the raw JSON data directly,
+        avoiding the overhead of creating pydantic models. Ideal for API endpoints
+        that need fast JSON responses.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category containing the model.
-            model_name (str): The name of the model to delete.
+            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
+            model_name (str): The name of the model within the category.
+            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
 
-        Raises:
-            RuntimeError: If backend doesn't support writes (not in PRIMARY mode).
-            KeyError: If model doesn't exist in the category.
+        Returns:
+            dict[str, Any] | None: The raw JSON dict for the model, or None if not found.
         """
-        if not self.backend.supports_writes():
-            raise RuntimeError(
-                "Cannot delete model: backend does not support writes. "
-                "Only PRIMARY mode instances with FileSystemBackend support write operations."
-            )
+        category_json = self.backend.fetch_category(category, force_refresh=overwrite_existing)
 
-        self.backend.delete_model(category, model_name)
+        if category_json is None:
+            return None
 
-        with self._lock:
-            self._invalidate_cache(category)
-
-        logger.info(f"Deleted model {model_name} from category {category}")
-
-    def update_model_legacy(
-        self,
-        category: MODEL_REFERENCE_CATEGORY,
-        model_name: str,
-        record_dict: dict[str, Any],
-    ) -> None:
-        """Update or create a model reference in legacy format.
-
-        This method is only available when canonical_format='legacy' in PRIMARY mode.
-
-        Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to update.
-            model_name (str): The name of the model to update or create.
-            record_dict (dict[str, Any]): The model record data in legacy format as a dictionary.
-
-        Raises:
-            RuntimeError: If backend doesn't support legacy writes.
-            ValueError: If model_name doesn't match record_dict['name'].
-        """
-        if not self.backend.supports_legacy_writes():
-            raise RuntimeError(
-                "Cannot update legacy model: backend does not support legacy writes. "
-                "Legacy writes are only available when canonical_format='legacy' in PRIMARY mode."
-            )
-
-        if "name" not in record_dict:
-            raise ValueError("record_dict must contain 'name' field")
-
-        if model_name != record_dict["name"]:
-            raise ValueError(f"Model name mismatch: {model_name} != {record_dict['name']}")
-
-        self.backend.update_model_legacy(category, model_name, record_dict)
-
-        with self._lock:
-            self._invalidate_cache(category)
-
-        logger.info(f"Updated legacy model {model_name} in category {category}")
-
-    def delete_model_legacy(
-        self,
-        category: MODEL_REFERENCE_CATEGORY,
-        model_name: str,
-    ) -> None:
-        """Delete a model reference from legacy format files.
-
-        This method is only available when canonical_format='legacy' in PRIMARY mode.
-
-        Args:
-            category (MODEL_REFERENCE_CATEGORY): The category containing the model.
-            model_name (str): The name of the model to delete.
-
-        Raises:
-            RuntimeError: If backend doesn't support legacy writes.
-            KeyError: If model doesn't exist in the category.
-        """
-        if not self.backend.supports_legacy_writes():
-            raise RuntimeError(
-                "Cannot delete legacy model: backend does not support legacy writes. "
-                "Legacy writes are only available when canonical_format='legacy' in PRIMARY mode."
-            )
-
-        self.backend.delete_model_legacy(category, model_name)
-
-        with self._lock:
-            self._invalidate_cache(category)
-
-        logger.info(f"Deleted legacy model {model_name} from category {category}")
+        return category_json.get(model_name)

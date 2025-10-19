@@ -26,7 +26,9 @@ from horde_model_reference.meta_consts import CONTROLNET_STYLE, MODEL_PURPOSE
 
 def get_default_config() -> ConfigDict:
     """Get the default config for model records based on whether AI Horde is being tested or not."""
-    return ConfigDict(extra="ignore") if not ai_horde_ci_settings.ai_horde_testing else ConfigDict(extra="forbid")
+    if ai_horde_ci_settings.ai_horde_testing:
+        return ConfigDict(extra="forbid", populate_by_name=True)
+    return ConfigDict(extra="ignore", populate_by_name=True)
 
 
 class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)

@@ -82,7 +82,7 @@ class StubFileSystemBackend(ModelReferenceBackend):
         return False
 
     @override
-    def mark_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:
+    def _mark_stale_impl(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         self.mark_stale_calls.append(category)
 
     @override
