@@ -22,30 +22,91 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
 class ReplicaBackendBase(ModelReferenceBackend):
-    """Base class providing caching infrastructure for all backend types.
+    """Base class providing comprehensive caching infrastructure for model reference backends.
 
-    Despite the name, this class provides caching for both REPLICA and PRIMARY backends.
-    It implements TTL-based caching, mtime validation, and extensible validation hooks.
+    Despite its name, this class serves as a universal caching layer for both REPLICA and PRIMARY
+    backend modes. It implements a dual-cache architecture supporting both modern (v2/converted)
+    and legacy JSON formats, with sophisticated validation mechanisms including TTL expiration,
+    file modification time tracking, and extensible custom validation hooks.
 
-    **Dual Cache System:**
-    Maintains separate caches for v2/converted format and legacy format:
-    - V2 cache: `_cache` (dict), used by fetch_category()
-    - Legacy cache: `_legacy_json_cache` (dict) + `_legacy_json_string_cache` (str)
+    Cache Architecture:
+        The class maintains two independent cache systems:
 
-    Each cache has its own timestamps, mtime tracking, and staleness management.
+        **V2/Converted Format Cache:**
+            - `_cache`: Primary storage for converted model reference data
+            - `_category_timestamps`: Tracks when each category was last cached
+            - `_last_known_mtimes`: File modification times for invalidation
+            - `_stale_categories`: Set of categories marked for refresh
 
-    **For V2/Converted Format:**
-    - Call `_get_from_cache()` to retrieve cached v2 data
-    - Call `_store_in_cache()` to store fetched v2 data
-    - Override `_get_file_path_for_validation()` for v2 file mtime validation
+        **Legacy Format Cache:**
+            - `_legacy_json_cache`: Dict representation of legacy JSON
+            - `_legacy_json_string_cache`: String representation of legacy JSON
+            - `_legacy_cache_timestamps`: Tracks when each legacy category was cached
+            - `_legacy_last_known_mtimes`: Legacy file modification times
+            - `_stale_legacy_categories`: Set of legacy categories marked for refresh
 
-    **For Legacy Format:**
-    - Call `_get_legacy_from_cache()` to retrieve cached legacy data (dict + string)
-    - Call `_store_legacy_in_cache()` to store fetched legacy data
-    - Override `_get_legacy_file_path_for_validation()` for legacy file mtime validation
+    Cache Validation:
+        The validation system performs multiple checks to ensure cache freshness:
 
-    **Custom Validation:**
-    - Override `_additional_cache_validation()` for custom v2 validation logic
+        1. **Explicit Staleness**: Categories marked via `mark_stale()` or `_invalidate_cache()`
+        2. **TTL Expiration**: Time-based expiration if `cache_ttl_seconds` is set
+        3. **File Modification**: Automatic invalidation when source file mtime changes
+        4. **Custom Validation**: Extensible via `_additional_cache_validation()` override
+
+    Thread Safety:
+        All cache operations are protected by:
+            - `_lock`: `RLock` for synchronous operations
+            - `_async_lock`: `AsyncLock` for async operations (if needed)
+
+    Subclass Integration:
+        **For V2/Converted Format:**
+            - Use `_fetch_with_cache()` for standard fetch-and-cache pattern
+            - Call `_get_from_cache()` to retrieve cached v2 data
+            - Call `_store_in_cache()` to store fetched v2 data
+            - Override `_get_file_path_for_validation()` to enable mtime validation
+            - Override `_additional_cache_validation()` for custom validation logic
+
+        **For Legacy Format:**
+            - Call `_get_legacy_from_cache()` to retrieve cached legacy data (dict + string)
+            - Call `_store_legacy_in_cache()` to store fetched legacy data
+            - Override `_get_legacy_file_path_for_validation()` for legacy mtime validation
+
+    Cache Query Methods:
+        - `has_cached_data()`: Check if data exists (ignores validity)
+        - `is_cache_valid()`: Check if cached data exists AND is valid
+        - `needs_refresh()`: Check if existing cached data should be refetched
+        - `should_fetch_data()`: Combined check for initial fetch OR refresh
+
+
+    Examples:
+        Basic fetch implementation using the cache helper::
+
+            def fetch_category(
+                self,
+                category: MODEL_REFERENCE_CATEGORY,
+                *,
+                force_refresh: bool = False
+            ) -> dict[str, Any] | None:
+                return self._fetch_with_cache(
+                    category,
+                    lambda: self._fetch_from_source(category),
+                    force_refresh=force_refresh
+                )
+
+        Custom validation with file path override::
+
+            def _get_file_path_for_validation(
+                self,
+                category: MODEL_REFERENCE_CATEGORY
+            ) -> Path | None:
+                return self.data_dir / f"{category.value}.json"
+
+            def _additional_cache_validation(
+                self,
+                category: MODEL_REFERENCE_CATEGORY
+            ) -> bool:
+                # Custom validation logic
+                return self._check_data_integrity(category)
     """
 
     def __init__(
@@ -120,30 +181,45 @@ class ReplicaBackendBase(ModelReferenceBackend):
             return category in self._cache
 
     def is_cache_valid(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
-        """Return True if the cache for *category* is considered fresh.
+        """Check if cached data exists and is still valid for the given category.
 
-        This method checks if cached data EXISTS and is still valid. This is used
-        internally for validation logic.
-
-        Performs multiple validation checks:
-        1. Staleness check (explicit invalidation)
-        2. Cache existence check (initial fetch detection)
-        3. TTL expiration check
-        4. File mtime check (if file path provided by subclass)
-        5. Additional custom validation (if overridden by subclass)
-
-        Related methods:
-        - `should_fetch_data()` - for "should I fetch?" checks
-        - `has_cached_data()` - for "has data been loaded?" checks
-        - `needs_refresh()` - checks if cached data should be RE-fetched (staleness only)
-        - This method returns False for both "no data" and "stale data" cases
-        - `needs_refresh()` returns False for "no data", True for "stale data"
+        This method performs comprehensive validation to determine if cached data can be
+        used without refetching. It's primarily used internally by cache retrieval methods
+        but can also be called directly for validation checks.
 
         Args:
             category: The category to validate.
 
         Returns:
-            bool: True if cache exists and is valid, False if cache doesn't exist or is invalid.
+            True if cache exists and all validation checks pass, False otherwise.
+
+        Validation Steps:
+            The method performs checks in the following order:
+
+            1. **Explicit Staleness**: Returns False if category is in `_stale_categories`
+            2. **Cache Existence**: Returns False if category has never been cached
+            3. **Timestamp Existence**: Returns False if no timestamp recorded
+            4. **TTL Expiration**: Checks if `cache_ttl_seconds` exceeded (calls `mark_stale()` if expired)
+            5. **File Modification**: Compares current file mtime with cached mtime (calls `mark_stale()` if changed)
+            6. **Custom Validation**: Calls `_additional_cache_validation()` for subclass-specific checks
+
+        Side Effects:
+            When staleness is detected (TTL expiration or mtime change), this method calls
+            `mark_stale()` to trigger invalidation callbacks and notify the manager.
+
+        Related Methods:
+            - `has_cached_data()`: Simple existence check, ignores validity
+            - `should_fetch_data()`: Combined check for "should I fetch?" (initial OR refresh)
+            - `needs_refresh()`: Checks if cached data should be refetched (staleness only)
+
+        Return Value Semantics:
+            - Returns `False` for both "no data" and "stale data" cases
+            - Use `has_cached_data()` to distinguish between these cases
+            - Use `needs_refresh()` to check staleness without considering initial fetch
+
+
+        Note:
+            This method is thread-safe and uses the internal `_lock` for synchronization.
         """
         with self._lock:
             if category in self._stale_categories:
@@ -163,6 +239,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
             elapsed = time.time() - last_updated
             if elapsed > self._cache_ttl_seconds:
                 logger.debug(f"Category {category} TTL expired ({elapsed}s > {self._cache_ttl_seconds}s)")
+                self.mark_stale(category)
                 return False
 
         file_path = self._get_file_path_for_validation(category)
@@ -175,6 +252,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
                         f"File {file_path.name} mtime changed "
                         f"(current={current_mtime}, cached={last_known}), cache invalid"
                     )
+                    self.mark_stale(category)
                     return False
             except Exception:
                 return False
@@ -186,12 +264,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
         return True
 
     @override
-    def mark_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:
-        """Mark a category as stale so subclasses refetch on next access.
-
-        This causes needs_refresh() to return True for this category,
-        triggering a refresh of cached data on the next access.
-        """
+    def _mark_stale_impl(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         with self._lock:
             self._stale_categories.add(category)
 
@@ -217,31 +290,6 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
     @override
     def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
-        """Determine whether a category should be refreshed.
-
-        This method checks if EXISTING cached data has become stale and needs to be
-        re-fetched. It does NOT indicate whether an initial fetch is needed.
-
-        Semantic distinction:
-        - Returns False when no data has been fetched yet (no initial load needed via this method)
-        - Returns True when cached data exists but has become stale due to:
-          * Explicit staleness marking (mark_stale())
-          * TTL expiration
-          * File mtime changes
-
-        For determining if data exists in cache (initial fetch check), use:
-        - `is_cache_valid()` - checks if cache exists and is fresh
-        - `_get_from_cache()` - retrieves data if cache exists and is valid
-        - Direct cache existence check: `category not in self._cache`
-        - `should_fetch_data()` - combined check for initial fetch OR refresh
-
-        Args:
-            category: The category to check.
-
-        Returns:
-            bool: True if cached data needs to be refreshed, False if no cached data exists
-                  or if cached data is still fresh.
-        """
         with self._lock:
             if category in self._stale_categories:
                 logger.debug(f"Category {category} marked stale, needs refresh")
@@ -260,6 +308,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
             cache_stale = (time.time() - last_updated) > self._cache_ttl_seconds
             if cache_stale:
                 logger.debug(f"Category {category} cache is stale, needs refresh")
+                self.mark_stale(category)
                 return True
 
         file_path = self._get_file_path_for_validation(category)
@@ -269,6 +318,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
                 last_known = self._last_known_mtimes.get(category, 0.0)
                 if current_mtime != last_known:
                     logger.debug(f"File {file_path.name} mtime changed, needs refresh")
+                    self.mark_stale(category)
                     return True
             except Exception:
                 return True
