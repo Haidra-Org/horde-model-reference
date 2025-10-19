@@ -214,7 +214,7 @@ If None, REPLICA clients will only use GitHub. Example: https://stablehorde.net/
     """Whether PRIMARY mode should seed from GitHub on first initialization if local files don't exist. \
 Only used in PRIMARY mode. If True, will download and convert legacy references once on startup."""
 
-    canonical_format: Literal["legacy", "v2"] = "legacy"
+    canonical_format: Literal["legacy", "v2"] = "v2"
     """Which format is the canonical source of truth. Controls which API has write access. \
 'v2' (default): v2 API has CRUD, v1 API is read-only (converts from v2 to legacy). \
 'legacy': v1 API has CRUD, v2 API is read-only (converts from legacy to v2)."""

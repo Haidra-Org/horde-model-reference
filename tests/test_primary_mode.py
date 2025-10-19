@@ -135,13 +135,13 @@ def test_model_reference_manager_primary_write_paths(
         ),
     )
 
-    manager.update_model(category, record.name, record)
+    manager.backend.update_model_from_base_model(category, record.name, record)
 
     raw = manager.get_raw_model_reference_json(category)
     assert raw is not None
     assert record.name in raw
 
-    manager.delete_model(category, record.name)
+    manager.backend.delete_model(category, record.name)
     raw_after_delete = manager.get_raw_model_reference_json(category)
     assert raw_after_delete == {}
 
@@ -340,7 +340,7 @@ def test_manager_cache_invalidated_on_update(
         ),
     )
 
-    manager.update_model(category, "test_model", updated_record)
+    manager.backend.update_model_from_base_model(category, "test_model", updated_record)
 
     refreshed_refs = manager.get_all_model_references_unsafe()
     refreshed_refs_record = refreshed_refs[category]
@@ -381,7 +381,7 @@ def test_manager_cache_invalidated_on_delete(
     assert "model1" in initial_refs_record
     assert "model2" in initial_refs_record
 
-    manager.delete_model(category, "model1")
+    manager.backend.delete_model(category, "model1")
 
     refreshed_refs = manager.get_all_model_references_unsafe()
 

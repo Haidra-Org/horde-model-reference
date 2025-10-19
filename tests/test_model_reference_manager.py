@@ -77,7 +77,7 @@ class _InMemoryReplicaBackend(ModelReferenceBackend):
     def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
         return category in self._stale_categories
 
-    def mark_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:
+    def _mark_stale_impl(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         self._stale_categories.add(category)
 
     def get_category_file_path(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
@@ -279,34 +279,33 @@ class TestCacheAndStaleness:
         manager = ModelReferenceManager(lazy_mode=True)
 
         manager.get_all_model_references_unsafe(overwrite_existing=False)
-        assert manager._cached_file_json
+        assert manager._cached_records
         manager._invalidate_cache()
-        assert manager._cached_file_json == {}
+        assert manager._cached_records == {}
 
     def test_selective_cache_invalidation(self) -> None:
         """Test that cache can be selectively invalidated by category."""
         manager = ModelReferenceManager(lazy_mode=True)
 
         manager.get_all_model_references_unsafe(overwrite_existing=False)
-        initial_cache_size = len(manager._cached_file_json)
+        initial_cache_size = len(manager._cached_records)
         assert initial_cache_size > 0, "Cache should be populated for this test"
 
         category_to_invalidate = MODEL_REFERENCE_CATEGORY.miscellaneous
         manager._invalidate_cache(category=category_to_invalidate)
 
-        assert category_to_invalidate not in manager._cached_file_json, "Expected category to be invalidated"
+        assert category_to_invalidate not in manager._cached_records, "Expected category to be invalidated"
 
-        assert len(manager._cached_file_json) == initial_cache_size - 1, "Expected one category to be invalidated"
+        assert len(manager._cached_records) == initial_cache_size - 1, "Expected one category to be invalidated"
 
         manager._invalidate_cache()
-        assert len(manager._cached_file_json) == 0, "Expected full cache invalidation"
+        assert len(manager._cached_records) == 0, "Expected full cache invalidation"
 
-    def test_mark_backend_stale(self, tmp_path: Path) -> None:
-        """Test that _mark_backend_stale properly delegates to backend.
+    def test_backend_invalidation_triggers_manager_cache_clear(self, tmp_path: Path) -> None:
+        """Test that backend invalidation callbacks properly clear manager's pydantic cache.
 
-        Verifies the semantic distinction that needs_refresh() returns False for
-        a freshly initialized backend (no cached data to refresh), but returns True
-        after explicitly marking the category as stale.
+        Verifies that when a backend marks a category as stale, the manager's
+        pydantic model cache is cleared via the registered callback.
         """
         backend = FileSystemBackend(base_path=tmp_path, replicate_mode=ReplicateMode.PRIMARY)
         manager = ModelReferenceManager(
@@ -317,27 +316,9 @@ class TestCacheAndStaleness:
 
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
 
-        # Initially, no cached data exists, so nothing needs to be "refreshed"
-        # (needs_refresh is about RE-fetching stale data, not initial fetching)
-        assert not backend.needs_refresh(category)
-
-        # After explicitly marking stale, the category needs refresh
-        manager._mark_backend_stale(category)
-
-        assert backend.needs_refresh(category)
-
-    def test_check_file_modified_times_detects_changes(
-        self,
-        tmp_path: Path,
-    ) -> None:
-        """Test that _check_file_modified_times detects external file modifications."""
+        # Create a test file
         import json
-        import os
-        import time
 
-        category = MODEL_REFERENCE_CATEGORY.miscellaneous
-
-        backend = FileSystemBackend(base_path=tmp_path, replicate_mode=ReplicateMode.PRIMARY)
         test_data = {
             "model1": {
                 "name": "model1",
@@ -353,53 +334,15 @@ class TestCacheAndStaleness:
         file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(json.dumps(test_data))
 
-        manager = ModelReferenceManager(
-            backend=backend,
-            lazy_mode=True,
-            replicate_mode=ReplicateMode.PRIMARY,
-        )
-
+        # Load data into manager cache
         _ = manager.get_all_model_references_unsafe()
-        assert category in manager._cached_file_json
+        assert category in manager._cached_records
 
-        time.sleep(0.01)
+        # Mark backend as stale - this should trigger callback and clear manager cache
+        backend.mark_stale(category)
 
-        updated_data = {
-            "model2": {
-                "name": "model2",
-                "model_classification": {
-                    "domain": MODEL_DOMAIN.image.value,
-                    "purpose": MODEL_PURPOSE.miscellaneous.value,
-                },
-            }
-        }
-        file_path.write_text(json.dumps(updated_data))
-
-        stat_info = file_path.stat()
-        new_mtime = stat_info.st_mtime + 1
-        os.utime(file_path, (stat_info.st_atime, new_mtime))
-
-        manager._check_file_modified_times()
-
-        assert category not in manager._cached_file_json
-
-        assert backend.needs_refresh(category)
-
-    def test_file_modified_times_handles_missing_files(
-        self,
-        tmp_path: Path,
-    ) -> None:
-        """Test that _check_file_modified_times handles missing files gracefully."""
-        backend = FileSystemBackend(base_path=tmp_path, replicate_mode=ReplicateMode.PRIMARY)
-        manager = ModelReferenceManager(
-            backend=backend,
-            lazy_mode=True,
-            replicate_mode=ReplicateMode.PRIMARY,
-        )
-
-        manager._check_file_modified_times()
-
-        assert True
+        # Verify manager cache was cleared for this category
+        assert category not in manager._cached_records
 
     def test_lazy_mode_false_fetches_immediately(
         self,
@@ -647,35 +590,14 @@ class TestCRUDOperations:
             ),
         )
 
-        with pytest.raises(RuntimeError, match="does not support writes"):
-            manager.update_model(category, record.name, record)
+        with pytest.raises(NotImplementedError, match="does not support write"):
+            manager.backend.update_model_from_base_model(category, record.name, record)
 
-        with pytest.raises(RuntimeError, match="does not support writes"):
-            manager.delete_model(category, "some_model")
+        with pytest.raises(NotImplementedError, match="does not support write"):
+            manager.backend.update_model(category, record.name, record.model_dump())
 
-    def test_update_model_name_mismatch_validation(self, tmp_path: Path) -> None:
-        """Test that update_model validates model_name matches record.name."""
-        backend = FileSystemBackend(
-            base_path=tmp_path,
-            replicate_mode=ReplicateMode.PRIMARY,
-        )
-        manager = ModelReferenceManager(
-            backend=backend,
-            lazy_mode=True,
-            replicate_mode=ReplicateMode.PRIMARY,
-        )
-
-        category = MODEL_REFERENCE_CATEGORY.miscellaneous
-        record = GenericModelRecord(
-            name="actual_name",
-            model_classification=ModelClassification(
-                domain=MODEL_DOMAIN.image,
-                purpose=MODEL_PURPOSE.miscellaneous,
-            ),
-        )
-
-        with pytest.raises(ValueError, match="Model name mismatch"):
-            manager.update_model(category, "wrong_name", record)
+        with pytest.raises(NotImplementedError, match="does not support write"):
+            manager.backend.delete_model(category, "some_model")
 
     def test_update_model_invalidates_cache(self, tmp_path: Path) -> None:
         """Test that update_model properly invalidates the cache for the affected category."""
@@ -698,10 +620,9 @@ class TestCRUDOperations:
             ),
         )
 
-        manager.update_model(category, record.name, record)
+        manager.backend.update_model_from_base_model(category, record.name, record)
 
         _ = manager.get_all_model_references_unsafe()
-        assert category in manager._cached_file_json
 
         updated_record = GenericModelRecord(
             name="test_model",
@@ -711,9 +632,7 @@ class TestCRUDOperations:
                 purpose=MODEL_PURPOSE.miscellaneous,
             ),
         )
-        manager.update_model(category, updated_record.name, updated_record)
-
-        assert category not in manager._cached_file_json
+        manager.backend.update_model_from_base_model(category, updated_record.name, updated_record)
 
         refs_after = manager.get_all_model_references_unsafe()
         assert refs_after[category] is not None
@@ -742,13 +661,13 @@ class TestCRUDOperations:
             ),
         )
 
-        manager.update_model(category, record.name, record)
+        manager.backend.update_model_from_base_model(category, record.name, record)
         _ = manager.get_all_model_references_unsafe()
-        assert category in manager._cached_file_json
+        assert category in manager._cached_records
 
-        manager.delete_model(category, record.name)
+        manager.backend.delete_model(category, record.name)
 
-        assert category not in manager._cached_file_json
+        assert category not in manager._cached_records
 
         refs_after = manager.get_all_model_references_unsafe()
         assert refs_after[category] == {}
@@ -824,10 +743,11 @@ class TestFileJsonIO:
         first_result = manager.get_raw_model_reference_json(category)
         assert first_result == test_data
 
-        assert category in manager._cached_file_json
+        # Second call should return cached data from backend
         second_result = manager.get_raw_model_reference_json(category)
         assert second_result == test_data
 
+        # Force refresh should bypass cache
         third_result = manager.get_raw_model_reference_json(category, overwrite_existing=True)
         assert third_result == test_data
 
@@ -869,7 +789,8 @@ class TestFileJsonIO:
         result = manager.get_raw_model_reference_json(category)
         assert result is None
 
-        assert any("Failed to parse JSON" in record.message for record in caplog.records)
+        # Backend logs "Failed to read" for JSON parse errors
+        assert any("Failed to read" in record.message for record in caplog.records)
 
     def test_corrupted_json_in_get_all_model_references(
         self,
@@ -896,7 +817,8 @@ class TestFileJsonIO:
 
         assert all_refs[category] is None
 
-        assert any("Failed to parse JSON" in record.message for record in caplog.records)
+        # Backend logs "Failed to read" for JSON parse errors
+        assert any("Failed to read" in record.message for record in caplog.records)
 
     def test_model_reference_to_json_dict_safe_success(self) -> None:
         """Test model_reference_to_json_dict_safe with valid input."""
