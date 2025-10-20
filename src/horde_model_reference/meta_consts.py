@@ -139,10 +139,10 @@ class ModelClassification(BaseModel):
     This includes the model's `MODEL_DOMAIN` and `MODEL_PURPOSE`.
     """
 
-    domain: MODEL_DOMAIN | str
+    domain: MODEL_DOMAIN
     """The domain of the model, i.e., what it pertains to (image, text, video, etc.)"""
 
-    purpose: MODEL_PURPOSE | str
+    purpose: MODEL_PURPOSE
     """The purpose of the model."""
 
     @model_validator(mode="after")
