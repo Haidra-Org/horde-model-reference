@@ -16,18 +16,27 @@ from horde_model_reference import (
     path_consts,
 )
 from horde_model_reference.legacy.classes.legacy_models import (
+    LegacyBlipRecord,
     LegacyClipRecord,
+    LegacyCodeformerRecord,
+    LegacyControlnetRecord,
+    LegacyEsrganRecord,
     LegacyGenericRecord,
+    LegacyGfpganRecord,
+    LegacyMiscellaneousRecord,
+    LegacySafetyCheckerRecord,
     LegacyStableDiffusionRecord,
     LegacyTextGenerationRecord,
 )
 from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
 from horde_model_reference.model_reference_records import (
+    ClipModelRecord,
     ControlNetModelRecord,
     DownloadRecord,
     GenericModelRecord,
     GenericModelRecordConfig,
     ImageGenerationModelRecord,
+    MODEL_RECORD_TYPE_LOOKUP,
     TextGenerationModelRecord,
 )
 from horde_model_reference.util import model_name_to_showcase_folder_name
@@ -238,7 +247,11 @@ class BaseLegacyConverter:
         """
         model_record_config = self._convert_model_record_config(legacy_record)
 
-        return GenericModelRecord(
+        # Get the appropriate record type from the lookup
+        record_class = MODEL_RECORD_TYPE_LOOKUP[self.model_reference_category]
+
+        return record_class(
+            record_type=self.model_reference_category,
             name=legacy_record.name,
             description=legacy_record.description,
             version=legacy_record.version,
@@ -579,19 +592,19 @@ class LegacyClipConverter(BaseLegacyConverter):
     def _convert_single_record(
         self,
         legacy_record: LegacyGenericRecord,
-    ) -> GenericModelRecord:
+    ) -> ClipModelRecord:
         """Convert a single legacy CLIP record to the new format."""
         if not isinstance(legacy_record, LegacyClipRecord):
             raise TypeError(f"Expected {legacy_record.name} to be a LegacyClipRecord.")
 
         model_record_config = self._convert_model_record_config(legacy_record)
 
-        return GenericModelRecord(
+        return ClipModelRecord(
             name=legacy_record.name,
             description=legacy_record.description,
             version=legacy_record.version,
             config=model_record_config,
-            # pretrained_name=legacy_record.pretrained_name,
+            pretrained_name=legacy_record.pretrained_name,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
 
@@ -686,6 +699,6 @@ class LegacyControlnetConverter(BaseLegacyConverter):
             description=legacy_record.description,
             version=legacy_record.version,
             config=model_record_config,
-            style=legacy_record.style,
+            controlnet_style=legacy_record.style,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )

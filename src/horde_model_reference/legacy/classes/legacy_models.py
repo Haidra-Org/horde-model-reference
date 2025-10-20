@@ -5,7 +5,7 @@ from __future__ import annotations
 import urllib.parse
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_serializer, model_validator
 
@@ -205,6 +205,7 @@ class LegacyGenericRecord(BaseModel):
 class LegacyStableDiffusionRecord(LegacyGenericRecord):
     """Stable Diffusion legacy record with category-specific validation."""
 
+    type: Literal["ckpt"] = "ckpt"
     inpainting: bool
     baseline: str
     tags: list[str] | None = None
@@ -288,12 +289,6 @@ class LegacyStableDiffusionRecord(LegacyGenericRecord):
         return return_dict
 
 
-class LegacyClipRecord(LegacyGenericRecord):
-    """CLIP legacy record with category-specific normalization."""
-
-    pretrained_name: str | None = None
-
-
 class LegacyTextGenerationRecord(LegacyGenericRecord):
     """Text generation legacy record with category-specific validation."""
 
@@ -313,7 +308,80 @@ class LegacyTextGenerationRecord(LegacyGenericRecord):
         return self
 
 
-LegacyRecordUnion = LegacyStableDiffusionRecord | LegacyTextGenerationRecord | LegacyClipRecord | LegacyGenericRecord
+class LegacyBlipRecord(LegacyGenericRecord):
+    """BLIP legacy record with category-specific normalization."""
+
+    type: Literal["blip"] = "blip"
+
+
+class LegacyClipRecord(LegacyGenericRecord):
+    """CLIP legacy record with category-specific normalization."""
+
+    type: Literal["clip", "coca"] = "clip"
+    pretrained_name: str | None = None
+
+
+class LegacyCodeformerRecord(LegacyGenericRecord):
+    """Codeformers legacy record with category-specific normalization."""
+
+    type: Literal["CodeFormers"] = "CodeFormers"
+
+
+class LegacyEsrganRecord(LegacyGenericRecord):
+    """ESRGAN legacy record with category-specific normalization."""
+
+    type: Literal["realesrgan"] = "realesrgan"
+
+
+class LegacyGfpganRecord(LegacyGenericRecord):
+    """GFPGAN legacy record with category-specific normalization."""
+
+    type: Literal["gfpgan"] = "gfpgan"
+
+
+class LegacySafetyCheckerRecord(LegacyGenericRecord):
+    """Safety Checker legacy record with category-specific normalization."""
+
+    type: Literal["safety_checker"] = "safety_checker"
+
+
+class LegacyMiscellaneousRecord(LegacyGenericRecord):
+    """Miscellaneous legacy record with category-specific normalization."""
+
+    type: Literal["layer_diffuse",]
+
+
+class LegacyControlnetRecord(LegacyGenericRecord):
+    """ControlNet legacy record with category-specific normalization."""
+
+    type: Literal[
+        "control_canny",
+        "control_depth",
+        "control_hed",
+        "control_mlsd",
+        "control_normal",
+        "control_openpose",
+        "control_fakescribbles",
+        "control_scribble",
+        "control_seg",
+        "control_qr",
+        "control_qr_xl",
+    ]
+
+
+LegacyRecordUnion = (
+    LegacyStableDiffusionRecord
+    | LegacyTextGenerationRecord
+    | LegacyBlipRecord
+    | LegacyClipRecord
+    | LegacyCodeformerRecord
+    | LegacyControlnetRecord
+    | LegacyEsrganRecord
+    | LegacyGfpganRecord
+    | LegacyGenericRecord
+    | LegacySafetyCheckerRecord
+    | LegacyMiscellaneousRecord
+)
 
 
 def get_legacy_model_type(category: MODEL_REFERENCE_CATEGORY) -> type[LegacyRecordUnion]:
@@ -321,6 +389,13 @@ def get_legacy_model_type(category: MODEL_REFERENCE_CATEGORY) -> type[LegacyReco
     category_model_map: dict[MODEL_REFERENCE_CATEGORY, type[LegacyRecordUnion]] = {
         MODEL_REFERENCE_CATEGORY.image_generation: LegacyStableDiffusionRecord,
         MODEL_REFERENCE_CATEGORY.text_generation: LegacyTextGenerationRecord,
+        MODEL_REFERENCE_CATEGORY.blip: LegacyBlipRecord,
         MODEL_REFERENCE_CATEGORY.clip: LegacyClipRecord,
+        MODEL_REFERENCE_CATEGORY.codeformer: LegacyCodeformerRecord,
+        MODEL_REFERENCE_CATEGORY.controlnet: LegacyControlnetRecord,
+        MODEL_REFERENCE_CATEGORY.esrgan: LegacyEsrganRecord,
+        MODEL_REFERENCE_CATEGORY.gfpgan: LegacyGfpganRecord,
+        MODEL_REFERENCE_CATEGORY.safety_checker: LegacySafetyCheckerRecord,
+        MODEL_REFERENCE_CATEGORY.miscellaneous: LegacyMiscellaneousRecord,
     }
     return category_model_map.get(category, LegacyGenericRecord)

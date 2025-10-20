@@ -5,6 +5,7 @@ from horde_model_reference import horde_model_reference_paths
 from horde_model_reference.legacy.classes.legacy_converters import (
     BaseLegacyConverter,
     LegacyClipConverter,
+    LegacyControlnetConverter,
     LegacyStableDiffusionConverter,
     LegacyTextGenerationConverter,
 )
@@ -27,7 +28,7 @@ def test_convert_legacy_clip_database() -> None:
 
 def test_convert_legacy_controlnet_database() -> None:
     """Test converting the legacy controlnet database to the new format."""
-    controlnet_converter = BaseLegacyConverter(model_reference_category=MODEL_REFERENCE_CATEGORY.controlnet)
+    controlnet_converter = LegacyControlnetConverter()
     assert controlnet_converter.convert_to_new_format()
 
 
@@ -43,6 +44,8 @@ def test_all_base_legacy_converters() -> None:
         if reference_category in [
             MODEL_REFERENCE_CATEGORY.image_generation,
             MODEL_REFERENCE_CATEGORY.clip,
+            MODEL_REFERENCE_CATEGORY.controlnet,
+            MODEL_REFERENCE_CATEGORY.text_generation,
         ]:
             continue
         base_converter = BaseLegacyConverter(

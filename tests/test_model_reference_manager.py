@@ -584,6 +584,7 @@ class TestCRUDOperations:
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
         record = GenericModelRecord(
             name="test_model",
+            record_type=MODEL_REFERENCE_CATEGORY.miscellaneous,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.miscellaneous,
@@ -614,6 +615,7 @@ class TestCRUDOperations:
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
         record = GenericModelRecord(
             name="test_model",
+            record_type=MODEL_REFERENCE_CATEGORY.miscellaneous,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.miscellaneous,
@@ -627,6 +629,7 @@ class TestCRUDOperations:
         updated_record = GenericModelRecord(
             name="test_model",
             description="Updated description",
+            record_type=MODEL_REFERENCE_CATEGORY.miscellaneous,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.miscellaneous,
@@ -655,6 +658,7 @@ class TestCRUDOperations:
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
         record = GenericModelRecord(
             name="test_model",
+            record_type=MODEL_REFERENCE_CATEGORY.miscellaneous,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.miscellaneous,

@@ -361,6 +361,7 @@ class TestReplicaModeWriteRestrictions:
             name="test_model",
             description="Test",
             version="1.0",
+            record_type=MODEL_REFERENCE_CATEGORY.image_generation,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.generation,
@@ -368,7 +369,7 @@ class TestReplicaModeWriteRestrictions:
         )
         category = MODEL_REFERENCE_CATEGORY.image_generation
 
-        with pytest.raises(NotImplementedError, match="does not support write"):
+        with pytest.raises(NotImplementedError, match="does not support write operations"):
             manager.backend.update_model_from_base_model(category, "test_model", test_record)
 
     def test_replica_manager_rejects_v2_deletes(
@@ -410,8 +411,9 @@ class TestV2WriteOperations:
 
         test_record = GenericModelRecord(
             name="v2_test_model",
-            description="V2 Test Model",
+            description="V2 test",
             version="1.0",
+            record_type=MODEL_REFERENCE_CATEGORY.image_generation,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.generation,
@@ -444,8 +446,9 @@ class TestV2WriteOperations:
 
         test_record = GenericModelRecord(
             name="v2_model_to_delete",
-            description="V2 Test Model",
+            description="Will be deleted",
             version="1.0",
+            record_type=MODEL_REFERENCE_CATEGORY.image_generation,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.generation,
@@ -736,8 +739,9 @@ class TestV2DeleteEdgeCases:
 
         test_record = GenericModelRecord(
             name="existing_model",
-            description="Existing Model",
+            description="Existing",
             version="1.0",
+            record_type=MODEL_REFERENCE_CATEGORY.image_generation,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.generation,
@@ -832,6 +836,7 @@ class TestManagerSingletonBehavior:
             name="test_model",
             description="Test",
             version="1.0",
+            record_type=MODEL_REFERENCE_CATEGORY.image_generation,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.generation,
@@ -867,8 +872,9 @@ class TestConcurrentOperations:
 
         test_record = GenericModelRecord(
             name="sequential_model",
-            description="Version 1",
+            description="Sequential test",
             version="1.0",
+            record_type=MODEL_REFERENCE_CATEGORY.image_generation,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.generation,
@@ -880,6 +886,7 @@ class TestConcurrentOperations:
             name="sequential_model",
             description="Version 2",
             version="2.0",
+            record_type=MODEL_REFERENCE_CATEGORY.image_generation,
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.generation,

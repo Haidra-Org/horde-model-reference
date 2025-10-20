@@ -129,6 +129,7 @@ def test_model_reference_manager_primary_write_paths(
 
     record = GenericModelRecord(
         name="primary_model",
+        record_type=MODEL_REFERENCE_CATEGORY.miscellaneous,
         model_classification=ModelClassification(
             domain=MODEL_DOMAIN.image,
             purpose=MODEL_PURPOSE.miscellaneous,
@@ -334,6 +335,7 @@ def test_manager_cache_invalidated_on_update(
     updated_record = GenericModelRecord(
         name="test_model",
         description="updated",
+        record_type=MODEL_REFERENCE_CATEGORY.miscellaneous,
         model_classification=ModelClassification(
             domain=MODEL_DOMAIN.image,
             purpose=MODEL_PURPOSE.miscellaneous,

@@ -21,6 +21,16 @@ class RouteNames(StrEnum):
     get_reference_by_category = auto()
     get_single_model = auto()
     create_model = auto()
+    create_image_generation_model = auto()
+    create_text_generation_model = auto()
+    create_blip_model = auto()
+    create_clip_model = auto()
+    create_codeformer_model = auto()
+    create_controlnet_model = auto()
+    create_esrgan_model = auto()
+    create_gfpgan_model = auto()
+    create_safety_checker_model = auto()
+    create_miscellaneous_model = auto()
     update_model = auto()
     delete_model = auto()
 
@@ -75,3 +85,11 @@ class RouteRegistry:
 
 
 route_registry = RouteRegistry()
+
+
+class Operation(StrEnum):
+    """CRUD operation types."""
+
+    create = "create"
+    update = "update"
+    delete = "delete"

@@ -52,6 +52,7 @@ def _create_minimal_model_dict(
     """
     model_dict: dict[str, Any] = {
         "name": name,
+        "record_type": category.value,
         "model_classification": {
             "domain": "image",
             "purpose": "miscellaneous",
@@ -73,7 +74,7 @@ def _create_minimal_model_dict(
         model_dict["model_classification"]["purpose"] = "feature_extractor"
     elif category == MODEL_REFERENCE_CATEGORY.controlnet:
         model_dict["model_classification"]["purpose"] = "auxiliary_or_patch"
-        model_dict["style"] = "control_seg"
+        model_dict["controlnet_style"] = "control_seg"
     elif category == MODEL_REFERENCE_CATEGORY.video_generation:
         model_dict["model_classification"]["domain"] = "video"
         model_dict["model_classification"]["purpose"] = "generation"
@@ -281,26 +282,6 @@ class TestUpdateModel:
         assert "metadata" in result
         assert "updated_at" in result["metadata"]
 
-    @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
-    def test_update_creates_new_model(
-        self,
-        api_client: TestClient,
-        primary_manager_for_api: ModelReferenceManager,
-        category: MODEL_REFERENCE_CATEGORY,
-    ) -> None:
-        """PUT should create a new model if it doesn't exist (upsert)."""
-        model_name = "new_via_put"
-        model_data = _create_minimal_model_dict(model_name, category, description="Created via PUT")
-
-        response = api_client.put(
-            _model_url(RouteNames.update_model, category, model_name),
-            json=model_data,
-        )
-
-        result = _assert_success_response(response, 201)
-        assert result["name"] == model_name
-        assert "created_at" in result["metadata"]
-
     def test_update_preserves_created_metadata(
         self,
         api_client: TestClient,
@@ -336,25 +317,6 @@ class TestUpdateModel:
         assert result["metadata"]["created_at"] == 1000000
         assert result["metadata"]["created_by"] == "original_user"
         assert "updated_at" in result["metadata"]
-
-    @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
-    def test_update_model_name_mismatch(
-        self,
-        api_client: TestClient,
-        primary_manager_for_api: ModelReferenceManager,
-        category: MODEL_REFERENCE_CATEGORY,
-    ) -> None:
-        """PUT should return 400 when URL name doesn't match body name."""
-        url_name = "url_name"
-        body_name = "body_name"
-        model_data = _create_minimal_model_dict(body_name, category)
-
-        response = api_client.put(
-            _model_url(RouteNames.update_model, category, url_name),
-            json=model_data,
-        )
-
-        _assert_error_response(response, 400, "must match")
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_update_model_validation_error(
@@ -612,9 +574,7 @@ class TestImageGenerationModelValidation:
     ) -> None:
         """Creating an image_generation model without required fields should fail."""
         category = MODEL_REFERENCE_CATEGORY.image_generation
-        model_name = "invalid_sd_model"
         model_data = {
-            "name": model_name,
             "model_classification": {
                 "domain": "image",
                 "purpose": "generation",
