@@ -83,6 +83,9 @@ class GenericModelRecord(BaseModel):
 
     model_config = get_default_config()
 
+    record_type: MODEL_REFERENCE_CATEGORY
+    """Discriminator field for polymorphic deserialization. Identifies the specific record type."""
+
     name: str
     """The name of the model."""
     description: str | None = None
@@ -103,11 +106,11 @@ class GenericModelRecord(BaseModel):
     """The classification of the model."""
 
 
-MODEL_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY | str, type[GenericModelRecord]] = {}
+MODEL_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, type[GenericModelRecord]] = {}
 
 
 def register_record_type(
-    category: MODEL_REFERENCE_CATEGORY | str,
+    category: MODEL_REFERENCE_CATEGORY,
 ) -> Callable[[type[GenericModelRecord]], type[GenericModelRecord]]:
     """Register a model record type with its category."""
 
@@ -127,6 +130,9 @@ def register_record_type(
 class ImageGenerationModelRecord(GenericModelRecord):
     """A model entry in the model reference."""
 
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.image_generation
+    """Discriminator field identifying this as an image generation model record."""
+
     model_classification: ModelClassification = Field(
         default_factory=lambda: ModelClassification(
             domain=MODEL_DOMAIN.image,
@@ -137,24 +143,24 @@ class ImageGenerationModelRecord(GenericModelRecord):
 
     inpainting: bool | None = False
     """If this is an inpainting model or not."""
-    baseline: KNOWN_IMAGE_GENERATION_BASELINE | str
+    baseline: KNOWN_IMAGE_GENERATION_BASELINE
     """The model on which this model is based."""
     optimization: str | None = None
     """The optimization type of the model."""
-    tags: list[str] | None = []
+    tags: list[str] | None = None
     """Any tags associated with the model which may be useful for searching."""
-    showcases: list[str] | None = []
+    showcases: list[str] | None = None
     """Links to any showcases of the model which illustrate its style."""
     min_bridge_version: int | None = None
     """The minimum version of AI-Horde-Worker required to use this model."""
-    trigger: list[str] | None = []
+    trigger: list[str] | None = None
     """A list of trigger words or phrases which can be used to activate the model."""
     homepage: str | None = None
     """A link to the model's homepage."""
     nsfw: bool
     """Whether the model is NSFW or not."""
 
-    style: MODEL_STYLE | str | None = None
+    style: MODEL_STYLE | None = None
     """The style of the model."""
 
     requirements: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
@@ -188,6 +194,9 @@ class ImageGenerationModelRecord(GenericModelRecord):
 class ControlNetModelRecord(GenericModelRecord):
     """A ControlNet model entry in the model reference."""
 
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.controlnet
+    """Discriminator field identifying this as a ControlNet model record."""
+
     model_classification: ModelClassification = Field(
         default_factory=lambda: ModelClassification(
             domain=MODEL_DOMAIN.image,
@@ -195,14 +204,14 @@ class ControlNetModelRecord(GenericModelRecord):
         )
     )
 
-    style: CONTROLNET_STYLE | str
+    controlnet_style: CONTROLNET_STYLE
     """The 'style' (purpose) of the controlnet. See `CONTROLNET_STYLE` for all possible values and more info."""
 
     @model_validator(mode="after")
     def validator_is_style_known(self) -> ControlNetModelRecord:
         """Check if the style is known."""
-        if self.style is not None and str(self.style) not in CONTROLNET_STYLE.__members__:
-            logger.debug(f"Unknown style {self.style} for model {self.name}")
+        if self.controlnet_style is not None and str(self.controlnet_style) not in CONTROLNET_STYLE.__members__:
+            logger.debug(f"Unknown style {self.controlnet_style} for model {self.name}")
 
         return self
 
@@ -210,6 +219,9 @@ class ControlNetModelRecord(GenericModelRecord):
 @register_record_type(MODEL_REFERENCE_CATEGORY.text_generation)
 class TextGenerationModelRecord(GenericModelRecord):
     """A text generation model entry in the model reference."""
+
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.text_generation
+    """Discriminator field identifying this as a text generation model record."""
 
     model_classification: ModelClassification = Field(
         default_factory=lambda: ModelClassification(
@@ -224,8 +236,160 @@ class TextGenerationModelRecord(GenericModelRecord):
     style: str | None = None
     display_name: str | None = None
     url: str | None = None
-    tags: list[str] | None = []
+    tags: list[str] | None = None
     settings: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.blip)
+class BlipModelRecord(GenericModelRecord):
+    """A BLIP model entry in the model reference."""
+
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.blip
+    """Discriminator field identifying this as a BLIP model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.feature_extractor,
+        )
+    )
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.clip)
+class ClipModelRecord(GenericModelRecord):
+    """A CLIP model entry in the model reference."""
+
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.clip
+    """Discriminator field identifying this as a CLIP model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.feature_extractor,
+        )
+    )
+
+    pretrained_name: str | None = None
+    """The pretrained model name, if applicable."""
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.codeformer)
+class CodeformerModelRecord(GenericModelRecord):
+    """A Codeformer model entry in the model reference."""
+
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.codeformer
+    """Discriminator field identifying this as a Codeformer model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.post_processing,
+        )
+    )
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.esrgan)
+class EsrganModelRecord(GenericModelRecord):
+    """An ESRGAN model entry in the model reference."""
+
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.esrgan
+    """Discriminator field identifying this as an ESRGAN model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.post_processing,
+        )
+    )
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.gfpgan)
+class GfpganModelRecord(GenericModelRecord):
+    """A GFPGAN model entry in the model reference."""
+
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.gfpgan
+    """Discriminator field identifying this as a GFPGAN model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.post_processing,
+        )
+    )
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.safety_checker)
+class SafetyCheckerModelRecord(GenericModelRecord):
+    """A safety checker model entry in the model reference."""
+
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.safety_checker
+    """Discriminator field identifying this as a safety checker model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.safety_checker,
+        )
+    )
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.video_generation)
+class VideoGenerationModelRecord(GenericModelRecord):
+    """A video generation model entry in the model reference."""
+
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.video_generation
+    """Discriminator field identifying this as a video generation model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: ModelClassification(
+            domain=MODEL_DOMAIN.video,
+            purpose=MODEL_PURPOSE.generation,
+        )
+    )
+
+    baseline: str | None = None
+    """The model on which this model is based."""
+    nsfw: bool = False
+    """Whether the model is NSFW or not."""
+    tags: list[str] | None = None
+    """Any tags associated with the model which may be useful for searching."""
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.audio_generation)
+class AudioGenerationModelRecord(GenericModelRecord):
+    """An audio generation model entry in the model reference."""
+
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.audio_generation
+    """Discriminator field identifying this as an audio generation model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: ModelClassification(
+            domain=MODEL_DOMAIN.audio,
+            purpose=MODEL_PURPOSE.generation,
+        )
+    )
+
+    baseline: str | None = None
+    """The model on which this model is based."""
+    nsfw: bool = False
+    """Whether the model is NSFW or not."""
+    tags: list[str] | None = None
+    """Any tags associated with the model which may be useful for searching."""
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.miscellaneous)
+class MiscellaneousModelRecord(GenericModelRecord):
+    """A miscellaneous model entry in the model reference."""
+
+    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.miscellaneous
+    """Discriminator field identifying this as a miscellaneous model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.miscellaneous,
+        )
+    )
 
 
 for category in MODEL_REFERENCE_CATEGORY:

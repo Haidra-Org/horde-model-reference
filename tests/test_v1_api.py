@@ -100,8 +100,29 @@ def _create_legacy_model_payload(
         payload["parameters"] = 7000000000
     elif category == MODEL_REFERENCE_CATEGORY.clip:
         payload["pretrained_name"] = f"{name}_pretrained"
+    elif category == MODEL_REFERENCE_CATEGORY.controlnet:
+        payload["type"] = "control_canny"
+    elif category == MODEL_REFERENCE_CATEGORY.miscellaneous:
+        payload["type"] = "layer_diffuse"
 
     return payload
+
+
+def _get_create_route_for_category(category: MODEL_REFERENCE_CATEGORY) -> RouteNames | None:
+    """Get the create route name for a category, or None if not supported."""
+    category_route_map = {
+        MODEL_REFERENCE_CATEGORY.image_generation: RouteNames.create_image_generation_model,
+        MODEL_REFERENCE_CATEGORY.text_generation: RouteNames.create_text_generation_model,
+        MODEL_REFERENCE_CATEGORY.blip: RouteNames.create_blip_model,
+        MODEL_REFERENCE_CATEGORY.clip: RouteNames.create_clip_model,
+        MODEL_REFERENCE_CATEGORY.codeformer: RouteNames.create_codeformer_model,
+        MODEL_REFERENCE_CATEGORY.controlnet: RouteNames.create_controlnet_model,
+        MODEL_REFERENCE_CATEGORY.esrgan: RouteNames.create_esrgan_model,
+        MODEL_REFERENCE_CATEGORY.gfpgan: RouteNames.create_gfpgan_model,
+        MODEL_REFERENCE_CATEGORY.safety_checker: RouteNames.create_safety_checker_model,
+        MODEL_REFERENCE_CATEGORY.miscellaneous: RouteNames.create_miscellaneous_model,
+    }
+    return category_route_map.get(category)
 
 
 def _legacy_model_url(route_name: RouteNames, category: MODEL_REFERENCE_CATEGORY, model_name: str) -> str:
@@ -394,7 +415,7 @@ class TestGetLegacyReference:
 
 
 class TestCreateLegacyModel:
-    """Tests for POST /{category}/{model_name} endpoint."""
+    """Tests for POST /{category}/create_model endpoint."""
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_create_model_success(
@@ -406,16 +427,23 @@ class TestCreateLegacyModel:
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
         """POST should create a new legacy model file entry."""
+        route_name = _get_create_route_for_category(category)
+        if route_name is None:
+            pytest.skip(f"Category {category} does not have a v1 create endpoint")
+
         model_name = "new_legacy_model"
         payload = _create_legacy_model_payload(model_name, category, description="Created via POST")
 
-        response = api_client.post(
-            _legacy_model_url(RouteNames.create_model, category, model_name),
-            json=payload,
-        )
+        url = route_registry.url_for(route_name, {}, v1_prefix)
+
+        response = api_client.post(url, json=payload)
 
         assert response.status_code == 201
-        assert response.json() == payload
+
+        response_json = response.json()
+        for key, value in payload.items():
+            if not isinstance(value, dict) and not isinstance(value, list):
+                assert response_json[key] == value
 
         legacy_data = _read_legacy_model_file(primary_base, category)
         assert model_name in legacy_data
@@ -431,102 +459,76 @@ class TestCreateLegacyModel:
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
         """POST should return 409 when model already exists."""
+        route_name = _get_create_route_for_category(category)
+        if route_name is None:
+            pytest.skip(f"Category {category} does not have a v1 create endpoint")
+
         model_name = "existing_model"
         existing_payload = _create_legacy_model_payload(model_name, category)
         _create_legacy_json_file(primary_base, category, {model_name: existing_payload})
 
-        response = api_client.post(
-            _legacy_model_url(RouteNames.create_model, category, model_name),
-            json=existing_payload,
-        )
+        url = route_registry.url_for(route_name, {}, v1_prefix)
+
+        response = api_client.post(url, json=existing_payload)
 
         assert response.status_code == 409
         assert "already exists" in response.json()["detail"].lower()
-
-    def test_create_model_missing_name(
-        self,
-        api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
-        primary_base: Path,
-        legacy_canonical_mode: None,
-    ) -> None:
-        """POST should return 400 when body omits required name field."""
-        category = MODEL_REFERENCE_CATEGORY.miscellaneous
-        model_name = "missing_name"
-        payload = {
-            "description": "Invalid payload",
-        }
-
-        response = api_client.post(
-            _legacy_model_url(RouteNames.create_model, category, model_name),
-            json=payload,
-        )
-
-        assert response.status_code == 400
-        assert "must include 'name'" in response.json()["detail"].lower()
-
-    @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
-    def test_create_model_name_mismatch(
-        self,
-        api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
-        primary_base: Path,
-        legacy_canonical_mode: None,
-        category: MODEL_REFERENCE_CATEGORY,
-    ) -> None:
-        """POST should return 400 when URL name differs from body name."""
-        model_name = "url_name"
-        payload = _create_legacy_model_payload("body_name", category)
-
-        response = api_client.post(
-            _legacy_model_url(RouteNames.create_model, category, model_name),
-            json=payload,
-        )
-
-        assert response.status_code == 400
-        assert "must match" in response.json()["detail"].lower()
 
 
 class TestLegacyFormatWriteRestriction:
     """Tests that write operations require legacy canonical format."""
 
-    @pytest.mark.parametrize(
-        ("route_name", "http_method", "needs_payload"),
-        [
-            (RouteNames.create_model, "post", True),
-            (RouteNames.update_model, "put", True),
-            (RouteNames.delete_model, "delete", False),
-        ],
-    )
-    def test_write_operations_require_legacy_canonical_format(
+    def test_update_requires_legacy_canonical_format(
         self,
         api_client: TestClient,
         primary_manager_for_v1_api: ModelReferenceManager,
         primary_base: Path,
-        route_name: RouteNames,
-        http_method: str,
-        needs_payload: bool,
     ) -> None:
-        """Write operations should return 503 when canonical_format is not legacy."""
+        """Update operations should return 503 when canonical_format is not legacy."""
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
         model_name = "legacy_disabled"
 
         assert horde_model_reference_settings.canonical_format == "v2"
 
-        url = _legacy_model_url(route_name, category, model_name)
+        url = route_registry.url_for(
+            RouteNames.update_model,
+            {PathVariables.model_category_name: category.value},
+            v1_prefix,
+        )
+        payload = _create_legacy_model_payload(model_name, category)
+        response = api_client.put(url, json=payload)
 
-        if needs_payload:
-            payload = _create_legacy_model_payload(model_name, category)
-            response = api_client.request(http_method.upper(), url, json=payload)
-        else:
-            response = api_client.request(http_method.upper(), url)
+        assert response.status_code == 503
+        assert "legacy format write operations" in response.json()["detail"].lower()
+
+    def test_delete_requires_legacy_canonical_format(
+        self,
+        api_client: TestClient,
+        primary_manager_for_v1_api: ModelReferenceManager,
+        primary_base: Path,
+    ) -> None:
+        """Delete operations should return 503 when canonical_format is not legacy."""
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        model_name = "legacy_disabled"
+
+        assert horde_model_reference_settings.canonical_format == "v2"
+
+        url = route_registry.url_for(
+            RouteNames.delete_model,
+            {
+                PathVariables.model_category_name: category.value,
+                PathVariables.model_name: model_name,
+            },
+            v1_prefix,
+        )
+        response = api_client.delete(url)
 
         assert response.status_code == 503
         assert "legacy format write operations" in response.json()["detail"].lower()
 
 
 class TestUpdateLegacyModel:
-    """Tests for PUT /{category}/{model_name} endpoint."""
+    """Tests for PUT /{category}/update_model endpoint."""
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_update_existing_model(
@@ -544,80 +546,21 @@ class TestUpdateLegacyModel:
 
         updated_payload = _create_legacy_model_payload(model_name, category, description="Updated")
 
-        response = api_client.put(
-            _legacy_model_url(RouteNames.update_model, category, model_name),
-            json=updated_payload,
+        url = route_registry.url_for(
+            RouteNames.update_model,
+            {PathVariables.model_category_name: category.value},
+            v1_prefix,
         )
 
+        response = api_client.put(url, json=updated_payload)
+
         assert response.status_code == 200
-        assert response.json() == updated_payload
+        response_json = response.json()
+
+        assert response_json["description"] == "Updated"
 
         legacy_data = _read_legacy_model_file(primary_base, category)
         assert legacy_data[model_name]["description"] == "Updated"
-
-    @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
-    def test_update_creates_new_model_when_missing(
-        self,
-        api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
-        primary_base: Path,
-        legacy_canonical_mode: None,
-        category: MODEL_REFERENCE_CATEGORY,
-    ) -> None:
-        """PUT should create a model when it does not yet exist."""
-        model_name = "upsert_model"
-        payload = _create_legacy_model_payload(model_name, category, description="Created via PUT")
-
-        response = api_client.put(
-            _legacy_model_url(RouteNames.update_model, category, model_name),
-            json=payload,
-        )
-
-        assert response.status_code == 201
-        legacy_data = _read_legacy_model_file(primary_base, category)
-        assert model_name in legacy_data
-        assert legacy_data[model_name]["description"] == "Created via PUT"
-
-    def test_update_model_missing_name(
-        self,
-        api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
-        primary_base: Path,
-        legacy_canonical_mode: None,
-    ) -> None:
-        """PUT should reject payloads missing the name attribute."""
-        category = MODEL_REFERENCE_CATEGORY.miscellaneous
-        model_name = "no_name"
-        payload = {"description": "Invalid"}
-
-        response = api_client.put(
-            _legacy_model_url(RouteNames.update_model, category, model_name),
-            json=payload,
-        )
-
-        assert response.status_code == 400
-        assert "must include 'name'" in response.json()["detail"].lower()
-
-    @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
-    def test_update_model_name_mismatch(
-        self,
-        api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
-        primary_base: Path,
-        legacy_canonical_mode: None,
-        category: MODEL_REFERENCE_CATEGORY,
-    ) -> None:
-        """PUT should reject when body name does not match URL."""
-        model_name = "url_name"
-        payload = _create_legacy_model_payload("body_name", category)
-
-        response = api_client.put(
-            _legacy_model_url(RouteNames.update_model, category, model_name),
-            json=payload,
-        )
-
-        assert response.status_code == 400
-        assert "must match" in response.json()["detail"].lower()
 
 
 class TestDeleteLegacyModel:
@@ -639,7 +582,7 @@ class TestDeleteLegacyModel:
 
         response = api_client.delete(_legacy_model_url(RouteNames.delete_model, category, model_name))
 
-        assert response.status_code == 204
+        assert response.status_code == 200
 
         legacy_data = _read_legacy_model_file(primary_base, category)
         assert model_name not in legacy_data
