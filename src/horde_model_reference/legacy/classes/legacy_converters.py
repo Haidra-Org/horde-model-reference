@@ -16,27 +16,20 @@ from horde_model_reference import (
     path_consts,
 )
 from horde_model_reference.legacy.classes.legacy_models import (
-    LegacyBlipRecord,
     LegacyClipRecord,
-    LegacyCodeformerRecord,
-    LegacyControlnetRecord,
-    LegacyEsrganRecord,
     LegacyGenericRecord,
-    LegacyGfpganRecord,
-    LegacyMiscellaneousRecord,
-    LegacySafetyCheckerRecord,
     LegacyStableDiffusionRecord,
     LegacyTextGenerationRecord,
 )
 from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
 from horde_model_reference.model_reference_records import (
+    MODEL_RECORD_TYPE_LOOKUP,
     ClipModelRecord,
     ControlNetModelRecord,
     DownloadRecord,
     GenericModelRecord,
     GenericModelRecordConfig,
     ImageGenerationModelRecord,
-    MODEL_RECORD_TYPE_LOOKUP,
     TextGenerationModelRecord,
 )
 from horde_model_reference.util import model_name_to_showcase_folder_name
