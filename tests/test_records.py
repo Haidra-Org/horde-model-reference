@@ -1,5 +1,6 @@
-from pydantic import ValidationError
 import pytest
+from pydantic import ValidationError
+
 from horde_model_reference.meta_consts import (
     KNOWN_IMAGE_GENERATION_BASELINE,
     MODEL_DOMAIN,

@@ -138,7 +138,7 @@ route_registry.register_route(
     },
 )
 async def read_v2_reference_names(
-    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)]
+    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
 ) -> list[MODEL_REFERENCE_CATEGORY]:
     """Get all available v2 model reference category names.
 
