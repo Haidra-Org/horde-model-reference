@@ -52,8 +52,8 @@ class ModelReferenceManager:
         """Create the appropriate backend based on mode and settings.
 
         Args:
-            base_path (str | Path): Base path for model reference files.
-            replicate_mode (ReplicateMode): The replication mode.
+            base_path: Base path for model reference files.
+            replicate_mode: The replication mode.
 
         Returns:
             ModelReferenceBackend: The configured backend instance.
@@ -133,16 +133,16 @@ class ModelReferenceManager:
         settings will raise an exception.
 
         Args:
-            backend (ModelReferenceBackend | None, optional): The backend to use for fetching model references.
+            backend: The backend to use for fetching model references.
                 If None, automatically selects the appropriate backend based on replicate_mode and settings:
                 - PRIMARY mode: FileSystemBackend (optionally wrapped with RedisBackend if configured)
                 - REPLICA mode: HTTPBackend (if PRIMARY API URL configured) or GitHubBackend (fallback)
                 Defaults to None.
-            lazy_mode (bool, optional): Whether to use lazy mode. In lazy mode, references are only downloaded
+            lazy_mode: Whether to use lazy mode. In lazy mode, references are only downloaded
                 when needed. Defaults to True.
-            base_path (str | Path, optional): The base path to use for storing model reference files.
+            base_path: The base path to use for storing model reference files.
                 Only used if backend is None. Defaults to horde_model_reference_paths.base_path.
-            replicate_mode (ReplicateMode, optional): The replicate mode to use.
+            replicate_mode: The replicate mode to use.
                 - PRIMARY: Local filesystem is source of truth
                 - REPLICA: Fetch from PRIMARY API or GitHub
                 Only used if backend is None. Defaults to horde_model_reference_settings.replicate_mode.
@@ -210,7 +210,7 @@ class ModelReferenceManager:
         """Invalidate the cached pydantic model references.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY | None): If provided, only invalidate the specific category.
+            category: If provided, only invalidate the specific category.
                 If None, invalidate the entire cache.
         """
         with self._lock:
@@ -228,7 +228,7 @@ class ModelReferenceManager:
         """Fetch references from backend if needed.
 
         Args:
-            force_refresh (bool): Whether to force refresh all categories.
+            force_refresh: Whether to force refresh all categories.
         """
         self.backend.fetch_all_categories(force_refresh=force_refresh)
 
@@ -240,8 +240,8 @@ class ModelReferenceManager:
         """Asynchronously fetch references from backend if needed.
 
         Args:
-            force_refresh (bool): Whether to force refresh all categories.
-            httpx_client (httpx.AsyncClient | None): An optional httpx async client to use.
+            force_refresh: Whether to force refresh all categories.
+            httpx_client: An optional httpx async client to use.
         """
         await self.backend.fetch_all_categories_async(
             force_refresh=force_refresh,
@@ -257,9 +257,9 @@ class ModelReferenceManager:
         """Return a model reference object from a JSON dictionary, or None if conversion failed.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The target model reference category to convert.
-            file_json_dict (dict): The dict object representing the model reference.
-            safe_mode (bool, optional): Whether to raise exceptions on failure. If False, exceptions are caught
+            category: The target model reference category to convert.
+            file_json_dict: The dict object representing the model reference.
+            safe_mode: Whether to raise exceptions on failure. If False, exceptions are caught
                 and None is returned. Defaults to False.
 
         Returns:
@@ -293,8 +293,8 @@ class ModelReferenceManager:
         """Return a JSON dictionary from a model reference object, or None if conversion failed.
 
         Args:
-            model_reference (KNOWN_MODEL_REFERENCE_INSTANCES): The model reference object.
-            safe_mode (bool, optional): Whether to raise exceptions on failure. If False, exceptions are caught
+            model_reference: The model reference object.
+            safe_mode: Whether to raise exceptions on failure. If False, exceptions are caught
                 and None is returned. Use `model_reference_to_json_dict_safe()` for the better type hinting if you
                 intend to use this. Defaults to False.
 
@@ -327,7 +327,7 @@ class ModelReferenceManager:
         Raises an exception if conversion fails.
 
         Args:
-            model_reference (KNOWN_MODEL_REFERENCE_INSTANCES): The model reference object.
+            model_reference: The model reference object.
 
         Returns:
             dict: The dict representing the model reference.
@@ -367,9 +367,9 @@ class ModelReferenceManager:
         Note that values may be None if the model reference file could not be found or parsed.
 
         Args:
-            overwrite_existing (bool, optional): Whether to force a redownload of all model reference files.
+            overwrite_existing: Whether to force a redownload of all model reference files.
                 Defaults to False.
-            safe_mode (bool, optional): Whether to raise exceptions on failure. If False, exceptions are caught
+            safe_mode: Whether to raise exceptions on failure. If False, exceptions are caught
                 and None is returned for that category. Defaults to False. Use `get_all_model_references()`
                 for the better type hinting if you intend to use this.
 
@@ -427,7 +427,7 @@ class ModelReferenceManager:
         missing model references, use `get_all_model_references_unsafe()` instead.
 
         Args:
-            overwrite_existing (bool, optional): Whether to force a redownload of all model reference files.
+            overwrite_existing: Whether to force a redownload of all model reference files.
                 Defaults to False.
 
         Returns:
@@ -456,8 +456,8 @@ class ModelReferenceManager:
         """Return the model reference object for a specific category.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
-            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+            category: The category to retrieve.
+            overwrite_existing: Whether to force a redownload. Defaults to False.
 
         Returns:
             dict[str, GenericModelRecord] | None: The model reference object for the category,
@@ -477,8 +477,8 @@ class ModelReferenceManager:
         If you want to allow missing model references, use `get_model_reference_unsafe()` instead.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
-            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+            category: The category to retrieve.
+            overwrite_existing: Whether to force a redownload. Defaults to False.
 
         Returns:
             dict[str, GenericModelRecord]: The model reference object for the category.
@@ -501,8 +501,8 @@ class ModelReferenceManager:
         """Return a list of model names for a specific category.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
-            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+            category: The category to retrieve.
+            overwrite_existing: Whether to force a redownload. Defaults to False.
 
         Returns:
             list[str] | None: The list of model names for the category, or None if not found.
@@ -527,8 +527,8 @@ class ModelReferenceManager:
         If you want to allow missing model references, use `get_model_names_unsafe()` instead.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
-            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+            category: The category to retrieve.
+            overwrite_existing: Whether to force a redownload. Defaults to False.
 
         Returns:
             list[str]: The list of model names for the category.
@@ -551,9 +551,9 @@ class ModelReferenceManager:
         """Return a specific model from a category.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
-            model_name (str): The name of the model within the category.
-            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+            category: The category to retrieve.
+            model_name: The name of the model within the category.
+            overwrite_existing: Whether to force a redownload. Defaults to False.
 
         Returns:
             GenericModelRecord | None: The model record, or None if not found.
@@ -579,9 +579,9 @@ class ModelReferenceManager:
         If you want to allow missing models, use `get_model_unsafe()` instead.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
-            model_name (str): The name of the model within the category.
-            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+            category: The category to retrieve.
+            model_name: The name of the model within the category.
+            overwrite_existing: Whether to force a redownload. Defaults to False.
 
         Returns:
             GenericModelRecord: The model record.
@@ -609,8 +609,8 @@ class ModelReferenceManager:
         that need fast JSON responses.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
-            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+            category: The category to retrieve.
+            overwrite_existing: Whether to force a redownload. Defaults to False.
 
         Returns:
             dict[str, Any] | None: The raw JSON dict for the category, or None if not found.
@@ -630,9 +630,9 @@ class ModelReferenceManager:
         that need fast JSON responses.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to retrieve.
-            model_name (str): The name of the model within the category.
-            overwrite_existing (bool, optional): Whether to force a redownload. Defaults to False.
+            category: The category to retrieve.
+            model_name: The name of the model within the category.
+            overwrite_existing: Whether to force a redownload. Defaults to False.
 
         Returns:
             dict[str, Any] | None: The raw JSON dict for the model, or None if not found.
