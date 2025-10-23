@@ -33,9 +33,9 @@ class FileSystemBackend(ReplicaBackendBase):
         """Initialize the FileSystem backend.
 
         Args:
-            base_path (str | Path, optional): Base path for model reference files.
-            cache_ttl_seconds (int, optional): TTL for internal cache in seconds.
-            replicate_mode (ReplicateMode, optional): Must be PRIMARY.
+            base_path: Base path for model reference files.
+            cache_ttl_seconds: TTL for internal cache in seconds.
+            replicate_mode: Must be PRIMARY.
 
         Raises:
             ValueError: If replicate_mode is not PRIMARY.

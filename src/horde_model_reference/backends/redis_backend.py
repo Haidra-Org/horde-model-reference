@@ -59,9 +59,9 @@ class RedisBackend(ModelReferenceBackend):
         """Initialize Redis backend with filesystem backend.
 
         Args:
-            file_backend (FileSystemBackend): Filesystem backend to wrap.
-            redis_settings (RedisSettings): Redis connection settings.
-            cache_ttl_seconds (int | None, optional): TTL for cache entries.
+            file_backend: Filesystem backend to wrap.
+            redis_settings: Redis connection settings.
+            cache_ttl_seconds: TTL for cache entries.
                 If None, uses redis_settings.ttl_seconds.
 
         Raises:

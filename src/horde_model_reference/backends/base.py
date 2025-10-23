@@ -54,8 +54,8 @@ class ModelReferenceBackend(ABC):
         """Fetch model reference data for a specific category.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to fetch.
-            force_refresh (bool, optional): If True, bypass any backend-level caching
+            category: The category to fetch.
+            force_refresh: If True, bypass any backend-level caching
                 and fetch fresh data. Defaults to False.
 
         Returns:
@@ -80,9 +80,11 @@ class ModelReferenceBackend(ABC):
             ```
 
         See Also:
-            - [`fetch_all_categories()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_all_categories]: Batch fetching of all categories
-            - [`fetch_category_async()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_category_async]: Async variant
-            - [`ReplicaBackendBase._fetch_with_cache()`][horde_model_reference.backends.replica_backend_base.ReplicaBackendBase._fetch_with_cache]: Helper for cache management
+            - [fetch_all_categories()][(c).fetch_all_categories]: Batch fetching of all categories
+            - [fetch_category_async()][(c).fetch_category_async]: Async variant
+            - [ReplicaBackendBase._fetch_with_cache()]
+              [^^^.replica_backend_base.ReplicaBackendBase._fetch_with_cache]:
+              Helper for cache management
         """
 
     @abstractmethod
@@ -94,7 +96,7 @@ class ModelReferenceBackend(ABC):
         """Fetch model reference data for all categories.
 
         Args:
-            force_refresh (bool, optional): If True, bypass any backend-level caching
+            force_refresh: If True, bypass any backend-level caching
                 and fetch fresh data. Defaults to False.
 
         Returns:
@@ -104,7 +106,7 @@ class ModelReferenceBackend(ABC):
         Implementation Requirements:
             - Return a dictionary mapping each category to its data
             - Use `None` values for categories that cannot be fetched
-            - Typically implemented as a loop over [`fetch_category()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_category]
+            - Typically implemented as a loop over [fetch_category()][(c).fetch_category]
 
         Example Implementation:
             ```python
@@ -116,8 +118,8 @@ class ModelReferenceBackend(ABC):
             ```
 
         See Also:
-            - [`fetch_category()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_category]: Single category fetching
-            - [`fetch_all_categories_async()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_all_categories_async]: Async variant
+            - [fetch_category()][(c).fetch_category]: Single category fetching
+            - [fetch_all_categories_async()][(c).fetch_all_categories_async]: Async variant
         """
 
     @abstractmethod
@@ -131,9 +133,9 @@ class ModelReferenceBackend(ABC):
         """Asynchronously fetch model reference data for a specific category.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to fetch.
-            httpx_client (httpx.AsyncClient | None): An optional httpx async client for connection pooling.
-            force_refresh (bool, optional): If True, bypass any backend-level caching. Defaults to False.
+            category: The category to fetch.
+            httpx_client: An optional httpx async client for connection pooling.
+            force_refresh: If True, bypass any backend-level caching. Defaults to False.
 
         Returns:
             dict[str, Any] | None: The model reference data, or None if fetch failed.
@@ -143,7 +145,8 @@ class ModelReferenceBackend(ABC):
             - Accept optional `httpx_client` for connection pooling
             - Create temporary client if not provided
             - Same return format as synchronous version
-            - Share cache with synchronous methods when using [`ReplicaBackendBase`][horde_model_reference.backends.replica_backend_base.ReplicaBackendBase]
+            - Share cache with synchronous methods when using
+              [ReplicaBackendBase][^^^.replica_backend_base.ReplicaBackendBase]
 
         Example Implementation:
             ```python
@@ -161,8 +164,8 @@ class ModelReferenceBackend(ABC):
             ```
 
         See Also:
-            - [`fetch_category()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_category]: Synchronous variant
-            - [`fetch_all_categories_async()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_all_categories_async]: Async batch fetching
+            - [fetch_category()][(c).fetch_category]: Synchronous variant
+            - [fetch_all_categories_async()][(c).fetch_all_categories_async]: Async batch fetching
         """
 
     @abstractmethod
@@ -175,8 +178,8 @@ class ModelReferenceBackend(ABC):
         """Asynchronously fetch model reference data for all categories.
 
         Args:
-            httpx_client (httpx.AsyncClient | None): An optional httpx async client for connection pooling.
-            force_refresh (bool, optional): If True, bypass any backend-level caching. Defaults to False.
+            httpx_client: An optional httpx async client for connection pooling.
+            force_refresh: If True, bypass any backend-level caching. Defaults to False.
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]: A mapping of categories to their data.
@@ -206,8 +209,8 @@ class ModelReferenceBackend(ABC):
             ```
 
         See Also:
-            - [`fetch_all_categories()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_all_categories]: Synchronous variant
-            - [`fetch_category_async()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_category_async]: Async single category fetch
+            - [fetch_all_categories()][(c).fetch_all_categories]: Synchronous variant
+            - [fetch_category_async()][(c).fetch_category_async]: Async single category fetch
         """
 
     @abstractmethod
@@ -226,7 +229,7 @@ class ModelReferenceBackend(ABC):
         database timestamps, ETags, TTL expiration, explicit invalidation, etc.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to check.
+            category: The category to check.
 
         Returns:
             bool: True if cached data needs refresh due to staleness. False if no
@@ -238,13 +241,14 @@ class ModelReferenceBackend(ABC):
             - Staleness can be based on: TTL expiration, file mtime changes, ETags, explicit invalidation
 
         Note:
-            [`ReplicaBackendBase`][horde_model_reference.backends.replica_backend_base.ReplicaBackendBase]
+            [ReplicaBackendBase][^^^.replica_backend_base.ReplicaBackendBase]
             provides a concrete implementation that checks explicit staleness marking,
             TTL expiration, file mtime changes, and custom validation hooks.
 
         See Also:
-            - [`mark_stale()`][horde_model_reference.backends.base.ModelReferenceBackend.mark_stale]: Explicitly mark a category as stale
-            - [`ReplicaBackendBase.should_fetch_data()`][horde_model_reference.backends.replica_backend_base.ReplicaBackendBase.should_fetch_data]: Combined initial fetch + refresh check
+            - [mark_stale()][(c).mark_stale]: Explicitly mark a category as stale
+            - [ReplicaBackendBase.should_fetch_data()][^^^.replica_backend_base.ReplicaBackendBase.should_fetch_data]:
+              Combined initial fetch + refresh check
         """
 
     def register_invalidation_callback(
@@ -285,7 +289,7 @@ class ModelReferenceBackend(ABC):
 
         Implementation Requirements:
             - Update backend-specific staleness tracking (e.g., add to `_stale_categories` set)
-            - Called by public [`mark_stale()`][horde_model_reference.backends.base.ModelReferenceBackend.mark_stale] method before notifying callbacks
+            - Called by public [mark_stale()][(c).mark_stale] method before notifying callbacks
             - Implementations should override this method, not `mark_stale()`
 
         Note:
@@ -300,16 +304,17 @@ class ModelReferenceBackend(ABC):
         all registered callbacks.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to mark as stale.
+            category: The category to mark as stale.
 
         Implementation Note:
             The base class provides this public implementation. Subclasses should override
-            [`_mark_stale_impl()`][horde_model_reference.backends.base.ModelReferenceBackend._mark_stale_impl]
+            [_mark_stale_impl()][(c)._mark_stale_impl]
             instead of this method.
 
         See Also:
-            - [`_mark_stale_impl()`][horde_model_reference.backends.base.ModelReferenceBackend._mark_stale_impl]: Backend-specific staleness tracking
-            - [`register_invalidation_callback()`][horde_model_reference.backends.base.ModelReferenceBackend.register_invalidation_callback]: Register callbacks for invalidation events
+            - [_mark_stale_impl()][(c)._mark_stale_impl]: Backend-specific staleness tracking
+            - [register_invalidation_callback()][(c).register_invalidation_callback]:
+              Register callbacks for invalidation events
         """
         self._mark_stale_impl(category)
         self._notify_invalidation(category)
@@ -322,7 +327,7 @@ class ModelReferenceBackend(ABC):
         with each category. Others (like database backends) may return None.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to get the path for.
+            category: The category to get the path for.
 
         Returns:
             Path | None: The file path, or None if not applicable for this backend.
@@ -343,7 +348,7 @@ class ModelReferenceBackend(ABC):
             ```
 
         See Also:
-            - [`get_all_category_file_paths()`][horde_model_reference.backends.base.ModelReferenceBackend.get_all_category_file_paths]: Get all file paths
+            - [get_all_category_file_paths()][(c).get_all_category_file_paths]: Get all file paths
         """
 
     @abstractmethod
@@ -369,7 +374,7 @@ class ModelReferenceBackend(ABC):
             ```
 
         See Also:
-            - [`get_category_file_path()`][horde_model_reference.backends.base.ModelReferenceBackend.get_category_file_path]: Get single category file path
+            - [get_category_file_path()][(c).get_category_file_path]: Get single category file path
         """
 
     @abstractmethod
@@ -384,8 +389,8 @@ class ModelReferenceBackend(ABC):
         The cache is populated during initialization, downloads, and on-demand loads.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): Category to retrieve.
-            redownload (bool): If True, redownload before returning and refresh cache.
+            category: Category to retrieve.
+            redownload: If True, redownload before returning and refresh cache.
 
         Returns:
             dict[str, Any] | None: The raw legacy JSON dict, or None if not found.
@@ -397,7 +402,7 @@ class ModelReferenceBackend(ABC):
             - The `redownload` parameter is analogous to `force_refresh` in fetch methods
 
         See Also:
-            - [`get_legacy_json_string()`][horde_model_reference.backends.base.ModelReferenceBackend.get_legacy_json_string]: Get as string instead of dict
+            - [get_legacy_json_string()][(c).get_legacy_json_string]: Get as string instead of dict
         """
 
     @abstractmethod
@@ -412,19 +417,19 @@ class ModelReferenceBackend(ABC):
         The cache is populated during initialization, downloads, and on-demand loads.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): Category to retrieve.
-            redownload (bool): If True, redownload before returning and refresh cache.
+            category: Category to retrieve.
+            redownload: If True, redownload before returning and refresh cache.
 
         Returns:
             str | None: The raw legacy JSON string, or None if not found.
 
         Implementation Requirements:
             - Return legacy format data as JSON string
-            - Same caching semantics as [`get_legacy_json()`][horde_model_reference.backends.base.ModelReferenceBackend.get_legacy_json]
+            - Same caching semantics as [get_legacy_json()][(c).get_legacy_json]
             - Return `None` if not available
 
         See Also:
-            - [`get_legacy_json()`][horde_model_reference.backends.base.ModelReferenceBackend.get_legacy_json]: Get as dict instead of string
+            - [get_legacy_json()][(c).get_legacy_json]: Get as dict instead of string
         """
 
     def supports_writes(self) -> bool:
@@ -493,9 +498,9 @@ class ModelReferenceBackend(ABC):
         Read-only backends should leave the default implementation which raises NotImplementedError.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to update.
-            model_name (str): The name of the model to update or create.
-            record_dict (dict[str, Any]): The model record data as a dictionary.
+            category: The category to update.
+            model_name: The name of the model to update or create.
+            record_dict: The model record data as a dictionary.
 
         Raises:
             NotImplementedError: If the backend does not support write operations.
@@ -504,13 +509,14 @@ class ModelReferenceBackend(ABC):
             - Create model if it doesn't exist
             - Update model if it exists
             - Ensure atomic writes (use temp files with rename for file-based backends)
-            - Call [`mark_stale()`][horde_model_reference.backends.base.ModelReferenceBackend.mark_stale] after successful write to invalidate cache
-            - Override [`supports_writes()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_writes] to return `True`
+            - Call [mark_stale()][(c).mark_stale] after successful write to invalidate cache
+            - Override [supports_writes()][(c).supports_writes] to return `True`
 
         See Also:
-            - [`update_model_from_base_model()`][horde_model_reference.backends.base.ModelReferenceBackend.update_model_from_base_model]: Update from pydantic model (automatically provided)
-            - [`delete_model()`][horde_model_reference.backends.base.ModelReferenceBackend.delete_model]: Delete a model
-            - [`supports_writes()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_writes]: Feature detection method
+            - [update_model_from_base_model()][(c).update_model_from_base_model]:
+              Update from pydantic model (automatically provided)
+            - [delete_model()][(c).delete_model]: Delete a model
+            - [supports_writes()][(c).supports_writes]: Feature detection method
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support write operations")
 
@@ -526,24 +532,24 @@ class ModelReferenceBackend(ABC):
         Read-only backends should leave the default implementation which raises NotImplementedError.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to update.
-            model_name (str): The name of the model to update or create.
-            record_model (BaseModel): The model record data as a pydantic BaseModel.
+            category: The category to update.
+            model_name: The name of the model to update or create.
+            record_model: The model record data as a pydantic BaseModel.
 
         Raises:
             NotImplementedError: If the backend does not support write operations.
 
         Implementation Note:
             The base class provides this implementation automatically. It:
-            1. Checks [`supports_writes()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_writes] returns `True`
+            1. Checks [supports_writes()][(c).supports_writes] returns `True`
             2. Converts the pydantic model to dict using `model_dump(exclude_unset=True)`
-            3. Calls [`update_model()`][horde_model_reference.backends.base.ModelReferenceBackend.update_model] with the dictionary
+            3. Calls [update_model()][(c).update_model] with the dictionary
 
             Backends that support writes typically don't need to override this method.
 
         See Also:
-            - [`update_model()`][horde_model_reference.backends.base.ModelReferenceBackend.update_model]: Update from dictionary (implement this)
-            - [`supports_writes()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_writes]: Feature detection method
+            - [update_model()][(c).update_model]: Update from dictionary (implement this)
+            - [supports_writes()][(c).supports_writes]: Feature detection method
         """
         if not self.supports_writes():
             raise NotImplementedError(f"{self.__class__.__name__} does not support write operations")
@@ -562,8 +568,8 @@ class ModelReferenceBackend(ABC):
         Read-only backends should leave the default implementation which raises NotImplementedError.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category containing the model.
-            model_name (str): The name of the model to delete.
+            category: The category containing the model.
+            model_name: The name of the model to delete.
 
         Raises:
             NotImplementedError: If the backend does not support write operations.
@@ -572,12 +578,12 @@ class ModelReferenceBackend(ABC):
         Implementation Requirements:
             - Raise `KeyError` if model doesn't exist
             - Ensure atomic writes
-            - Call [`mark_stale()`][horde_model_reference.backends.base.ModelReferenceBackend.mark_stale] after successful delete to invalidate cache
-            - Override [`supports_writes()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_writes] to return `True`
+            - Call [mark_stale()][(c).mark_stale] after successful delete to invalidate cache
+            - Override [supports_writes()][(c).supports_writes] to return `True`
 
         See Also:
-            - [`update_model()`][horde_model_reference.backends.base.ModelReferenceBackend.update_model]: Update or create a model
-            - [`supports_writes()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_writes]: Feature detection method
+            - [update_model()][(c).update_model]: Update or create a model
+            - [supports_writes()][(c).supports_writes]: Feature detection method
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support write operations")
 
@@ -593,9 +599,9 @@ class ModelReferenceBackend(ABC):
         Only available when canonical_format='legacy' in PRIMARY mode.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to update.
-            model_name (str): The name of the model to update or create.
-            record_dict (dict[str, Any]): The model record data in legacy format as a dictionary.
+            category: The category to update.
+            model_name: The name of the model to update or create.
+            record_dict: The model record data in legacy format as a dictionary.
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.
@@ -614,9 +620,9 @@ class ModelReferenceBackend(ABC):
         Only available when canonical_format='legacy' in PRIMARY mode.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category to update.
-            model_name (str): The name of the model to update or create.
-            record_model (BaseModel): The model record data as a pydantic BaseModel.
+            category: The category to update.
+            model_name: The name of the model to update or create.
+            record_model: The model record data as a pydantic BaseModel.
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.
@@ -638,8 +644,8 @@ class ModelReferenceBackend(ABC):
         Only available when canonical_format='legacy' in PRIMARY mode.
 
         Args:
-            category (MODEL_REFERENCE_CATEGORY): The category containing the model.
-            model_name (str): The name of the model to delete.
+            category: The category containing the model.
+            model_name: The name of the model to delete.
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.
