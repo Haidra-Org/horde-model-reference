@@ -59,11 +59,11 @@ class GitHubBackend(ReplicaBackendBase):
         """Initialize the GitHub backend for REPLICA mode.
 
         Args:
-            base_path (str | Path, optional): Base path for storing model reference files.
-            cache_ttl_seconds (int, optional): TTL for internal cache in seconds.
-            retry_max_attempts (int, optional): Max download retry attempts.
-            retry_backoff_seconds (float, optional): Backoff time between retries.
-            replicate_mode (ReplicateMode, optional): Must be REPLICA. Defaults to REPLICA.
+            base_path: Base path for storing model reference files.
+            cache_ttl_seconds: TTL for internal cache in seconds.
+            retry_max_attempts: Max download retry attempts.
+            retry_backoff_seconds: Backoff time between retries.
+            replicate_mode: Must be REPLICA. Defaults to REPLICA.
 
         Raises:
             ValueError: If replicate_mode is not REPLICA.
@@ -320,7 +320,7 @@ class GitHubBackend(ReplicaBackendBase):
         """Get file paths for all categories' converted data.
 
         Returns:
-            dict: Mapping of categories to their converted file paths.
+            dict[MODEL_REFERENCE_CATEGORY, Path | None]: Mapping of categories to their converted file paths.
         """
         return horde_model_reference_paths.get_all_model_reference_file_paths(base_path=self.base_path)
 
@@ -469,7 +469,12 @@ class GitHubBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         overwrite_existing: bool = False,
     ) -> None:
-        """Download a single category's legacy file and convert it."""
+        """Download a single legacy file and convert it.
+
+        Args:
+            category: The category to download and convert.
+            overwrite_existing: If True, overwrite existing files.
+        """
         self._download_legacy(category, overwrite_existing=overwrite_existing)
 
         convert_legacy_database_by_category(category)
@@ -486,7 +491,15 @@ class GitHubBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         overwrite_existing: bool = False,
     ) -> Path | None:
-        """Download a single legacy file from GitHub (synchronous)."""
+        """Download a single legacy file from GitHub (synchronous).
+
+        Args:
+            category: The category to download.
+            overwrite_existing: If True, overwrite existing file.
+
+        Returns:
+            Path | None: Path to the downloaded file, or None on failure.
+        """
         if self._replicate_mode != ReplicateMode.REPLICA:
             logger.debug(f"Replicate mode is not REPLICA, skipping download for {category}")
             return self._references_paths_cache.get(category)
@@ -585,7 +598,16 @@ class GitHubBackend(ReplicaBackendBase):
         httpx_client: httpx.AsyncClient | None = None,
         overwrite_existing: bool = False,
     ) -> Path | None:
-        """Download a single legacy file from GitHub (asynchronous)."""
+        """Download a single legacy file from GitHub (asynchronous).
+
+        Args:
+            category: The category to download.
+            httpx_client: Optional httpx async client for downloads.
+            overwrite_existing: If True, overwrite existing file.
+
+        Returns:
+            Path | None: Path to the downloaded file, or None on failure.
+        """
         if self._replicate_mode != ReplicateMode.REPLICA:
             logger.debug(f"Replicate mode is not REPLICA, skipping download for {category}")
             return self._references_paths_cache.get(category)
