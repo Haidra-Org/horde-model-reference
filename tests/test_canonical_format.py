@@ -37,8 +37,9 @@ def create_test_legacy_model(name: str) -> dict[str, Any]:
 class TestCanonicalFormatSetting:
     """Test the canonical_format setting."""
 
-    def test_default_canonical_format_is_v2(self) -> None:
+    def test_default_canonical_format_is_v2(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that default canonical_format is 'v2'."""
+        monkeypatch.delenv("HORDE_MODEL_REFERENCE_CANONICAL_FORMAT", raising=False)
         settings = HordeModelReferenceSettings()
         assert settings.canonical_format == "v2"
 
@@ -66,8 +67,9 @@ class TestFileSystemBackendLegacyWrites:
     def test_supports_legacy_writes_false_by_default(
         self,
         primary_base: Path,
+        v2_canonical_mode: None,
     ) -> None:
-        """Test that supports_legacy_writes returns False with default settings."""
+        """Test that supports_legacy_writes returns False with default settings (v2)."""
         backend = FileSystemBackend(
             base_path=primary_base,
             replicate_mode=ReplicateMode.PRIMARY,
@@ -111,6 +113,7 @@ class TestFileSystemBackendLegacyWrites:
     def test_update_model_legacy_fails_when_canonical_format_v2(
         self,
         primary_base: Path,
+        v2_canonical_mode: None,
     ) -> None:
         """Test that update_model_legacy raises error when canonical_format='v2'."""
         backend = FileSystemBackend(
@@ -249,6 +252,7 @@ class TestModelReferenceManagerLegacyWrites:
         self,
         primary_base: Path,
         restore_manager_singleton: None,
+        v2_canonical_mode: None,
     ) -> None:
         """Test that legacy write methods fail when canonical_format='v2'."""
         manager = ModelReferenceManager(
@@ -396,6 +400,7 @@ class TestV2WriteOperations:
         self,
         primary_base: Path,
         restore_manager_singleton: None,
+        v2_canonical_mode: None,
     ) -> None:
         """Test that v2 update_model works in PRIMARY mode with v2 format."""
         from horde_model_reference import horde_model_reference_settings
@@ -431,6 +436,7 @@ class TestV2WriteOperations:
         self,
         primary_base: Path,
         restore_manager_singleton: None,
+        v2_canonical_mode: None,
     ) -> None:
         """Test that v2 delete_model works in PRIMARY mode with v2 format."""
         from horde_model_reference import horde_model_reference_settings
@@ -517,6 +523,7 @@ class TestCrossFormatWriteRestrictions:
         self,
         primary_base: Path,
         restore_manager_singleton: None,
+        v2_canonical_mode: None,
     ) -> None:
         """Test that legacy write operations are unavailable when canonical_format='v2'."""
         from horde_model_reference import horde_model_reference_settings
@@ -704,6 +711,7 @@ class TestCanonicalFormatEdgeCases:
         self,
         primary_base: Path,
         restore_manager_singleton: None,
+        v2_canonical_mode: None,
     ) -> None:
         """Test that supports_legacy_writes returns False when canonical_format='v2'."""
         from horde_model_reference import horde_model_reference_settings
@@ -724,6 +732,7 @@ class TestV2DeleteEdgeCases:
         self,
         primary_base: Path,
         restore_manager_singleton: None,
+        v2_canonical_mode: None,
     ) -> None:
         """Test deleting a model that doesn't exist in an existing category file."""
         from horde_model_reference import horde_model_reference_settings
@@ -855,6 +864,7 @@ class TestConcurrentOperations:
         self,
         primary_base: Path,
         restore_manager_singleton: None,
+        v2_canonical_mode: None,
     ) -> None:
         """Test multiple sequential create/update/delete operations."""
         from horde_model_reference import horde_model_reference_settings

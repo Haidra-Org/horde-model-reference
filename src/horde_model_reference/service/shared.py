@@ -1,6 +1,17 @@
 from enum import auto
 
+import httpx
+import urllib.parse
+from fastapi import HTTPException
+from fastapi.security import APIKeyHeader
+from loguru import logger
 from strenum import StrEnum
+
+from horde_model_reference import ai_horde_worker_settings
+
+header_auth_scheme = APIKeyHeader(name="apikey")
+
+httpx_client = httpx.AsyncClient()
 
 v1_prefix = "/model_references/v1"
 v2_prefix = "/model_references/v2"
@@ -20,17 +31,17 @@ class RouteNames(StrEnum):
     get_reference_names = auto()
     get_reference_by_category = auto()
     get_single_model = auto()
+    image_generation_model = auto()
+    text_generation_model = auto()
+    blip_model = auto()
+    clip_model = auto()
+    codeformer_model = auto()
+    controlnet_model = auto()
+    esrgan_model = auto()
+    gfpgan_model = auto()
+    safety_checker_model = auto()
+    miscellaneous_model = auto()
     create_model = auto()
-    create_image_generation_model = auto()
-    create_text_generation_model = auto()
-    create_blip_model = auto()
-    create_clip_model = auto()
-    create_codeformer_model = auto()
-    create_controlnet_model = auto()
-    create_esrgan_model = auto()
-    create_gfpgan_model = auto()
-    create_safety_checker_model = auto()
-    create_miscellaneous_model = auto()
     update_model = auto()
     delete_model = auto()
 
@@ -93,3 +104,61 @@ class Operation(StrEnum):
     create = "create"
     update = "update"
     delete = "delete"
+
+
+# Full names, like Tazlin#6572, are unreliable because the user can change them.
+# Instead, we use the immutable user ID for authentication allowlisting.
+allowed_users = ["6572"]
+
+
+async def auth_against_horde(apikey: str, client: httpx.AsyncClient) -> bool:
+    """Authenticate the provided API key against the AI-Horde.
+
+    This uses the endpoint defined by AI_HORDE_URL by AIHordeClientSettings in haidra_core.
+
+    Args:
+        apikey (str): The API key to authenticate.
+        client (httpx.AsyncClient): The HTTP client to use for the request.
+
+    Returns:
+        bool: True if authentication is successful, False otherwise.
+    """
+    find_user_subpath = "v2/find_user"
+    url = urllib.parse.urljoin(
+        str(ai_horde_worker_settings.ai_horde_url),
+        find_user_subpath,
+    )
+
+    response = await client.get(
+        url,
+        headers={"apikey": f"{apikey}"},
+    )
+
+    if response.status_code == 200:
+        user_data = response.json()
+        user_name = user_data.get("username", "")
+
+        if "#" not in user_name:
+            logger.warning(f"Unknown apikey: {user_data}")
+            return False
+
+        user_id = user_name.split("#")[-1]
+
+        if user_id in allowed_users:
+            return True
+
+        logger.warning(f"Unauthorized user ID: {user_id}")
+
+    return False
+
+
+class APIKeyInvalidException(HTTPException):
+    """Exception raised when an API key is invalid."""
+
+    def __init__(self, headers: dict[str, str] | None = None) -> None:
+        """Initialize the exception."""
+        super().__init__(
+            status_code=401,
+            detail="Invalid API key",
+            headers=headers,
+        )
