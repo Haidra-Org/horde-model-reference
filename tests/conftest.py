@@ -8,6 +8,10 @@ from typing import Any
 # This ensures settings singletons are initialized with test values
 os.environ["TESTS_ONGOING"] = "1"
 os.environ["AI_HORDE_TESTING"] = "True"
+os.environ["HORDE_MODEL_REFERENCE_REPLICATE_MODE"] = "PRIMARY"
+# Set to legacy so v1 CRUD routes are registered at import time
+# v2 tests will override this via fixtures
+os.environ["HORDE_MODEL_REFERENCE_CANONICAL_FORMAT"] = "legacy"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,7 +28,6 @@ _HORDE_MODEL_REFERENCE_ENV_PREFIX = "HORDE_MODEL_REFERENCE_"
 
 # Critical environment variables that must be cleared to avoid test interference
 _CRITICAL_ENV_VARS_TO_CLEAR = [
-    "HORDE_MODEL_REFERENCE_REPLICATE_MODE",
     "HORDE_MODEL_REFERENCE_REDIS_USE_REDIS",
     "HORDE_MODEL_REFERENCE_REDIS_URL",
     "HORDE_MODEL_REFERENCE_PRIMARY_API_URL",
@@ -129,9 +132,10 @@ def model_reference_manager() -> ModelReferenceManager:
 
 
 @pytest.fixture
-def api_client() -> TestClient:
+def api_client() -> Iterator[TestClient]:
     """Create a FastAPI test client for service tests."""
-    return TestClient(app)
+    with TestClient(app) as client:
+        yield client
 
 
 @pytest.fixture
@@ -176,14 +180,57 @@ def primary_manager_override_factory(
 
 
 @pytest.fixture
-def legacy_canonical_mode() -> Generator[None, None, None]:
-    """Temporarily switch canonical_format to legacy for the duration of a test."""
-    previous_format = horde_model_reference_settings.canonical_format
-    horde_model_reference_settings.canonical_format = "legacy"
-    try:
-        yield
-    finally:
-        horde_model_reference_settings.canonical_format = previous_format
+def legacy_canonical_mode(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    """Temporarily switch canonical_format to legacy for the duration of a test.
+
+    This fixture uses monkeypatch to ensure proper cleanup and isolation.
+    """
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "legacy")
+    yield
+
+
+@pytest.fixture
+def v2_canonical_mode(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+    """Temporarily switch canonical_format to v2 for the duration of a test.
+
+    This fixture uses monkeypatch to ensure proper cleanup and isolation.
+    """
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "v2")
+    yield
+
+
+@pytest.fixture
+def v1_canonical_manager(
+    primary_base: Path,
+    restore_manager_singleton: None,
+    dependency_override: Callable[[Callable[[], Any], Callable[[], Any]], None],
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[ModelReferenceManager]:
+    """Create a PRIMARY mode manager with canonical_format='legacy' for v1 API tests.
+
+    This fixture:
+    1. Sets canonical_format to 'legacy' via monkeypatch
+    2. Creates a fresh PRIMARY manager with isolated base_path
+    3. Registers it as a dependency override for v1 API endpoints
+    4. Cleans up automatically after the test
+    """
+    from horde_model_reference.service.v1.routers.shared import get_model_reference_manager
+
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "legacy")
+
+    backend = FileSystemBackend(
+        base_path=primary_base,
+        cache_ttl_seconds=60,
+        replicate_mode=ReplicateMode.PRIMARY,
+    )
+    manager = ModelReferenceManager(
+        backend=backend,
+        lazy_mode=True,
+        replicate_mode=ReplicateMode.PRIMARY,
+    )
+
+    dependency_override(get_model_reference_manager, lambda: manager)
+    yield manager
 
 
 @pytest.fixture
@@ -200,6 +247,17 @@ def legacy_path(primary_base: Path) -> Path:
     legacy_dir = primary_base / "legacy"
     legacy_dir.mkdir(parents=True, exist_ok=True)
     return legacy_dir
+
+
+@pytest.fixture
+def mock_auth_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Mock auth_against_horde to always return True for testing write operations."""
+
+    async def _mock_auth(apikey: str, client: Any) -> bool:
+        return True
+
+    monkeypatch.setattr("horde_model_reference.service.v1.routers.create_update.auth_against_horde", _mock_auth)
+    monkeypatch.setattr("horde_model_reference.service.v1.routers.shared.auth_against_horde", _mock_auth)
 
 
 @pytest.fixture

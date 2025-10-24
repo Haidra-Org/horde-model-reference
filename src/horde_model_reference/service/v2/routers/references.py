@@ -292,7 +292,7 @@ create_model_image_generation_route_subpath = f"/{MODEL_REFERENCE_CATEGORY.image
 """/image_generation/create_model"""
 route_registry.register_route(
     v2_prefix,
-    RouteNames.create_image_generation_model,
+    RouteNames.image_generation_model,
     create_model_image_generation_route_subpath,
 )
 
@@ -383,7 +383,7 @@ create_model_text_generation_route_subpath = f"/{MODEL_REFERENCE_CATEGORY.text_g
 """/text_generation/create_model"""
 route_registry.register_route(
     v2_prefix,
-    RouteNames.create_text_generation_model,
+    RouteNames.text_generation_model,
     create_model_text_generation_route_subpath,
 )
 
@@ -474,7 +474,7 @@ create_model_controlnet_route_subpath = f"/{MODEL_REFERENCE_CATEGORY.controlnet}
 """/controlnet/create_model"""
 route_registry.register_route(
     v2_prefix,
-    RouteNames.create_controlnet_model,
+    RouteNames.controlnet_model,
     create_model_controlnet_route_subpath,
 )
 

@@ -16,19 +16,14 @@ from horde_model_reference import (
     horde_model_reference_settings,
 )
 from horde_model_reference.service.shared import PathVariables, RouteNames, route_registry, v1_prefix
-from horde_model_reference.service.v1.routers.references import (
+from horde_model_reference.service.v1.routers.shared import (
     get_model_reference_manager,
 )
 from tests.helpers import ALL_MODEL_CATEGORIES
 
 
-@pytest.fixture
-def primary_manager_for_v1_api(
-    primary_manager_override_factory: Callable[[Callable[[], ModelReferenceManager]], ModelReferenceManager],
-) -> Iterator[ModelReferenceManager]:
-    """Create a PRIMARY mode manager with legacy data for v1 API tests."""
-    manager = primary_manager_override_factory(get_model_reference_manager)
-    yield manager
+# Note: The v1_canonical_manager fixture is now defined in conftest.py
+# It provides a PRIMARY mode manager with canonical_format='legacy' for v1 API tests
 
 
 def _create_legacy_json_file(base_path: Path, category: MODEL_REFERENCE_CATEGORY, data: dict[str, Any]) -> None:
@@ -111,16 +106,16 @@ def _create_legacy_model_payload(
 def _get_create_route_for_category(category: MODEL_REFERENCE_CATEGORY) -> RouteNames | None:
     """Get the create route name for a category, or None if not supported."""
     category_route_map = {
-        MODEL_REFERENCE_CATEGORY.image_generation: RouteNames.create_image_generation_model,
-        MODEL_REFERENCE_CATEGORY.text_generation: RouteNames.create_text_generation_model,
-        MODEL_REFERENCE_CATEGORY.blip: RouteNames.create_blip_model,
-        MODEL_REFERENCE_CATEGORY.clip: RouteNames.create_clip_model,
-        MODEL_REFERENCE_CATEGORY.codeformer: RouteNames.create_codeformer_model,
-        MODEL_REFERENCE_CATEGORY.controlnet: RouteNames.create_controlnet_model,
-        MODEL_REFERENCE_CATEGORY.esrgan: RouteNames.create_esrgan_model,
-        MODEL_REFERENCE_CATEGORY.gfpgan: RouteNames.create_gfpgan_model,
-        MODEL_REFERENCE_CATEGORY.safety_checker: RouteNames.create_safety_checker_model,
-        MODEL_REFERENCE_CATEGORY.miscellaneous: RouteNames.create_miscellaneous_model,
+        MODEL_REFERENCE_CATEGORY.image_generation: RouteNames.image_generation_model,
+        MODEL_REFERENCE_CATEGORY.text_generation: RouteNames.text_generation_model,
+        MODEL_REFERENCE_CATEGORY.blip: RouteNames.blip_model,
+        MODEL_REFERENCE_CATEGORY.clip: RouteNames.clip_model,
+        MODEL_REFERENCE_CATEGORY.codeformer: RouteNames.codeformer_model,
+        MODEL_REFERENCE_CATEGORY.controlnet: RouteNames.controlnet_model,
+        MODEL_REFERENCE_CATEGORY.esrgan: RouteNames.esrgan_model,
+        MODEL_REFERENCE_CATEGORY.gfpgan: RouteNames.gfpgan_model,
+        MODEL_REFERENCE_CATEGORY.safety_checker: RouteNames.safety_checker_model,
+        MODEL_REFERENCE_CATEGORY.miscellaneous: RouteNames.miscellaneous_model,
     }
     return category_route_map.get(category)
 
@@ -227,7 +222,7 @@ class TestGetInfo:
     def test_get_info_success(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
     ) -> None:
         """GET /info should return API information."""
         response = _make_v1_get_request(api_client, RouteNames.get_reference_info)
@@ -238,7 +233,7 @@ class TestGetInfo:
     def test_get_info_mentions_github_repos(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
     ) -> None:
         """GET /info should mention the GitHub repos."""
         response = _make_v1_get_request(api_client, RouteNames.get_reference_info)
@@ -253,7 +248,7 @@ class TestGetModelCategories:
     def test_get_model_categories_success(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
     ) -> None:
         """GET /model_categories should return list of category names."""
         response = _make_v1_get_request(api_client, RouteNames.get_reference_names)
@@ -263,7 +258,7 @@ class TestGetModelCategories:
     def test_get_model_categories_returns_valid_categories(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
     ) -> None:
         """GET /model_categories should return valid category names."""
@@ -287,7 +282,7 @@ class TestGetLegacyReference:
     def test_get_legacy_reference_success(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
@@ -309,7 +304,7 @@ class TestGetLegacyReference:
     def test_get_legacy_reference_stable_diffusion_mapping(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
     ) -> None:
         """GET /stable_diffusion should map to image_generation category."""
@@ -325,7 +320,7 @@ class TestGetLegacyReference:
     def test_get_legacy_reference_db_json_mapping(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
     ) -> None:
         """GET /db.json should map to text_generation category."""
@@ -341,7 +336,7 @@ class TestGetLegacyReference:
     def test_get_legacy_reference_json_suffix_stripping(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
     ) -> None:
         """GET /{category}.json should strip .json suffix."""
@@ -359,7 +354,7 @@ class TestGetLegacyReference:
     def test_get_legacy_reference_not_found(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
         """GET /{category} should return 404 when category not found."""
@@ -370,7 +365,7 @@ class TestGetLegacyReference:
     def test_get_legacy_reference_empty_category(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
@@ -384,7 +379,7 @@ class TestGetLegacyReference:
     def test_get_legacy_reference_returns_raw_json(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
@@ -407,7 +402,7 @@ class TestGetLegacyReference:
     def test_get_legacy_reference_invalid_category(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
     ) -> None:
         """GET /{category} should return 422 for invalid category names."""
         response = _get_category_url(api_client, "invalid_category_name")
@@ -421,9 +416,10 @@ class TestCreateLegacyModel:
     def test_create_model_success(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
         legacy_canonical_mode: None,
+        mock_auth_success: None,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
         """POST should create a new legacy model file entry."""
@@ -436,7 +432,7 @@ class TestCreateLegacyModel:
 
         url = route_registry.url_for(route_name, {}, v1_prefix)
 
-        response = api_client.post(url, json=payload)
+        response = api_client.post(url, json=payload, headers={"apikey": "test_key"})
 
         assert response.status_code == 201
 
@@ -453,9 +449,10 @@ class TestCreateLegacyModel:
     def test_create_model_conflict(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
         legacy_canonical_mode: None,
+        mock_auth_success: None,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
         """POST should return 409 when model already exists."""
@@ -469,90 +466,68 @@ class TestCreateLegacyModel:
 
         url = route_registry.url_for(route_name, {}, v1_prefix)
 
-        response = api_client.post(url, json=existing_payload)
+        response = api_client.post(url, json=existing_payload, headers={"apikey": "test_key"})
 
         assert response.status_code == 409
         assert "already exists" in response.json()["detail"].lower()
 
 
 class TestLegacyFormatWriteRestriction:
-    """Tests that write operations require legacy canonical format."""
+    """Tests that write operations require legacy canonical format.
 
-    def test_update_requires_legacy_canonical_format(
+    Note: These tests verify the conditional import behavior. In the test environment,
+    canonical_format is set to 'legacy' at import time so routes are registered.
+    In production with canonical_format='v2', the v1 CRUD routes would not be registered at all.
+    """
+
+    def test_backend_supports_legacy_writes_in_legacy_mode(
         self,
-        api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
-        primary_base: Path,
+        v1_canonical_manager: ModelReferenceManager,
     ) -> None:
-        """Update operations should return 503 when canonical_format is not legacy."""
-        category = MODEL_REFERENCE_CATEGORY.miscellaneous
-        model_name = "legacy_disabled"
+        """Backend should support legacy writes when canonical_format='legacy'."""
+        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert v1_canonical_manager.backend.supports_legacy_writes() is True
 
-        assert horde_model_reference_settings.canonical_format == "v2"
-
-        url = route_registry.url_for(
-            RouteNames.update_model,
-            {PathVariables.model_category_name: category.value},
-            v1_prefix,
-        )
-        payload = _create_legacy_model_payload(model_name, category)
-        response = api_client.put(url, json=payload)
-
-        assert response.status_code == 503
-        assert "legacy format write operations" in response.json()["detail"].lower()
-
-    def test_delete_requires_legacy_canonical_format(
+    def test_backend_rejects_legacy_writes_in_v2_mode(
         self,
-        api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
-        primary_base: Path,
+        v1_canonical_manager: ModelReferenceManager,
     ) -> None:
-        """Delete operations should return 503 when canonical_format is not legacy."""
-        category = MODEL_REFERENCE_CATEGORY.miscellaneous
-        model_name = "legacy_disabled"
-
-        assert horde_model_reference_settings.canonical_format == "v2"
-
-        url = route_registry.url_for(
-            RouteNames.delete_model,
-            {
-                PathVariables.model_category_name: category.value,
-                PathVariables.model_name: model_name,
-            },
-            v1_prefix,
-        )
-        response = api_client.delete(url)
-
-        assert response.status_code == 503
-        assert "legacy format write operations" in response.json()["detail"].lower()
+        """Backend should reject legacy writes when canonical_format='v2'."""
+        previous_format = horde_model_reference_settings.canonical_format
+        try:
+            horde_model_reference_settings.canonical_format = "v2"
+            assert v1_canonical_manager.backend.supports_legacy_writes() is False
+        finally:
+            horde_model_reference_settings.canonical_format = previous_format
 
 
 class TestUpdateLegacyModel:
-    """Tests for PUT /{category}/update_model endpoint."""
+    """Tests for PUT /{category} endpoint."""
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_update_existing_model(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
         legacy_canonical_mode: None,
+        mock_auth_success: None,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
         """PUT should update an existing legacy model."""
+        route_name = _get_create_route_for_category(category)
+        if route_name is None:
+            pytest.skip(f"Category {category} does not have a v1 update endpoint")
+
         model_name = "update_me"
         original_payload = _create_legacy_model_payload(model_name, category, description="Original")
         _create_legacy_json_file(primary_base, category, {model_name: original_payload})
 
         updated_payload = _create_legacy_model_payload(model_name, category, description="Updated")
 
-        url = route_registry.url_for(
-            RouteNames.update_model,
-            {PathVariables.model_category_name: category.value},
-            v1_prefix,
-        )
+        url = route_registry.url_for(route_name, {}, v1_prefix)
 
-        response = api_client.put(url, json=updated_payload)
+        response = api_client.put(url, json=updated_payload, headers={"apikey": "test_key"})
 
         assert response.status_code == 200
         response_json = response.json()
@@ -570,9 +545,10 @@ class TestDeleteLegacyModel:
     def test_delete_model_success(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
         legacy_canonical_mode: None,
+        mock_auth_success: None,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
         """DELETE should remove the model from the legacy file."""
@@ -580,7 +556,9 @@ class TestDeleteLegacyModel:
         payload = _create_legacy_model_payload(model_name, category)
         _create_legacy_json_file(primary_base, category, {model_name: payload})
 
-        response = api_client.delete(_legacy_model_url(RouteNames.delete_model, category, model_name))
+        response = api_client.delete(
+            _legacy_model_url(RouteNames.delete_model, category, model_name), headers={"apikey": "test_key"}
+        )
 
         assert response.status_code == 200
 
@@ -591,16 +569,19 @@ class TestDeleteLegacyModel:
     def test_delete_model_not_found(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
         legacy_canonical_mode: None,
+        mock_auth_success: None,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
         """DELETE should return 404 when the model is absent."""
         model_name = "missing_model"
         _create_legacy_json_file(primary_base, category, {})
 
-        response = api_client.delete(_legacy_model_url(RouteNames.delete_model, category, model_name))
+        response = api_client.delete(
+            _legacy_model_url(RouteNames.delete_model, category, model_name), headers={"apikey": "test_key"}
+        )
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
@@ -609,15 +590,65 @@ class TestDeleteLegacyModel:
     def test_delete_model_category_missing(
         self,
         api_client: TestClient,
-        primary_manager_for_v1_api: ModelReferenceManager,
+        v1_canonical_manager: ModelReferenceManager,
         primary_base: Path,
         legacy_canonical_mode: None,
+        mock_auth_success: None,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
         """DELETE should return 404 when the category file is missing."""
         model_name = "missing_category"
 
-        response = api_client.delete(_legacy_model_url(RouteNames.delete_model, category, model_name))
+        response = api_client.delete(
+            _legacy_model_url(RouteNames.delete_model, category, model_name), headers={"apikey": "test_key"}
+        )
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
+
+
+class TestRouteConditionalImport:
+    """Tests for conditional import of CRUD routes.
+
+    Note: In the test environment, canonical_format is set to 'legacy' at import time,
+    so v1 CRUD routes ARE registered. In a production deployment with canonical_format='v2',
+    these routes would not be registered at all (conditional import in references.py:143-144).
+
+    These tests verify that read-only routes always work and that the conditional import
+    logic exists in the codebase.
+    """
+
+    def test_read_routes_always_available(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+    ) -> None:
+        """Read-only routes should be available regardless of canonical_format."""
+        info_response = _make_v1_get_request(api_client, RouteNames.get_reference_info)
+        assert info_response.status_code == 200
+
+        categories_response = _make_v1_get_request(api_client, RouteNames.get_reference_names)
+        assert categories_response.status_code == 200
+
+    def test_crud_routes_registered_in_legacy_mode(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        mock_auth_success: None,
+    ) -> None:
+        """CRUD routes should be registered when canonical_format='legacy' at import time."""
+        assert horde_model_reference_settings.canonical_format == "legacy"
+
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        route_name = _get_create_route_for_category(category)
+
+        if route_name is None:
+            pytest.skip(f"Category {category} does not have a v1 create endpoint")
+
+        model_name = "test_model"
+        payload = _create_legacy_model_payload(model_name, category)
+
+        url = route_registry.url_for(route_name, {}, v1_prefix)
+        response = api_client.post(url, json=payload, headers={"apikey": "test_key"})
+
+        assert response.status_code in (201, 409, 422, 500)

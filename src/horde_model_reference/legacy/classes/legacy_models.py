@@ -206,7 +206,7 @@ class LegacyStableDiffusionRecord(LegacyGenericRecord):
     """Stable Diffusion legacy record with category-specific validation."""
 
     type: Literal["ckpt"] = "ckpt"
-    inpainting: bool
+    inpainting: bool = False
     baseline: str
     tags: list[str] | None = None
     showcases: list[str] | None = None

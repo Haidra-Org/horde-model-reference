@@ -19,7 +19,9 @@ ModelRecordUnion = Annotated[
 ]
 """Union of all possible model record types for OpenAPI documentation."""
 
-type ModelRecordUnionType = ImageGenerationModelRecord | TextGenerationModelRecord | ControlNetModelRecord | GenericModelRecord
+type ModelRecordUnionType = (
+    ImageGenerationModelRecord | TextGenerationModelRecord | ControlNetModelRecord | GenericModelRecord
+)
 """Union of all possible model record types for type hints."""
 
 

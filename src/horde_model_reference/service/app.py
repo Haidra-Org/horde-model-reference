@@ -10,7 +10,7 @@ from horde_model_reference.service.shared import v1_prefix, v2_prefix
 app = FastAPI(root_path="/api")
 
 origins = [
-    "http://localhost",
+    "http://localhost:51457",
     "http://localhost:4200",
     "http://localhost:9877",
 ]
@@ -24,8 +24,8 @@ app.add_middleware(
 )
 
 
-app.include_router(v1_references.router, prefix=v1_prefix, tags=["model_reference_v1"])
-app.include_router(v2_references.router, prefix=v2_prefix, tags=["model_reference_v2"])
+app.include_router(v2_references.router, prefix=v2_prefix, tags=["v2"])
+app.include_router(v1_references.router, prefix=v1_prefix)
 
 
 @app.get("/")
