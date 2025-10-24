@@ -28,8 +28,15 @@ from tests.helpers import ALL_MODEL_CATEGORIES
 @pytest.fixture
 def primary_manager_for_api(
     primary_manager_override_factory: Callable[[Callable[[], ModelReferenceManager]], ModelReferenceManager],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[ModelReferenceManager]:
-    """Create a PRIMARY mode manager for API tests."""
+    """Create a PRIMARY mode manager for v2 API tests.
+
+    Sets canonical_format to 'v2' to enable v2 write operations.
+    """
+    from horde_model_reference import horde_model_reference_settings
+
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "v2")
     manager = primary_manager_override_factory(get_model_reference_manager)
     yield manager
 
