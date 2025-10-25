@@ -29,9 +29,9 @@ def verify_model_references_structure(
 
         # Verify each model record
         for model_name, model_record in references.items():
-            assert isinstance(
-                model_record, GenericModelRecord
-            ), f"Model record for {model_name} should be GenericModelRecord or subclass"
+            assert isinstance(model_record, GenericModelRecord), (
+                f"Model record for {model_name} should be GenericModelRecord or subclass"
+            )
             assert model_record.name == model_name, f"Model name mismatch for {model_name}"
             assert model_record.model_classification is not None, f"Model {model_name} missing classification"
 

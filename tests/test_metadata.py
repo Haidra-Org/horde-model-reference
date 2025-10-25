@@ -214,9 +214,9 @@ class TestCategoryMetadataSemantics:
         v2_metadata_after = backend._metadata_manager.get_v2_metadata(category)
 
         # initialization_time should NOT change
-        assert (
-            v2_metadata_after.initialization_time == init_time
-        ), "initialization_time should never change after creation"
+        assert v2_metadata_after.initialization_time == init_time, (
+            "initialization_time should never change after creation"
+        )
 
         # last_updated should change
         assert v2_metadata_after.last_updated > initial_last_updated, "last_updated should change after operations"
@@ -376,7 +376,7 @@ class TestMetadataManagerAPI:
             v2_path.unlink()
 
         # get_v2_metadata should raise RuntimeError
-        with pytest.raises(RuntimeError, match="V2 metadata for category.*does not exist"):
+        with pytest.raises(RuntimeError, match=r"V2 metadata for category.*does not exist"):
             metadata_manager.get_v2_metadata(category)
 
         # Same for legacy
@@ -384,7 +384,7 @@ class TestMetadataManagerAPI:
         if legacy_path.exists():
             legacy_path.unlink()
 
-        with pytest.raises(RuntimeError, match="Legacy metadata for category.*does not exist"):
+        with pytest.raises(RuntimeError, match=r"Legacy metadata for category.*does not exist"):
             metadata_manager.get_legacy_metadata(category)
 
     def test_get_or_initialize_creates_when_missing(self, primary_base: Path) -> None:
@@ -888,9 +888,9 @@ class TestMetadataFileIO:
         # Verify operation count is correct
         final_metadata = metadata_manager.get_v2_metadata(category)
         expected_creates = num_threads * operations_per_thread
-        assert (
-            final_metadata.total_creates == expected_creates
-        ), f"Expected {expected_creates} creates, got {final_metadata.total_creates}"
+        assert final_metadata.total_creates == expected_creates, (
+            f"Expected {expected_creates} creates, got {final_metadata.total_creates}"
+        )
 
     def test_metadata_file_permissions_error_handling(
         self,

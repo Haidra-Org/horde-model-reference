@@ -329,9 +329,9 @@ class TestModelReferenceComparatorIntegration:
             logger.error(f"Total models with differences: {len(models_with_differences)}")
             logger.error(f"Models: {models_with_differences[:10]}")
 
-        assert (
-            len(models_with_differences) == 0
-        ), f"Found {len(models_with_differences)} models with differences when comparing identical data"
+        assert len(models_with_differences) == 0, (
+            f"Found {len(models_with_differences)} models with differences when comparing identical data"
+        )
 
     def test_normalized_comparison_matches(
         self,
@@ -390,9 +390,9 @@ class TestModelReferenceComparatorIntegration:
             norm_first = normalize_for_comparison(fetches[0])
             norm_current = normalize_for_comparison(fetches[i])
 
-            assert (
-                norm_first == norm_current
-            ), f"Fetch {i} differs from first fetch - API may be unstable or data is changing"
+            assert norm_first == norm_current, (
+                f"Fetch {i} differs from first fetch - API may be unstable or data is changing"
+            )
 
     def test_v1_v2_api_comparison(
         self,

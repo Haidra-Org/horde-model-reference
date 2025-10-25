@@ -51,7 +51,7 @@ class _ReplicaBackendProbe(ReplicaBackendBase):
         return None
 
     def get_all_category_file_paths(self) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
-        return {category: None for category in MODEL_REFERENCE_CATEGORY}
+        return dict.fromkeys(MODEL_REFERENCE_CATEGORY)
 
     def get_legacy_json(
         self,

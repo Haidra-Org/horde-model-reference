@@ -14,10 +14,6 @@ Syncs model references from a PRIMARY server to GitHub legacy repositories.
 
 Utility script to extract all model names from the model reference files.
 
-### `create_example_json.py`
-
-Generates example JSON files for testing and documentation purposes.
-
 ## Running a PRIMARY Server
 
 For instructions on running a PRIMARY server instance, please see:
