@@ -21,7 +21,6 @@ classifiers = [
 dynamic=["version"] # , "dependencies"]
 dependencies = [
     "aiofiles>=25.1.0",
-    "cachetools>=6.1.0",
     "haidra-core>=0.0.1",
     "httpx>=0.27.0",
     "loguru>=0.7.3",
@@ -114,28 +113,27 @@ ignore = [
 [dependency-groups]
 dev = [
     "babel>=2.17.0",
-    "black==24.10.0",
     "build>=0.10.0",
     "coverage>=7.2.7",
     "fakeredis>=2.21.0",
     "lxml-stubs>=0.5.1",
-    "mypy==1.13.0",
+    "mypy>=1.18.2",
     "pandas-stubs>=2.2.3.250308",
     "pre-commit~=4.0.1",
-    "pytest==8.3.3",
+    "pytest>=8.3.3",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=6.0.0",
-    "ruff==0.8.0",
+    "ruff>=0.14.2",
     "settings-doc>=4.3.2",
     "tox~=4.23.2",
     "types-aiofiles>=24.1.0.20250822",
-    "types-cachetools>=6.1.0.20250717",
     "types-openpyxl>=3.1.5.20250306",
     "types-pygments>=2.19.0.20250305",
     "types-pywin32>=308.0.0.20250128",
     "types-redis>=4.6.0",
     "types-requests>=2.32.0.20250306",
     "types-tabulate>=0.9.0.20241207",
+    "types-ujson>=5.10.0.20250822",
 ]
 sync-dev = [
     "PyGithub>=2.5.0",

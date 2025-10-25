@@ -92,7 +92,7 @@ class GithubAppSettings(BaseSettings):
         logger.debug(f"Private key content starts with: {first_chars!r}")
 
         if not content.strip().startswith("-----BEGIN"):
-            logger.error(f"Private key does not start with -----BEGIN. " f"Value looks like: {first_chars!r}.")
+            logger.error(f"Private key does not start with -----BEGIN. Value looks like: {first_chars!r}.")
             raise ValueError("Private key does not appear to be in PEM format (should start with -----BEGIN).")
         return content
 
@@ -244,7 +244,7 @@ github_text_repo, and github_branch settings."""
 
         if has_token and has_app:
             logger.warning(
-                "Both GitHub token and GitHub App credentials are configured. " "GitHub App will take precedence."
+                "Both GitHub token and GitHub App credentials are configured. GitHub App will take precedence."
             )
 
         return self

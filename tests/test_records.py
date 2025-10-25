@@ -50,7 +50,7 @@ def test_image_generation_model_record_unknown_baseline() -> None:
                 purpose=MODEL_PURPOSE.generation,
             ),
             inpainting=False,
-            baseline="unknown_baseline",  # type: ignore
+            baseline="unknown_baseline",
             tags=["test_tag"],
             nsfw=False,
             config={
@@ -68,7 +68,7 @@ def test_image_generation_model_record_unknown_style() -> None:
             name="test_name",
             description="test_description",
             version="test_version",
-            style="unknown_style",  # type: ignore
+            style="unknown_style",
             model_classification=ModelClassification(
                 domain=MODEL_DOMAIN.image,
                 purpose=MODEL_PURPOSE.generation,

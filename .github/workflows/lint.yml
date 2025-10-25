@@ -35,7 +35,7 @@ jobs:
         run: uv run pre-commit run --all-files
 
   lint:
-    name: Lint (Ruff)
+    name: Lint (Ruff lint)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,7 +53,7 @@ jobs:
         run: uv run ruff check .
 
   format:
-    name: Format Check (Black)
+    name: Format Check (Ruff format)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -67,8 +67,8 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked --all-extras --dev
 
-      - name: Check formatting with Black
-        run: uv run black . --check
+      - name: Check formatting with Ruff
+        run: uv run ruff format .
 
   type-check:
     name: Type Check (mypy)
