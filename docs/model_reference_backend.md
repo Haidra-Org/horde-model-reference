@@ -169,16 +169,16 @@ Test the semantic distinction for `needs_refresh()`:
 ```python
 def test_needs_refresh_semantics(backend):
     category = MODEL_REFERENCE_CATEGORY.image_generation
-    
+
     # Initially: no cache, needs_refresh should be False
     assert not backend.has_cached_data(category)
     assert not backend.needs_refresh(category)
-    
+
     # After storing: has cache, needs_refresh should be False (fresh)
     backend._store_in_cache(category, {"test": "data"})
     assert backend.has_cached_data(category)
     assert not backend.needs_refresh(category)
-    
+
     # After marking stale: has cache, needs_refresh should be True
     backend.mark_stale(category)
     assert backend.has_cached_data(category)

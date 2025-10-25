@@ -17,7 +17,7 @@ plugins:
     default_handler: python_xref
     handlers:
       python_xref:
-        paths: [src] 
+        paths: [src]
         inventories:
         - https://docs.python.org/3/objects.inv
         options:

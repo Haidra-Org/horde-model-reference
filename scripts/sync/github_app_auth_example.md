@@ -91,26 +91,26 @@ if not github_app_settings.is_configured():
 
 try:
     private_key = github_app_settings.get_private_key_content()
-    
+
     # Create App authentication
     app_auth = Auth.AppAuth(
         app_id=github_app_settings.github_app_id,
         private_key=private_key,
     )
-    
+
     # Get installation authentication
     auth = app_auth.get_installation_auth(
         installation_id=github_app_settings.github_installation_id,
     )
-    
+
     # Create GitHub client
     g = Github(auth=auth)
-    
+
     # Test by getting authenticated user/app info
     user = g.get_user()
     print(f"Authenticated as: {user.login}")
     print("GitHub App authentication is working!")
-    
+
 except Exception as e:
     print(f"GitHub App authentication failed: {e}")
     exit(1)
@@ -211,7 +211,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
