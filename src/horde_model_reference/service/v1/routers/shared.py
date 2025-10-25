@@ -75,13 +75,12 @@ async def _create_or_update_legacy_model(
     if operation == Operation.create and model_exists:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Model '{model_name}' already exists in category '{category}'. "
-            "Use PUT to update existing models.",
+            detail=f"Model '{model_name}' already exists in category '{category}'. Use PUT to update existing models.",
         )
     if operation == Operation.update and not model_exists:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Model '{model_name}' does not exist in category '{category}'. " "Use POST to create new models.",
+            detail=f"Model '{model_name}' does not exist in category '{category}'. Use POST to create new models.",
         )
 
     try:

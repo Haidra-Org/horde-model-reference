@@ -371,8 +371,7 @@ async def create_v2_image_generation_model(
     if _check_model_exists(manager, category, model_name):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Model '{model_name}' already exists in category '{category}'. "
-            "Use PUT to update existing models.",
+            detail=f"Model '{model_name}' already exists in category '{category}'. Use PUT to update existing models.",
         )
 
     _create_or_update_v2_model(manager, category, model_name, new_model_record, Operation.create)
@@ -462,8 +461,7 @@ async def create_v2_text_generation_model(
     if _check_model_exists(manager, category, model_name):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Model '{model_name}' already exists in category '{category}'. "
-            "Use PUT to update existing models.",
+            detail=f"Model '{model_name}' already exists in category '{category}'. Use PUT to update existing models.",
         )
 
     _create_or_update_v2_model(manager, category, model_name, new_model_record, Operation.create)
@@ -553,8 +551,7 @@ async def create_v2_controlnet_model(
     if _check_model_exists(manager, category, model_name):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=f"Model '{model_name}' already exists in category '{category}'. "
-            "Use PUT to update existing models.",
+            detail=f"Model '{model_name}' already exists in category '{category}'. Use PUT to update existing models.",
         )
 
     _create_or_update_v2_model(manager, category, model_name, new_model_record, Operation.create)
