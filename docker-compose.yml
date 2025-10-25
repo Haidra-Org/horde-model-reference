@@ -11,8 +11,6 @@ services:
     volumes:
       # Persist model reference data
       - model-data:/data
-    env_file:
-      - .env.primary
     environment:
       # PRIMARY mode configuration
       - HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
@@ -26,7 +24,7 @@ services:
       - AIWORKER_CACHE_HOME=/data
     env_file:
       # Load additional configuration from .env file
-      - .env
+      - .env.primary
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:19800/api/heartbeat"]
