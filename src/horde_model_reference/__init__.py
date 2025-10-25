@@ -102,6 +102,20 @@ class GithubRepoSettings(BaseModel):
 
         return full_url
 
+    @property
+    def repo_owner_and_name(self) -> str:
+        """Return the GitHub repository in 'owner/name' format."""
+        return f"{self.owner}/{self.name}"
+
+    @property
+    def git_clone_url(self) -> str:
+        """Return the git clone URL for this repository.
+
+        Returns:
+            str: The HTTPS git clone URL (e.g., 'https://github.com/owner/name.git').
+        """
+        return f"https://github.com/{self.owner}/{self.name}.git"
+
 
 # These `GithubRepoSettings` child classes exist so the generated `.env.example` files are filled in as intended
 # They have no practical purpose beyond that.
@@ -182,11 +196,25 @@ class HordeModelReferenceSettings(BaseSettings):
     make_folders: bool = False
     """Whether to create the default model reference folders on initialization."""
 
-    image_github_repo: ImageGithubRepoSettings = ImageGithubRepoSettings()
+    image_github_repo: ImageGithubRepoSettings = Field(default_factory=ImageGithubRepoSettings)
     """Settings for the GitHub repository used for image model references."""
 
-    text_github_repo: TextGithubRepoSettings = TextGithubRepoSettings()
+    text_github_repo: TextGithubRepoSettings = Field(default_factory=TextGithubRepoSettings)
     """Settings for the GitHub repository used for text model references."""
+
+    def get_repo_by_category(self, category: str) -> GithubRepoSettings:
+        """Get the GitHub repository settings for a given model reference category.
+
+        Args:
+            category (str): The model reference category (e.g., 'image_generation', 'text_generation').
+
+        Returns:
+            GithubRepoSettings: The GitHub repository settings for the specified category.
+        """
+        if category == MODEL_REFERENCE_CATEGORY.text_generation:
+            return self.text_github_repo
+
+        return self.image_github_repo
 
     cache_ttl_seconds: int = 60
     """The time-to-live for in memory caches of model reference files, in seconds."""
@@ -200,9 +228,9 @@ class HordeModelReferenceSettings(BaseSettings):
     redis: RedisSettings = RedisSettings()
     """Redis settings for distributed caching. Only used in PRIMARY mode for multi-worker deployments."""
 
-    primary_api_url: str | None = None
+    primary_api_url: str | None = "https://stablehorde.net/api/model_references/"
     """URL of PRIMARY server API for REPLICA clients to fetch model references from. \
-If None, REPLICA clients will only use GitHub. Example: https://stablehorde.net/api"""
+If None, REPLICA clients will only use GitHub. Example: https://stablehorde.net/api/model_references/"""
 
     primary_api_timeout: int = 10
     """Timeout in seconds for HTTP requests to PRIMARY API."""
@@ -222,7 +250,7 @@ Only used in PRIMARY mode. If True, will download and convert legacy references 
     @model_validator(mode="after")
     def validate_mode_configuration(self) -> HordeModelReferenceSettings:
         """Validate that settings are appropriate for the configured replication mode."""
-        if self.replicate_mode == ReplicateMode.REPLICA and self.redis.use_redis is not None:
+        if self.replicate_mode == ReplicateMode.REPLICA and self.redis.use_redis is True:
             logger.warning(
                 "Redis settings detected in REPLICA mode. "
                 "Redis is only useful in PRIMARY mode for distributed caching across workers. "
@@ -272,16 +300,16 @@ horde_model_reference_settings: HordeModelReferenceSettings = HordeModelReferenc
 
 # Print the github repo settings if they are not the default
 if horde_model_reference_settings.image_github_repo != ImageGithubRepoSettings():
-    logger.info("Image GitHub Repo Settings:")
-    logger.info(horde_model_reference_settings.image_github_repo)
+    logger.debug("Image GitHub Repo Settings:")
+    logger.debug(horde_model_reference_settings.image_github_repo)
     if horde_model_reference_settings.replicate_mode != ReplicateMode.REPLICA:
-        logger.info(f"Replicate mode is set to {horde_model_reference_settings.replicate_mode}.")
+        logger.debug(f"Replicate mode is set to {horde_model_reference_settings.replicate_mode}.")
 
 if horde_model_reference_settings.text_github_repo != TextGithubRepoSettings():
-    logger.info("Text GitHub Repo Settings:")
-    logger.info(horde_model_reference_settings.text_github_repo)
+    logger.debug("Text GitHub Repo Settings:")
+    logger.debug(horde_model_reference_settings.text_github_repo)
     if horde_model_reference_settings.replicate_mode != ReplicateMode.REPLICA:
-        logger.info(f"Replicate mode is set to {horde_model_reference_settings.replicate_mode}.")
+        logger.debug(f"Replicate mode is set to {horde_model_reference_settings.replicate_mode}.")
 
 
 from .meta_consts import (  # noqa: E402, I001

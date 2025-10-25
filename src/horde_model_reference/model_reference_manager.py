@@ -62,10 +62,18 @@ class ModelReferenceManager:
         if replicate_mode == ReplicateMode.PRIMARY:
             logger.debug("Creating backend for PRIMARY mode")
 
+            # Check if GitHub seeding will be needed
+            github_seeding_will_occur = False
+            if horde_model_reference_settings.github_seed_enabled:
+                # Quick check to see if any categories are missing
+                # (we'll do proper check after backend creation)
+                github_seeding_will_occur = True
+
             filesystem_backend = FileSystemBackend(
                 base_path=base_path,
                 cache_ttl_seconds=horde_model_reference_settings.cache_ttl_seconds,
                 replicate_mode=ReplicateMode.PRIMARY,
+                skip_startup_metadata_population=github_seeding_will_occur,
             )
 
             if horde_model_reference_settings.github_seed_enabled:
@@ -84,8 +92,15 @@ class ModelReferenceManager:
 
                     github_backend.fetch_all_categories(force_refresh=True)
                     logger.info("GitHub seeding completed")
+
+                    # Populate metadata after seeding
+                    logger.info("Populating metadata after GitHub seeding")
+                    filesystem_backend.ensure_all_metadata_populated()
                 else:
                     logger.debug("All files exist, skipping GitHub seeding")
+                    # Files exist but seeding was skipped, so run metadata population
+                    logger.info("Running metadata population check (seeding was skipped)")
+                    filesystem_backend.ensure_all_metadata_populated()
 
             if horde_model_reference_settings.redis.use_redis:
                 logger.info("Wrapping FileSystemBackend with RedisBackend for distributed caching")

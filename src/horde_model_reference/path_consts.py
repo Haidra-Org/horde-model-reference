@@ -28,6 +28,15 @@ If you need the default path, use `LEGACY_REFERENCE_FOLDER`."""
 DEFAULT_SHOWCASE_FOLDER_NAME: str = "showcase"
 """The default name of the stable diffusion showcase folder. If you need the path, use `SHOWCASE_FOLDER_PATH`."""
 
+META_FOLDER_NAME: str = "meta"
+"""The default name of the metadata folder. If you need the path, use the meta_path property."""
+
+META_LEGACY_FOLDER_NAME: str = "legacy"
+"""The name of the legacy metadata subfolder within the meta folder."""
+
+META_V2_FOLDER_NAME: str = "v2"
+"""The name of the v2 metadata subfolder within the meta folder."""
+
 
 class HordeModelReferencePaths:
     """A helper class to manage local and remote model reference paths."""
@@ -47,6 +56,21 @@ class HordeModelReferencePaths:
     def showcase_path(self) -> Path:
         """Return the path to the stable diffusion showcase folder."""
         return self.base_path.joinpath(DEFAULT_SHOWCASE_FOLDER_NAME)
+
+    @property
+    def meta_path(self) -> Path:
+        """Return the path to the metadata folder."""
+        return self.base_path.joinpath(META_FOLDER_NAME)
+
+    @property
+    def meta_legacy_path(self) -> Path:
+        """Return the path to the legacy metadata folder (meta/legacy/)."""
+        return self.meta_path.joinpath(META_LEGACY_FOLDER_NAME)
+
+    @property
+    def meta_v2_path(self) -> Path:
+        """Return the path to the v2 metadata folder (meta/v2/)."""
+        return self.meta_path.joinpath(META_V2_FOLDER_NAME)
 
     log_folder: Path
 
@@ -140,6 +164,8 @@ class HordeModelReferencePaths:
         self.base_path.mkdir(parents=True, exist_ok=True)
         self.log_folder.mkdir(parents=True, exist_ok=True)
         self.legacy_path.mkdir(parents=True, exist_ok=True)
+        self.meta_legacy_path.mkdir(parents=True, exist_ok=True)
+        self.meta_v2_path.mkdir(parents=True, exist_ok=True)
 
     def _get_file_name(self, model_reference_category: MODEL_REFERENCE_CATEGORY) -> str:
         if model_reference_category not in self.model_reference_filenames:
@@ -249,6 +275,50 @@ class HordeModelReferencePaths:
             base_path = self.base_path
 
         return Path(base_path) / LEGACY_REFERENCE_FOLDER_NAME / self._get_file_name(model_reference_category)
+
+    def get_legacy_metadata_file_path(
+        self,
+        model_reference_category: MODEL_REFERENCE_CATEGORY,
+        *,
+        base_path: str | Path | None = None,
+    ) -> Path:
+        """Return the path to the legacy metadata file for the given model reference category.
+
+        Args:
+            model_reference_category: The category of model reference to get the metadata file for.
+            base_path: If provided, the base path to the model reference file. Defaults to BASE_PATH.
+
+        Returns:
+            Path to legacy metadata file (meta/legacy/{category}_metadata.json)
+        """
+        if base_path is None:
+            base_path = self.base_path
+
+        base_path = Path(base_path)
+        return (
+            base_path / META_FOLDER_NAME / META_LEGACY_FOLDER_NAME / f"{model_reference_category.value}_metadata.json"
+        )
+
+    def get_v2_metadata_file_path(
+        self,
+        model_reference_category: MODEL_REFERENCE_CATEGORY,
+        *,
+        base_path: str | Path | None = None,
+    ) -> Path:
+        """Return the path to the v2 metadata file for the given model reference category.
+
+        Args:
+            model_reference_category: The category of model reference to get the metadata file for.
+            base_path: If provided, the base path to the model reference file. Defaults to BASE_PATH.
+
+        Returns:
+            Path to v2 metadata file (meta/v2/{category}_metadata.json)
+        """
+        if base_path is None:
+            base_path = self.base_path
+
+        base_path = Path(base_path)
+        return base_path / META_FOLDER_NAME / META_V2_FOLDER_NAME / f"{model_reference_category.value}_metadata.json"
 
 
 horde_model_reference_paths = HordeModelReferencePaths(

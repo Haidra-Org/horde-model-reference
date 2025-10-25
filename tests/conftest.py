@@ -253,7 +253,7 @@ def legacy_path(primary_base: Path) -> Path:
 def mock_auth_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Mock auth_against_horde to always return True for testing write operations."""
 
-    async def _mock_auth(apikey: str, client: Any) -> bool:
+    async def _mock_auth(apikey: str, client: Any) -> bool:  # noqa: ANN401
         return True
 
     monkeypatch.setattr("horde_model_reference.service.v1.routers.create_update.auth_against_horde", _mock_auth)

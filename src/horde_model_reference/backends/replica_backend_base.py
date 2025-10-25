@@ -139,7 +139,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
         self._stale_legacy_categories: set[MODEL_REFERENCE_CATEGORY] = set()
 
         self._lock = RLock()
-        self._async_lock: AsyncLock | None = AsyncLock()
+        self._async_lock: AsyncLock = AsyncLock()
 
     def _mark_category_fresh(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         """Record that we hold a fresh cache entry for *category*.
