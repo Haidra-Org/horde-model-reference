@@ -14,15 +14,21 @@ plugins:
 - awesome-pages
 - autorefs
 - mkdocstrings:
+    default_handler: python_xref
     handlers:
-      python:
+      python_xref:
+        paths: [src] 
+        inventories:
+        - https://docs.python.org/3/objects.inv
         options:
           members_order: source
-          inherited_members: true
           docstring_section_style: list
           show_if_no_docstring: true
           separate_signature: true
           show_signature_annotations: true
+          inherited_members: true
+          relative_crossrefs: true
+          filters: []
 
 markdown_extensions:
   - pymdownx.highlight:
@@ -42,7 +48,20 @@ theme:
   name: material
   language: en
   palette:
-    scheme: slate
+    # Palette toggle for light mode
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
 
 extra_css:
   - stylesheets/extra.css
+
+watch:
+  - docs/
+  - mkdocs.yml
