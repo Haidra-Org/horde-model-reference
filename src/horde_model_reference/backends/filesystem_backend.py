@@ -12,12 +12,45 @@ import time
 from pathlib import Path
 from typing import Any, override
 
+import aiofiles
 import httpx
 from loguru import logger
+from pydantic import BaseModel, Field
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.model_reference_metadata import CategoryMetadata, MetadataManager, OperationType
+
+
+class CategoryMetadataPopulationResult(BaseModel):
+    """Result from ensure_category_metadata_populated method."""
+
+    category_metadata_initialized: bool = Field(description="Whether v2 CategoryMetadata was initialized")
+    legacy_metadata_initialized: bool = Field(description="Whether legacy CategoryMetadata was initialized")
+    models_updated: int = Field(description="Number of models that had metadata populated")
+    timestamp_used: int = Field(description="Unix timestamp used for metadata population")
+
+
+class AllMetadataPopulationResult(BaseModel):
+    """Result from ensure_all_metadata_populated method."""
+
+    categories_processed: list[str] = Field(
+        description="List of category names that were processed",
+        default_factory=list,
+    )
+    total_categories: int = Field(
+        description="Total number of categories processed",
+        default=0,
+    )
+    total_models_updated: int = Field(
+        description="Total number of models updated across all categories",
+        default=0,
+    )
+    total_metadata_initialized: int = Field(
+        description="Total number of metadata files initialized",
+        default=0,
+    )
 
 
 class FileSystemBackend(ReplicaBackendBase):
@@ -29,6 +62,7 @@ class FileSystemBackend(ReplicaBackendBase):
         base_path: str | Path = horde_model_reference_paths.base_path,
         cache_ttl_seconds: int = 60,
         replicate_mode: ReplicateMode = ReplicateMode.PRIMARY,
+        skip_startup_metadata_population: bool = False,
     ) -> None:
         """Initialize the FileSystem backend.
 
@@ -36,6 +70,8 @@ class FileSystemBackend(ReplicaBackendBase):
             base_path: Base path for model reference files.
             cache_ttl_seconds: TTL for internal cache in seconds.
             replicate_mode: Must be PRIMARY.
+            skip_startup_metadata_population: If True, skip automatic metadata population on startup.
+                This is used when GitHub seeding will handle metadata population instead.
 
         Raises:
             ValueError: If replicate_mode is not PRIMARY.
@@ -48,8 +84,16 @@ class FileSystemBackend(ReplicaBackendBase):
         super().__init__(mode=replicate_mode, cache_ttl_seconds=cache_ttl_seconds)
 
         self.base_path = Path(base_path)
+        self._metadata_manager = MetadataManager(self.base_path)
 
         logger.debug(f"FileSystemBackend initialized with base_path={self.base_path}")
+
+        # Populate metadata on startup if not skipped
+        if not skip_startup_metadata_population:
+            logger.info("Running startup metadata population check")
+            self.ensure_all_metadata_populated()
+        else:
+            logger.debug("Skipping startup metadata population (will be handled by GitHub seeding)")
 
     @override
     def _get_file_path_for_validation(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
@@ -124,33 +168,31 @@ class FileSystemBackend(ReplicaBackendBase):
             dict[str, Any] | None: The model reference data, or None if file doesn't exist.
         """
         with self._lock:
-            # Use helper to determine if we need to fetch
-            if force_refresh or self.should_fetch_data(category):
-                file_path = horde_model_reference_paths.get_model_reference_file_path(
-                    category,
-                    base_path=self.base_path,
-                )
+            if not (force_refresh or self.should_fetch_data(category)):
+                return self._get_from_cache(category)
 
-                if not file_path or not file_path.exists():
-                    logger.debug(f"File not found for {category}: {file_path}")
-                    self._store_in_cache(category, None)
-                    return None
+            file_path = horde_model_reference_paths.get_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
 
-                try:
-                    with open(file_path, encoding="utf-8") as f:
-                        data: dict[str, Any] = json.load(f)
+            if not file_path or not file_path.exists():
+                logger.debug(f"File not found for {category}: {file_path}")
+                self._store_in_cache(category, None)
+                return None
 
-                    self._store_in_cache(category, data)
-                    logger.debug(f"Loaded {category} from {file_path}")
-                    return data
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    data: dict[str, Any] = json.load(f)
 
-                except Exception as e:
-                    logger.error(f"Failed to read {file_path}: {e}")
-                    self._invalidate_cache(category)
-                    return None
+                self._store_in_cache(category, data)
+                logger.debug(f"Loaded {category} from {file_path}")
+                return data
 
-            # Return cached data
-            return self._get_from_cache(category)
+            except Exception as e:
+                logger.error(f"Failed to read {file_path}: {e}")
+                self._invalidate_cache(category)
+                return None
 
     @override
     def fetch_all_categories(
@@ -193,7 +235,30 @@ class FileSystemBackend(ReplicaBackendBase):
         Returns:
             dict[str, Any] | None: The model reference data.
         """
-        return self.fetch_category(category, force_refresh=force_refresh)
+        async with self._async_lock:
+            if not (force_refresh or self.should_fetch_data(category)):
+                return self._get_from_cache(category)
+
+            file_path = horde_model_reference_paths.get_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
+            if not file_path or not file_path.exists():
+                logger.debug(f"File not found for {category}: {file_path}")
+                self._store_in_cache(category, None)
+                return None
+            try:
+                async with aiofiles.open(file_path, encoding="utf-8") as f:
+                    content = await f.read()
+                    data: dict[str, Any] = json.loads(content)
+
+                self._store_in_cache(category, data)
+                logger.debug(f"Loaded {category} from {file_path} asynchronously")
+                return data
+            except Exception as e:
+                logger.error(f"Failed to read {file_path} asynchronously: {e}")
+                self._invalidate_cache(category)
+                return None
 
     @override
     async def fetch_all_categories_async(
@@ -203,7 +268,16 @@ class FileSystemBackend(ReplicaBackendBase):
         force_refresh: bool = False,
     ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
         """Asynchronously fetch all categories (delegates to sync method)."""
-        return self.fetch_all_categories(force_refresh=force_refresh)
+        result: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None] = {}
+
+        for category in MODEL_REFERENCE_CATEGORY:
+            result[category] = await self.fetch_category_async(
+                category,
+                httpx_client=httpx_client,
+                force_refresh=force_refresh,
+            )
+
+        return result
 
     @override
     def get_category_file_path(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
@@ -331,6 +405,15 @@ class FileSystemBackend(ReplicaBackendBase):
         return True
 
     @override
+    def supports_metadata(self) -> bool:
+        """Check if backend supports metadata tracking (always True for PRIMARY filesystem).
+
+        Returns:
+            bool: Always True.
+        """
+        return True
+
+    @override
     def update_model(
         self,
         category: MODEL_REFERENCE_CATEGORY,
@@ -370,22 +453,22 @@ class FileSystemBackend(ReplicaBackendBase):
                 existing_data = {}
                 file_path.parent.mkdir(parents=True, exist_ok=True)
 
-            # Preserve creation metadata if model already exists
-            if model_name in existing_data:
-                existing_model = existing_data[model_name]
-                if "metadata" in existing_model:
-                    # Preserve created_at and created_by
-                    if "metadata" not in record_dict:
-                        record_dict["metadata"] = {}
-                    if "created_at" in existing_model["metadata"]:
-                        record_dict["metadata"]["created_at"] = existing_model["metadata"]["created_at"]
-                    if "created_by" in existing_model["metadata"]:
-                        record_dict["metadata"]["created_by"] = existing_model["metadata"]["created_by"]
+            # Determine if this is a create or update operation
+            is_update = model_name in existing_data
+            operation_type = OperationType.UPDATE if is_update else OperationType.CREATE
 
-            # Set updated_at timestamp
-            if "metadata" not in record_dict:
-                record_dict["metadata"] = {}
-            record_dict["metadata"]["updated_at"] = int(time.time())
+            # Handle per-model metadata
+            if is_update:
+                # Preserve creation metadata if model already exists
+                existing_model = existing_data[model_name]
+                self._metadata_manager.model_metadata.preserve_creation_fields(existing_model, record_dict)
+                # Set updated_at timestamp
+                self._metadata_manager.model_metadata.set_update_timestamp(record_dict)
+            else:
+                # For new models, set creation timestamp
+                self._metadata_manager.model_metadata.set_creation_timestamp(record_dict)
+                # Also set updated_at to same value initially
+                self._metadata_manager.model_metadata.set_update_timestamp(record_dict)
 
             existing_data[model_name] = record_dict
 
@@ -411,6 +494,16 @@ class FileSystemBackend(ReplicaBackendBase):
                     temp_path.replace(file_path)
 
                 logger.info(f"Updated model {model_name} in category {category} at {file_path}")
+
+                # Record metadata for observability (centralized hook point)
+                self._metadata_manager.record_v2_operation(
+                    category=category,
+                    operation=operation_type,
+                    model_name=model_name,
+                    success=True,
+                    backend_type=self.__class__.__name__,
+                )
+
                 self._mark_category_modified(category, file_path)
 
             except Exception as e:
@@ -481,6 +574,16 @@ class FileSystemBackend(ReplicaBackendBase):
                     backup_path.unlink()
 
                 logger.info(f"Deleted model {model_name} from category {category} at {file_path}")
+
+                # Record metadata for observability (centralized hook point)
+                self._metadata_manager.record_v2_operation(
+                    category=category,
+                    operation=OperationType.DELETE,
+                    model_name=model_name,
+                    success=True,
+                    backend_type=self.__class__.__name__,
+                )
+
                 self._mark_category_modified(category, file_path)
 
             except Exception as e:
@@ -553,6 +656,10 @@ class FileSystemBackend(ReplicaBackendBase):
                 existing_data = {}
                 legacy_file_path.parent.mkdir(parents=True, exist_ok=True)
 
+            # Determine if this is a create or update operation
+            is_update = model_name in existing_data
+            operation_type = OperationType.UPDATE if is_update else OperationType.CREATE
+
             existing_data[model_name] = record_dict
 
             temp_path = legacy_file_path.with_suffix(f".tmp.{time.time()}")
@@ -577,6 +684,16 @@ class FileSystemBackend(ReplicaBackendBase):
                     temp_path.replace(legacy_file_path)
 
                 logger.info(f"Updated legacy model {model_name} in category {category} at {legacy_file_path}")
+
+                # Record metadata for observability (centralized hook point)
+                self._metadata_manager.record_legacy_operation(
+                    category=category,
+                    operation=operation_type,
+                    model_name=model_name,
+                    success=True,
+                    backend_type=self.__class__.__name__,
+                )
+
                 self._mark_legacy_category_modified(category, legacy_file_path)
 
             except Exception as e:
@@ -656,6 +773,16 @@ class FileSystemBackend(ReplicaBackendBase):
                     backup_path.unlink()
 
                 logger.info(f"Deleted legacy model {model_name} from category {category} at {legacy_file_path}")
+
+                # Record metadata for observability (centralized hook point)
+                self._metadata_manager.record_legacy_operation(
+                    category=category,
+                    operation=OperationType.DELETE,
+                    model_name=model_name,
+                    success=True,
+                    backend_type=self.__class__.__name__,
+                )
+
                 self._mark_legacy_category_modified(category, legacy_file_path)
 
             except Exception as e:
@@ -666,3 +793,305 @@ class FileSystemBackend(ReplicaBackendBase):
                     pass
                 logger.error(f"Failed to delete legacy model {model_name} from {category}: {e}")
                 raise
+
+    def _populate_model_metadata(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        timestamp: int | None = None,
+    ) -> int:
+        """Populate missing per-model metadata fields in a category's JSON file.
+
+        This method scans all models in a category file and ensures each has:
+        - metadata.created_at (if missing)
+        - metadata.updated_at (if missing)
+
+        Args:
+            category: The category to populate metadata for.
+            timestamp: The timestamp to use for created_at/updated_at. If None, uses current time.
+
+        Returns:
+            int: Number of models that had metadata populated.
+        """
+        with self._lock:
+            file_path = horde_model_reference_paths.get_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
+
+            if not file_path or not file_path.exists():
+                logger.debug(f"Category file not found for {category}, skipping metadata population")
+                return 0
+
+            if timestamp is None:
+                timestamp = int(time.time())
+
+            try:
+                with open(file_path, encoding="utf-8") as f:
+                    data: dict[str, Any] = json.load(f)
+            except Exception as e:
+                logger.error(f"Failed to read {file_path} for metadata population: {e}")
+                return 0
+
+            models_updated = 0
+            for _model_name, model_data in data.items():
+                if not isinstance(model_data, dict):
+                    continue
+
+                # Use ModelMetadataManager to ensure metadata is populated
+                if self._metadata_manager.model_metadata.ensure_metadata_populated(model_data, timestamp):
+                    models_updated += 1
+
+            if models_updated == 0:
+                logger.trace(f"No models needed metadata population in {category}")
+                return 0
+
+            temp_path = file_path.with_suffix(f".tmp.{time.time()}")
+            try:
+                with open(temp_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                    f.flush()
+                    try:
+                        import os
+
+                        os.fsync(f.fileno())
+                    except Exception:
+                        pass
+
+                backup_path = file_path.with_suffix(".bak")
+                file_path.replace(backup_path)
+                temp_path.replace(file_path)
+
+                with contextlib.suppress(Exception):
+                    backup_path.unlink()
+
+                logger.info(f"Populated metadata for {models_updated} models in {category}")
+                self._mark_category_modified(category, file_path)
+
+                return models_updated
+
+            except Exception as e:
+                try:
+                    if temp_path.exists():
+                        temp_path.unlink()
+                except Exception:
+                    pass
+                logger.error(f"Failed to write metadata-populated file for {category}: {e}")
+                return 0
+
+    def ensure_category_metadata_populated(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        timestamp: int | None = None,
+    ) -> CategoryMetadataPopulationResult:
+        """Ensure both CategoryMetadata and per-model metadata are populated for a category.
+
+        This method:
+        1. Checks if CategoryMetadata exists for both v2 and legacy formats
+        2. Initializes CategoryMetadata if missing
+        3. Populates per-model metadata fields in JSON files
+        4. Uses the same timestamp for both backend and model-level metadata
+
+        Args:
+            category: The category to ensure metadata for.
+            timestamp: Optional timestamp to use. If None, uses current time.
+
+        Returns:
+            dict with keys:
+                - "category_metadata_initialized": bool
+                - "legacy_metadata_initialized": bool
+                - "models_updated": int
+                - "timestamp_used": int
+        """
+        with self._lock:
+            if timestamp is None:
+                timestamp = int(time.time())
+
+            result = CategoryMetadataPopulationResult(
+                category_metadata_initialized=False,
+                legacy_metadata_initialized=False,
+                models_updated=0,
+                timestamp_used=timestamp,
+            )
+
+            # Get or initialize v2 CategoryMetadata
+            v2_metadata = self._metadata_manager.get_or_initialize_v2_metadata(
+                category=category,
+                backend_type=self.__class__.__name__,
+            )
+
+            # Check if it was just created (no prior data file existed)
+            if v2_metadata.initialization_time == v2_metadata.last_updated:
+                result.category_metadata_initialized = True
+                logger.trace(f"Initialized v2 CategoryMetadata for {category}")
+
+            # Use initialization_time from metadata
+            timestamp = v2_metadata.initialization_time
+            result.timestamp_used = timestamp
+
+            # Get or initialize legacy CategoryMetadata
+            legacy_metadata = self._metadata_manager.get_or_initialize_legacy_metadata(
+                category=category,
+                backend_type=self.__class__.__name__,
+            )
+
+            # Check if it was just created
+            if legacy_metadata.initialization_time == legacy_metadata.last_updated:
+                result.legacy_metadata_initialized = True
+                logger.trace(f"Initialized legacy CategoryMetadata for {category}")
+
+            # Populate per-model metadata using the determined timestamp
+            models_updated = self._populate_model_metadata(category, timestamp)
+            result.models_updated = models_updated
+
+            if result.category_metadata_initialized or result.legacy_metadata_initialized or models_updated > 0:
+                logger.info(
+                    f"Metadata population for {category}: "
+                    f"v2_meta={result.category_metadata_initialized}, "
+                    f"legacy_meta={result.legacy_metadata_initialized}, "
+                    f"models={models_updated}"
+                )
+
+            return result
+
+    def ensure_all_metadata_populated(self) -> AllMetadataPopulationResult:
+        """Ensure metadata is populated for all categories that have files.
+
+        Scans all category files and ensures:
+        1. CategoryMetadata exists (both v2 and legacy formats)
+        2. All model records have metadata fields populated
+
+        This is called:
+        - On FileSystemBackend initialization (PRIMARY mode)
+        - After GitHub seeding completes
+
+        Returns:
+            AllMetadataPopulationResult with summary of metadata population.
+        """
+        with self._lock:
+            result = AllMetadataPopulationResult()
+
+            logger.info("Starting metadata population scan for all categories")
+
+            for category in MODEL_REFERENCE_CATEGORY:
+                file_path = horde_model_reference_paths.get_model_reference_file_path(
+                    category,
+                    base_path=self.base_path,
+                )
+
+                # Skip categories that don't have files
+                if not file_path or not file_path.exists():
+                    logger.debug(f"Skipping {category} - no file found")
+                    continue
+
+                # Ensure metadata for this category
+                category_result = self.ensure_category_metadata_populated(category)
+
+                if (
+                    category_result.category_metadata_initialized
+                    or category_result.legacy_metadata_initialized
+                    or category_result.models_updated > 0
+                ):
+                    result.categories_processed.append(category.value)
+                    result.total_categories += 1
+                    result.total_models_updated += category_result.models_updated
+
+                    if category_result.category_metadata_initialized:
+                        result.total_metadata_initialized += 1
+                    if category_result.legacy_metadata_initialized:
+                        result.total_metadata_initialized += 1
+
+            if result.total_categories > 0:
+                logger.info(
+                    f"Metadata population complete: "
+                    f"{result.total_categories} categories processed, "
+                    f"{result.total_models_updated} models updated, "
+                    f"{result.total_metadata_initialized} metadata files initialized"
+                )
+            else:
+                logger.debug("No metadata population needed - all files already have metadata")
+
+            return result
+
+    @override
+    def get_legacy_metadata(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Get legacy format metadata for a specific category.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata | None: The legacy metadata, or None if not available.
+        """
+        return self._metadata_manager.get_legacy_metadata(category)
+
+    @override
+    async def get_legacy_metadata_async(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Asynchronously get legacy format metadata for a specific category.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata | None: The legacy metadata, or None if not available.
+        """
+        return self._metadata_manager.get_legacy_metadata(category)
+
+    @override
+    def get_metadata(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Get v2 format metadata for a specific category.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata | None: The v2 metadata, or None if not available.
+        """
+        return self._metadata_manager.get_v2_metadata(category)
+
+    @override
+    async def get_metadata_async(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Asynchronously get v2 format metadata for a specific category.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata | None: The v2 metadata, or None if not available.
+        """
+        return self._metadata_manager.get_v2_metadata(category)
+
+    @override
+    def get_all_legacy_metadata(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Get legacy format metadata for all categories.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their legacy metadata.
+        """
+        return self._metadata_manager.get_all_legacy_metadata()
+
+    @override
+    async def get_all_legacy_metadata_async(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Asynchronously get legacy format metadata for all categories.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their legacy metadata.
+        """
+        return self._metadata_manager.get_all_legacy_metadata()
+
+    @override
+    def get_all_metadata(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Get v2 format metadata for all categories.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their v2 metadata.
+        """
+        return self._metadata_manager.get_all_v2_metadata()
+
+    @override
+    async def get_all_metadata_async(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Asynchronously get v2 format metadata for all categories.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their v2 metadata.
+        """
+        return self._metadata_manager.get_all_v2_metadata()

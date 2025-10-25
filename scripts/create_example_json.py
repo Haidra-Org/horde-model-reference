@@ -12,10 +12,12 @@ from horde_model_reference.model_reference_records import (
     ImageGenerationModelRecord,
 )
 
-STABLE_DIFFUSION_EXAMPLE_JSON_FILENAME = "stable_diffusion.example.json"
-STABLE_DIFFUSION_SCHEMA_JSON_FILENAME = "stable_diffusion.schema.json"
+SCHEMAS_FOLDER = "schemas"
 
-LEGACY_STABLE_DIFFUSION_SCHEMA_JSON_FILENAME = "legacy_stable_diffusion.schema.json"
+STABLE_DIFFUSION_EXAMPLE_JSON_FILENAME = f"{SCHEMAS_FOLDER}/stable_diffusion.example.json"
+STABLE_DIFFUSION_SCHEMA_JSON_FILENAME = f"{SCHEMAS_FOLDER}/stable_diffusion.schema.json"
+
+LEGACY_STABLE_DIFFUSION_SCHEMA_JSON_FILENAME = f"{SCHEMAS_FOLDER}/legacy_stable_diffusion.schema.json"
 
 
 def create_example_json_schema() -> None:
@@ -96,6 +98,18 @@ def create_example_json_schema() -> None:
                     exclude_defaults=True,
                     by_alias=True,
                 ),
+            )
+            + "\n",
+        )
+
+    # Create the JSON Schema
+    schema = ImageGenerationModelRecord.model_json_schema(by_alias=True)
+
+    with open(STABLE_DIFFUSION_SCHEMA_JSON_FILENAME, "w") as schema_file:
+        schema_file.write(
+            json.dumps(
+                schema,
+                indent=4,
             )
             + "\n",
         )

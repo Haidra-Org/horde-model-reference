@@ -1,5 +1,9 @@
 .venv*
 logs/*
+*.pem
+*.env
+!.env.*.example
+!.env.example
 
 *_version.py
 
