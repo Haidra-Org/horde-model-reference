@@ -43,9 +43,7 @@ class WatchModeManager:
         self.interval_seconds = interval_seconds or github_sync_settings.watch_interval_seconds
         self.initial_delay_seconds = initial_delay_seconds or github_sync_settings.watch_initial_delay_seconds
         self.enable_startup_sync = (
-            enable_startup_sync
-            if enable_startup_sync is not None
-            else github_sync_settings.watch_enable_startup_sync
+            enable_startup_sync if enable_startup_sync is not None else github_sync_settings.watch_enable_startup_sync
         )
 
         self.last_known_timestamp: int | None = None

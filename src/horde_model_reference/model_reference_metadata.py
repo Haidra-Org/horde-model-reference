@@ -12,7 +12,6 @@ from pathlib import Path
 from threading import RLock
 from typing import Any, Protocol
 
-import aiofiles
 from loguru import logger
 from pydantic import BaseModel, Field
 from strenum import StrEnum
