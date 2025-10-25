@@ -30,7 +30,7 @@ jobs:
         use_github_release_notes: true
 
     - name: "✔️ Checkout"
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
@@ -41,7 +41,7 @@ jobs:
     # We need python...
     - name: "🐍 Set up Python 3.10"
       if: ${{ steps.release.outputs.version != '' }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: "3.10"
 

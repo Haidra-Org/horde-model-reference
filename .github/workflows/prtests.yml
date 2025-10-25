@@ -33,7 +33,7 @@ jobs:
           - "3.13"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Install uv and set the python version
@@ -63,7 +63,7 @@ jobs:
           - "3.13"
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Install uv and set the python version
@@ -77,3 +77,68 @@ jobs:
 
       - name: Run tests
         run: uv run pytest tests
+  
+  integration-test-standard:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
+      
+      - name: Start fastapi server
+        env:
+          HORDE_MODEL_REFERENCE_REPLICATE_MODE: PRIMARY
+          HORDE_MODEL_REFERENCE_CANONICAL_FORMAT: legacy
+        run: |
+          uv run fastapi ./src/horde_model_reference/service/app.py --port 19800 &
+          sleep 5  # Give the server time to start
+
+      - name: Run integration tests
+        run: uv run pytest tests -m integration
+        
+  integration-tests-redis:
+    runs-on: ubuntu-latest
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      
+      - name: Install dependencies
+        run: uv sync --locked --all-extras --dev
+
+      - name: Start fastapi server with redis backend
+        env:
+          HORDE_MODEL_REFERENCE_REPLICATE_MODE: PRIMARY
+          HORDE_MODEL_REFERENCE_CANONICAL_FORMAT: legacy
+          HORDE_MODEL_REFERENCE_REDIS_URL: redis://localhost:6379/0
+          HORDE_MODEL_REFERENCE_PRIMARY_API_URL: http://localhost:19800
+          HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED: True
+        run: |
+          uv run fastapi ./src/horde_model_reference/service/app.py --port 19800 &
+          sleep 5  # Give the server time to start
+
+      - name: Run integration tests
+        run: uv run pytest tests -m integration
+        env:
+          HORDE_MODEL_REFERENCE_REDIS_URL: redis://localhost:6379/0
