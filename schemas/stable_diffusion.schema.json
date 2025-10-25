@@ -1,0 +1,440 @@
+{
+    "$defs": {
+        "DownloadRecord": {
+            "additionalProperties": false,
+            "description": "A record of a file to download for a model. Typically a ckpt file.",
+            "properties": {
+                "file_name": {
+                    "title": "File Name",
+                    "type": "string"
+                },
+                "file_url": {
+                    "title": "File Url",
+                    "type": "string"
+                },
+                "sha256sum": {
+                    "default": "FIXME",
+                    "title": "Sha256Sum",
+                    "type": "string"
+                },
+                "file_purpose": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "File Purpose"
+                },
+                "known_slow_download": {
+                    "anyOf": [
+                        {
+                            "type": "boolean"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Known Slow Download"
+                }
+            },
+            "required": [
+                "file_name",
+                "file_url"
+            ],
+            "title": "DownloadRecord",
+            "type": "object"
+        },
+        "GenericModelRecordConfig": {
+            "additionalProperties": false,
+            "description": "Configuration for a generic model record.",
+            "properties": {
+                "download": {
+                    "items": {
+                        "$ref": "#/$defs/DownloadRecord"
+                    },
+                    "title": "Download",
+                    "type": "array"
+                }
+            },
+            "title": "GenericModelRecordConfig",
+            "type": "object"
+        },
+        "GenericModelRecordMetadata": {
+            "additionalProperties": false,
+            "description": "Metadata for a generic model record.",
+            "properties": {
+                "schema_version": {
+                    "default": "2.0.0",
+                    "title": "Schema Version",
+                    "type": "string"
+                },
+                "created_at": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Created At"
+                },
+                "updated_at": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Updated At"
+                },
+                "created_by": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Created By"
+                },
+                "updated_by": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Updated By"
+                }
+            },
+            "title": "GenericModelRecordMetadata",
+            "type": "object"
+        },
+        "KNOWN_IMAGE_GENERATION_BASELINE": {
+            "description": "An enum of all the image generation baselines.",
+            "enum": [
+                "infer",
+                "stable_diffusion_1",
+                "stable_diffusion_2_768",
+                "stable_diffusion_2_512",
+                "stable_diffusion_xl",
+                "stable_cascade",
+                "flux_1",
+                "flux_schnell",
+                "flux_dev"
+            ],
+            "title": "KNOWN_IMAGE_GENERATION_BASELINE",
+            "type": "string"
+        },
+        "MODEL_DOMAIN": {
+            "description": "The domain of a model, i.e., what it pertains to (image, text, video, etc.).",
+            "enum": [
+                "image",
+                "text",
+                "video",
+                "audio",
+                "rendered_3d"
+            ],
+            "title": "MODEL_DOMAIN",
+            "type": "string"
+        },
+        "MODEL_PURPOSE": {
+            "description": "The primary purpose of a model, for example, image generation or feature extraction.",
+            "enum": [
+                "generation",
+                "post_processing",
+                "auxiliary_or_patch",
+                "feature_extractor",
+                "safety_checker",
+                "miscellaneous"
+            ],
+            "title": "MODEL_PURPOSE",
+            "type": "string"
+        },
+        "MODEL_REFERENCE_CATEGORY": {
+            "description": "The categories of model reference entries.",
+            "enum": [
+                "blip",
+                "clip",
+                "codeformer",
+                "controlnet",
+                "esrgan",
+                "gfpgan",
+                "safety_checker",
+                "image_generation",
+                "text_generation",
+                "video_generation",
+                "audio_generation",
+                "miscellaneous"
+            ],
+            "title": "MODEL_REFERENCE_CATEGORY",
+            "type": "string"
+        },
+        "MODEL_STYLE": {
+            "description": "An enum of all the model styles.",
+            "enum": [
+                "generalist",
+                "anime",
+                "furry",
+                "artistic",
+                "other",
+                "realistic"
+            ],
+            "title": "MODEL_STYLE",
+            "type": "string"
+        },
+        "ModelClassification": {
+            "description": "Contains specific information about how to categorize a model.\n\nThis includes the model's `MODEL_DOMAIN` and `MODEL_PURPOSE`.",
+            "properties": {
+                "domain": {
+                    "$ref": "#/$defs/MODEL_DOMAIN"
+                },
+                "purpose": {
+                    "$ref": "#/$defs/MODEL_PURPOSE"
+                }
+            },
+            "required": [
+                "domain",
+                "purpose"
+            ],
+            "title": "ModelClassification",
+            "type": "object"
+        }
+    },
+    "additionalProperties": false,
+    "description": "A model entry in the model reference.",
+    "properties": {
+        "record_type": {
+            "$ref": "#/$defs/MODEL_REFERENCE_CATEGORY",
+            "default": "image_generation"
+        },
+        "name": {
+            "title": "Name",
+            "type": "string"
+        },
+        "description": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Description"
+        },
+        "version": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Version"
+        },
+        "metadata": {
+            "$ref": "#/$defs/GenericModelRecordMetadata"
+        },
+        "config": {
+            "$ref": "#/$defs/GenericModelRecordConfig"
+        },
+        "model_classification": {
+            "$ref": "#/$defs/ModelClassification"
+        },
+        "inpainting": {
+            "anyOf": [
+                {
+                    "type": "boolean"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": false,
+            "title": "Inpainting"
+        },
+        "baseline": {
+            "$ref": "#/$defs/KNOWN_IMAGE_GENERATION_BASELINE"
+        },
+        "optimization": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Optimization"
+        },
+        "tags": {
+            "anyOf": [
+                {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Tags"
+        },
+        "showcases": {
+            "anyOf": [
+                {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Showcases"
+        },
+        "min_bridge_version": {
+            "anyOf": [
+                {
+                    "type": "integer"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Min Bridge Version"
+        },
+        "trigger": {
+            "anyOf": [
+                {
+                    "items": {
+                        "type": "string"
+                    },
+                    "type": "array"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Trigger"
+        },
+        "homepage": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Homepage"
+        },
+        "nsfw": {
+            "title": "Nsfw",
+            "type": "boolean"
+        },
+        "style": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/MODEL_STYLE"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null
+        },
+        "requirements": {
+            "anyOf": [
+                {
+                    "additionalProperties": {
+                        "anyOf": [
+                            {
+                                "type": "integer"
+                            },
+                            {
+                                "type": "number"
+                            },
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "integer"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "items": {
+                                    "type": "number"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "boolean"
+                            }
+                        ]
+                    },
+                    "type": "object"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Requirements"
+        },
+        "size_on_disk_bytes": {
+            "anyOf": [
+                {
+                    "type": "integer"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Size On Disk Bytes"
+        }
+    },
+    "required": [
+        "name",
+        "baseline",
+        "nsfw"
+    ],
+    "title": "ImageGenerationModelRecord",
+    "type": "object"
+}

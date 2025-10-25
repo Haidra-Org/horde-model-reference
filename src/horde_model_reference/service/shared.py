@@ -1,7 +1,7 @@
+import urllib.parse
 from enum import auto
 
 import httpx
-import urllib.parse
 from fastapi import HTTPException
 from fastapi.security import APIKeyHeader
 from loguru import logger
@@ -44,6 +44,18 @@ class RouteNames(StrEnum):
     create_model = auto()
     update_model = auto()
     delete_model = auto()
+
+    # V1 metadata routes
+    get_legacy_last_updated = auto()
+    get_legacy_category_last_updated = auto()
+    get_all_legacy_metadata = auto()
+    get_legacy_category_metadata = auto()
+
+    # V2 metadata routes
+    get_v2_last_updated = auto()
+    get_v2_category_last_updated = auto()
+    get_all_v2_metadata = auto()
+    get_v2_category_metadata = auto()
 
 
 class RouteRegistry:

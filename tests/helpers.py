@@ -1,5 +1,4 @@
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import GenericModelRecord
 
 

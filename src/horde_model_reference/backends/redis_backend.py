@@ -25,6 +25,7 @@ from horde_model_reference import RedisSettings, ReplicateMode
 from horde_model_reference.backends.base import ModelReferenceBackend
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.model_reference_metadata import CategoryMetadata
 
 
 class RedisBackend(ModelReferenceBackend):
@@ -106,6 +107,14 @@ class RedisBackend(ModelReferenceBackend):
     def _category_key(self, category: MODEL_REFERENCE_CATEGORY) -> str:
         """Generate Redis key for a category."""
         return f"{self._redis_settings.key_prefix}:category:{category.value}"
+
+    def _legacy_metadata_key(self, category: MODEL_REFERENCE_CATEGORY) -> str:
+        """Generate Redis key for legacy metadata."""
+        return f"{self._redis_settings.key_prefix}:meta:legacy:{category.value}"
+
+    def _v2_metadata_key(self, category: MODEL_REFERENCE_CATEGORY) -> str:
+        """Generate Redis key for v2 metadata."""
+        return f"{self._redis_settings.key_prefix}:meta:v2:{category.value}"
 
     def _invalidation_channel(self) -> str:
         """Get the Redis pub/sub channel for invalidations."""
@@ -398,6 +407,15 @@ class RedisBackend(ModelReferenceBackend):
         return self._file_backend.supports_writes()
 
     @override
+    def supports_metadata(self) -> bool:
+        """Check if backend supports metadata tracking (delegates to file backend).
+
+        Returns:
+            bool: True if file backend supports metadata.
+        """
+        return self._file_backend.supports_metadata()
+
+    @override
     def supports_cache_warming(self) -> bool:
         """Check if backend supports cache warming (True for Redis).
 
@@ -513,6 +531,148 @@ class RedisBackend(ModelReferenceBackend):
         except Exception as e:
             logger.warning(f"Failed to get Redis stats: {e}")
             return {"connected": False, "error": str(e)}
+
+    @override
+    def get_legacy_metadata(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Get legacy format metadata, using Redis cache.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata | None: The legacy metadata, or None if not available.
+        """
+        key = self._legacy_metadata_key(category)
+
+        try:
+            cached = self._retry_redis_operation(self._sync_redis.get, key)
+            if cached:
+                if not isinstance(cached, str):
+                    raise ValueError("Expected str from Redis")
+                data = json.loads(cached)
+                return CategoryMetadata(**data)
+        except Exception as e:
+            logger.warning(f"Redis fetch failed for legacy metadata {category}, falling back to file: {e}")
+
+        # Fall back to file backend
+        metadata = self._file_backend.get_legacy_metadata(category)
+
+        # Cache the result in Redis
+        if metadata is not None:
+            try:
+                json_data = json.dumps(metadata.model_dump(mode="json"))
+                self._retry_redis_operation(self._sync_redis.setex, key, self._ttl, json_data)
+            except Exception as e:
+                logger.warning(f"Failed to cache legacy metadata for {category} in Redis: {e}")
+
+        return metadata
+
+    @override
+    async def get_legacy_metadata_async(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Asynchronously get legacy format metadata, using Redis cache.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata | None: The legacy metadata, or None if not available.
+        """
+        # For now, delegate to sync version
+        return self.get_legacy_metadata(category)
+
+    @override
+    def get_metadata(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Get v2 format metadata, using Redis cache.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata | None: The v2 metadata, or None if not available.
+        """
+        key = self._v2_metadata_key(category)
+
+        try:
+            cached = self._retry_redis_operation(self._sync_redis.get, key)
+            if cached:
+                if not isinstance(cached, str):
+                    raise ValueError("Expected str from Redis")
+                data = json.loads(cached)
+                return CategoryMetadata(**data)
+        except Exception as e:
+            logger.warning(f"Redis fetch failed for v2 metadata {category}, falling back to file: {e}")
+
+        # Fall back to file backend
+        metadata = self._file_backend.get_metadata(category)
+
+        # Cache the result in Redis
+        if metadata is not None:
+            try:
+                json_data = json.dumps(metadata.model_dump(mode="json"))
+                self._retry_redis_operation(self._sync_redis.setex, key, self._ttl, json_data)
+            except Exception as e:
+                logger.warning(f"Failed to cache v2 metadata for {category} in Redis: {e}")
+
+        return metadata
+
+    @override
+    async def get_metadata_async(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Asynchronously get v2 format metadata, using Redis cache.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata | None: The v2 metadata, or None if not available.
+        """
+        # For now, delegate to sync version
+        return self.get_metadata(category)
+
+    @override
+    def get_all_legacy_metadata(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Get legacy format metadata for all categories.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their legacy metadata.
+        """
+        result = {}
+        for category in MODEL_REFERENCE_CATEGORY:
+            metadata = self.get_legacy_metadata(category)
+            if metadata is not None:
+                result[category] = metadata
+        return result
+
+    @override
+    async def get_all_legacy_metadata_async(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Asynchronously get legacy format metadata for all categories.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their legacy metadata.
+        """
+        return self.get_all_legacy_metadata()
+
+    @override
+    def get_all_metadata(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Get v2 format metadata for all categories.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their v2 metadata.
+        """
+        result = {}
+        for category in MODEL_REFERENCE_CATEGORY:
+            metadata = self.get_metadata(category)
+            if metadata is not None:
+                result[category] = metadata
+        return result
+
+    @override
+    async def get_all_metadata_async(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Asynchronously get v2 format metadata for all categories.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their v2 metadata.
+        """
+        return self.get_all_metadata()
 
     def __del__(self) -> None:
         """Clean up Redis connections on deletion."""

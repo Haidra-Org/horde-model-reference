@@ -1468,6 +1468,7 @@ class TestDiskPersistence:
             base_path=primary_base,
             cache_ttl_seconds=60,
             replicate_mode=ReplicateMode.PRIMARY,
+            skip_startup_metadata_population=True,
         )
         redis_settings.use_pubsub = False
         backend = RedisBackend(

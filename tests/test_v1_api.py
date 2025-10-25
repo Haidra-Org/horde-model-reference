@@ -1,7 +1,6 @@
 """Tests for v1 API (legacy format) read-only operations."""
 
 import json
-from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any, cast
 
@@ -16,11 +15,7 @@ from horde_model_reference import (
     horde_model_reference_settings,
 )
 from horde_model_reference.service.shared import PathVariables, RouteNames, route_registry, v1_prefix
-from horde_model_reference.service.v1.routers.shared import (
-    get_model_reference_manager,
-)
 from tests.helpers import ALL_MODEL_CATEGORIES
-
 
 # Note: The v1_canonical_manager fixture is now defined in conftest.py
 # It provides a PRIMARY mode manager with canonical_format='legacy' for v1 API tests

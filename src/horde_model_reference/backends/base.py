@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from horde_model_reference import ReplicateMode
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.model_reference_metadata import CategoryMetadata
 
 
 class ModelReferenceBackend(ABC):
@@ -432,6 +433,14 @@ class ModelReferenceBackend(ABC):
             - [get_legacy_json()][(c).get_legacy_json]: Get as dict instead of string
         """
 
+    def support_any_writes(self) -> bool:
+        """Check if this backend supports any write operations (v2 or legacy).
+
+        Returns:
+            bool: True if any write operations are supported, False otherwise.
+        """
+        return self.supports_writes() or self.supports_legacy_writes()
+
     def supports_writes(self) -> bool:
         """Check if this backend supports write operations (v2 format).
 
@@ -709,3 +718,139 @@ class ModelReferenceBackend(ABC):
             ReplicateMode: The replicate mode (PRIMARY or REPLICA).
         """
         return self._replicate_mode
+
+    def supports_metadata(self) -> bool:
+        """Check if this backend supports metadata tracking.
+
+        Metadata tracking records operation counts, timestamps, and health metrics
+        for both legacy (v1) and v2 format operations. Typically only PRIMARY mode
+        backends support metadata tracking.
+
+        Returns:
+            bool: True if metadata tracking is supported, False otherwise.
+        """
+        return False
+
+    def get_legacy_metadata(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Get legacy format metadata for a specific category.
+
+        This is an optional method that metadata-capable backends can implement.
+        Backends without metadata support should leave the default implementation.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata: The legacy metadata.
+
+        Raises:
+            NotImplementedError: If the backend does not support metadata.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support metadata tracking")
+
+    async def get_legacy_metadata_async(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Asynchronously get legacy format metadata for a specific category.
+
+        This is an optional method that metadata-capable backends can implement.
+        Backends without metadata support should leave the default implementation.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata: The legacy metadata.
+
+        Raises:
+            NotImplementedError: If the backend does not support metadata.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support async metadata tracking")
+
+    def get_metadata(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Get v2 format metadata for a specific category.
+
+        This is an optional method that metadata-capable backends can implement.
+        Backends without metadata support should leave the default implementation.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata: The v2 metadata.
+
+        Raises:
+            NotImplementedError: If the backend does not support metadata.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support metadata tracking")
+
+    async def get_metadata_async(self, category: MODEL_REFERENCE_CATEGORY) -> CategoryMetadata:
+        """Asynchronously get v2 format metadata for a specific category.
+
+        This is an optional method that metadata-capable backends can implement.
+        Backends without metadata support should leave the default implementation.
+
+        Args:
+            category: The category to get metadata for.
+
+        Returns:
+            CategoryMetadata: The v2 metadata.
+
+        Raises:
+            NotImplementedError: If the backend does not support metadata.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support async metadata tracking")
+
+    def get_all_legacy_metadata(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Get legacy format metadata for all categories.
+
+        This is an optional method that metadata-capable backends can implement.
+        Backends without metadata support should leave the default implementation.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their legacy metadata.
+
+        Raises:
+            NotImplementedError: If the backend does not support metadata.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support metadata tracking")
+
+    async def get_all_legacy_metadata_async(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Asynchronously get legacy format metadata for all categories.
+
+        This is an optional method that metadata-capable backends can implement.
+        Backends without metadata support should leave the default implementation.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their legacy metadata.
+
+        Raises:
+            NotImplementedError: If the backend does not support metadata.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support async metadata tracking")
+
+    def get_all_metadata(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Get v2 format metadata for all categories.
+
+        This is an optional method that metadata-capable backends can implement.
+        Backends without metadata support should leave the default implementation.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their v2 metadata.
+
+        Raises:
+            NotImplementedError: If the backend does not support metadata.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support metadata tracking")
+
+    async def get_all_metadata_async(self) -> dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]:
+        """Asynchronously get v2 format metadata for all categories.
+
+        This is an optional method that metadata-capable backends can implement.
+        Backends without metadata support should leave the default implementation.
+
+        Returns:
+            dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their v2 metadata.
+
+        Raises:
+            NotImplementedError: If the backend does not support metadata.
+        """
+        raise NotImplementedError(f"{self.__class__.__name__} does not support async metadata tracking")

@@ -52,7 +52,7 @@ def print_deployment_guide() -> None:
     print("# For detailed deployment instructions, see:")
     print("#   - Docker: docker-compose.yml (single-worker)")
     print("#   - Docker + Redis: docker-compose.redis.yml (multi-worker)")
-    print("#   - Non-Docker: scripts/start_primary.sh or scripts/start_primary.bat")
+    print("#   - Non-Docker: DEPLOYMENT.md")
     print()
 
 
