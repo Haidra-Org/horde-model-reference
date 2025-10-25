@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  horde-model-reference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: horde-model-reference-primary
+    ports:
+      - "19800:19800"
+    volumes:
+      # Persist model reference data
+      - model-data:/data
+    env_file:
+      - .env.primary
+    environment:
+      # PRIMARY mode configuration
+      - HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
+      - HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
+      - HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS=${HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS:-60}
+
+      # Optional: Seed from GitHub on first startup
+      - HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED=${HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED:-true}
+
+      # Data directory
+      - AIWORKER_CACHE_HOME=/data
+    env_file:
+      # Load additional configuration from .env file
+      - .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19800/api/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "org.haidra.service=horde-model-reference"
+      - "org.haidra.mode=primary"
+      - "org.haidra.deployment=single-worker"
+
+  # GitHub Sync Service (optional, enable with --profile sync)
+  # Syncs model references from PRIMARY to GitHub legacy repositories
+  # Usage: docker-compose --profile sync up -d
+  github-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        EXTRA_DEPS: sync
+    container_name: horde-github-sync
+    profiles:
+      - sync
+    depends_on:
+      horde-model-reference:
+        condition: service_healthy
+    volumes:
+      - github-sync-data:/data
+      # Mount GitHub App private key if using GitHub App auth
+      # Uncomment and ensure file exists before starting:
+      # - ./github-app-key.pem:/app/github-app-key.pem:ro
+    env_file:
+      # Load all configuration from .env.sync file
+      # Create this file from .env.sync.example
+      - .env.sync
+    restart: unless-stopped
+    labels:
+      - "org.haidra.service=github-sync"
+      - "org.haidra.mode=sync"
+    command: >
+      sh -c 'while true; do
+        echo "[$(date)] Starting GitHub sync...";
+        /app/.venv/bin/python scripts/sync/sync_github_references.py || echo "[$(date)] Sync failed, will retry after interval";
+        echo "[$(date)] Sync complete. Sleeping for $$SYNC_INTERVAL seconds...";
+        sleep $$SYNC_INTERVAL;
+      done'
+
+volumes:
+  model-data:
+    driver: local
+  github-sync-data:
+    driver: local

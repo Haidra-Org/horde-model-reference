@@ -1,0 +1,149 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: horde-model-reference-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - horde-network
+    labels:
+      - "org.haidra.service=redis"
+      - "org.haidra.role=cache"
+
+  horde-model-reference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: horde-model-reference-primary
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "19800:19800"
+    volumes:
+      # Persist model reference data (shared across workers)
+      - model-data:/data
+    environment:
+      # PRIMARY mode configuration
+      - HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
+      - HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
+      - HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS=60
+      - HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED=true
+
+      # Redis configuration (REQUIRED for multi-worker)
+      - HORDE_MODEL_REFERENCE_REDIS_USE_REDIS=true
+      - HORDE_MODEL_REFERENCE_REDIS_URL=redis://redis:6379/0
+      - HORDE_MODEL_REFERENCE_REDIS_POOL_SIZE=10
+      - HORDE_MODEL_REFERENCE_REDIS_TTL_SECONDS=60
+      - HORDE_MODEL_REFERENCE_REDIS_USE_PUBSUB=true
+
+      # Data directory
+      - AIWORKER_CACHE_HOME=/data
+    env_file:
+      # Load additional configuration from .env file
+      - .env.primary
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19800/api/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - horde-network
+    labels:
+      - "org.haidra.service=horde-model-reference"
+      - "org.haidra.mode=primary"
+      - "org.haidra.deployment=multi-worker"
+    # Run with multiple workers (requires Redis)
+    command: ["/app/.venv/bin/fastapi", "run", "src/horde_model_reference/service/app.py", "--host", "0.0.0.0", "--port", "19800", "--workers", "4"]
+
+  # Optional: Add more worker instances for horizontal scaling
+  # Uncomment to enable
+  # horde-model-reference-worker-2:
+  #   extends: horde-model-reference
+  #   container_name: horde-model-reference-worker-2
+  #   ports:
+  #     - "8001:19800"
+  #   labels:
+  #     - "org.haidra.worker=2"
+
+  # horde-model-reference-worker-3:
+  #   extends: horde-model-reference
+  #   container_name: horde-model-reference-worker-3
+  #   ports:
+  #     - "8002:19800"
+  #   labels:
+  #     - "org.haidra.worker=3"
+
+  # GitHub Sync Service (optional, enable with --profile sync)
+  # Syncs model references from PRIMARY to GitHub legacy repositories
+  #
+  # IMPORTANT: Configure authentication before enabling
+  # See SYNC_README.md for detailed setup instructions
+  #
+  # Quick setup:
+  # 1. Copy .env.sync.example to .env.sync
+  # 2. Configure GitHub authentication (token or App)
+  # 3. For GitHub App: place private key as ./github-app-key.pem
+  # 4. For GitHub App: uncomment the volume mount below
+  # 5. Start: docker-compose -f docker-compose.redis.yml --env-file .env.sync --profile sync up -d
+  github-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        EXTRA_DEPS: sync
+    container_name: horde-github-sync
+    profiles:
+      - sync
+    depends_on:
+      horde-model-reference:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - github-sync-data:/data
+      # Mount GitHub App private key if using GitHub App auth
+      # Uncomment and ensure file exists before starting:
+      # - ./github-app-key.pem:/app/github-app-key.pem:ro
+    env_file:
+      # Load all configuration from .env.sync file
+      # Create this file from .env.sync.example
+      - .env.sync
+    restart: unless-stopped
+    networks:
+      - horde-network
+    labels:
+      - "org.haidra.service=github-sync"
+      - "org.haidra.mode=sync"
+    command: >
+      sh -c 'while true; do
+        echo "[$(date)] Starting GitHub sync...";
+        /app/.venv/bin/python scripts/sync/sync_github_references.py || echo "[$(date)] Sync failed, will retry after interval";
+        echo "[$(date)] Sync complete. Sleeping for $$SYNC_INTERVAL seconds...";
+        sleep $$SYNC_INTERVAL;
+      done'
+
+volumes:
+  model-data:
+    driver: local
+  redis-data:
+    driver: local
+  github-sync-data:
+    driver: local
+
+networks:
+  horde-network:
+    driver: bridge

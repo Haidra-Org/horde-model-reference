@@ -1,0 +1,80 @@
+version: '3.8'
+
+# ============================================================================
+# Example: Docker Compose with GitHub Sync Service
+# ============================================================================
+# This example shows how to run both PRIMARY server and GitHub sync service
+# with proper GitHub App authentication.
+#
+# Prerequisites:
+# 1. Copy .env.sync.example to .env.sync and configure
+# 2. Place your GitHub App private key as github-app-key.pem in project root
+# 3. Start with: docker-compose -f docker-compose.sync.example.yml up -d
+#
+# For production, consider using docker-compose.redis.yml for multi-worker setup
+
+services:
+  horde-model-reference:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: horde-model-reference-primary
+    ports:
+      - "19800:19800"
+    volumes:
+      - model-data:/data
+    environment:
+      - HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
+      - HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
+      - HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS=60
+      - HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED=false
+      - AIWORKER_CACHE_HOME=/data
+    env_file:
+      # Load additional configuration from .env file
+      - .env.primary
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19800/api/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    labels:
+      - "org.haidra.service=horde-model-reference"
+      - "org.haidra.mode=primary"
+
+  github-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        EXTRA_DEPS: sync
+    container_name: horde-github-sync
+    depends_on:
+      horde-model-reference:
+        condition: service_healthy
+    volumes:
+      - github-sync-data:/data
+      # Mount your GitHub App private key file
+      # Place your key file in the project root before starting
+      - ./github-app-key.pem:/app/github-app-key.pem:ro
+    env_file:
+      # Load configuration from .env.sync file
+      - .env.sync
+    restart: unless-stopped
+    labels:
+      - "org.haidra.service=github-sync"
+      - "org.haidra.mode=sync"
+    command: >
+      sh -c 'while true; do
+        echo "[$(date)] Starting GitHub sync...";
+        /app/.venv/bin/python scripts/sync/sync_github_references.py || echo "[$(date)] Sync failed, will retry after interval";
+        echo "[$(date)] Sync complete. Sleeping for $$SYNC_INTERVAL seconds...";
+        sleep $$SYNC_INTERVAL;
+      done'
+
+volumes:
+  model-data:
+    driver: local
+  github-sync-data:
+    driver: local
