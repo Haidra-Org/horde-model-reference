@@ -1,2 +1,2 @@
 # base
-::: src.horde_model_reference.backends.base
+::: horde_model_reference.backends.base

@@ -1,2 +1,2 @@
 # util
-::: src.horde_model_reference.util
+::: horde_model_reference.util

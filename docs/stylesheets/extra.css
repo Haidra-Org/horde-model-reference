@@ -1,143 +1,309 @@
+/* ============================================
+   CSS Custom Properties for Theme Support
+   ============================================ */
+
+/* Light mode (default) colors */
+[data-md-color-scheme="default"] {
+    --doc-bg-nested: rgb(229, 229, 229);
+    --doc-label-bg: rgb(226, 226, 226);
+    --doc-nav-color: #333;
+    --doc-nav-bg: #f8f8f8;
+    --doc-nav-border: #ccc;
+    --doc-border-color: #ccc;
+    --doc-class-color: #1c7d4d;
+    --doc-class-base-color: #33BBA2;
+    --doc-attribute-color: #00a6ff;
+    --doc-function-color: #a846b9;
+    --doc-async-color: #d32f2f;
+    --note-bg: #f9f9f9;
+    --note-border: #ccc;
+    --warning-bg: #fcf8e3;
+    --warning-border: #f0ad4e;
+    --warning-color: #8a6d3b;
+    --card-border: #e6eef0;
+    --card-shadow: rgba(16, 24, 40, 0.03);
+    --card-hover-shadow: rgba(16, 24, 40, 0.08);
+    --label-badge-bg: #e8f4f8;
+    --label-badge-border: #b3d9e6;
+    --code-inline-bg: rgba(175, 184, 193, 0.2);
+    --code-inline-border: rgba(175, 184, 193, 0.3);
+}
+
+/* Dark mode (slate) colors */
+[data-md-color-scheme="slate"] {
+    --doc-bg-nested: rgb(45, 45, 45);
+    --doc-label-bg: rgb(55, 55, 55);
+    --doc-nav-color: #e0e0e0;
+    --doc-nav-bg: #2b2b2b;
+    --doc-nav-border: #555;
+    --doc-border-color: #555;
+    --doc-class-color: #4caf50;
+    --doc-class-base-color: #26a69a;
+    --doc-attribute-color: #42a5f5;
+    --doc-function-color: #ba68c8;
+    --doc-async-color: #ef5350;
+    --note-bg: #2b2b2b;
+    --note-border: #555;
+    --warning-bg: #3e2723;
+    --warning-border: #f57c00;
+    --warning-color: #ffb74d;
+    --card-border: #424242;
+    --card-shadow: rgba(0, 0, 0, 0.2);
+    --card-hover-shadow: rgba(0, 0, 0, 0.4);
+    --label-badge-bg: rgba(66, 153, 225, 0.15);
+    --label-badge-border: rgba(66, 153, 225, 0.3);
+    --code-inline-bg: rgba(110, 118, 129, 0.2);
+    --code-inline-border: rgba(110, 118, 129, 0.3);
+}
+
+/* ============================================
+   General Styles
+   ============================================ */
+
 .md-grid {
     max-width: 73rem;
 }
+
 .doc-object-name {
-    font-weight: bold;
-    letter-spacing: 0.0em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
 }
+
 .doc.doc-children .doc-object {
-    background-color: rgb(229, 229, 229);
-    padding-left: 3px;
-    padding-right: 3px;
+    background-color: var(--doc-bg-nested);
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 8px;
 }
 
 .doc-label code {
-    background-color: rgb(226, 226, 226);
-
+    background-color: var(--label-badge-bg);
+    border: 1px solid var(--label-badge-border);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
 }
 
 .md-typeset h2 {
-    line-height: unset;
-    margin: unset;
+    line-height: 1.4;
+    margin: 1.5em 0 0.5em 0;
+}
+
+.md-typeset h2:first-child {
+    margin-top: 0;
 }
 
 .md-typeset details {
-    padding: 0
+    /* no padding on top */
+    padding: 0 1em 1em 1em;
+    margin-bottom: 1em;
 }
-
 
 .md-typeset .highlighttable {
     margin: 0;
+    border-radius: 6px;
+    overflow: hidden;
 }
 
-[dir=ltr] .md-typeset summary {
-    margin: 0;
+
+
+.md-typeset {
+    line-height: 1.6;
 }
 
-.md-typeset{
-    line-height: 1.3;
+.md-typeset p {
+    margin-bottom: 1em;
 }
 
 h3.doc-heading {
-    margin: 0 0 5px 0;
+    margin: 1.25em 0 0.75em 0;
     font-size: 1.25em;
+    font-weight: 600;
 }
 
-details.quote div.highlight {
-    margin: 0;
+h3.doc-heading:first-child {
+    margin-top: 0;
 }
 
 
+
+/* Code Styling */
 code {
     font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
 }
 
-.highlight.language-python{
-    font-weight: bold;
-
+.md-typeset code:not(.highlight code) {
+    background-color: var(--code-inline-bg);
+    border: 1px solid var(--code-inline-border);
 }
 
-.doc-label-async code{
-    color: red;
-    font-weight: bold;
+.highlight.language-python {
+    font-weight: 500;
+    border-radius: 6px;
 }
-.doc-attribute h2 code span{
+
+.doc-attribute h2 code span {
     font-size: 0.7em;
 }
 
+/* ============================================
+   Navigation Styles
+   ============================================ */
 
 .md-nav__item--nested label {
     font-family: Consolas, Monaco, 'Andale Mono', 'Ubuntu Mono', monospace;
-    font-size: 14px;
-    line-height: 1.5;
-    color: #333;
-    background-color: #f8f8f8;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 5px;
+    color: var(--doc-nav-color);
+    background-color: var(--doc-nav-bg);
+    border: 1px solid var(--doc-nav-border);
+    border-radius: 6px;
+    padding: 8px 10px;
     overflow-x: auto;
+    transition: all 0.2s ease;
 }
 
-div.doc.doc-object {
-    border-bottom: 4px solid #ccc;
-}
+
+/* ============================================
+   Documentation Object Styles
+   ============================================ */
 
 .doc-class-name {
-    color: #1c7d4d;
+    color: var(--doc-class-color);
+    font-weight: 600;
 }
 
-.doc-class-bases code a{
-    color: #33BBA2;
+.doc-class-bases {
+    margin-top: 4px;
 }
-.doc-class-bases code span{
-    color: #33BBA2;
+
+.doc-class-bases code a {
+    color: var(--doc-class-base-color);
+    text-decoration: none;
+    border-bottom: 1px dotted var(--doc-class-base-color);
+    transition: border-bottom 0.2s ease;
+}
+
+.doc-class-bases code a:hover {
+    border-bottom-style: solid;
+}
+
+.doc-class-bases code span {
+    color: var(--doc-class-base-color);
 }
 
 .doc-attribute-name {
-    color: #00a6ff;
+    color: var(--doc-attribute-color);
+    font-weight: 600;
 }
 
 .doc-function-name {
-    font-weight: initial;
-    color: #a846b9;
+    font-weight: 600;
+    color: var(--doc-function-color);
 }
 
-.doc-label-module-attribute code{
-    color: #00a6ff;
+.doc-label-module-attribute code {
+    color: var(--doc-attribute-color);
 }
 
-.doc-label-abstractmethod code{
-    font-weight: bold;
+.doc-label-abstractmethod code {
+    font-weight: 600;
     font-style: italic;
 }
 
-.doc-label-classmethod code{
-    color: #33BBA2;
+.doc-label-classmethod code {
+    color: var(--doc-class-base-color);
 }
 
+.doc-label-async code {
+    color: var(--doc-async-color);
+    font-weight: 600;
+}
+
+/* Signature styling */
+.doc-signature {
+    margin: 8px 0;
+}
+
+/* Parameter lists */
+.doc-parameters dt {
+    font-weight: 600;
+    margin-top: 0.5em;
+}
+
+.doc-parameters dd {
+    margin-left: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+
+
+[dir=ltr] .md-typeset summary:after{
+    right: 1rem;
+}
+
+.md-typeset .quote>.admonition-title, .md-typeset .quote>summary{
+    background: none;
+}
+
+/* ============================================
+   Admonition Styles
+   ============================================ */
+
 .note {
-    border: 1px solid #ccc;
-    background-color: #f9f9f9;
-    padding: 10px;
-    margin-bottom: 20px;
-  }
+    border-left: 4px solid var(--note-border);
+    background-color: var(--note-bg);
+    padding: 16px 20px;
+    margin-bottom: 1.5em;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px var(--card-shadow);
+}
 
-  .note .title {
-    font-weight: bold;
-    margin-bottom: 10px;
-  }
+.note .title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 1.05em;
+}
 
-  .warning {
-    border: 1px solid #f0ad4e;
-    background-color: #fcf8e3;
-    color: #8a6d3b;
-    padding: 10px;
-    margin-bottom: 20px;
-    max-width: 600px; /* set a maximum width for the warning */
-    word-wrap: break-word; /* break long words to fit the container */
-  }
+.warning {
+    border-left: 4px solid var(--warning-border);
+    background-color: var(--warning-bg);
+    color: var(--warning-color);
+    padding: 16px 20px;
+    margin-bottom: 1.5em;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px var(--card-shadow);
+}
 
-  .warning .title {
-    font-weight: bold;
-    margin-bottom: 10px;
-  }
+.warning .title {
+    font-weight: 600;
+    margin-bottom: 8px;
+    font-size: 1.05em;
+}
+
+/* ============================================
+   Card Styles
+   ============================================ */
+
+/* Card-like appearance for each documented object */
+.doc.doc-object {
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    box-shadow: 0 1px 3px var(--card-shadow);
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+    background-color: transparent;
+}
+
+
+
+/* Better spacing for nested content */
+.doc.doc-object > * {
+    margin-bottom: 0.75em;
+}
+
+.doc.doc-object > *:last-child {
+    margin-bottom: 0;
+}

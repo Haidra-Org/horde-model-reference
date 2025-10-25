@@ -44,6 +44,8 @@ def dynamically_create_library_markdown_stubs() -> None:
             with open(relative_folder / f"{file.stem}.md", "w", encoding="utf-8") as f:
                 f.write(f"# {file.stem}\n")
                 file_namespace = pyfile_lookup[file]
+                if file_namespace.startswith("src."):
+                    file_namespace = file_namespace[4:]
                 f.write(f"::: {file_namespace}\n")
 
 
