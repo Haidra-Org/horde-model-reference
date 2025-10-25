@@ -48,17 +48,17 @@ def fetch_category(
     if force_refresh or self.should_fetch_data(category):
         # Fetch data directly
         data = self._fetch_from_primary(category)
-        
+
         # Fallback if needed
         if data is None and self._enable_github_fallback:
             data = self._github_backend.fetch_category(category, force_refresh=force_refresh)
-        
+
         # Store directly in cache
         if data is not None:
             self._store_in_cache(category, data)
-        
+
         return data
-    
+
     # Return cached data
     return self._get_from_cache(category)
 ```
@@ -88,23 +88,23 @@ def fetch_category(
         # Check if we need to fetch
         if force_refresh or self.should_fetch_data(category):
             file_path = self._get_file_path(category)
-            
+
             if not file_path or not file_path.exists():
                 self._store_in_cache(category, None)
                 return None
-            
+
             try:
                 with open(file_path, encoding="utf-8") as f:
                     data: dict[str, Any] = json.load(f)
-                
+
                 self._store_in_cache(category, data)
                 return data
-            
+
             except Exception as e:
                 logger.error(f"Failed to read {file_path}: {e}")
                 self._invalidate_cache(category)
                 return None
-        
+
         # Return cached data
         return self._get_from_cache(category)
 ```
@@ -139,7 +139,7 @@ def fetch_category(
             self._download_and_convert_single(category, overwrite_existing=force_refresh)
             # Load from disk and cache (calls _store_in_cache internally)
             return self._load_converted_from_disk(category)
-        
+
         # Return cached data
         return self._get_from_cache(category)
 ```
