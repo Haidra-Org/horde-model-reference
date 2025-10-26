@@ -98,6 +98,11 @@ class GitHubBackend(ReplicaBackendBase):
             else:
                 if self._replicate_mode == ReplicateMode.REPLICA:
                     self._references_paths_cache[category] = None
+                if (
+                    self._replicate_mode == ReplicateMode.PRIMARY
+                    and horde_model_reference_settings.github_seed_enabled
+                ):
+                    self._references_paths_cache[category] = None
                 else:
                     raise FileNotFoundError(f"Model reference file not found for {category}.")
 
@@ -486,6 +491,12 @@ class GitHubBackend(ReplicaBackendBase):
 
         convert_all_legacy_model_references()
 
+    def _download_allowed(self) -> bool:
+        """Return `True` if downloading is allowed based on replicate mode and settings."""
+        if self._replicate_mode == ReplicateMode.PRIMARY and horde_model_reference_settings.github_seed_enabled:
+            return True
+        return self._replicate_mode == ReplicateMode.REPLICA
+
     def _download_legacy(
         self,
         category: MODEL_REFERENCE_CATEGORY,
@@ -500,8 +511,7 @@ class GitHubBackend(ReplicaBackendBase):
         Returns:
             Path | None: Path to the downloaded file, or None on failure.
         """
-        if self._replicate_mode != ReplicateMode.REPLICA:
-            logger.debug(f"Replicate mode is not REPLICA, skipping download for {category}")
+        if not self._download_allowed():
             return self._references_paths_cache.get(category)
 
         target_file_path = horde_model_reference_paths.get_model_reference_file_path(
@@ -557,15 +567,15 @@ class GitHubBackend(ReplicaBackendBase):
                         return None
                     continue
 
-                record_keys_to_drop = []
-                if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                    for key in list(data.keys()):
-                        if has_legacy_text_backend_prefix(key):
-                            record_keys_to_drop.append(key)
+                record_keys_to_drop: list[str] = []
+                # if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                #     for key in list(data.keys()):
+                #         if has_legacy_text_backend_prefix(key):
+                #             record_keys_to_drop.append(key)
 
-                    for key in record_keys_to_drop:
-                        logger.trace(f"Dropping legacy text generation key {key}")
-                        data.pop(key, None)
+                #     for key in record_keys_to_drop:
+                #         logger.trace(f"Dropping legacy text generation key {key}")
+                #         data.pop(key, None)
 
                 target_file_path.parent.mkdir(parents=True, exist_ok=True)
                 raw_json_str = response.content.decode("utf-8")
@@ -608,7 +618,7 @@ class GitHubBackend(ReplicaBackendBase):
         Returns:
             Path | None: Path to the downloaded file, or None on failure.
         """
-        if self._replicate_mode != ReplicateMode.REPLICA:
+        if not self._download_allowed():
             logger.debug(f"Replicate mode is not REPLICA, skipping download for {category}")
             return self._references_paths_cache.get(category)
 

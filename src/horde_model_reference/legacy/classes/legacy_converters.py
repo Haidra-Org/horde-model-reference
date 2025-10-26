@@ -631,15 +631,15 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
 
         model_record_config = self._convert_model_record_config(legacy_record)
 
-        if has_legacy_text_backend_prefix(legacy_record.name):
-            self.add_validation_error_to_log(
-                model_record_key=legacy_record.name,
-                error=(
-                    f"Model name '{legacy_record.name}' has a deprecated backend prefix. "
-                    "Dropping this record as it is necessarily a duplicate."
-                ),
-            )
-            return None
+        # if has_legacy_text_backend_prefix(legacy_record.name):
+        #     self.add_validation_error_to_log(
+        #         model_record_key=legacy_record.name,
+        #         error=(
+        #             f"Model name '{legacy_record.name}' has a deprecated backend prefix. "
+        #             "Dropping this record as it is necessarily a duplicate."
+        #         ),
+        #     )
+        #     return None
 
         return TextGenerationModelRecord(
             name=legacy_record.name,
