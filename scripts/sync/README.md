@@ -58,6 +58,12 @@ PRIMARY (v1 API) ────► Comparator ◄──── GitHub (legacy repos
 - **GitHubSyncClient**: Creates PRs with detected changes
 - **WatchModeManager**: Monitors metadata and triggers syncs (watch mode only)
 
+## Important Notes
+
+- Ensure your environment variables are set correctly before running the sync service.
+- **If running the sync service on the same host as the PRIMARY instance**
+    - You must set a different `AIWORKER_CACHE_HOME` for each or it will never detect changes. You should always set this variable when using the sync service.
+
 ## Installation
 
 Install with sync dependencies:
