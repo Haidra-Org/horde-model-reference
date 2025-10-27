@@ -127,9 +127,9 @@ def test_manager(
     model_reference_manager.backend.fetch_all_categories(force_refresh=True)
 
     log_messages = [record.message for record in caplog.records]
-    assert any(
-        "Loaded converted JSON" in msg or "loading from disk" in msg for msg in log_messages
-    ), "Expected 'Loaded converted JSON' or 'loading from disk' in log messages during cache loading"
+    assert any("Loaded converted JSON" in msg or "loading from disk" in msg for msg in log_messages), (
+        "Expected 'Loaded converted JSON' or 'loading from disk' in log messages during cache loading"
+    )
 
     all_references: dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]
     all_references = model_reference_manager.get_all_model_references(overwrite_existing=False)
@@ -213,10 +213,10 @@ def test_manager_new_format(
                     "empty file created during initialization."
                 )
                 continue
-            
-            assert (
-                model_reference_category in all_model_references
-            ), f"Model reference category {model_reference_category} is missing"
+
+            assert model_reference_category in all_model_references, (
+                f"Model reference category {model_reference_category} is missing"
+            )
 
             model_reference_instance = all_model_references[model_reference_category]
 
@@ -227,22 +227,19 @@ def test_manager_new_format(
                     "this may occur in CI environments where files haven't been seeded yet"
                 )
                 continue
-            
+
             if len(model_reference_instance) == 0:
-                logger.info(
-                    f"Model reference instance for {model_reference_category} is empty - "
-                    "skipping validation"
-                )
+                logger.info(f"Model reference instance for {model_reference_category} is empty - skipping validation")
                 continue
 
-            assert (
-                model_reference_category in MODEL_CLASSIFICATION_LOOKUP
-            ), f"Model reference category {model_reference_category} is not in the classification lookup"
+            assert model_reference_category in MODEL_CLASSIFICATION_LOOKUP, (
+                f"Model reference category {model_reference_category} is not in the classification lookup"
+            )
 
             for _, model_entry in model_reference_instance.items():
-                assert (
-                    model_entry.model_classification == MODEL_CLASSIFICATION_LOOKUP[model_reference_category]
-                ), f"Model entry for {model_reference_category} is not classified correctly"
+                assert model_entry.model_classification == MODEL_CLASSIFICATION_LOOKUP[model_reference_category], (
+                    f"Model entry for {model_reference_category} is not classified correctly"
+                )
 
     assert_all_model_references_exist(model_reference_manager, overwrite_existing=True)
 
