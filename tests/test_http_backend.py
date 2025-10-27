@@ -1,8 +1,9 @@
 from pathlib import Path
-from typing import Any, cast, override
+from typing import Any, cast
 
 import httpx
 import pytest
+from typing_extensions import override
 
 from horde_model_reference import ReplicateMode
 from horde_model_reference.backends.github_backend import GitHubBackend

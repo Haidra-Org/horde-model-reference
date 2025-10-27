@@ -3,13 +3,14 @@
 import json
 import time
 from pathlib import Path
-from typing import Any, cast, override
+from typing import Any, cast
 from unittest.mock import Mock
 
 import fakeredis
 import httpx
 import pytest
 import redis
+from typing_extensions import override
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY, RedisSettings, ReplicateMode
 from horde_model_reference.backends.base import ModelReferenceBackend

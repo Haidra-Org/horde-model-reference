@@ -10,12 +10,13 @@ import contextlib
 import json
 import time
 from pathlib import Path
-from typing import Any, override
+from typing import Any
 
 import aiofiles
 import httpx
 from loguru import logger
 from pydantic import BaseModel, Field
+from typing_extensions import override
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
@@ -465,10 +466,8 @@ class FileSystemBackend(ReplicaBackendBase):
                 # Set updated_at timestamp
                 self._metadata_manager.model_metadata.set_update_timestamp(record_dict)
             else:
-                # For new models, set creation timestamp
-                self._metadata_manager.model_metadata.set_creation_timestamp(record_dict)
-                # Also set updated_at to same value initially
-                self._metadata_manager.model_metadata.set_update_timestamp(record_dict)
+                # For new models, ensure timestamps are populated (without overwriting existing values)
+                self._metadata_manager.model_metadata.ensure_metadata_populated(record_dict)
 
             existing_data[model_name] = record_dict
 
