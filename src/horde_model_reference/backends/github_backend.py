@@ -96,9 +96,7 @@ class GitHubBackend(ReplicaBackendBase):
                 self._references_paths_cache[category] = file_path
                 self._load_legacy_json_from_disk(category, file_path)
             else:
-                if self._replicate_mode == ReplicateMode.REPLICA:
-                    self._references_paths_cache[category] = None
-                elif (
+                if self._replicate_mode == ReplicateMode.REPLICA or (
                     self._replicate_mode == ReplicateMode.PRIMARY
                     and horde_model_reference_settings.github_seed_enabled
                 ):
