@@ -250,6 +250,281 @@ def legacy_path(primary_base: Path) -> Path:
 
 
 @pytest.fixture
+def minimal_legacy_stable_diffusion_data() -> dict[str, Any]:
+    """Return minimal legacy stable diffusion test data."""
+    return {
+        "test_model_sd_1": {
+            "name": "test_model_sd_1",
+            "description": "Test stable diffusion model 1",
+            "version": "1.0",
+            "baseline": "stable_diffusion_1",
+            "inpainting": False,
+            "style": "generalist",
+            "nsfw": False,
+            "tags": ["tag1", "tag2", "tag3"],
+            "config": {
+                "files": [
+                    {"path": "test_model_sd_1.ckpt", "sha256sum": "a" * 64},
+                ],
+                "download": [
+                    {
+                        "file_name": "test_model_sd_1.ckpt",
+                        "file_url": "https://example.com/test_model_sd_1.ckpt",
+                        "file_path": "",
+                    },
+                ],
+            },
+        },
+        "test_model_sd_2": {
+            "name": "test_model_sd_2",
+            "description": "Test stable diffusion model 2",
+            "version": "1.0",
+            "baseline": "stable_diffusion_2_512",
+            "inpainting": True,
+            "style": "anime",
+            "nsfw": False,
+            "tags": ["tag4", "tag5", "tag6"],
+            "config": {
+                "files": [
+                    {"path": "test_model_sd_2.ckpt", "sha256sum": "b" * 64},
+                ],
+                "download": [
+                    {
+                        "file_name": "test_model_sd_2.ckpt",
+                        "file_url": "https://example.com/test_model_sd_2.ckpt",
+                        "file_path": "",
+                    },
+                ],
+            },
+        },
+        "test_model_sd_3": {
+            "name": "test_model_sd_3",
+            "description": "Test stable diffusion model 3",
+            "version": "1.0",
+            "baseline": "stable_diffusion_xl",
+            "inpainting": False,
+            "style": "realistic",
+            "nsfw": True,
+            "tags": ["tag7", "tag8", "tag9"],
+            "config": {
+                "files": [
+                    {"path": "test_model_sd_3.ckpt", "sha256sum": "c" * 64},
+                ],
+                "download": [
+                    {
+                        "file_name": "test_model_sd_3.ckpt",
+                        "file_url": "https://example.com/test_model_sd_3.ckpt",
+                        "file_path": "",
+                    },
+                ],
+            },
+        },
+        "test_model_sd_4": {
+            "name": "test_model_sd_4",
+            "description": "Test stable diffusion model 4",
+            "version": "1.0",
+            "baseline": "stable_cascade",
+            "inpainting": False,
+            "style": "artistic",
+            "nsfw": False,
+            "tags": ["tag10", "tag11", "tag12"],
+            "config": {
+                "files": [
+                    {"path": "test_model_sd_4.ckpt", "sha256sum": "d" * 64},
+                ],
+                "download": [
+                    {
+                        "file_name": "test_model_sd_4.ckpt",
+                        "file_url": "https://example.com/test_model_sd_4.ckpt",
+                        "file_path": "",
+                    },
+                ],
+            },
+        },
+        "test_model_sd_5": {
+            "name": "test_model_sd_5",
+            "description": "Test stable diffusion model 5",
+            "version": "1.0",
+            "baseline": "flux_1",
+            "inpainting": False,
+            "style": "furry",
+            "nsfw": False,
+            "tags": ["tag13"],
+            "config": {
+                "files": [
+                    {"path": "test_model_sd_5.ckpt", "sha256sum": "e" * 64},
+                ],
+                "download": [
+                    {
+                        "file_name": "test_model_sd_5.ckpt",
+                        "file_url": "https://example.com/test_model_sd_5.ckpt",
+                        "file_path": "",
+                    },
+                ],
+            },
+        },
+        "test_model_sd_6": {
+            "name": "test_model_sd_6",
+            "description": "Test stable diffusion model 6",
+            "version": "1.0",
+            "baseline": "flux_schnell",
+            "inpainting": False,
+            "style": "other",
+            "nsfw": False,
+            "tags": ["tag14"],
+            "config": {
+                "files": [
+                    {"path": "test_model_sd_6.ckpt", "sha256sum": "f" * 64},
+                ],
+                "download": [
+                    {
+                        "file_name": "test_model_sd_6.ckpt",
+                        "file_url": "https://example.com/test_model_sd_6.ckpt",
+                        "file_path": "",
+                    },
+                ],
+            },
+        },
+    }
+
+
+@pytest.fixture
+def minimal_legacy_clip_data() -> dict[str, Any]:
+    """Return minimal legacy CLIP test data."""
+    return {
+        "test_clip_1": {
+            "name": "test_clip_1",
+            "description": "Test CLIP model 1",
+            "version": "1.0",
+            "pretrained_name": "openai/clip-vit-base-patch32",
+            "config": {
+                "files": [
+                    {"path": "test_clip_1.safetensors", "sha256sum": "b" * 64},
+                ],
+                "download": [
+                    {
+                        "file_name": "test_clip_1.safetensors",
+                        "file_url": "https://example.com/test_clip_1.safetensors",
+                        "file_path": "",
+                    },
+                ],
+            },
+        },
+    }
+
+
+@pytest.fixture
+def minimal_legacy_controlnet_data() -> dict[str, Any]:
+    """Return minimal legacy ControlNet test data."""
+    return {
+        "test_controlnet_1": {
+            "name": "test_controlnet_1",
+            "description": "Test ControlNet model 1",
+            "version": "1.0",
+            "style": "control_canny",
+            "config": {
+                "files": [
+                    {"path": "test_controlnet_1.safetensors", "sha256sum": "c" * 64},
+                ],
+                "download": [
+                    {
+                        "file_name": "test_controlnet_1.safetensors",
+                        "file_url": "https://example.com/test_controlnet_1.safetensors",
+                        "file_path": "",
+                    },
+                ],
+            },
+        },
+    }
+
+
+@pytest.fixture
+def minimal_legacy_text_generation_data() -> dict[str, Any]:
+    """Return minimal legacy text generation test data."""
+    return {
+        "test_text_gen_1": {
+            "name": "test_text_gen_1",
+            "description": "Test text generation model 1",
+            "version": "1.0",
+            "baseline": "gpt2",
+            "parameters": 124000000,
+            "style": "generalist",
+            "nsfw": False,
+            "config": {
+                "files": [
+                    {"path": "test_text_gen_1.safetensors", "sha256sum": "d" * 64},
+                ],
+                "download": [
+                    {
+                        "file_name": "test_text_gen_1.safetensors",
+                        "file_url": "https://example.com/test_text_gen_1.safetensors",
+                        "file_path": "",
+                    },
+                ],
+            },
+        },
+    }
+
+
+@pytest.fixture
+def minimal_legacy_generic_data() -> dict[str, Any]:
+    """Return minimal legacy generic model test data."""
+    return {
+        "test_generic_1": {
+            "name": "test_generic_1",
+            "description": "Test generic model 1",
+            "version": "1.0",
+            "config": {
+                "files": [
+                    {"path": "test_generic_1.pth", "sha256sum": "e" * 64},
+                ],
+                "download": [
+                    {
+                        "file_name": "test_generic_1.pth",
+                        "file_url": "https://example.com/test_generic_1.pth",
+                        "file_path": "",
+                    },
+                ],
+            },
+        },
+    }
+
+
+@pytest.fixture
+def populated_legacy_path(
+    legacy_path: Path,
+    minimal_legacy_stable_diffusion_data: dict[str, Any],
+    minimal_legacy_clip_data: dict[str, Any],
+    minimal_legacy_controlnet_data: dict[str, Any],
+    minimal_legacy_text_generation_data: dict[str, Any],
+) -> Path:
+    """Return a legacy path populated with minimal test JSON files."""
+    import json
+
+    # Create stable_diffusion.json
+    (legacy_path / "stable_diffusion.json").write_text(
+        json.dumps(minimal_legacy_stable_diffusion_data, indent=2),
+    )
+
+    # Create clip.json
+    (legacy_path / "clip.json").write_text(
+        json.dumps(minimal_legacy_clip_data, indent=2),
+    )
+
+    # Create controlnet.json
+    (legacy_path / "controlnet.json").write_text(
+        json.dumps(minimal_legacy_controlnet_data, indent=2),
+    )
+
+    # Create text_generation.json
+    (legacy_path / "text_generation.json").write_text(
+        json.dumps(minimal_legacy_text_generation_data, indent=2),
+    )
+
+    return legacy_path
+
+
+@pytest.fixture
 def mock_auth_success(monkeypatch: pytest.MonkeyPatch) -> None:
     """Mock auth_against_horde to always return True for testing write operations."""
 
