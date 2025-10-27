@@ -96,6 +96,7 @@ jobs:
         env:
           HORDE_MODEL_REFERENCE_REPLICATE_MODE: PRIMARY
           HORDE_MODEL_REFERENCE_CANONICAL_FORMAT: legacy
+          HORDE_MODEL_REFERENCE_PRIMARY_API_URL: http://localhost:19800/api
         run: |
           uv run fastapi run ./src/horde_model_reference/service/app.py --port 19800 &
 
