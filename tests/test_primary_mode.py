@@ -76,6 +76,10 @@ def test_filesystem_backend_cache_expiry_respects_primary_mode(
 
     updated_payload = _minimal_record_dict("cached", description="updated")
     file_path.write_text(json.dumps(updated_payload))
+    # Explicitly update mtime to ensure change is detected in CI environments
+    # where filesystem operations may happen within the same timestamp
+    stat_before = file_path.stat()
+    os.utime(file_path, (stat_before.st_atime, stat_before.st_mtime + 1))
 
     refreshed_immediately = backend.fetch_category(category)
     assert refreshed_immediately == updated_payload
