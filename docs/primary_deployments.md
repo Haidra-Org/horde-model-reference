@@ -44,9 +44,7 @@ export HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
 export HORDE_MODEL_REFERENCE_REDIS_USE_REDIS=true  # for multi-worker
 ```
 
-### ⚠️ Backend Architecture
-
-> **REVIEW MARKER**: The backend system is complex; consider if this needs more/less detail.
+### Backend Architecture
 
 The package uses a pluggable backend system:
 
@@ -67,9 +65,7 @@ The package uses a pluggable backend system:
 # REPLICA + No primary_api_url → GitHubBackend
 ```
 
-### ⚠️ Canonical Format Architecture
-
-> **REVIEW MARKER**: The dual-format system is potentially confusing; consider rewording.
+### Canonical Format Architecture
 
 The package supports two file formats:
 

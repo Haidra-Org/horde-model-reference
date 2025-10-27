@@ -15,11 +15,12 @@ import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from threading import RLock
-from typing import Any, override
+from typing import Any
 
 import httpx
 import redis.asyncio
 from loguru import logger
+from typing_extensions import override
 
 from horde_model_reference import RedisSettings, ReplicateMode
 from horde_model_reference.backends.base import ModelReferenceBackend

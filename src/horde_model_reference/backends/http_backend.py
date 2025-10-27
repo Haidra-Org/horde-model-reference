@@ -8,10 +8,11 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Any, override
+from typing import Any
 
 import httpx
 from loguru import logger
+from typing_extensions import override
 
 from horde_model_reference import ReplicateMode, horde_model_reference_settings
 from horde_model_reference.backends.github_backend import GitHubBackend

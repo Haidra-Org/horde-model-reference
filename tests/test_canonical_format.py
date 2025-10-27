@@ -9,12 +9,83 @@ import json
 from pathlib import Path
 from typing import Any
 
+import httpx
 import pytest
+from typing_extensions import override
 
 from horde_model_reference import HordeModelReferenceSettings, ReplicateMode
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
+from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_manager import ModelReferenceManager
+
+
+class StubReplicaBackend(ReplicaBackendBase):
+    """Minimal stub backend for testing REPLICA mode behavior."""
+
+    def __init__(self) -> None:
+        """Initialize stub backend in REPLICA mode."""
+        super().__init__(mode=ReplicateMode.REPLICA, cache_ttl_seconds=None)
+
+    @override
+    def fetch_category(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        *,
+        force_refresh: bool = False,
+    ) -> dict[str, Any] | None:
+        return None
+
+    @override
+    def fetch_all_categories(
+        self,
+        *,
+        force_refresh: bool = False,
+    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
+        return dict.fromkeys(MODEL_REFERENCE_CATEGORY)
+
+    @override
+    async def fetch_category_async(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        *,
+        httpx_client: httpx.AsyncClient | None = None,
+        force_refresh: bool = False,
+    ) -> dict[str, Any] | None:
+        return None
+
+    @override
+    async def fetch_all_categories_async(
+        self,
+        *,
+        httpx_client: httpx.AsyncClient | None = None,
+        force_refresh: bool = False,
+    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
+        return dict.fromkeys(MODEL_REFERENCE_CATEGORY)
+
+    @override
+    def get_category_file_path(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
+        return None
+
+    @override
+    def get_all_category_file_paths(self) -> dict[MODEL_REFERENCE_CATEGORY, Path | None]:
+        return dict.fromkeys(MODEL_REFERENCE_CATEGORY)
+
+    @override
+    def get_legacy_json(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        redownload: bool = False,
+    ) -> dict[str, Any] | None:
+        return None
+
+    @override
+    def get_legacy_json_string(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        redownload: bool = False,
+    ) -> str | None:
+        return None
 
 
 def create_test_legacy_model(name: str) -> dict[str, Any]:
@@ -306,7 +377,6 @@ class TestReplicaModeWriteRestrictions:
 
     def test_replica_manager_rejects_legacy_writes(
         self,
-        primary_base: Path,
         legacy_canonical_mode: None,
         restore_manager_singleton: None,
     ) -> None:
@@ -315,8 +385,10 @@ class TestReplicaModeWriteRestrictions:
 
         assert horde_model_reference_settings.canonical_format == "legacy"
 
+        stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
-            base_path=primary_base,
+            backend=stub_backend,
+            lazy_mode=True,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -328,7 +400,6 @@ class TestReplicaModeWriteRestrictions:
 
     def test_replica_manager_rejects_legacy_deletes(
         self,
-        primary_base: Path,
         legacy_canonical_mode: None,
         restore_manager_singleton: None,
     ) -> None:
@@ -337,8 +408,10 @@ class TestReplicaModeWriteRestrictions:
 
         assert horde_model_reference_settings.canonical_format == "legacy"
 
+        stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
-            base_path=primary_base,
+            backend=stub_backend,
+            lazy_mode=True,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -349,15 +422,16 @@ class TestReplicaModeWriteRestrictions:
 
     def test_replica_manager_rejects_v2_writes(
         self,
-        primary_base: Path,
         restore_manager_singleton: None,
     ) -> None:
         """Test that REPLICA mode manager rejects v2 update_model."""
         from horde_model_reference.meta_consts import MODEL_DOMAIN, MODEL_PURPOSE, ModelClassification
         from horde_model_reference.model_reference_records import GenericModelRecord
 
+        stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
-            base_path=primary_base,
+            backend=stub_backend,
+            lazy_mode=True,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -378,12 +452,13 @@ class TestReplicaModeWriteRestrictions:
 
     def test_replica_manager_rejects_v2_deletes(
         self,
-        primary_base: Path,
         restore_manager_singleton: None,
     ) -> None:
         """Test that REPLICA mode manager rejects v2 delete_model."""
+        stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
-            base_path=primary_base,
+            backend=stub_backend,
+            lazy_mode=True,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -815,12 +890,13 @@ class TestManagerSingletonBehavior:
 
     def test_manager_singleton_with_replica_mode(
         self,
-        primary_base: Path,
         restore_manager_singleton: None,
     ) -> None:
         """Test that manager properly handles REPLICA mode initialization."""
+        stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
-            base_path=primary_base,
+            backend=stub_backend,
+            lazy_mode=True,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -829,15 +905,16 @@ class TestManagerSingletonBehavior:
 
     def test_manager_write_operations_check_backend_support(
         self,
-        primary_base: Path,
         restore_manager_singleton: None,
     ) -> None:
         """Test that manager write operations check backend support before attempting writes."""
         from horde_model_reference.meta_consts import MODEL_DOMAIN, MODEL_PURPOSE, ModelClassification
         from horde_model_reference.model_reference_records import GenericModelRecord
 
+        stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
-            base_path=primary_base,
+            backend=stub_backend,
+            lazy_mode=True,
             replicate_mode=ReplicateMode.REPLICA,
         )
 

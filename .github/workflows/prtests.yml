@@ -76,7 +76,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run tests
-        run: uv run pytest tests
+        run: uv run pytest tests -m "not integration"
 
   integration-test-standard:
     runs-on: ubuntu-latest
@@ -97,8 +97,20 @@ jobs:
           HORDE_MODEL_REFERENCE_REPLICATE_MODE: PRIMARY
           HORDE_MODEL_REFERENCE_CANONICAL_FORMAT: legacy
         run: |
-          uv run fastapi ./src/horde_model_reference/service/app.py --port 19800 &
-          sleep 5  # Give the server time to start
+          uv run fastapi run ./src/horde_model_reference/service/app.py --port 19800 &
+
+      - name: Wait for server to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:19800/api/heartbeat; then
+              echo "Server is ready!"
+              exit 0
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
+          echo "Server failed to start"
+          exit 1
 
       - name: Run integration tests
         run: uv run pytest tests -m integration
@@ -135,8 +147,20 @@ jobs:
           HORDE_MODEL_REFERENCE_PRIMARY_API_URL: http://localhost:19800
           HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED: True
         run: |
-          uv run fastapi ./src/horde_model_reference/service/app.py --port 19800 &
-          sleep 5  # Give the server time to start
+          uv run fastapi run ./src/horde_model_reference/service/app.py --port 19800 &
+
+      - name: Wait for server to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -f http://localhost:19800/api/heartbeat; then
+              echo "Server is ready!"
+              exit 0
+            fi
+            echo "Waiting for server... ($i/30)"
+            sleep 2
+          done
+          echo "Server failed to start"
+          exit 1
 
       - name: Run integration tests
         run: uv run pytest tests -m integration

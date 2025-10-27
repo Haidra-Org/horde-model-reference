@@ -78,13 +78,13 @@ pip install horde-model-reference
 ```
 
 ```python
-from horde_model_reference import ModelReferenceManager
+from horde_model_reference import ModelReferenceManager, MODEL_REFERENCE_CATEGORY
 
 # Automatically fetches from PRIMARY server or GitHub
 manager = ModelReferenceManager()
 
-# Get all image generation models
-image_models = manager.get_model_reference_records("image_generation")
+# Get all image generation models (using enum - strings like "image_generation" also work)
+image_models = manager.get_model_reference(MODEL_REFERENCE_CATEGORY.image_generation)
 
 for model_name, model_data in image_models.items():
     print(f"{model_name}: {model_data.description}")
@@ -187,48 +187,56 @@ manager = ModelReferenceManager()
 print(list(MODEL_REFERENCE_CATEGORY))
 # ['image_generation', 'text_generation', 'clip', 'controlnet', ...]
 
-# Get text generation models
-text_models = manager.get_model_reference_records("text_generation")
+# Get all models in a category (using enum - strings like "text_generation" also work)
+text_models = manager.get_model_reference(MODEL_REFERENCE_CATEGORY.text_generation)
 print(f"Found {len(text_models)} text models")
 
-# Access specific model details
-if "llama-3-70b" in text_models:
-    model = text_models["llama-3-70b"]
-    print(f"Parameters: {model.parameters_count}")
-    print(f"Description: {model.description}")
+# Get a specific model directly
+model = manager.get_model(MODEL_REFERENCE_CATEGORY.text_generation, "llama-3-70b")
+print(f"Parameters: {model.parameters_count}")
+print(f"Description: {model.description}")
+
+# Get just the model names in a category
+model_names = manager.get_model_names(MODEL_REFERENCE_CATEGORY.image_generation)
+print(f"Available image models: {', '.join(model_names[:3])}...")
+
+# Get all references across all categories
+all_refs = manager.get_all_model_references()
+for category, models in all_refs.items():
+    print(f"{category}: {len(models)} models")
 ```
 
 ### Checking Model Availability
 
 ```python
-from horde_model_reference import ModelReferenceManager
+from horde_model_reference import ModelReferenceManager, MODEL_REFERENCE_CATEGORY
 
 manager = ModelReferenceManager()
 
-def is_model_available(category: str, model_name: str) -> bool:
+def is_model_available(category: MODEL_REFERENCE_CATEGORY, model_name: str) -> bool:
     """Check if a model is in the model reference."""
     try:
-        models = manager.get_model_reference_records(category)
+        models = manager.get_model_reference(category)
         return model_name in models
     except Exception as e:
         print(f"Error checking model: {e}")
         return False
 
-# Usage
-if is_model_available("image_generation", "stable_diffusion_xl"):
+# Usage (enum recommended, but strings like "image_generation" also work)
+if is_model_available(MODEL_REFERENCE_CATEGORY.image_generation, "stable_diffusion_xl"):
     print("SDXL is available!")
 ```
 
 ### Using with AI-Horde Worker
 
 ```python
-from horde_model_reference import ModelReferenceManager
+from horde_model_reference import ModelReferenceManager, MODEL_REFERENCE_CATEGORY
 
 # Worker initialization
 manager = ModelReferenceManager()
 
-# Get approved models for your worker
-available_models = manager.get_model_reference_records("image_generation")
+# Get approved models for your worker (using enum - strings also work)
+available_models = manager.get_model_reference(MODEL_REFERENCE_CATEGORY.image_generation)
 
 # Filter by what your GPU can handle
 worker_models = {
@@ -266,7 +274,6 @@ print(f"Description: {model['description']}")
 - **🚀 Deployment Guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
 - **� GitHub Sync (Docker)**: [DOCKER_SYNC.md](DOCKER_SYNC.md) - Optional automated sync to legacy repos
 - **�🔧 API Reference**: Run service and visit `http://localhost:19800/docs` for interactive Swagger UI
-- **💻 Developer Guide**: [CLAUDE.md](CLAUDE.md) - Architecture, patterns, and development workflow
 - **🤝 Contributing**: [.CONTRIBUTING.md](.CONTRIBUTING.md)
 - **🗂️ Project Structure**:
     - `src/horde_model_reference/` - Core library
@@ -282,7 +289,6 @@ We welcome contributions of all sizes! Before contributing:
 1. Read [.CONTRIBUTING.md](.CONTRIBUTING.md) for setup and guidelines
 2. Check [open issues](https://github.com/Haidra-Org/horde-model-reference/issues) or [start a discussion](https://github.com/Haidra-Org/horde-model-reference/discussions)
 3. Follow the [Haidra Python Style Guide](docs/haidra-assets/docs/meta/python.md)
-
 
 ## Support & Community
 

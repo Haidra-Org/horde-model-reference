@@ -12,9 +12,10 @@ from asyncio import Lock as AsyncLock
 from collections.abc import Callable
 from pathlib import Path
 from threading import RLock
-from typing import Any, override
+from typing import Any
 
 from loguru import logger
+from typing_extensions import override
 
 from horde_model_reference import ReplicateMode
 from horde_model_reference.backends.base import ModelReferenceBackend
