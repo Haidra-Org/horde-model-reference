@@ -151,6 +151,7 @@ Create a `.env` file:
 ```bash
 HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
 HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
+HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy # assuming the v2 transition hasn't happened yet
 ```
 
 **3. Start the server:**
@@ -170,11 +171,13 @@ fastapi dev src/horde_model_reference/service/app.py --port 19800
 # Linux/macOS
 export HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
 export HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
+HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy # assuming the v2 transition hasn't happened yet
 fastapi dev src/horde_model_reference/service/app.py --port 19800
 
 # Windows PowerShell
 $env:HORDE_MODEL_REFERENCE_REPLICATE_MODE="PRIMARY"
 $env:HORDE_MODEL_REFERENCE_MAKE_FOLDERS="true"
+$env:HORDE_MODEL_REFERENCE_CANONICAL_FORMAT="legacy" # assuming the v2 transition hasn't happened yet
 fastapi dev src/horde_model_reference/service/app.py --port 19800
 ```
 
@@ -202,6 +205,7 @@ Create a `.env` file:
 
 ```bash
 HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
+HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy # assuming the v2 transition hasn't happened yet
 HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
 HORDE_MODEL_REFERENCE_REDIS_USE_REDIS=true
 HORDE_MODEL_REFERENCE_REDIS_URL=redis://localhost:6379/0
@@ -280,6 +284,7 @@ See `.env.example` for all options. Common settings:
 |----------|---------|-------------|
 | `HORDE_MODEL_REFERENCE_REPLICATE_MODE` | `REPLICA` | Set to `PRIMARY` for server mode |
 | `HORDE_MODEL_REFERENCE_MAKE_FOLDERS` | `false` | Auto-create directories |
+| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` | `legacy` | Use legacy format (pre-v2 transition) |
 | `HORDE_MODEL_REFERENCE_REDIS_USE_REDIS` | `false` | Enable Redis (multi-worker) |
 | `HORDE_MODEL_REFERENCE_REDIS_URL` | `redis://localhost:6379/0` | Redis connection |
 | `HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS` | `60` | Cache lifetime |

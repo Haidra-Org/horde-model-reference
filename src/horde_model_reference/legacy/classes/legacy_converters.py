@@ -21,7 +21,6 @@ from horde_model_reference.legacy.classes.legacy_models import (
     LegacyStableDiffusionRecord,
     LegacyTextGenerationRecord,
 )
-from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
     ClipModelRecord,

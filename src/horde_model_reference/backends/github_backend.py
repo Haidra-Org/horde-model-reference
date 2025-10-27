@@ -10,13 +10,14 @@ from __future__ import annotations
 import asyncio
 import time
 from pathlib import Path
-from typing import Any, override
+from typing import Any
 
 import aiofiles
 import httpx
 import requests
 import ujson
 from loguru import logger
+from typing_extensions import override
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
@@ -28,7 +29,6 @@ from horde_model_reference.meta_consts import (
     MODEL_REFERENCE_CATEGORY,
     github_image_model_reference_categories,
     github_text_model_reference_categories,
-    has_legacy_text_backend_prefix,
 )
 from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER_NAME
 
@@ -98,7 +98,7 @@ class GitHubBackend(ReplicaBackendBase):
             else:
                 if self._replicate_mode == ReplicateMode.REPLICA:
                     self._references_paths_cache[category] = None
-                if (
+                elif (
                     self._replicate_mode == ReplicateMode.PRIMARY
                     and horde_model_reference_settings.github_seed_enabled
                 ):
