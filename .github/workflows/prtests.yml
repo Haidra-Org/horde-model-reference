@@ -144,7 +144,7 @@ jobs:
           HORDE_MODEL_REFERENCE_REPLICATE_MODE: PRIMARY
           HORDE_MODEL_REFERENCE_CANONICAL_FORMAT: legacy
           HORDE_MODEL_REFERENCE_REDIS_URL: redis://localhost:6379/0
-          HORDE_MODEL_REFERENCE_PRIMARY_API_URL: http://localhost:19800
+          HORDE_MODEL_REFERENCE_PRIMARY_API_URL: http://localhost:19800/api
           HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED: True
         run: |
           uv run fastapi run ./src/horde_model_reference/service/app.py --port 19800 &
