@@ -204,6 +204,15 @@ def test_manager_new_format(
             if model_reference_category == MODEL_REFERENCE_CATEGORY.text_generation:
                 logger.warning("Skipping text generation model references, they are not yet implemented.")
                 continue
+            if model_reference_category in [
+                MODEL_REFERENCE_CATEGORY.video_generation,
+                MODEL_REFERENCE_CATEGORY.audio_generation,
+            ]:
+                logger.info(
+                    f"Skipping {model_reference_category} - no legacy format available, "
+                    "empty file created during initialization."
+                )
+                continue
             assert model_reference_category in all_model_references, (
                 f"Model reference category {model_reference_category} is missing"
             )

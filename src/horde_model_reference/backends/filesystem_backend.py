@@ -89,6 +89,20 @@ class FileSystemBackend(ReplicaBackendBase):
 
         logger.debug(f"FileSystemBackend initialized with base_path={self.base_path}")
 
+        # Create empty files for categories that have no legacy format available
+        # This ensures consistent behavior between CI (fresh environment) and local (may have existing files)
+        from horde_model_reference.meta_consts import no_legacy_format_available_categories
+
+        for category in no_legacy_format_available_categories:
+            file_path = horde_model_reference_paths.get_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
+            if file_path and not file_path.exists():
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text("{}")
+                logger.info(f"Created empty file for {category} (no legacy format available)")
+
         # Populate metadata on startup if not skipped
         if not skip_startup_metadata_population:
             logger.info("Running startup metadata population check")
