@@ -21,6 +21,7 @@ import pytest
 from loguru import logger
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.service.shared import PathVariables, RouteNames, route_registry, v1_prefix, v2_prefix
 from horde_model_reference.sync import ModelReferenceComparator
 
 # Pytest marks for integration tests
@@ -32,9 +33,9 @@ def primary_api_url() -> str:
     """Get PRIMARY API URL from environment or use default.
 
     Returns:
-        The PRIMARY API base URL (including /api prefix).
+        The PRIMARY API base URL (without /api prefix, as route_registry provides full paths).
     """
-    return os.getenv("HORDE_TEST_PRIMARY_API_URL", "http://localhost:19800/api")
+    return os.getenv("HORDE_TEST_PRIMARY_API_URL", "http://localhost:19800")
 
 
 @pytest.fixture(scope="session")
@@ -49,7 +50,8 @@ def primary_instance_available(primary_api_url: str) -> bool:
     """
     try:
         with httpx.Client(timeout=5.0) as client:
-            response = client.get(f"{primary_api_url}/heartbeat")
+            # Heartbeat endpoint is at /api/heartbeat (root_path="/api" in app)
+            response = client.get(f"{primary_api_url}/api/heartbeat")
             available = response.status_code == 200
             if available:
                 logger.info(f"PRIMARY instance available at {primary_api_url}")
@@ -91,7 +93,13 @@ def fetch_primary_category_data(
     Raises:
         httpx.HTTPError: If the request fails.
     """
-    endpoint = f"{api_url.rstrip('/')}/model_references/v1/{category}"
+    # Use route_registry to construct the proper v1 API endpoint
+    path = route_registry.url_for(
+        RouteNames.get_reference_by_category,
+        {PathVariables.model_category_name: category.value},
+        v1_prefix,
+    )
+    endpoint = f"{api_url.rstrip('/')}{path}"
     logger.debug(f"Fetching from {endpoint}")
 
     with httpx.Client(timeout=timeout) as client:
@@ -415,14 +423,19 @@ class TestModelReferenceComparatorIntegration:
         v1_data = fetch_primary_category_data(api_url=primary_api_url, category=category)
 
         try:
-            endpoint_v2 = f"{primary_api_url.rstrip('/')}/model_references/v2/{category}"
+            # Use route_registry to construct the proper v2 API endpoint
+            path_v2 = route_registry.url_for(
+                RouteNames.get_reference_by_category,
+                {PathVariables.model_category_name: category.value},
+                v2_prefix,
+            )
+            endpoint_v2 = f"{primary_api_url.rstrip('/')}{path_v2}"
             with httpx.Client(timeout=10.0) as client:
                 response = client.get(endpoint_v2)
                 response.raise_for_status()
                 v2_data: dict[str, dict[str, Any]] = response.json()
 
             logger.info(f"Comparing v1 ({len(v1_data)} models) vs v2 ({len(v2_data)} models)")
-
             diff = comparator.compare_categories(
                 category=category,
                 primary_data=v1_data,
