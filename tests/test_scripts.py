@@ -13,17 +13,23 @@ def test_download_all_model_references(model_reference_manager: ModelReferenceMa
 
 def test_validate_stable_diffusion_model_reference() -> None:
     """Test validating the validate stable diffusion model reference."""
+    # Ensure the file exists by downloading it if necessary
+    sd_db_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+        MODEL_REFERENCE_CATEGORY.image_generation,
+    )
+    
+    if not sd_db_path.exists():
+        # Download the file using ModelReferenceManager
+        manager = ModelReferenceManager()
+        manager.get_all_model_references(overwrite_existing=True)
+    
     if os.environ.get("HORDELIB_CI_ONGOING"):
         assert validate_legacy_stable_diffusion_db(
-            sd_db=horde_model_reference_paths.get_legacy_model_reference_file_path(
-                MODEL_REFERENCE_CATEGORY.image_generation,
-            ),
+            sd_db=sd_db_path,
             fail_on_extra=True,
         )
     else:
         assert validate_legacy_stable_diffusion_db(
-            sd_db=horde_model_reference_paths.get_legacy_model_reference_file_path(
-                MODEL_REFERENCE_CATEGORY.image_generation,
-            ),
+            sd_db=sd_db_path,
             fail_on_extra=False,
         )
