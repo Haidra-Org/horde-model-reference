@@ -1,7 +1,7 @@
 import json
+from pathlib import Path
 from typing import Any
 
-from horde_model_reference import horde_model_reference_paths
 from horde_model_reference.legacy.classes.legacy_converters import (
     BaseLegacyConverter,
     LegacyClipConverter,
@@ -13,32 +13,63 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import ImageGenerationModelRecord
 
 
-def test_convert_legacy_stable_diffusion_database() -> None:
+def test_convert_legacy_stable_diffusion_database(
+    primary_base: Path,
+    populated_legacy_path: Path,
+) -> None:
     """Test converting the legacy stable diffusion database to the new format."""
-    sd_converter = LegacyStableDiffusionConverter()
-    assert sd_converter.convert_to_new_format()
+    sd_converter = LegacyStableDiffusionConverter(
+        legacy_folder_path=populated_legacy_path,
+        target_file_folder=primary_base,
+    )
+    converted = sd_converter.convert_to_new_format()
+    assert len(converted) > 0
 
 
-def test_convert_legacy_clip_database() -> None:
+def test_convert_legacy_clip_database(
+    primary_base: Path,
+    populated_legacy_path: Path,
+) -> None:
     """Test converting the legacy clip database to the new format."""
-    clip_converter = LegacyClipConverter()
+    clip_converter = LegacyClipConverter(
+        legacy_folder_path=populated_legacy_path,
+        target_file_folder=primary_base,
+    )
     converted_clip = clip_converter.convert_to_new_format()
-    assert converted_clip
+    assert len(converted_clip) > 0
 
 
-def test_convert_legacy_controlnet_database() -> None:
+def test_convert_legacy_controlnet_database(
+    primary_base: Path,
+    populated_legacy_path: Path,
+) -> None:
     """Test converting the legacy controlnet database to the new format."""
-    controlnet_converter = LegacyControlnetConverter()
-    assert controlnet_converter.convert_to_new_format()
+    controlnet_converter = LegacyControlnetConverter(
+        legacy_folder_path=populated_legacy_path,
+        target_file_folder=primary_base,
+    )
+    converted = controlnet_converter.convert_to_new_format()
+    assert len(converted) > 0
 
 
-def test_convert_legacy_text_generation_database() -> None:
+def test_convert_legacy_text_generation_database(
+    primary_base: Path,
+    populated_legacy_path: Path,
+) -> None:
     """Test converting the legacy text generation database to the new format."""
-    text_gen_converter = LegacyTextGenerationConverter()
-    assert text_gen_converter.convert_to_new_format()
+    text_gen_converter = LegacyTextGenerationConverter(
+        legacy_folder_path=populated_legacy_path,
+        target_file_folder=primary_base,
+    )
+    converted = text_gen_converter.convert_to_new_format()
+    assert len(converted) > 0
 
 
-def test_all_base_legacy_converters() -> None:
+def test_all_base_legacy_converters(
+    primary_base: Path,
+    legacy_path: Path,
+    minimal_legacy_generic_data: dict[str, Any],
+) -> None:
     """Test converting all legacy databases using the base converter."""
     for reference_category in MODEL_REFERENCE_CATEGORY:
         if reference_category in [
@@ -48,17 +79,35 @@ def test_all_base_legacy_converters() -> None:
             MODEL_REFERENCE_CATEGORY.text_generation,
         ]:
             continue
+
+        # Create a minimal JSON file for this category
+        category_file = legacy_path / f"{reference_category.value}.json"
+        category_file.write_text(json.dumps(minimal_legacy_generic_data, indent=2))
+
         base_converter = BaseLegacyConverter(
             model_reference_category=reference_category,
+            legacy_folder_path=legacy_path,
+            target_file_folder=primary_base,
         )
-        assert base_converter.convert_to_new_format()
+        converted = base_converter.convert_to_new_format()
+        assert len(converted) > 0
 
 
-def test_validate_converted_stable_diffusion_database() -> None:
+def test_validate_converted_stable_diffusion_database(
+    primary_base: Path,
+    populated_legacy_path: Path,
+) -> None:
     """Test validating the converted stable diffusion database."""
-    stable_diffusion_model_database_path = horde_model_reference_paths.get_model_reference_file_path(
-        MODEL_REFERENCE_CATEGORY.image_generation,
+    # First convert the database
+    sd_converter = LegacyStableDiffusionConverter(
+        legacy_folder_path=populated_legacy_path,
+        target_file_folder=primary_base,
     )
+    sd_converter.convert_to_new_format()
+
+    stable_diffusion_model_database_path = primary_base / "stable_diffusion.json"
+    assert stable_diffusion_model_database_path.exists(), "Converted database should exist"
+
     sd_model_database_file_contents: str = ""
     with open(stable_diffusion_model_database_path) as f:
         sd_model_database_file_contents = f.read()
