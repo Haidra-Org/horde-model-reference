@@ -32,9 +32,9 @@ def primary_api_url() -> str:
     """Get PRIMARY API URL from environment or use default.
 
     Returns:
-        The PRIMARY API base URL.
+        The PRIMARY API base URL (including /api prefix).
     """
-    return os.getenv("HORDE_TEST_PRIMARY_API_URL", "http://localhost:19800")
+    return os.getenv("HORDE_TEST_PRIMARY_API_URL", "http://localhost:19800/api")
 
 
 @pytest.fixture(scope="session")
