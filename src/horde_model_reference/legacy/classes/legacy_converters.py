@@ -183,28 +183,6 @@ class BaseLegacyConverter:
                 self.add_validation_error_to_log(model_record_key=model_key, error=error)
                 raise
 
-    """legacy config example
-        "config": {
-            "files": [
-                {
-                    "path": "model_2_1.ckpt",
-                    "md5sum": "ce8ee5c53acb3a6540b44a71276c3d01",
-                    "sha256sum": "ad2a33c361c1f593c4a1fb32ea81afce2b5bb7d1983c6b94793a26a3b54b08a0"
-                },
-                {
-                    "path": "v2-inference-v.yaml"
-                }
-            ],
-            "download": [
-                {
-                    "file_name": "model_2_1.ckpt",
-                    "file_path": "",
-                    "file_url": "https://huggingface.co/mirroring/horde_models/resolve/main/model_2_1.ckpt?download=true"
-                }
-            ]
-        },
-    """
-
     def _convert_model_record_config(self, legacy_record: LegacyGenericRecord) -> GenericModelRecordConfig:
         """Convert the config section of a legacy record to the new format."""
         download_records: dict[str, DownloadRecord] = {}
