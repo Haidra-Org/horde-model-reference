@@ -1,3 +1,4 @@
+import statistics
 import urllib.parse
 from enum import auto
 
@@ -5,6 +6,7 @@ import httpx
 from fastapi import HTTPException
 from fastapi.security import APIKeyHeader
 from loguru import logger
+from pydantic import BaseModel
 from strenum import StrEnum
 
 from horde_model_reference import ai_horde_worker_settings
@@ -15,6 +17,7 @@ httpx_client = httpx.AsyncClient()
 
 v1_prefix = "/model_references/v1"
 v2_prefix = "/model_references/v2"
+statistics_prefix = "/model_references/statistics"
 
 
 class PathVariables(StrEnum):
@@ -44,6 +47,9 @@ class RouteNames(StrEnum):
     create_model = auto()
     update_model = auto()
     delete_model = auto()
+    get_models_with_stats = auto()
+    get_category_statistics = auto()
+    get_category_audit = auto()
 
     # V1 metadata routes
     get_legacy_last_updated = auto()
@@ -174,3 +180,21 @@ class APIKeyInvalidException(HTTPException):
             detail="Invalid API key",
             headers=headers,
         )
+
+
+class ErrorDetail(BaseModel):
+    """Detail about a specific error."""
+
+    loc: list[str | int] | None = None
+    """Location of the error (for validation errors)."""
+    msg: str
+    """Error message."""
+    type: str | None = None
+    """Error type."""
+
+
+class ErrorResponse(BaseModel):
+    """Standardized error response."""
+
+    detail: str | list[ErrorDetail]
+    """Error details - either a string message or list of validation errors."""

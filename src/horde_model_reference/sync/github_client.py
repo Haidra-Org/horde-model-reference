@@ -24,6 +24,7 @@ from horde_model_reference import (
 )
 from horde_model_reference.sync.comparator import ModelReferenceDiff
 from horde_model_reference.sync.config import github_app_settings
+from horde_model_reference.sync.legacy_text_validator import LegacyTextValidator
 
 
 class GitHubSyncClient:
@@ -576,6 +577,7 @@ class GitHubSyncClient:
         - For text_generation category, GitHub repos use 'db.json', not 'text_generation.json'
         - We must write to the filename that exists in the GitHub repository
         - This follows the legacy naming convention used by the GitHub repos
+        - For text_generation, applies LegacyTextValidator to ensure convert.py compatibility
 
         Args:
             category (MODEL_REFERENCE_CATEGORY): The category to update.
@@ -595,6 +597,19 @@ class GitHubSyncClient:
         file_path = self._temp_dir / filename
 
         logger.debug(f"Updating {file_path} with PRIMARY data")
+
+        # Apply legacy text validation for text_generation category
+        # This ensures the data matches convert.py expectations (generation_params.json,
+        # defaults.json, backend prefixes, tag auto-generation, etc.)
+        if category == MODEL_REFERENCE_CATEGORY.text_generation:
+            logger.debug("Applying LegacyTextValidator for text_generation category")
+            try:
+                validator = LegacyTextValidator()
+                primary_data = validator.validate_and_transform(primary_data)
+                logger.debug(f"LegacyTextValidator applied: {len(primary_data)} records after transformation")
+            except Exception as e:
+                logger.error(f"LegacyTextValidator failed: {e}")
+                raise
 
         serialized_data = json.dumps(primary_data, indent=4, sort_keys=False)
         serialized_data = serialized_data + "\n"

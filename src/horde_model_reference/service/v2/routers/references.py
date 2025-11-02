@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
@@ -7,14 +7,15 @@ from loguru import logger
 from strenum import StrEnum
 
 from horde_model_reference import ModelReferenceManager
+from horde_model_reference.integrations import HordeAPIIntegration
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import (
     ControlNetModelRecord,
     ImageGenerationModelRecord,
     TextGenerationModelRecord,
 )
-from horde_model_reference.service.shared import PathVariables, RouteNames, route_registry, v2_prefix
-from horde_model_reference.service.v2.models import ErrorResponse, ModelRecordUnion, ModelRecordUnionType
+from horde_model_reference.service.shared import ErrorResponse, PathVariables, RouteNames, route_registry, v2_prefix
+from horde_model_reference.service.v2.models import ModelRecordUnion, ModelRecordUnionType
 
 router = APIRouter(
     responses={404: {"description": "Not found"}},
