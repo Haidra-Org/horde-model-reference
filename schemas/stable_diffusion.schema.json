@@ -49,6 +49,69 @@
             "title": "DownloadRecord",
             "type": "object"
         },
+        "FineTuneSeriesInfo": {
+            "additionalProperties": false,
+            "description": "Information about a fine-tuning series.",
+            "properties": {
+                "name": {
+                    "title": "Name",
+                    "type": "string"
+                },
+                "version": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Version"
+                },
+                "author": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Author"
+                },
+                "description": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Description"
+                },
+                "homepage": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Homepage"
+                }
+            },
+            "required": [
+                "name"
+            ],
+            "title": "FineTuneSeriesInfo",
+            "type": "object"
+        },
         "GenericModelRecordConfig": {
             "additionalProperties": false,
             "description": "Configuration for a generic model record.",
@@ -250,6 +313,17 @@
             ],
             "default": null,
             "title": "Version"
+        },
+        "finetune_series": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/FineTuneSeriesInfo"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null
         },
         "metadata": {
             "$ref": "#/$defs/GenericModelRecordMetadata"

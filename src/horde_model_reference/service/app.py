@@ -4,10 +4,12 @@ from haidra_core.service_base import ContainsMessage, ContainsStatus
 
 import horde_model_reference.service.v1.routers.metadata as v1_metadata
 import horde_model_reference.service.v1.routers.references as v1_references
+import horde_model_reference.service.statistics.routers.audit as ref_audit
 import horde_model_reference.service.v2.routers.metadata as v2_metadata
 import horde_model_reference.service.v2.routers.references as v2_references
+import horde_model_reference.service.statistics.routers.statistics as ref_statistics
 from horde_model_reference import ReplicateMode
-from horde_model_reference.service.shared import v1_prefix, v2_prefix
+from horde_model_reference.service.shared import v1_prefix, v2_prefix, statistics_prefix
 
 app = FastAPI(root_path="/api")
 
@@ -27,6 +29,8 @@ app.add_middleware(
 
 
 app.include_router(v2_references.router, prefix=v2_prefix, tags=["v2"])
+app.include_router(ref_statistics.router, prefix=statistics_prefix, tags=["v2", "statistics"])
+app.include_router(ref_audit.router, prefix=statistics_prefix, tags=["v2", "audit"])
 app.include_router(v2_metadata.router, prefix=f"{v2_prefix}/metadata", tags=["v2", "metadata"])
 app.include_router(v1_references.router, prefix=v1_prefix)
 app.include_router(v1_metadata.router, prefix=f"{v1_prefix}/metadata", tags=["v1", "metadata"])

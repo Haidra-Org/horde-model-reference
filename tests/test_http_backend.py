@@ -3,6 +3,7 @@ from typing import Any, cast
 
 import httpx
 import pytest
+from pytest_httpx import HTTPXMock
 from typing_extensions import override
 
 from horde_model_reference import ReplicateMode
@@ -106,21 +107,10 @@ class StubGitHubBackend(ReplicaBackendBase):
         return legacy_data[1] if legacy_data else None
 
 
-class DummyResponse:
-    """Minimal httpx.Response stub."""
-
-    def __init__(self, status_code: int, payload: dict[str, Any] | None, text: str | None = None) -> None:
-        """Initialize with a status code and optional JSON payload."""
-        self.status_code = status_code
-        self._payload = payload or {}
-        self.text = text or ("{" if payload else "")
-
-    def json(self) -> dict[str, Any]:
-        """Return the preset payload."""
-        return self._payload
-
-
-def test_http_backend_primary_success_and_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_http_backend_primary_success_and_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    httpx_mock: HTTPXMock,
+) -> None:
     """Ensure PRIMARY hits are cached and counted once."""
     category = MODEL_REFERENCE_CATEGORY.image_generation
     github_stub = StubGitHubBackend({})
@@ -136,25 +126,24 @@ def test_http_backend_primary_success_and_cache(monkeypatch: pytest.MonkeyPatch)
 
     monkeypatch.setattr("horde_model_reference.backends.replica_backend_base.time.time", fake_time)
 
-    calls = {"count": 0}
-
-    def fake_get(url: str, timeout: float) -> DummyResponse:
-        calls["count"] += 1
-        return DummyResponse(200, {"source": "primary"})
-
-    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+    # Mock the PRIMARY API response
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        json={"source": "primary"},
+    )
 
     first = backend.fetch_category(category)
     second = backend.fetch_category(category)
 
     assert first == {"source": "primary"}
     assert second == {"source": "primary"}
-    assert calls["count"] == 1
+    # Verify only one request was made (second was cached)
+    assert len(httpx_mock.get_requests()) == 1
     assert backend.get_statistics()["primary_hits"] == 1
     assert github_stub.sync_calls == 0
 
 
-def test_http_backend_fallback_when_primary_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_http_backend_fallback_when_primary_fails(httpx_mock: HTTPXMock) -> None:
     """Fallback should defer to GitHub backend when PRIMARY errors."""
     category = MODEL_REFERENCE_CATEGORY.image_generation
     fallback_payload = {"source": "github"}
@@ -165,10 +154,23 @@ def test_http_backend_fallback_when_primary_fails(monkeypatch: pytest.MonkeyPatc
         cache_ttl_seconds=60,
     )
 
-    def fake_get(url: str, timeout: float) -> DummyResponse:
-        return DummyResponse(500, None)
-
-    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+    # Mock PRIMARY API to return 500 error
+    # HTTPBackend will retry up to 3 times, so register multiple responses
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        status_code=500,
+        is_optional=False,  # First attempt must be made
+    )
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        status_code=500,
+        is_optional=True,  # Subsequent retries are optional
+    )
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        status_code=500,
+        is_optional=True,
+    )
 
     result = backend.fetch_category(category)
 
@@ -177,7 +179,7 @@ def test_http_backend_fallback_when_primary_fails(monkeypatch: pytest.MonkeyPatc
     assert backend.get_statistics()["github_fallbacks"] == 1
 
 
-def test_http_backend_disable_fallback_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_http_backend_disable_fallback_returns_none(httpx_mock: HTTPXMock) -> None:
     """Disabling fallback should surface PRIMARY failures."""
     category = MODEL_REFERENCE_CATEGORY.image_generation
     github_stub = StubGitHubBackend({category: {"source": "github"}})
@@ -188,16 +190,32 @@ def test_http_backend_disable_fallback_returns_none(monkeypatch: pytest.MonkeyPa
         enable_github_fallback=False,
     )
 
-    def fake_get(url: str, timeout: float) -> DummyResponse:
-        return DummyResponse(503, None)
-
-    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+    # Mock PRIMARY API to return 503 error
+    # Using is_optional since the backend retries up to 3 times
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        status_code=503,
+        is_optional=False,  # First attempt must be made
+    )
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        status_code=503,
+        is_optional=True,  # Subsequent retries are optional depending on timing
+    )
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        status_code=503,
+        is_optional=True,
+    )
 
     assert backend.fetch_category(category) is None
     assert github_stub.sync_calls == 0
 
 
-def test_http_backend_force_refresh_triggers_refetch(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_http_backend_force_refresh_triggers_refetch(
+    monkeypatch: pytest.MonkeyPatch,
+    httpx_mock: HTTPXMock,
+) -> None:
     """force_refresh should bypass cache and re-query PRIMARY."""
     category = MODEL_REFERENCE_CATEGORY.image_generation
     github_stub = StubGitHubBackend({})
@@ -213,15 +231,15 @@ def test_http_backend_force_refresh_triggers_refetch(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr("horde_model_reference.backends.replica_backend_base.time.time", fake_time)
 
-    payloads = [{"version": 1}, {"version": 2}]
-    calls = {"index": 0}
-
-    def fake_get(url: str, timeout: float) -> DummyResponse:
-        response = payloads[calls["index"]]
-        calls["index"] += 1
-        return DummyResponse(200, response)
-
-    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+    # Mock two different responses
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        json={"version": 1},
+    )
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        json={"version": 2},
+    )
 
     first = backend.fetch_category(category)
     cached = backend.fetch_category(category)
@@ -230,11 +248,15 @@ def test_http_backend_force_refresh_triggers_refetch(monkeypatch: pytest.MonkeyP
     assert first == {"version": 1}
     assert cached == {"version": 1}
     assert refreshed == {"version": 2}
-    assert calls["index"] == 2
+    # Verify two requests were made (first and refreshed)
+    assert len(httpx_mock.get_requests()) == 2
 
 
 @pytest.mark.asyncio
-async def test_http_backend_async_caches_results(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_http_backend_async_caches_results(
+    monkeypatch: pytest.MonkeyPatch,
+    httpx_mock: HTTPXMock,
+) -> None:
     """Async fetches should populate cache and skip redundant PRIMARY calls."""
     category = MODEL_REFERENCE_CATEGORY.image_generation
     github_stub = StubGitHubBackend({})
@@ -250,29 +272,28 @@ async def test_http_backend_async_caches_results(monkeypatch: pytest.MonkeyPatch
 
     monkeypatch.setattr("horde_model_reference.backends.replica_backend_base.time.time", fake_time)
 
-    calls = {"count": 0}
+    # Mock the PRIMARY API response
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        json={"async": 1},
+    )
 
-    async def fake_fetch_async(
-        self: HTTPBackend,
-        category: MODEL_REFERENCE_CATEGORY,
-        client: httpx.AsyncClient,
-    ) -> dict[str, Any] | None:
-        calls["count"] += 1
-        return {"async": calls["count"]}
-
-    monkeypatch.setattr(HTTPBackend, "_fetch_from_primary_async", fake_fetch_async)
-
-    dummy_client = cast(httpx.AsyncClient, object())
-    first = await backend.fetch_category_async(category, httpx_client=dummy_client)
-    second = await backend.fetch_category_async(category, httpx_client=dummy_client)
+    # Create actual async client for the test
+    async with httpx.AsyncClient() as client:
+        first = await backend.fetch_category_async(category, httpx_client=client)
+        second = await backend.fetch_category_async(category, httpx_client=client)
 
     assert first == {"async": 1}
     assert second == {"async": 1}
-    assert calls["count"] == 1
+    # Verify only one request was made (second was cached)
+    assert len(httpx_mock.get_requests()) == 1
     assert github_stub.async_calls == 0
 
 
-def test_http_backend_legacy_json_primary_success_and_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_http_backend_legacy_json_primary_success_and_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    httpx_mock: HTTPXMock,
+) -> None:
     """Legacy JSON from PRIMARY should be cached and counted."""
     category = MODEL_REFERENCE_CATEGORY.image_generation
     github_stub = StubGitHubBackend({})
@@ -288,15 +309,15 @@ def test_http_backend_legacy_json_primary_success_and_cache(monkeypatch: pytest.
 
     monkeypatch.setattr("horde_model_reference.backends.replica_backend_base.time.time", fake_time)
 
-    calls = {"count": 0}
     legacy_dict = {"legacy": "data"}
     legacy_string = '{"legacy": "data"}'
 
-    def fake_get(url: str, timeout: float) -> DummyResponse:
-        calls["count"] += 1
-        return DummyResponse(200, legacy_dict, legacy_string)
-
-    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+    # Mock the legacy PRIMARY API response
+    httpx_mock.add_response(
+        url="https://primary/model_references/v1/image_generation",
+        json=legacy_dict,
+        text=legacy_string,
+    )
 
     first = backend.get_legacy_json(category)
     second = backend.get_legacy_json(category)
@@ -305,12 +326,13 @@ def test_http_backend_legacy_json_primary_success_and_cache(monkeypatch: pytest.
     assert first == legacy_dict
     assert second == legacy_dict
     assert string_result == legacy_string
-    assert calls["count"] == 1  # Only one call due to caching
+    # Verify only one request was made due to caching
+    assert len(httpx_mock.get_requests()) == 1
     assert backend.get_statistics()["primary_hits"] == 1
     assert github_stub.legacy_json_calls == 0
 
 
-def test_http_backend_legacy_json_fallback_to_github(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_http_backend_legacy_json_fallback_to_github(httpx_mock: HTTPXMock) -> None:
     """Legacy JSON should fallback to GitHub when PRIMARY fails."""
     category = MODEL_REFERENCE_CATEGORY.image_generation
     legacy_dict = {"github": "legacy"}
@@ -322,10 +344,22 @@ def test_http_backend_legacy_json_fallback_to_github(monkeypatch: pytest.MonkeyP
         cache_ttl_seconds=60,
     )
 
-    def fake_get(url: str, timeout: float) -> DummyResponse:
-        return DummyResponse(500, None)
-
-    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+    # Mock PRIMARY API to return 500 error
+    httpx_mock.add_response(
+        url="https://primary/model_references/v1/image_generation",
+        status_code=500,
+        is_optional=False,
+    )
+    httpx_mock.add_response(
+        url="https://primary/model_references/v1/image_generation",
+        status_code=500,
+        is_optional=True,
+    )
+    httpx_mock.add_response(
+        url="https://primary/model_references/v1/image_generation",
+        status_code=500,
+        is_optional=True,
+    )
 
     result = backend.get_legacy_json(category)
     string_result = backend.get_legacy_json_string(category)
@@ -339,7 +373,10 @@ def test_http_backend_legacy_json_fallback_to_github(monkeypatch: pytest.MonkeyP
     assert backend.get_statistics()["github_fallbacks"] == 1
 
 
-def test_http_backend_legacy_json_redownload_bypasses_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_http_backend_legacy_json_redownload_bypasses_cache(
+    monkeypatch: pytest.MonkeyPatch,
+    httpx_mock: HTTPXMock,
+) -> None:
     """redownload=True should bypass cache for legacy JSON."""
     category = MODEL_REFERENCE_CATEGORY.image_generation
     github_stub = StubGitHubBackend({})
@@ -355,15 +392,17 @@ def test_http_backend_legacy_json_redownload_bypasses_cache(monkeypatch: pytest.
 
     monkeypatch.setattr("horde_model_reference.backends.replica_backend_base.time.time", fake_time)
 
-    payloads = [{"version": 1}, {"version": 2}]
-    calls = {"index": 0}
-
-    def fake_get(url: str, timeout: float) -> DummyResponse:
-        response = payloads[calls["index"]]
-        calls["index"] += 1
-        return DummyResponse(200, response, str(response))
-
-    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+    # Mock two different responses
+    httpx_mock.add_response(
+        url="https://primary/model_references/v1/image_generation",
+        json={"version": 1},
+        text='{"version": 1}',
+    )
+    httpx_mock.add_response(
+        url="https://primary/model_references/v1/image_generation",
+        json={"version": 2},
+        text='{"version": 2}',
+    )
 
     first = backend.get_legacy_json(category)
     cached = backend.get_legacy_json(category)
@@ -372,10 +411,11 @@ def test_http_backend_legacy_json_redownload_bypasses_cache(monkeypatch: pytest.
     assert first == {"version": 1}
     assert cached == {"version": 1}
     assert refreshed == {"version": 2}
-    assert calls["index"] == 2
+    # Verify two requests were made (first and redownload)
+    assert len(httpx_mock.get_requests()) == 2
 
 
-def test_http_backend_legacy_json_disable_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_http_backend_legacy_json_disable_fallback(httpx_mock: HTTPXMock) -> None:
     """Disabling fallback should return None for legacy JSON when PRIMARY fails."""
     category = MODEL_REFERENCE_CATEGORY.image_generation
     github_stub = StubGitHubBackend({}, {category: ({"github": "data"}, '{"github": "data"}')})
@@ -386,10 +426,15 @@ def test_http_backend_legacy_json_disable_fallback(monkeypatch: pytest.MonkeyPat
         enable_github_fallback=False,
     )
 
-    def fake_get(url: str, timeout: float) -> DummyResponse:
-        return DummyResponse(503, None)
-
-    monkeypatch.setattr("horde_model_reference.backends.http_backend.httpx.get", fake_get)
+    # Mock PRIMARY API to return 503 error
+    # get_legacy_json will try 3 times, then get_legacy_json_string will try 3 more times
+    # because they both fail and there's no cache hit
+    for _ in range(6):  # Both methods will retry when fallback is disabled
+        httpx_mock.add_response(
+            url="https://primary/model_references/v1/image_generation",
+            status_code=503,
+            is_optional=True,  # All attempts are part of retry logic
+        )
 
     result = backend.get_legacy_json(category)
     string_result = backend.get_legacy_json_string(category)

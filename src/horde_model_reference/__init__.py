@@ -247,6 +247,24 @@ Only used in PRIMARY mode. If True, will download and convert legacy references 
 'v2' (default): v2 API has CRUD, v1 API is read-only (converts from v2 to legacy). \
 'legacy': v1 API has CRUD, v2 API is read-only (converts from legacy to v2)."""
 
+    horde_api_timeout: int = 10
+    """Timeout in seconds for Horde API requests to fetch model status, statistics, and worker information."""
+
+    horde_api_cache_ttl: int = 60
+    """Cache TTL in seconds for Horde API responses. Uses Redis if available, otherwise in-memory caching."""
+
+    statistics_cache_ttl: int = 300
+    """Cache TTL in seconds for category statistics. Uses Redis if available, otherwise in-memory caching."""
+
+    audit_cache_ttl: int = 300
+    """Cache TTL in seconds for category audit results. Uses Redis if available, otherwise in-memory caching."""
+
+    enable_statistics_precompute: bool = False
+    """Enable background pre-computation of statistics. Currently not implemented (future feature)."""
+
+    preferred_file_hosts: list[str] = Field(default_factory=lambda: ["huggingface.co"])
+    """Preferred file hosts for deletion risk analysis in audit endpoints."""
+
     @model_validator(mode="after")
     def validate_mode_configuration(self) -> HordeModelReferenceSettings:
         """Validate that settings are appropriate for the configured replication mode."""
