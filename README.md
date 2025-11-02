@@ -52,7 +52,7 @@
 
 ### Role in AI-Horde
 
-The [AI-Horde](https://aihorde.net) ([github](https://github.com/Haidra-Org/AI-Horde)) is a crowdsourced distributed cluster for AI-generated images and text. Workers need to know which models are approved, where to download them, and what capabilities they offer. This package provides that authoritative information.
+The [AI-Horde](https://aihorde.net) ([github](https://github.com/Haidra-Org/AI-Horde)) is a free and open sourced, crowd-sourced distributed compute network for AI generations. Workers need to know which models are approved, where to download them, and what capabilities they offer. This package provides that authoritative information.
 
 For more context on AI-Horde concepts (workers, kudos, jobs, etc.), see the [AI-Horde Glossary](docs/haidra-assets/docs/definitions.md).
 

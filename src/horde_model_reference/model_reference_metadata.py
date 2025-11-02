@@ -13,7 +13,7 @@ from threading import RLock
 from typing import Any, Protocol
 
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from strenum import StrEnum
 
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
@@ -33,29 +33,40 @@ class CategoryMetadata(BaseModel):
     Tracks operation counts, timestamps, and health metrics for either legacy or v2 format operations.
     """
 
-    category: MODEL_REFERENCE_CATEGORY = Field(description="Model reference category")
-    last_updated: int = Field(description="Unix timestamp of last successful operation")
-    last_operation_type: OperationType | None = Field(
-        default=None, description="Type of last operation (create/update/delete)"
+    model_config = ConfigDict(
+        use_enum_values=True,
+        use_attribute_docstrings=True,
     )
-    last_operation_model: str | None = Field(default=None, description="Model name affected by last operation")
 
-    total_creates: int = Field(default=0, description="Total number of create operations")
-    total_updates: int = Field(default=0, description="Total number of update operations")
-    total_deletes: int = Field(default=0, description="Total number of delete operations")
-    total_models: int = Field(default=0, description="Current total number of models in category")
+    category: MODEL_REFERENCE_CATEGORY
+    """The category of the model reference."""
+    last_updated: int
+    """Unix timestamp when metadata was last updated."""
+    last_operation_type: OperationType | None = None
+    """Type of the last operation performed."""
+    last_operation_model: str | None = None
+    """Name of the model affected by the last operation."""
 
-    initialization_time: int = Field(description="Unix timestamp when metadata was first created")
-    last_successful_operation: int = Field(description="Unix timestamp of last successful operation")
-    error_count: int = Field(default=0, description="Total number of errors encountered")
+    total_creates: int = Field(default=0, ge=0)
+    """Total number of create operations."""
+    total_updates: int = Field(default=0, ge=0)
+    """Total number of update operations."""
+    total_deletes: int = Field(default=0, ge=0)
+    """Total number of delete operations."""
+    total_models: int = Field(default=0, ge=0)
+    """Current total number of models in category."""
 
-    metadata_schema_version: str = Field(default="1.0.0", description="Version of metadata schema")
-    backend_type: str = Field(description="Type of backend (FileSystemBackend/RedisBackend)")
+    initialization_time: int
+    """Unix timestamp when metadata was first created."""
+    last_successful_operation: int
+    """Unix timestamp of the last successful operation."""
+    error_count: int = 0
+    """Total number of errors encountered."""
 
-    class Config:
-        """Pydantic config."""
-
-        use_enum_values = True
+    metadata_schema_version: str = "1.0.0"
+    """Version of the metadata schema."""
+    backend_type: str
+    """Type of backend performing operations."""
 
 
 class GenericModelRecordMetadata(BaseModel):
@@ -65,16 +76,15 @@ class GenericModelRecordMetadata(BaseModel):
     to avoid circular imports.
     """
 
+    model_config = ConfigDict(
+        extra="allow",
+    )
+
     schema_version: str = Field(default="1.0.0")
     created_at: int | None = None
     updated_at: int | None = None
     created_by: str | None = None
     updated_by: str | None = None
-
-    class Config:
-        """Pydantic config."""
-
-        extra = "allow"
 
 
 class ModelMetadataHandlerProtocol(Protocol):

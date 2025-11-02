@@ -101,6 +101,7 @@ class _InMemoryReplicaBackend(ModelReferenceBackend):
         return None
 
 
+@pytest.mark.integration
 def test_manager(
     caplog: LogCaptureFixture,
     restore_manager_singleton: None,
@@ -144,6 +145,7 @@ def test_manager(
     assert len(cached_references) == len(all_references)
 
 
+@pytest.mark.integration
 @pytest.mark.asyncio
 async def test_manager_async(
     model_reference_manager: ModelReferenceManager,

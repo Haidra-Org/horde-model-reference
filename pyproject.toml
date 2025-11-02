@@ -123,6 +123,7 @@ dev = [
     "pytest>=8.3.3",
     "pytest-asyncio>=1.2.0",
     "pytest-cov>=6.0.0",
+    "pytest-httpx>=0.35.0",
     "ruff>=0.14.2",
     "settings-doc>=4.3.2",
     "tox~=4.23.2",

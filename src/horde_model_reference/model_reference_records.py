@@ -78,6 +78,25 @@ class GenericModelRecordMetadata(BaseModel):
     """The name or identifier of the person or system which last updated the record."""
 
 
+class FineTuneSeriesInfo(BaseModel):
+    """Information about a fine-tuning series."""
+
+    model_config = get_default_config()
+
+    name: str
+    """The name of the fine-tuning series."""
+    version: str | None = None
+    """The version of the fine-tuning series."""
+
+    author: str | None = None
+    """The author of the fine-tuning series."""
+
+    description: str | None = None
+    """A short description of the fine-tuning series."""
+    homepage: str | None = None
+    """A link to the homepage of the fine-tuning series."""
+
+
 class GenericModelRecord(BaseModel):
     """A generic model reference record."""
 
@@ -92,6 +111,10 @@ class GenericModelRecord(BaseModel):
     """A short description of the model."""
     version: str | None = None
     """The version of the  model (not the version of SD it is based on, see `baseline` for that info)."""
+
+    finetune_series: FineTuneSeriesInfo | None = None
+    """Information about the fine-tuning of the model. For image, some examples are 'Pony', 'Illustrious", etc."""
+
     metadata: GenericModelRecordMetadata = Field(
         default_factory=GenericModelRecordMetadata,
     )
