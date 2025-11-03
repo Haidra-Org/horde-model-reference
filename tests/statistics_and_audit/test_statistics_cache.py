@@ -31,7 +31,7 @@ class TestStatisticsCache:
         finally:
             if StatisticsCache._instance is not None:  # type: ignore[misc]
                 with contextlib.suppress(Exception):
-                    StatisticsCache._instance.clear_all()  # type: ignore[misc]
+                    StatisticsCache._instance.clear_all()
             StatisticsCache._instance = previous  # type: ignore[misc]
 
     def test_singleton_pattern(self) -> None:
