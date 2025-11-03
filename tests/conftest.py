@@ -566,3 +566,23 @@ def pytest_collection_modifyitems(items) -> None:  # type: ignore #  # noqa: ANN
         sorted_items.extend([item for item in items if module_mapping[item] == module])
 
     items[:] = sorted_items
+
+
+# VCR Configuration for API interaction recording/replay
+@pytest.fixture(scope="module")
+def vcr_config() -> dict[str, Any]:
+    """Configure VCR for HTTP interaction recording.
+
+    Returns:
+        Configuration dict for pytest-recording
+    """
+    return {
+        "filter_headers": [
+            ("authorization", "REDACTED"),
+            ("x-api-key", "REDACTED"),
+        ],
+        "decode_compressed_response": True,
+        "record_mode": "once",  # Use cassette if exists, record if missing
+        "match_on": ["method", "scheme", "host", "port", "path", "query"],
+        "cassette_library_dir": "tests/horde_api/cassettes",
+    }

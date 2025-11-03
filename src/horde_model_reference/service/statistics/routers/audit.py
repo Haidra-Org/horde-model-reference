@@ -11,11 +11,11 @@ from loguru import logger
 from horde_model_reference import ModelReferenceManager
 from horde_model_reference.analytics.audit_analysis import (
     CategoryAuditResponse,
-    analyze_models_for_audit,
-    calculate_audit_summary,
+    CategoryAuditSummary,
+    ModelAuditInfoFactory,
 )
 from horde_model_reference.analytics.audit_cache import AuditCache
-from horde_model_reference.analytics.filter_presets import AuditFilterPreset, apply_preset_filter
+from horde_model_reference.analytics.filter_presets import apply_preset_filter
 from horde_model_reference.analytics.text_model_grouping import apply_text_model_grouping_to_audit
 from horde_model_reference.integrations.data_merger import merge_category_with_horde_data
 from horde_model_reference.integrations.horde_api_integration import HordeAPIIntegration
@@ -111,6 +111,8 @@ async def get_category_audit(
         audit_cache: The audit cache (injected).
         group_text_models: Group text models by base name (strips quantization info).
         preset: Optional preset filter to apply (deletion_candidates, zero_usage, etc.).
+        limit: Maximum number of models to return (None = all).
+        offset: Number of models to skip (for pagination).
 
     Returns:
         CategoryAuditResponse with per-model audit info and summary.
@@ -158,9 +160,9 @@ async def get_category_audit(
             detail="Audit analysis is only supported for image_generation and text_generation categories",
         )
 
-    # Get model reference data
+    # Get model names from reference
     try:
-        raw_models = manager.get_raw_model_reference_json(model_category_name)
+        model_names = manager.get_model_names(model_category_name)
     except Exception as e:
         logger.exception(f"Error fetching models for category {model_category_name}: {e}")
         raise HTTPException(
@@ -168,12 +170,22 @@ async def get_category_audit(
             detail=f"Failed to fetch model data: {e!s}",
         ) from e
 
-    if not raw_models:
+    if not model_names:
         logger.warning(f"Category not found: {model_category_name}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Category '{model_category_name}' not found or has no models",
         )
+
+    # Get typed model reference records
+    try:
+        model_records = manager.get_model_reference(model_category_name)
+    except Exception as e:
+        logger.exception(f"Error fetching model records for category {model_category_name}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch model records: {e!s}",
+        ) from e
 
     # Determine model type for Horde API
     model_type: Literal["image", "text"] = (
@@ -183,7 +195,9 @@ async def get_category_audit(
     # Fetch Horde API data
     logger.debug(f"Fetching Horde API data for {model_type} models")
     try:
-        status_data, stats_data, workers_data = await horde_api.get_combined_data(model_type)
+        status_data = await horde_api.get_model_status_indexed(model_type)
+        stats_data = await horde_api.get_model_stats_indexed(model_type)
+        # Don't fetch workers for audit (not needed)
     except Exception as e:
         logger.exception(f"Error fetching Horde API data for {model_type}: {e}")
         raise HTTPException(
@@ -191,38 +205,34 @@ async def get_category_audit(
             detail=f"Failed to fetch Horde API data: {e!s}",
         ) from e
 
-    # Merge model reference data with Horde API data
-    logger.debug(f"Merging model reference data with Horde API data for {len(raw_models)} models")
+    # Get statistics for models (separate from model reference data)
+    logger.debug(f"Merging {len(model_names)} models with Horde API data")
     try:
-        enriched_models_pydantic = merge_category_with_horde_data(
-            raw_models,
-            status_data,
-            stats_data,
-            workers_data,
+        model_statistics = merge_category_with_horde_data(
+            model_names=model_names,
+            horde_status=status_data,
+            horde_stats=stats_data,
+            workers=None,  # Not needed for audit
         )
-        # Convert Pydantic models to dictionaries for audit analysis
-        enriched_models = {name: model.model_dump() for name, model in enriched_models_pydantic.items()}
     except Exception as e:
-        logger.exception(f"Error merging data for {model_category_name}: {e}")
+        logger.exception(f"Error merging Horde API data for {model_category_name}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to merge model data: {e!s}",
+            detail=f"Failed to merge Horde API data: {e!s}",
         ) from e
 
     # Calculate total category usage for percentage calculations
-    category_total_month_usage = 0
-    for model_data in enriched_models.values():
-        usage_stats = model_data.get("usage_stats", {})
-        if isinstance(usage_stats, dict):
-            usage_month = usage_stats.get("month", 0)
-            if isinstance(usage_month, int):
-                category_total_month_usage += usage_month
+    category_total_month_usage = sum(
+        stats.usage_stats.month for stats in model_statistics.values() if stats.usage_stats
+    )
 
-    # Analyze models for audit
-    logger.debug(f"Analyzing {len(enriched_models)} models for audit")
+    # Analyze models for audit and create response using factory method
+    logger.debug(f"Analyzing {len(model_records)} models for audit")
     try:
-        audit_models = analyze_models_for_audit(
-            enriched_models,
+        factory = ModelAuditInfoFactory.create_default()
+        audit_response = factory.create_audit_response(
+            model_records,
+            model_statistics,
             category_total_month_usage,
             model_category_name,
         )
@@ -233,22 +243,7 @@ async def get_category_audit(
             detail=f"Failed to analyze models: {e!s}",
         ) from e
 
-    # Calculate summary
-    summary = calculate_audit_summary(audit_models)
-
-    # Create base audit response
-    audit_response = CategoryAuditResponse(
-        category=model_category_name,
-        category_total_month_usage=category_total_month_usage,
-        total_count=len(audit_models),
-        returned_count=len(audit_models),
-        offset=0,
-        limit=None,
-        models=audit_models,
-        summary=summary,
-    )
-
-    # Cache the base response (before preset filtering, after grouping)
+    # Cache the base response (before preset filtering, before grouping)
     if not preset:
         audit_cache.set(model_category_name, audit_response, grouped=group_text_models)
         logger.debug(f"Cached audit results for {model_category_name} (grouped={group_text_models})")
@@ -272,7 +267,7 @@ async def get_category_audit(
                 offset=0,
                 limit=None,
                 models=filtered_models,
-                summary=calculate_audit_summary(filtered_models),
+                summary=CategoryAuditSummary.from_audit_models(filtered_models),
             )
             logger.debug(f"Preset filter reduced to {len(filtered_models)} models")
         except ValueError as e:
