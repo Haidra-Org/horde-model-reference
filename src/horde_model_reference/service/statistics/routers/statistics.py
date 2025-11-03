@@ -289,7 +289,7 @@ async def read_models_with_stats(
 
     # 3. Merge data (pure computation, no caching)
 
-    enriched = merge_category_with_horde_data(
+    models_statistics = merge_category_with_horde_data(
         model_names=model_names,
         horde_status=status_data,
         horde_stats=stats_data,
@@ -299,9 +299,9 @@ async def read_models_with_stats(
     # 4. Apply server-side filtering and sorting
     # Filter by min_worker_count
     if min_worker_count is not None:
-        enriched = {
+        models_statistics = {
             name: data
-            for name, data in enriched.items()
+            for name, data in models_statistics.items()
             if data.worker_summaries and len(data.worker_summaries) >= min_worker_count
         }
 
@@ -321,6 +321,6 @@ async def read_models_with_stats(
                 return name.lower()
             return 0  # Unknown sort field
 
-        enriched = dict(sorted(enriched.items(), key=sort_key, reverse=reverse))
+        models_statistics = dict(sorted(models_statistics.items(), key=sort_key, reverse=reverse))
 
-    return enriched
+    return models_statistics
