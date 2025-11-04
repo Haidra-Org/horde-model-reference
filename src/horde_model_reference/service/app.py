@@ -2,14 +2,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from haidra_core.service_base import ContainsMessage, ContainsStatus
 
+import horde_model_reference.service.statistics.routers.audit as ref_audit
+import horde_model_reference.service.statistics.routers.statistics as ref_statistics
 import horde_model_reference.service.v1.routers.metadata as v1_metadata
 import horde_model_reference.service.v1.routers.references as v1_references
-import horde_model_reference.service.statistics.routers.audit as ref_audit
 import horde_model_reference.service.v2.routers.metadata as v2_metadata
 import horde_model_reference.service.v2.routers.references as v2_references
-import horde_model_reference.service.statistics.routers.statistics as ref_statistics
 from horde_model_reference import ReplicateMode
-from horde_model_reference.service.shared import v1_prefix, v2_prefix, statistics_prefix
+from horde_model_reference.service.shared import statistics_prefix, v1_prefix, v2_prefix
 
 app = FastAPI(root_path="/api")
 
