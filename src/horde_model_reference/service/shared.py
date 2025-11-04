@@ -1,4 +1,3 @@
-import statistics
 import urllib.parse
 from enum import auto
 

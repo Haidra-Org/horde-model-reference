@@ -6,7 +6,6 @@ Provides endpoints to retrieve category-level statistics with caching support.
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import JSONResponse
 from loguru import logger
 
 from horde_model_reference import ModelReferenceManager
