@@ -185,7 +185,7 @@ class GitHubBackend(ReplicaBackendBase):
                 # Use helper to determine if we need to fetch
                 if force_refresh or self.should_fetch_data(category):
                     self._download_legacy(category, overwrite_existing=force_refresh)
-                    convert_legacy_database_by_category(category)
+                    convert_legacy_database_by_category(category, self.legacy_path, self.base_path)
                     result[category] = self._load_converted_from_disk(category)
                 else:
                     # Return cached data
@@ -223,7 +223,7 @@ class GitHubBackend(ReplicaBackendBase):
                     httpx_client,
                     overwrite_existing=force_refresh,
                 )
-                convert_legacy_database_by_category(category)
+                convert_legacy_database_by_category(category, self.legacy_path, self.base_path)
                 return self._load_converted_from_disk(category)
 
             # Return cached data
@@ -480,14 +480,14 @@ class GitHubBackend(ReplicaBackendBase):
         """
         self._download_legacy(category, overwrite_existing=overwrite_existing)
 
-        convert_legacy_database_by_category(category)
+        convert_legacy_database_by_category(category, self.legacy_path, self.base_path)
 
     def _download_and_convert_all(self, overwrite_existing: bool = False) -> None:
         """Download all legacy files and convert them."""
         for category in MODEL_REFERENCE_CATEGORY:
             self._download_legacy(category, overwrite_existing=overwrite_existing)
 
-        convert_all_legacy_model_references()
+        convert_all_legacy_model_references(self.legacy_path, self.base_path)
 
     def _download_allowed(self) -> bool:
         """Return `True` if downloading is allowed based on replicate mode and settings."""
