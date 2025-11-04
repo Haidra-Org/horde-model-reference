@@ -14,6 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 
+@pytest.mark.integration
 @pytest.mark.vcr()
 def test_audit_endpoint_includes_worker_counts(api_client: TestClient) -> None:
     """Test that audit endpoint correctly reports worker counts from Horde API status data.
@@ -99,6 +100,7 @@ def test_audit_endpoint_includes_worker_counts(api_client: TestClient) -> None:
     assert actual_count == expected_count, f"Summary count {actual_count} doesn't match actual count {expected_count}"
 
 
+@pytest.mark.integration
 @pytest.mark.vcr()
 def test_audit_endpoint_worker_count_consistency(api_client: TestClient) -> None:
     """Test that worker_count and no_active_workers flag are always consistent.
