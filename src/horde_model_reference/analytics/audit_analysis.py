@@ -194,18 +194,24 @@ class FlagValidatorService:
     def validate_statistics(
         statistics: CombinedModelStatistics | None,
         category_total_usage: int,
+        low_usage_threshold: float | None = None,
     ) -> tuple[bool, bool, bool, bool, bool]:
         """Validate Horde API statistics and usage data.
 
         Args:
             statistics: Optional Horde API statistics.
             category_total_usage: Total monthly usage for the category.
+            low_usage_threshold: Percentage threshold for low usage. If None, uses settings default.
 
         Returns:
             Tuple of (zero_usage_day, zero_usage_month, zero_usage_total, no_active_workers, low_usage)
         """
         if not statistics:
             return (False, False, False, False, False)
+
+        # Use configured threshold if not provided
+        if low_usage_threshold is None:
+            low_usage_threshold = horde_model_reference_settings.low_usage_threshold_percentage
 
         # Check for zero workers
         no_active_workers = statistics.worker_count == 0
@@ -225,10 +231,10 @@ class FlagValidatorService:
             zero_usage_month = usage_month == 0
             zero_usage_total = usage_total == 0
 
-            # Low usage (< 0.1% of category total monthly usage)
+            # Low usage (configurable threshold via settings)
             if category_total_usage > 0:
                 usage_percentage = (usage_month / category_total_usage) * 100.0
-                low_usage = usage_percentage < 0.1
+                low_usage = usage_percentage < low_usage_threshold
 
         return (zero_usage_day, zero_usage_month, zero_usage_total, no_active_workers, low_usage)
 
