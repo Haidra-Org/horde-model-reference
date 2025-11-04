@@ -35,14 +35,6 @@ MAX_AUDIT_TIME_SECONDS = 15.0
 
 
 @pytest.fixture
-def api_client() -> TestClient:
-    """Create a FastAPI test client for the service."""
-    from horde_model_reference.service.app import app
-
-    return TestClient(app)
-
-
-@pytest.fixture
 def cassette_dir() -> str:
     """Return the directory for VCR cassettes."""
     import os
@@ -89,9 +81,9 @@ def verify_golden_models_not_critical(
 
     for model in models:
         if model["name"] in golden_models or model.get("baseline") in golden_models:
-            assert not model.get("is_critical", False), (
-                f"Golden model {model['name']} (baseline: {model.get('baseline')}) should never be marked as critical"
-            )
+            assert not model.get(
+                "is_critical", False
+            ), f"Golden model {model['name']} (baseline: {model.get('baseline')}) should never be marked as critical"
 
 
 def verify_summary_consistency(response_data: dict[str, Any]) -> None:
@@ -108,9 +100,9 @@ def verify_summary_consistency(response_data: dict[str, Any]) -> None:
     assert isinstance(summary, dict)
 
     # Summary total_models should match total_count (not returned_count which may be filtered)
-    assert summary["total_models"] == total_count, (
-        f"Summary total_models ({summary['total_models']}) does not match total_count ({total_count})"
-    )
+    assert (
+        summary["total_models"] == total_count
+    ), f"Summary total_models ({summary['total_models']}) does not match total_count ({total_count})"
 
     # Verify summary counts are non-negative and don't exceed total
     assert 0 <= summary["models_at_risk"] <= summary["total_models"]
@@ -193,9 +185,9 @@ class TestAuditEndpointsWithVCR:
 
         # All returned models should be critical
         for model in data["models"]:
-            assert model.get("is_critical", False), (
-                f"Model {model['name']} should be critical in 'critical' preset filter"
-            )
+            assert model.get(
+                "is_critical", False
+            ), f"Model {model['name']} should be critical in 'critical' preset filter"
 
     @pytest.mark.vcr()
     def test_audit_preset_filter_deletion_candidates(self, api_client: TestClient) -> None:
@@ -209,9 +201,9 @@ class TestAuditEndpointsWithVCR:
 
         # All returned models should be at risk
         for model in data["models"]:
-            assert model.get("at_risk", False), (
-                f"Model {model['name']} should be at risk in 'deletion_candidates' preset"
-            )
+            assert model.get(
+                "at_risk", False
+            ), f"Model {model['name']} should be at risk in 'deletion_candidates' preset"
 
     @pytest.mark.vcr()
     def test_audit_preset_filter_zero_usage(self, api_client: TestClient) -> None:
@@ -225,9 +217,9 @@ class TestAuditEndpointsWithVCR:
 
         # All returned models should have zero month usage
         for model in data["models"]:
-            assert model.get("usage_month", 1) == 0, (
-                f"Model {model['name']} should have zero monthly usage in 'zero_usage' preset"
-            )
+            assert (
+                model.get("usage_month", 1) == 0
+            ), f"Model {model['name']} should have zero monthly usage in 'zero_usage' preset"
 
     @pytest.mark.vcr()
     def test_text_model_grouping(self, api_client: TestClient) -> None:
@@ -283,9 +275,9 @@ class TestAuditPerformance:
         elapsed = time.time() - start_time
 
         assert response.status_code == 200
-        assert elapsed < MAX_AUDIT_TIME_SECONDS, (
-            f"Audit took {elapsed:.2f}s, exceeding threshold of {MAX_AUDIT_TIME_SECONDS}s"
-        )
+        assert (
+            elapsed < MAX_AUDIT_TIME_SECONDS
+        ), f"Audit took {elapsed:.2f}s, exceeding threshold of {MAX_AUDIT_TIME_SECONDS}s"
 
     @pytest.mark.vcr()
     def test_audit_sorting_by_usage(self, api_client: TestClient) -> None:
@@ -299,9 +291,9 @@ class TestAuditPerformance:
         if len(models) > 1:
             # Check that usage_month is in descending order
             usage_values = [m.get("usage_month", 0) for m in models]
-            assert usage_values == sorted(usage_values, reverse=True), (
-                "Models should be sorted by usage_month in descending order"
-            )
+            assert usage_values == sorted(
+                usage_values, reverse=True
+            ), "Models should be sorted by usage_month in descending order"
 
 
 class TestAuditEdgeCases:
@@ -321,9 +313,9 @@ class TestAuditEdgeCases:
         # They should be flagged with no_active_workers
         for model in zero_worker_models:
             flags = model.get("deletion_risk_flags", {})
-            assert flags.get("no_active_workers", False), (
-                f"Model {model['name']} with zero workers should have no_active_workers flag"
-            )
+            assert flags.get(
+                "no_active_workers", False
+            ), f"Model {model['name']} with zero workers should have no_active_workers flag"
 
     @pytest.mark.vcr()
     def test_models_with_multiple_hosts(self, api_client: TestClient) -> None:
@@ -338,9 +330,9 @@ class TestAuditEdgeCases:
             download_hosts = model.get("download_hosts", [])
             if len(download_hosts) > 1:
                 flags = model.get("deletion_risk_flags", {})
-                assert flags.get("has_multiple_hosts", False), (
-                    f"Model {model['name']} with {len(download_hosts)} hosts should have has_multiple_hosts flag"
-                )
+                assert flags.get(
+                    "has_multiple_hosts", False
+                ), f"Model {model['name']} with {len(download_hosts)} hosts should have has_multiple_hosts flag"
 
     @pytest.mark.vcr()
     def test_usage_percentage_calculations(self, api_client: TestClient) -> None:
@@ -424,9 +416,9 @@ class TestAuditLiveIntegration:
         elapsed = time.time() - start_time
 
         assert response.status_code == 200
-        assert elapsed < MAX_AUDIT_TIME_SECONDS, (
-            f"Live audit took {elapsed:.2f}s, exceeding threshold of {MAX_AUDIT_TIME_SECONDS}s"
-        )
+        assert (
+            elapsed < MAX_AUDIT_TIME_SECONDS
+        ), f"Live audit took {elapsed:.2f}s, exceeding threshold of {MAX_AUDIT_TIME_SECONDS}s"
 
     def test_live_golden_models_consistency(self, api_client: TestClient) -> None:
         """Test that golden models maintain consistent non-critical status."""

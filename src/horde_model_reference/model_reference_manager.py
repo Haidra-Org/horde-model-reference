@@ -410,7 +410,18 @@ class ModelReferenceManager:
             # Determine which categories need to be loaded/refreshed
             categories_to_load = []
             for category in MODEL_REFERENCE_CATEGORY:
-                if overwrite_existing or category not in self._cached_records or self.backend.needs_refresh(category):
+                # Retry if:
+                # 1. Force overwrite requested
+                # 2. Category not in cache yet
+                # 3. Cached value is None (failed previous attempt)
+                # 4. Backend says it needs refresh (stale/mtime changed)
+                cached_value = self._cached_records.get(category)
+                if (
+                    overwrite_existing
+                    or category not in self._cached_records
+                    or cached_value is None
+                    or self.backend.needs_refresh(category)
+                ):
                     categories_to_load.append(category)
 
             if categories_to_load:
