@@ -12,7 +12,7 @@ from typing import Any
 from loguru import logger
 from pydantic import BaseModel, ConfigDict, Field
 
-from horde_model_reference.analytics.constants import PARAMETER_BUCKETS, TOP_STYLES_LIMIT, TOP_TAGS_LIMIT
+from horde_model_reference.analytics.constants import PARAMETER_BUCKETS
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
@@ -320,7 +320,6 @@ def calculate_category_statistics(
                     bucket_counts[label] += 1
                     break
 
-        models_with_params = len(parameter_counts)
         if total_models > 0:
             for min_val, max_val, label in PARAMETER_BUCKETS:
                 count = bucket_counts.get(label, 0)

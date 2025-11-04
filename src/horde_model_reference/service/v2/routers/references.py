@@ -1,4 +1,4 @@
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
@@ -7,7 +7,6 @@ from loguru import logger
 from strenum import StrEnum
 
 from horde_model_reference import ModelReferenceManager
-from horde_model_reference.integrations import HordeAPIIntegration
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import (
     ControlNetModelRecord,
