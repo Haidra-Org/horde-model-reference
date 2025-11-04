@@ -71,7 +71,7 @@ def setup_model_reference_files(tmp_path_factory: pytest.TempPathFactory) -> Gen
         # This will automatically fetch missing categories from GitHub
         manager = ModelReferenceManager(
             backend=None,  # Let it auto-create with seeding enabled
-            lazy_mode=True,
+            lazy_mode=False,
             base_path=base_path,
             replicate_mode=ReplicateMode.PRIMARY,
         )
