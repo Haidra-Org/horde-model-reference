@@ -688,11 +688,16 @@ class TestModelAuditInfoFactory:
 class TestSemanticBusinessLogic:
     """Semantic tests verifying actual business rules and edge cases."""
 
-    def test_low_usage_threshold_boundary(self) -> None:
+    def test_low_usage_threshold_boundary(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Test that 0.1% threshold correctly identifies low usage models.
 
         Business rule: Models with < 0.1% of category usage are flagged as low_usage.
         """
+        from horde_model_reference import horde_model_reference_settings
+
+        # Override the default threshold to match this test's business rule
+        monkeypatch.setattr(horde_model_reference_settings, "low_usage_threshold_percentage", 0.1)
+
         factory = ModelAuditInfoFactory.create_default()
 
         # Category has 10,000 total monthly usage
@@ -1227,12 +1232,17 @@ class TestSemanticBusinessLogic:
         assert audit.deletion_risk_flags.no_active_workers
         assert audit.deletion_risk_flags.missing_description
 
-    def test_scenario_niche_model_warning_only(self) -> None:
+    def test_scenario_niche_model_warning_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Scenario test: A niche model with low usage but active workers.
 
         Business scenario: A model with very low usage but still has active
         workers serving it should be flagged for review but not critical.
         """
+        from horde_model_reference import horde_model_reference_settings
+
+        # Override threshold to 0.1% to match test expectations (0.05% usage should be flagged)
+        monkeypatch.setattr(horde_model_reference_settings, "low_usage_threshold_percentage", 0.1)
+
         factory = ModelAuditInfoFactory.create_default()
 
         niche_model = ImageGenerationModelRecord(
