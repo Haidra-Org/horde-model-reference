@@ -461,8 +461,13 @@ class ReplicaBackendBase(ModelReferenceBackend):
         """
         with self._lock:
             self._cache[category] = data
-            self._mark_category_fresh(category)
-            logger.debug(f"Stored {category} in cache")
+            # Only mark as fresh if we actually have data
+            # None values indicate failed loads and should not prevent retries
+            if data is not None:
+                self._mark_category_fresh(category)
+                logger.debug(f"Stored {category} in cache")
+            else:
+                logger.debug(f"Stored None for {category}, not marking as fresh")
 
     def _invalidate_cache(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         """Invalidate cache for a category without deleting the data.
@@ -605,8 +610,13 @@ class ReplicaBackendBase(ModelReferenceBackend):
         with self._lock:
             self._legacy_json_cache[category] = legacy_dict
             self._legacy_json_string_cache[category] = legacy_string
-            self._mark_legacy_category_fresh(category)
-            logger.debug(f"Stored legacy {category} in cache")
+            # Only mark as fresh if we actually have data
+            # None values indicate failed loads and should not prevent retries
+            if legacy_dict is not None or legacy_string is not None:
+                self._mark_legacy_category_fresh(category)
+                logger.debug(f"Stored legacy {category} in cache")
+            else:
+                logger.debug(f"Stored None for legacy {category}, not marking as fresh")
 
     def _invalidate_legacy_cache(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         """Invalidate legacy cache for a category without deleting the data.
