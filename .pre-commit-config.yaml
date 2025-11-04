@@ -25,10 +25,13 @@ repos:
             - haidra-core
             - httpx
             - loguru
+            - lxml-stubs
             - pydantic
             - pydantic-settings
             - PyGithub
             - pytest
+            - pytest-httpx
+            - pytest-recording
             - redis[hiredis]
             - settings-doc
             - strenum
@@ -42,6 +45,7 @@ repos:
             - types-requests
             - types-tabulate
             - types-ujson
+            - vcrpy
 
 
 ci:

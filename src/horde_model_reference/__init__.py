@@ -247,7 +247,7 @@ Only used in PRIMARY mode. If True, will download and convert legacy references 
 'v2' (default): v2 API has CRUD, v1 API is read-only (converts from v2 to legacy). \
 'legacy': v1 API has CRUD, v2 API is read-only (converts from legacy to v2)."""
 
-    horde_api_timeout: int = 10
+    horde_api_timeout: int = 30
     """Timeout in seconds for Horde API requests to fetch model status, statistics, and worker information."""
 
     horde_api_cache_ttl: int = 60
