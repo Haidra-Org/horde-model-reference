@@ -6,14 +6,14 @@ Centralized configuration values used across statistics and audit analysis modul
 from __future__ import annotations
 
 # Statistics calculation constants
-TOP_TAGS_LIMIT = 20
+TOP_TAGS_LIMIT = 40
 """Maximum number of top tags to include in statistics."""
 
-TOP_STYLES_LIMIT = 20
+TOP_STYLES_LIMIT = 30
 """Maximum number of top styles to include in statistics."""
 
 # Audit analysis constants
-LOW_USAGE_THRESHOLD = 0.1
+LOW_USAGE_THRESHOLD = 0.01
 """Threshold (as percentage) for flagging models with low usage.
 
 Models with monthly usage below this percentage of category total are flagged.

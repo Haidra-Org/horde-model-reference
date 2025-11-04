@@ -43,11 +43,17 @@ class CombinedModelStatistics(BaseModel):
     """Horde usage statistics and data for a model, aggregated from multiple sources."""
 
     # Horde runtime fields
-    @computed_field  # type: ignore[misc]
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def worker_count(self) -> int:
-        """Number of workers serving this model."""
-        return len(self.worker_summaries) if self.worker_summaries else 0
+        """Number of workers serving this model.
+
+        Returns worker count from detailed worker_summaries if available.
+        Returns 0 if worker_summaries is None (detailed worker info not fetched).
+        """
+        if self.worker_summaries:
+            return len(self.worker_summaries)
+        return 0
 
     queued_jobs: int | None = Field(default=None, description="Number of active jobs")
     performance: float | None = Field(default=None, description="Performance metric")
@@ -55,6 +61,11 @@ class CombinedModelStatistics(BaseModel):
     queued: int | None = Field(default=None, description="Number of queued requests")
     usage_stats: UsageStats | None = Field(default=None, description="Usage statistics from Horde")
     worker_summaries: dict[str, WorkerSummary] | None = Field(default=None, description="Workers serving this model")
+    worker_count_from_status: int | None = Field(
+        default=None,
+        description="Worker count from HordeModelStatus (used when worker_summaries not available)",
+        exclude=True,  # Don't include in serialization by default
+    )
 
 
 def merge_model_with_horde_data(
@@ -100,6 +111,7 @@ def merge_model_with_horde_data(
     performance = status.performance if status else None
     eta = status.eta if status else None
     queued = status.queued if status else None
+    worker_count_from_status = status.count if status else None
 
     # Extract usage stats
     usage_stats = None
@@ -134,6 +146,7 @@ def merge_model_with_horde_data(
         queued=queued,
         usage_stats=usage_stats,
         worker_summaries=worker_summaries,
+        worker_count_from_status=worker_count_from_status,
     )
 
 

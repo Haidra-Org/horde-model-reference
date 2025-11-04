@@ -265,6 +265,10 @@ Only used in PRIMARY mode. If True, will download and convert legacy references 
     preferred_file_hosts: list[str] = Field(default_factory=lambda: ["huggingface.co"])
     """Preferred file hosts for deletion risk analysis in audit endpoints."""
 
+    low_usage_threshold_percentage: float = 0.0065
+    """Percentage threshold for low usage flag in audit analysis. Default 0.0065% flags bottom ~10% of models. \
+Set lower (e.g., 0.005%) to flag fewer models or higher (e.g., 0.01%) to flag more models."""
+
     @model_validator(mode="after")
     def validate_mode_configuration(self) -> HordeModelReferenceSettings:
         """Validate that settings are appropriate for the configured replication mode."""
