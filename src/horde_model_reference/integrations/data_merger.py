@@ -49,13 +49,10 @@ class CombinedModelStatistics(BaseModel):
         """Number of workers serving this model.
 
         Returns worker count from detailed worker_summaries if available (including empty dict = 0 workers).
-        Falls back to worker_count_from_status if worker_summaries is None (detailed info not fetched).
-        Returns 0 if neither is available.
+        Returns 0 if worker_summaries is None (detailed worker info not fetched).
         """
         if self.worker_summaries is not None:
             return len(self.worker_summaries)
-        if self.worker_count_from_status is not None:
-            return self.worker_count_from_status
         return 0
 
     queued_jobs: int | None = Field(default=None, description="Number of active jobs")
