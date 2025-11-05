@@ -133,7 +133,7 @@ def test_merge_model_with_status_data(
     assert isinstance(result, CombinedModelStatistics)
 
     # Status fields present
-    assert result.worker_count == 0  # Computed from worker_summaries (None)
+    assert result.worker_count == 5  # Falls back to worker_count_from_status
     assert result.queued_jobs == 10
     assert result.performance == 100.5
     assert result.eta == 30
@@ -199,7 +199,7 @@ def test_merge_model_case_insensitive(
     )
 
     # Should still match and merge data
-    assert result.worker_count == 0  # Computed from worker_summaries (None)
+    assert result.worker_count == 5  # Falls back to worker_count_from_status
     assert result.usage_stats is not None
     assert result.usage_stats.day == 100
 
@@ -255,14 +255,14 @@ def test_merge_category_with_horde_data(
     # Check test_model - result values are CombinedModelStatistics
     test_model = result["test_model"]
     assert isinstance(test_model, CombinedModelStatistics)
-    assert test_model.worker_count == 0  # Computed from worker_summaries (None)
+    assert test_model.worker_count == 5  # Falls back to worker_count_from_status
     assert test_model.usage_stats is not None
     assert test_model.usage_stats.day == 100
 
     # Check other_model
     other_model = result["other_model"]
     assert isinstance(other_model, CombinedModelStatistics)
-    assert other_model.worker_count == 0  # Computed from worker_summaries (None)
+    assert other_model.worker_count == 3  # Falls back to worker_count_from_status
     assert other_model.usage_stats is not None
     assert other_model.usage_stats.day == 50
 
@@ -301,7 +301,7 @@ def test_merge_category_preserves_unmergeable_models(
 
     # unknown_model should not have Horde data
     unknown_model = result["unknown_model"]
-    assert unknown_model.worker_count == 0  # Computed from worker_summaries (None)
+    assert unknown_model.worker_count == 0  # No status data for this model
     assert unknown_model.queued_jobs is None
 
 
@@ -374,7 +374,7 @@ def test_merge_model_with_status_but_no_stats(
 
     # Stats should be None
     assert result.usage_stats is None
-    assert result.worker_count == 0
+    assert result.worker_count == 5  # Falls back to worker_count_from_status
     assert result.worker_summaries is None
 
 
@@ -450,6 +450,6 @@ def test_merge_model_with_none_workers_explicitly(
     assert result.usage_stats is not None
     assert result.usage_stats.day == 100
 
-    # Workers should be None
+    # Workers should be None, falls back to status count
     assert result.worker_summaries is None
-    assert result.worker_count == 0
+    assert result.worker_count == 5  # Falls back to worker_count_from_status
