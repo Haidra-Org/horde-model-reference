@@ -27,6 +27,7 @@ services:
       - HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
       - HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
       - HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS=60
+      - HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=${HORDE_MODEL_REFERENCE_CANONICAL_FORMAT:-legacy}
       - HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED=false
       - AIWORKER_CACHE_HOME=/data
     env_file:
@@ -65,13 +66,8 @@ services:
     labels:
       - "org.haidra.service=github-sync"
       - "org.haidra.mode=sync"
-    command: >
-      sh -c 'while true; do
-        echo "[$(date)] Starting GitHub sync...";
-        /app/.venv/bin/python scripts/sync/sync_github_references.py || echo "[$(date)] Sync failed, will retry after interval";
-        echo "[$(date)] Sync complete. Sleeping for $$SYNC_INTERVAL seconds...";
-        sleep $$SYNC_INTERVAL;
-      done'
+    # Use native watch mode instead of shell loop
+    command: ["/app/.venv/bin/python", "scripts/sync/sync_github_references.py", "--watch", "--watch-startup-sync"]
 
 volumes:
   model-data:

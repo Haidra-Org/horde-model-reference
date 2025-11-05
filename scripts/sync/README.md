@@ -1092,17 +1092,6 @@ except Exception as e:
 6. **Private Keys**: For GitHub App authentication, protect private keys with file permissions (chmod 600) and never commit
 7. **Watch Mode**: When running in watch mode, ensure the PRIMARY server is trusted and secure
 
-## Contributing
-
-When contributing to the sync service:
-
-1. Follow existing code style (enforced by ruff/black)
-2. Add type hints (mypy strict mode)
-3. Write tests for new functionality
-4. Update documentation as needed
-5. Test with dry run before real PRs
-6. Ensure backward compatibility with existing configurations
-
 ## Additional Resources
 
 - **GitHub App Authentication Guide**: See [github_app_auth_example.md](github_app_auth_example.md) for detailed examples including Docker, Kubernetes, and GitHub Actions configurations
