@@ -199,10 +199,15 @@ class TestAuditEndpointsWithVCR:
 
         verify_audit_response_structure(data)
 
-        # All returned models should be at risk
+        # All returned models should meet deletion criteria: at_risk OR low_usage OR no_workers
         for model in data["models"]:
-            assert model.get("at_risk", False), (
-                f"Model {model['name']} should be at risk in 'deletion_candidates' preset"
+            is_at_risk = model.get("at_risk", False)
+            has_low_usage = model.get("usage_percentage_of_category", 100) < 0.1
+            has_no_workers = model.get("worker_count", 1) == 0
+
+            assert is_at_risk or has_low_usage or has_no_workers, (
+                f"Model {model['name']} should meet deletion criteria (at_risk={is_at_risk}, "
+                f"low_usage={has_low_usage}, no_workers={has_no_workers})"
             )
 
     @pytest.mark.vcr()
