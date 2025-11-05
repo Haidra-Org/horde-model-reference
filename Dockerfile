@@ -39,7 +39,11 @@ COPY . .
 ARG VERSION=0.0.0+docker
 ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_HORDE_MODEL_REFERENCE=${VERSION}
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable
+    if [ -n "$EXTRA_DEPS" ]; then \
+        uv sync --frozen --no-dev --no-editable --extra service --extra "$EXTRA_DEPS"; \
+    else \
+        uv sync --frozen --no-dev --no-editable --extra service; \
+    fi
 
 # Final stage
 FROM python:3.12-slim AS final
