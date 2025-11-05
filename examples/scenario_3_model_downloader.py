@@ -1,5 +1,4 @@
-"""
-Scenario 3: Model Downloader Tool
+"""Scenario 3: Model Downloader Tool.
 
 This example demonstrates how to create a CLI tool for downloading
 and verifying AI models using horde-model-reference metadata.
@@ -8,20 +7,18 @@ Note: This is a demonstration. Actual downloading is commented out.
 """
 
 from pathlib import Path
+
 from horde_model_reference import (
-    ModelReferenceManager,
     MODEL_REFERENCE_CATEGORY,
+    ModelReferenceManager,
 )
 
 
 class ModelDownloader:
-    """
-    Download and verify AI models using horde-model-reference metadata.
-    """
+    """Download and verify AI models using horde-model-reference metadata."""
 
-    def __init__(self, download_dir: Path):
-        """
-        Initialize the model downloader.
+    def __init__(self, download_dir: Path) -> None:
+        """Initialize the model downloader.
 
         Args:
             download_dir: Directory where models will be downloaded
@@ -30,8 +27,7 @@ class ModelDownloader:
         self.manager = ModelReferenceManager()
 
     def list_available_models(self, category: MODEL_REFERENCE_CATEGORY) -> None:
-        """
-        List all available models in a category.
+        """List all available models in a category.
 
         Args:
             category: The category to list models from
@@ -51,8 +47,7 @@ class ModelDownloader:
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
     ) -> bool:
-        """
-        Display information about a specific model.
+        """Display information about a specific model.
 
         Args:
             category: The model category
@@ -67,7 +62,7 @@ class ModelDownloader:
             print(f"Error: Model '{model_name}' not found in category '{category}'")
             return False
 
-        print(f"\n=== Model Information ===")
+        print("\n=== Model Information ===")
         print(f"Name: {model.name}")
         print(f"Description: {model.description or 'N/A'}")
 
@@ -84,12 +79,12 @@ class ModelDownloader:
                 print(f"    URL: {download.file_url[:60]}...")
                 print(f"    SHA256: {download.sha256sum}")
                 if download.known_slow_download:
-                    print(f"    ⚠ Known slow download")
+                    print("    ⚠ Known slow download")
 
         return True
 
 
-def main():
+def main() -> None:
     """Run the model downloader examples."""
     downloader = ModelDownloader(download_dir=Path("./models"))
 

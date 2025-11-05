@@ -1,22 +1,21 @@
-"""
-Scenario 5: Type-Safe Configuration
+"""Scenario 5: Type-Safe Configuration.
 
 This example demonstrates using Pydantic models for type-safe
 application configuration with validation.
 """
 
-from typing import List
+
 from pydantic import BaseModel, Field, field_validator
+
 from horde_model_reference import (
-    ModelReferenceManager,
     MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
+    ModelReferenceManager,
 )
 
 
 class WorkerConfig(BaseModel):
-    """
-    Type-safe configuration for an AI-Horde worker.
+    """Type-safe configuration for an AI-Horde worker.
 
     Uses Pydantic for validation and type safety.
     """
@@ -27,7 +26,7 @@ class WorkerConfig(BaseModel):
         description="Name of the worker"
     )
 
-    supported_models: List[str] = Field(
+    supported_models: list[str] = Field(
         default_factory=list,
         description="List of model names this worker supports"
     )
@@ -39,7 +38,7 @@ class WorkerConfig(BaseModel):
         description="Maximum number of concurrent generation jobs"
     )
 
-    supported_baselines: List[str] = Field(
+    supported_baselines: list[str] = Field(
         default_factory=lambda: ["stable_diffusion_xl"],
         description="Baselines supported by this worker"
     )
@@ -49,17 +48,15 @@ class WorkerConfig(BaseModel):
         description="Whether to filter out NSFW models"
     )
 
-    preferred_styles: List[MODEL_STYLE] = Field(
+    preferred_styles: list[MODEL_STYLE] = Field(
         default_factory=list,
         description="Preferred model styles to prioritize"
     )
 
     @field_validator("supported_models")
     @classmethod
-    def validate_models_exist(cls, v: List[str]) -> List[str]:
-        """
-        Validate that all specified models exist in the reference.
-        """
+    def validate_models_exist(cls, v: list[str]) -> list[str]:
+        """Validate that all specified models exist in the reference."""
         if not v:
             return v
 
@@ -74,9 +71,8 @@ class WorkerConfig(BaseModel):
 
         return v
 
-    def get_available_models(self) -> List[str]:
-        """
-        Get the list of models this worker can serve based on configuration.
+    def get_available_models(self) -> list[str]:
+        """Get the list of models this worker can serve based on configuration.
 
         Returns:
             List of model names
@@ -109,7 +105,7 @@ class WorkerConfig(BaseModel):
         return available
 
 
-def main():
+def main() -> None:
     """Run the type-safe configuration examples."""
     # Create a type-safe configuration
     config = WorkerConfig(
@@ -135,7 +131,7 @@ def main():
     # Try to create invalid config (will raise validation error)
     print("\n=== Testing Validation ===")
     try:
-        invalid_config = WorkerConfig(
+        WorkerConfig(
             worker_name="test",
             supported_models=["non_existent_model_xyz_123"],
         )

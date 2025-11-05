@@ -1,5 +1,4 @@
-"""
-Logging Control Example
+"""Logging Control Example.
 
 This example demonstrates how to control logging verbosity in horde-model-reference.
 By default, the library only logs WARNING and above. You can enable more verbose
@@ -7,17 +6,16 @@ logging for debugging purposes.
 """
 
 from horde_model_reference import (
-    ModelReferenceManager,
     MODEL_REFERENCE_CATEGORY,
+    ModelReferenceManager,
     configure_logger,
-    enable_debug_logging,
     disable_logging,
+    enable_debug_logging,
 )
 
 
-def example_1_default_logging():
-    """
-    Example 1: Default logging (WARNING and above only).
+def example_1_default_logging() -> None:
+    """Demonstrate default logging (WARNING and above only).
 
     This is the default behavior - quiet operation with only important
     warnings and errors shown.
@@ -34,9 +32,8 @@ def example_1_default_logging():
     print()
 
 
-def example_2_enable_debug():
-    """
-    Example 2: Enable DEBUG logging for troubleshooting.
+def example_2_enable_debug() -> None:
+    """Demonstrate enabling DEBUG logging for troubleshooting.
 
     Use this when you need to see what's happening under the hood.
     """
@@ -57,9 +54,8 @@ def example_2_enable_debug():
     print()
 
 
-def example_3_info_level():
-    """
-    Example 3: INFO level logging (middle ground).
+def example_3_info_level() -> None:
+    """Demonstrate INFO level logging (middle ground).
 
     Shows important operations without the verbosity of DEBUG.
     """
@@ -80,9 +76,8 @@ def example_3_info_level():
     print()
 
 
-def example_4_silence_all():
-    """
-    Example 4: Complete silence.
+def example_4_silence_all() -> None:
+    """Demonstrate complete silence.
 
     Disable all logging when you want no output at all from the library.
     """
@@ -103,9 +98,8 @@ def example_4_silence_all():
     print()
 
 
-def example_5_environment_variable():
-    """
-    Example 5: Using environment variable.
+def example_5_environment_variable() -> None:
+    """Demonstrate environment variable control.
 
     You can also control logging via HORDE_MODEL_REFERENCE_LOG_LEVEL
     environment variable without code changes.
@@ -127,7 +121,7 @@ def example_5_environment_variable():
     print()
 
 
-def main():
+def main() -> None:
     """Run all logging control examples."""
     print("\n" + "=" * 70)
     print("HORDE MODEL REFERENCE - LOGGING CONTROL EXAMPLES")

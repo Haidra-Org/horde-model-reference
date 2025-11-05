@@ -20,8 +20,7 @@ def configure_logger(
     format_string: str | None = None,
     colorize: bool = True,
 ) -> None:
-    """
-    Configure the horde-model-reference logger.
+    """Configure the horde-model-reference logger.
 
     This function allows applications to control logging from horde-model-reference.
     By default, only WARNING and above are logged to prevent noise.
@@ -60,7 +59,12 @@ def configure_logger(
 
     # Default format if none provided
     if format_string is None:
-        format_string = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+        format_string = (
+            "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+            "<level>{level: <8}</level> | "
+            "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+            "<level>{message}</level>"
+        )
 
     # Add new handler with specified configuration
     logger.add(
@@ -72,8 +76,7 @@ def configure_logger(
 
 
 def disable_logging() -> None:
-    """
-    Completely disable all logging from horde-model-reference.
+    """Completely disable all logging from horde-model-reference.
 
     This is useful when you want complete silence from the library.
 
@@ -89,8 +92,7 @@ def disable_logging() -> None:
 
 
 def enable_debug_logging() -> None:
-    """
-    Enable DEBUG level logging with detailed format.
+    """Enable DEBUG level logging with detailed format.
 
     This is a convenience function for debugging and troubleshooting.
     Equivalent to configure_logger("DEBUG").
@@ -107,8 +109,8 @@ def enable_debug_logging() -> None:
 
 
 __all__ = [
+    "LogLevel",
     "configure_logger",
     "disable_logging",
     "enable_debug_logging",
-    "LogLevel",
 ]

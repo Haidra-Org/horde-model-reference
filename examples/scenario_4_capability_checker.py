@@ -1,28 +1,26 @@
-"""
-Scenario 4: Model Capability Checker
+"""Scenario 4: Model Capability Checker.
 
 This example demonstrates how to check model capabilities and requirements.
 """
 
-from typing import List, Dict, Any
+from typing import Any
+
 from horde_model_reference import (
-    ModelReferenceManager,
     MODEL_REFERENCE_CATEGORY,
+    ModelReferenceManager,
 )
 from horde_model_reference.model_reference_records import ImageGenerationModelRecord
 
 
 class ModelCapabilityChecker:
-    """
-    Check model capabilities and requirements.
-    """
+    """Check model capabilities and requirements."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the model capability checker."""
         self.manager = ModelReferenceManager()
 
-    def check_inpainting_support(self) -> List[str]:
-        """
-        Get all models that support inpainting.
+    def check_inpainting_support(self) -> list[str]:
+        """Get all models that support inpainting.
 
         Returns:
             List of model names that support inpainting
@@ -31,19 +29,17 @@ class ModelCapabilityChecker:
             MODEL_REFERENCE_CATEGORY.image_generation
         )
 
-        inpainting_models = [
+        return [
             name for name, model in models.items()
             if model.inpainting
         ]
 
-        return inpainting_models
 
     def check_model_requirements(
         self,
         model_name: str
-    ) -> Dict[str, Any] | None:
-        """
-        Get the requirements for a specific model.
+    ) -> dict[str, Any] | None:
+        """Get the requirements for a specific model.
 
         Args:
             model_name: Name of the model to check
@@ -71,9 +67,8 @@ class ModelCapabilityChecker:
     def find_models_by_baseline(
         self,
         baseline: str
-    ) -> List[ImageGenerationModelRecord]:
-        """
-        Find all models based on a specific baseline.
+    ) -> list[ImageGenerationModelRecord]:
+        """Find all models based on a specific baseline.
 
         Args:
             baseline: The baseline to search for (e.g., "stable_diffusion_xl")
@@ -85,19 +80,17 @@ class ModelCapabilityChecker:
             MODEL_REFERENCE_CATEGORY.image_generation
         )
 
-        matching_models = [
+        return [
             model for model in models.values()
             if model.baseline == baseline
         ]
 
-        return matching_models
 
     def get_models_with_tags(
         self,
-        required_tags: List[str]
-    ) -> List[ImageGenerationModelRecord]:
-        """
-        Find models that have all specified tags.
+        required_tags: list[str]
+    ) -> list[ImageGenerationModelRecord]:
+        """Find models that have all specified tags.
 
         Args:
             required_tags: List of tags that models must have
@@ -121,7 +114,7 @@ class ModelCapabilityChecker:
         return matching
 
 
-def main():
+def main() -> None:
     """Run the capability checker examples."""
     checker = ModelCapabilityChecker()
 

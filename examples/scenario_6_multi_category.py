@@ -1,28 +1,26 @@
-"""
-Scenario 6: Working with Multiple Categories
+"""Scenario 6: Working with Multiple Categories.
 
 This example demonstrates working with different model categories
 (text, image, ControlNet, utility models, etc.)
 """
 
-from typing import Dict, Any
+from typing import Any
+
 from horde_model_reference import (
-    ModelReferenceManager,
     MODEL_REFERENCE_CATEGORY,
+    ModelReferenceManager,
 )
 
 
 class MultiCategoryModelExplorer:
-    """
-    Explore models across different categories.
-    """
+    """Explore models across different categories."""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """Initialize the multi-category model explorer."""
         self.manager = ModelReferenceManager()
 
-    def get_category_summary(self) -> Dict[str, int]:
-        """
-        Get a count of models in each category.
+    def get_category_summary(self) -> dict[str, int]:
+        """Get a count of models in each category.
 
         Returns:
             Dictionary mapping category names to model counts
@@ -49,9 +47,8 @@ class MultiCategoryModelExplorer:
 
         return summary
 
-    def get_text_generation_models(self) -> Dict[str, Any]:
-        """
-        Get information about text generation models (LLMs).
+    def get_text_generation_models(self) -> dict[str, Any]:
+        """Get information about text generation models (LLMs).
 
         Returns:
             Dictionary of model names to their info
@@ -71,9 +68,8 @@ class MultiCategoryModelExplorer:
 
         return model_info
 
-    def get_controlnet_models(self) -> Dict[str, Any]:
-        """
-        Get information about ControlNet models.
+    def get_controlnet_models(self) -> dict[str, Any]:
+        """Get information about ControlNet models.
 
         Returns:
             Dictionary of ControlNet model info
@@ -92,9 +88,8 @@ class MultiCategoryModelExplorer:
 
         return controlnet_info
 
-    def get_utility_models(self) -> Dict[str, Dict[str, Any]]:
-        """
-        Get all utility models (CLIP, BLIP, upscalers, etc.)
+    def get_utility_models(self) -> dict[str, dict[str, Any]]:
+        """Get all utility models (CLIP, BLIP, upscalers, etc.).
 
         Returns:
             Dictionary organized by utility type
@@ -124,7 +119,7 @@ class MultiCategoryModelExplorer:
         return utilities
 
 
-def main():
+def main() -> None:
     """Run the multi-category exploration examples."""
     explorer = MultiCategoryModelExplorer()
 

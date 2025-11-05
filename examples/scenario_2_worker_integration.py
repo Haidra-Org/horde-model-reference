@@ -1,22 +1,20 @@
-"""
-Scenario 2: AI-Horde Worker Integration
+"""Scenario 2: AI-Horde Worker Integration.
 
 This example demonstrates how to integrate model references into
 an AI-Horde worker to manage available models based on capabilities.
 """
 
 from pathlib import Path
-from typing import Set, Dict
+
 from horde_model_reference import (
-    ModelReferenceManager,
     MODEL_REFERENCE_CATEGORY,
+    ModelReferenceManager,
 )
 from horde_model_reference.model_reference_records import ImageGenerationModelRecord
 
 
 class WorkerModelManager:
-    """
-    Manages model references for an AI-Horde worker.
+    """Manages model references for an AI-Horde worker.
 
     Handles filtering models by GPU capabilities, baseline support,
     and version requirements.
@@ -24,12 +22,11 @@ class WorkerModelManager:
 
     def __init__(
         self,
-        supported_baselines: Set[str],
+        supported_baselines: set[str],
         min_bridge_version: int,
         models_path: Path,
-    ):
-        """
-        Initialize the worker model manager.
+    ) -> None:
+        """Initialize the worker model manager.
 
         Args:
             supported_baselines: Set of baseline models the worker supports
@@ -43,11 +40,10 @@ class WorkerModelManager:
         self.manager = ModelReferenceManager()
 
         # Cache of available models
-        self._available_models: Dict[str, ImageGenerationModelRecord] | None = None
+        self._available_models: dict[str, ImageGenerationModelRecord] | None = None
 
-    def get_available_models(self) -> Dict[str, ImageGenerationModelRecord]:
-        """
-        Get all models the worker can serve based on capabilities.
+    def get_available_models(self) -> dict[str, ImageGenerationModelRecord]:
+        """Get all models the worker can serve based on capabilities.
 
         Returns:
             Dictionary mapping model names to their records
@@ -79,8 +75,7 @@ class WorkerModelManager:
         return available
 
     def _model_files_exist(self, model: ImageGenerationModelRecord) -> bool:
-        """
-        Check if all required model files exist locally.
+        """Check if all required model files exist locally.
 
         Args:
             model: The model record to check
@@ -94,9 +89,8 @@ class WorkerModelManager:
                 return False
         return True
 
-    def get_models_to_download(self) -> Dict[str, ImageGenerationModelRecord]:
-        """
-        Get models that match capabilities but aren't downloaded yet.
+    def get_models_to_download(self) -> dict[str, ImageGenerationModelRecord]:
+        """Get models that match capabilities but aren't downloaded yet.
 
         Returns:
             Dictionary of models that need to be downloaded
@@ -122,8 +116,7 @@ class WorkerModelManager:
         return to_download
 
     def get_model_download_info(self, model_name: str) -> list[dict] | None:
-        """
-        Get download URLs and checksums for a specific model.
+        """Get download URLs and checksums for a specific model.
 
         Args:
             model_name: Name of the model to get download info for
@@ -151,7 +144,7 @@ class WorkerModelManager:
         return download_info
 
 
-def main():
+def main() -> None:
     """Run the worker integration examples."""
     # Simulate a worker with SDXL support
     worker = WorkerModelManager(
@@ -169,7 +162,7 @@ def main():
     # Get models to download
     to_download = worker.get_models_to_download()
     print(f"\nModels that need downloading: {len(to_download)}")
-    for name, model in list(to_download.items())[:3]:
+    for name, _model in list(to_download.items())[:3]:
         print(f"  ⬇ {name}")
 
         # Get download info

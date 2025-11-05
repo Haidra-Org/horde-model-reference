@@ -1,22 +1,20 @@
-"""
-Scenario 1: Building a Model Browser UI
+"""Scenario 1: Building a Model Browser UI.
 
 This example demonstrates how to fetch and organize model data
 for a web UI, with filtering and grouping capabilities.
 """
 
-from typing import Dict, List
+
 from horde_model_reference import (
-    ModelReferenceManager,
     MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
+    ModelReferenceManager,
 )
 from horde_model_reference.model_reference_records import ImageGenerationModelRecord
 
 
-def get_model_browser_data() -> Dict[str, List[dict]]:
-    """
-    Fetch and organize image generation models for a browser UI.
+def get_model_browser_data() -> dict[str, list[dict]]:
+    """Fetch and organize image generation models for a browser UI.
 
     Returns a dictionary grouping models by baseline, with each model
     containing display-friendly information.
@@ -28,9 +26,9 @@ def get_model_browser_data() -> Dict[str, List[dict]]:
     models = manager.get_model_reference(MODEL_REFERENCE_CATEGORY.image_generation)
 
     # Group by baseline
-    grouped: Dict[str, List[dict]] = {}
+    grouped: dict[str, list[dict]] = {}
 
-    for model_name, model in models.items():
+    for _model_name, model in models.items():
         # Type-safe access to ImageGenerationModelRecord fields
         baseline = model.baseline
 
@@ -56,9 +54,8 @@ def get_model_browser_data() -> Dict[str, List[dict]]:
 
 def filter_models_by_style(
     style: MODEL_STYLE,
-) -> List[ImageGenerationModelRecord]:
-    """
-    Get all image generation models matching a specific style.
+) -> list[ImageGenerationModelRecord]:
+    """Get all image generation models matching a specific style.
 
     Args:
         style: The MODEL_STYLE to filter by (anime, realistic, etc.)
@@ -70,17 +67,15 @@ def filter_models_by_style(
     models = manager.get_model_reference(MODEL_REFERENCE_CATEGORY.image_generation)
 
     # Filter models by style - type-safe comparison
-    filtered = [
+    return [
         model for model in models.values()
         if model.style == style
     ]
 
-    return filtered
 
 
-def get_safe_models_only() -> Dict[str, ImageGenerationModelRecord]:
-    """
-    Get only SFW (Safe For Work) image generation models.
+def get_safe_models_only() -> dict[str, ImageGenerationModelRecord]:
+    """Get only SFW (Safe For Work) image generation models.
 
     Returns:
         Dictionary of model names to ImageGenerationModelRecord objects
@@ -90,15 +85,14 @@ def get_safe_models_only() -> Dict[str, ImageGenerationModelRecord]:
     models = manager.get_model_reference(MODEL_REFERENCE_CATEGORY.image_generation)
 
     # Filter out NSFW models
-    safe_models = {
+    return {
         name: model for name, model in models.items()
         if not model.nsfw
     }
 
-    return safe_models
 
 
-def main():
+def main() -> None:
     """Run the model browser examples."""
     # Get organized data for UI
     print("=== Fetching Models for Browser UI ===")
