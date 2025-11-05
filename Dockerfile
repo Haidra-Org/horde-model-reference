@@ -1,38 +1,59 @@
+# syntax=docker/dockerfile:1
+
 # Multi-stage build for horde-model-reference PRIMARY server
 FROM python:3.12-slim AS builder
 
-RUN apt-get update && apt-get install -y --no-install-recommends git \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for faster dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
+# Set environment variables for Python and uv
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
+
 # Set working directory
 WORKDIR /app
 
-COPY . .
-
-# Install dependencies (with optional extras)
+# Install dependencies using cache and bind mounts for optimal performance
 ARG EXTRA_DEPS=""
-RUN if [ -n "$EXTRA_DEPS" ]; then \
-        uv sync --locked --no-dev --no-cache --no-editable --extra service --extra "$EXTRA_DEPS"; \
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    if [ -n "$EXTRA_DEPS" ]; then \
+        uv sync --frozen --no-dev --no-editable --no-install-project --extra service --extra "$EXTRA_DEPS"; \
     else \
-        uv sync --locked --no-dev --no-cache --no-editable --extra service; \
+        uv sync --frozen --no-dev --no-editable --no-install-project --extra service; \
     fi
 
+# Copy the project source code
+COPY . .
+
+# Install the project itself
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable
+
 # Final stage
-FROM python:3.12-slim
+FROM python:3.12-slim AS final
+
+# Add image labels for metadata
+LABEL org.opencontainers.image.title="Horde Model Reference" \
+      org.opencontainers.image.description="Model reference service for AI Horde" \
+      org.opencontainers.image.source="https://github.com/Haidra-Org/horde-model-reference"
 
 # Install runtime dependencies
 # Note: git is required for the GitHub sync service
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN useradd -m -u 1000 horde && \
+# Create non-root user and data directory
+RUN useradd --system --no-log-init -m -u 1000 horde && \
     mkdir -p /data/horde_model_reference && \
     chown -R horde:horde /data
 
@@ -72,5 +93,5 @@ ENV HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:19800/api/heartbeat || exit 1
 
-# Start the FastAPI application
+# Start the FastAPI application using JSON array format for proper signal handling
 CMD ["/app/.venv/bin/fastapi", "run", "src/horde_model_reference/service/app.py", "--host", "0.0.0.0", "--port", "19800"]

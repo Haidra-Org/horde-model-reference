@@ -7,16 +7,14 @@ Deploy a Horde Model Reference PRIMARY server using Docker or Python directly.
 - [Deployment Guide](#deployment-guide)
     - [Table of Contents](#table-of-contents)
     - [Prerequisites](#prerequisites)
-    - [Docker Deployment](#docker-deployment)
-        - [Single-Worker Docker Setup](#single-worker-docker-setup)
-        - [Multi-Worker Docker Setup (Production)](#multi-worker-docker-setup-production)
-            - [Optional: GitHub Sync Service\*](#optional-github-sync-service)
-    - [Non-Docker Deployment](#non-docker-deployment)
-        - [Single-Worker Setup](#single-worker-setup)
-        - [Multi-Worker Setup (Production)](#multi-worker-setup-production)
     - [First-Time Setup](#first-time-setup)
         - [Option 1: Auto-seed from GitHub (recommended)](#option-1-auto-seed-from-github-recommended)
         - [Option 2: Provide files manually](#option-2-provide-files-manually)
+    - [Non-Docker Deployment](#non-docker-deployment)
+        - [Single-Worker Setup](#single-worker-setup)
+    - [Docker Deployment](#docker-deployment)
+        - [Single-Worker Docker Setup](#single-worker-docker-setup)
+    - [Optional: GitHub Sync Service](#optional-github-sync-service)
     - [Verification](#verification)
     - [Configuration Reference](#configuration-reference)
     - [Troubleshooting](#troubleshooting)
@@ -46,6 +44,94 @@ Deploy a Horde Model Reference PRIMARY server using Docker or Python directly.
 
 ---
 
+## First-Time Setup
+
+If this is your first deployment and you don't have model reference files:
+
+### Option 1: Auto-seed from GitHub (recommended)
+
+Add to your `.env` file or docker-compose environment:
+
+```bash
+HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED=true
+```
+
+The server will download and convert model references on first startup. **Set back to `false` after initial startup.**
+
+### Option 2: Provide files manually
+
+Place JSON files in `{AIWORKER_CACHE_HOME}/horde_model_reference/`:
+
+- `stable_diffusion.json` - Image generation models
+- `text_generation.json` - Text generation models
+- Other category files as needed
+
+## Non-Docker Deployment
+
+### Single-Worker Setup
+
+**1. Install the project:**
+
+```bash
+git clone https://github.com/Haidra-org/horde-model-reference.git
+cd horde-model-reference
+
+# Using uv (recommended)
+uv sync .
+
+# OR using pip
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\Activate.ps1  # Windows PowerShell
+pip install .
+```
+
+**2. Configure environment:**
+
+Create a `.env` file:
+
+```bash
+HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
+HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
+HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy
+```
+
+Or use `.env.primary.example` as a template:
+
+```bash
+cp .env.primary.example .env
+# Edit .env as needed
+```
+
+**3. Start the server:**
+
+```bash
+# Activate venv first (if using pip)
+source .venv/bin/activate  # Linux/macOS
+# .venv\Scripts\Activate.ps1  # Windows PowerShell
+
+# Start server
+fastapi dev src/horde_model_reference/service/app.py --port 19800
+```
+
+**Alternative: Set environment variables inline:**
+
+```bash
+# Linux/macOS
+export HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
+export HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
+export HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy
+fastapi dev src/horde_model_reference/service/app.py --port 19800
+
+# Windows PowerShell
+$env:HORDE_MODEL_REFERENCE_REPLICATE_MODE="PRIMARY"
+$env:HORDE_MODEL_REFERENCE_MAKE_FOLDERS="true"
+$env:HORDE_MODEL_REFERENCE_CANONICAL_FORMAT="legacy"
+fastapi dev src/horde_model_reference/service/app.py --port 19800
+```
+
+---
+
 ## Docker Deployment
 
 ### Single-Worker Docker Setup
@@ -54,12 +140,14 @@ For development, testing, or low-traffic production use.
 
 **1. (Optional) Configure environment variables:**
 
-Create a `.env` file if you need custom settings:
+Create a `.env.primary` file if you need custom settings:
 
 ```bash
-cp .env.example .env
-# Edit .env as needed
+cp .env.primary.example .env.primary
+# Edit .env.primary as needed
 ```
+
+Note: The default docker-compose.yml loads `.env.primary` automatically.
 
 **2. Start the server:**
 
@@ -89,162 +177,9 @@ docker-compose restart
 
 ---
 
-### Multi-Worker Docker Setup (Production)
+## Optional: GitHub Sync Service
 
-For high-traffic production deployments with distributed caching.
-
-**1. Configure environment (if needed):**
-
-```bash
-cp .env.example .env
-# Edit .env to customize Redis URL, worker count, etc.
-```
-
-**2. Start with Redis:**
-
-```bash
-docker-compose -f docker-compose.redis.yml up -d
-```
-
-**3. Verify Redis connection:**
-
-```bash
-docker-compose -f docker-compose.redis.yml logs horde-model-reference | grep -i redis
-# Should show successful Redis connection
-```
-
-See `docker-compose.redis.yml` for worker count and Redis configuration options.
-
-#### Optional: GitHub Sync Service*
-
-Automatically sync model references to GitHub legacy repositories. See [SYNC_README.md](SYNC_README.md) for setup instructions.
-
-```bash
-# After configuring .env.sync
-docker-compose --profile sync up -d
-```
-
-## Non-Docker Deployment
-
-### Single-Worker Setup
-
-**1. Install the project:**
-
-```bash
-git clone https://github.com/Haidra-org/horde-model-reference.git
-cd horde-model-reference
-
-# Using uv (recommended)
-uv sync .
-
-# OR using pip
-python -m venv .venv
-source .venv/bin/activate  # Linux/macOS
-# .venv\Scripts\Activate.ps1  # Windows PowerShell
-pip install .
-```
-
-**2. Configure environment:**
-
-Create a `.env` file:
-
-```bash
-HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
-HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
-HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy # assuming the v2 transition hasn't happened yet
-```
-
-**3. Start the server:**
-
-```bash
-# Activate venv first (if using pip)
-source .venv/bin/activate  # Linux/macOS
-# .venv\Scripts\Activate.ps1  # Windows PowerShell
-
-# Start server
-fastapi dev src/horde_model_reference/service/app.py --port 19800
-```
-
-**Alternative: Set environment variables inline:**
-
-```bash
-# Linux/macOS
-export HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
-export HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
-HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy # assuming the v2 transition hasn't happened yet
-fastapi dev src/horde_model_reference/service/app.py --port 19800
-
-# Windows PowerShell
-$env:HORDE_MODEL_REFERENCE_REPLICATE_MODE="PRIMARY"
-$env:HORDE_MODEL_REFERENCE_MAKE_FOLDERS="true"
-$env:HORDE_MODEL_REFERENCE_CANONICAL_FORMAT="legacy" # assuming the v2 transition hasn't happened yet
-fastapi dev src/horde_model_reference/service/app.py --port 19800
-```
-
----
-
-### Multi-Worker Setup (Production)
-
-**1. Install Redis:**
-
-```bash
-# Ubuntu/Debian
-sudo apt-get install redis-server
-sudo systemctl start redis-server
-
-# macOS
-brew install redis
-brew services start redis
-
-# Windows: Use WSL or download from https://github.com/microsoftarchive/redis/releases
-```
-
-**2. Configure environment:**
-
-Create a `.env` file:
-
-```bash
-HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
-HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy # assuming the v2 transition hasn't happened yet
-HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
-HORDE_MODEL_REFERENCE_REDIS_USE_REDIS=true
-HORDE_MODEL_REFERENCE_REDIS_URL=redis://localhost:6379/0
-```
-
-**3. Start the server:**
-
-```bash
-source .venv/bin/activate  # Linux/macOS
-# .venv\Scripts\Activate.ps1  # Windows PowerShell
-
-fastapi run src/horde_model_reference/service/app.py --host 0.0.0.0 --port 19800 --workers 4
-```
-
-**Note:** Use `fastapi dev` (auto-reload) for development, `fastapi run` for production.
-
----
-
-## First-Time Setup
-
-If this is your first deployment and you don't have model reference files:
-
-### Option 1: Auto-seed from GitHub (recommended)
-
-Add to your `.env` file or docker-compose environment:
-
-```bash
-HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED=true
-```
-
-The server will download and convert model references on first startup. **Set back to `false` after initial startup.**
-
-### Option 2: Provide files manually
-
-Place JSON files in `{AIWORKER_CACHE_HOME}/horde_model_reference/`:
-
-- `stable_diffusion.json` - Image generation models
-- `text_generation.json` - Text generation models
-- Other category files as needed
+Automatically sync model references to GitHub legacy repositories. See [SYNC_README.md](scripts/sync/README.md) for setup instructions.
 
 ---
 
@@ -278,7 +213,7 @@ redis-cli ping
 
 ## Configuration Reference
 
-See `.env.example` for all options. Common settings:
+See `.env.example` for all available options, or `.env.primary.example` for PRIMARY-specific configuration. Common settings:
 
 | Variable | Default | Description |
 |----------|---------|-------------|

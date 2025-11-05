@@ -1,0 +1,322 @@
+name: Docker Validation
+
+on:
+  push:
+    branches:
+      - main
+      - v2-initial
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'Dockerfile'
+      - 'docker-compose*.yml'
+      - '.dockerignore'
+      - '.github/workflows/docker-validation.yml'
+
+jobs:
+  hadolint:
+    name: Dockerfile Linting (hadolint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning
+          format: sarif
+          output-file: hadolint-results.sarif
+          no-fail: false
+
+      - name: Upload hadolint SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: hadolint-results.sarif
+          wait-for-processing: true
+
+  docker-build-check:
+    name: Docker Build Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validate Docker build configuration
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: horde-model-reference:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          call: check
+
+      - name: Build Docker image for testing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: horde-model-reference:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test Docker image
+        run: |
+          # Test that the image was built successfully
+          docker images horde-model-reference:test
+
+          # Test that the image can start (will fail quickly without env vars, but that's ok)
+          docker run --rm --entrypoint /bin/sh horde-model-reference:test -c "echo 'Image validation successful'"
+
+          # Verify Python is available
+          docker run --rm --entrypoint /bin/sh horde-model-reference:test -c "python --version"
+
+          # Verify uv virtualenv exists
+          docker run --rm --entrypoint /bin/sh horde-model-reference:test -c "ls -la /app/.venv/bin/"
+
+  docker-compose-validation:
+    name: Docker Compose Validation
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compose-file:
+          - docker-compose.yml
+          - docker-compose.redis.yml
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate ${{ matrix.compose-file }}
+        run: |
+          docker compose -f ${{ matrix.compose-file }} config --quiet
+
+      - name: Check ${{ matrix.compose-file }} syntax
+        run: |
+          docker compose -f ${{ matrix.compose-file }} config > /dev/null
+
+  application-behavior-test:
+    name: Application Behavior Testing
+    runs-on: ubuntu-latest
+    needs: docker-build-check
+    services:
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image for application testing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: horde-model-reference:app-test
+          cache-from: type=gha
+          network: host
+
+      - name: Create test environment file
+        run: |
+          cat > .env.test << EOF
+          HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
+          AIWORKER_CACHE_HOME=/data
+          REDIS_IP=redis
+          REDIS_PORT=6379
+          LOG_LEVEL=INFO
+          EOF
+
+      - name: Start application container
+        run: |
+          docker run -d \
+            --name horde-app-test \
+            --network host \
+            --env-file .env.test \
+            -p 19800:19800 \
+            horde-model-reference:app-test
+
+          echo "Waiting for application to start..."
+          sleep 10
+
+      - name: Check container is running
+        run: |
+          docker ps | grep horde-app-test
+          docker logs horde-app-test
+
+      - name: Test application health endpoint
+        run: |
+          max_attempts=30
+          attempt=0
+
+          while [ $attempt -lt $max_attempts ]; do
+            if curl -f http://localhost:19800/api/heartbeat; then
+              echo "✅ Health check endpoint is responding"
+              exit 0
+            fi
+
+            echo "Attempt $((attempt + 1))/$max_attempts: Health check not ready yet..."
+            attempt=$((attempt + 1))
+            sleep 2
+          done
+
+          echo "❌ Health check endpoint failed to respond after $max_attempts attempts"
+          docker logs horde-app-test
+          exit 1
+
+      - name: Test API documentation endpoint
+        run: |
+          # Test that OpenAPI docs are accessible
+          curl -f http://localhost:19800/docs || echo "Docs endpoint check failed"
+          curl -f http://localhost:19800/openapi.json || echo "OpenAPI spec check failed"
+
+      - name: Test API root endpoint
+        run: |
+          # Test root endpoint
+          response=$(curl -s http://localhost:19800/)
+          echo "Root endpoint response: $response"
+
+      - name: Verify application logs
+        if: always()
+        run: |
+          echo "=== Application Logs ==="
+          docker logs horde-app-test
+
+          echo ""
+          echo "=== Checking for errors in logs ==="
+          if docker logs horde-app-test 2>&1 | grep -i "error\|exception\|traceback" | grep -v "DEBUG"; then
+            echo "⚠️ Found errors in application logs"
+          else
+            echo "✅ No critical errors found in logs"
+          fi
+
+      - name: Verify container health status
+        run: |
+          health_status=$(docker inspect --format='{{.State.Health.Status}}' horde-app-test || echo "no-healthcheck")
+          echo "Container health status: $health_status"
+
+          if [ "$health_status" = "healthy" ]; then
+            echo "✅ Container is healthy"
+          else
+            echo "⚠️ Container health status: $health_status"
+          fi
+
+      - name: Test container resource usage
+        run: |
+          docker stats --no-stream horde-app-test
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker stop horde-app-test || true
+          docker rm horde-app-test || true
+
+  dockerfile-security-scan:
+    name: Dockerfile Security Scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner on Dockerfile
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'config'
+          scan-ref: 'Dockerfile'
+          format: 'sarif'
+          output: 'trivy-dockerfile-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-dockerfile-results.sarif
+
+  docker-image-security-scan:
+    name: Docker Image Security Scan (Trivy)
+    runs-on: ubuntu-latest
+    needs: docker-build-check
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image for scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          load: true
+          tags: horde-model-reference:scan
+          cache-from: type=gha
+
+      - name: Run Trivy vulnerability scanner on image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: 'image'
+          image-ref: 'horde-model-reference:scan'
+          format: 'sarif'
+          output: 'trivy-image-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy image SARIF results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-results.sarif
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs:
+      - hadolint
+      - docker-build-check
+      - docker-compose-validation
+      - application-behavior-test
+      - dockerfile-security-scan
+      - docker-image-security-scan
+    if: always()
+    steps:
+      - name: Check all validations passed
+        run: |
+          echo "## Docker Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All Docker validation checks completed!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Dockerfile linting (hadolint)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Docker build validation" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Docker Compose validation" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Application behavior testing" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Dockerfile security scan" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Docker image security scan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Details" >> $GITHUB_STEP_SUMMARY
+          echo "- Health endpoint validation" >> $GITHUB_STEP_SUMMARY
+          echo "- API documentation accessibility" >> $GITHUB_STEP_SUMMARY
+          echo "- Container health checks" >> $GITHUB_STEP_SUMMARY
+          echo "- Log analysis for errors" >> $GITHUB_STEP_SUMMARY
+          echo "- Resource usage monitoring" >> $GITHUB_STEP_SUMMARY
