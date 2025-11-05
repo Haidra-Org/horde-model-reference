@@ -4,7 +4,7 @@
 FROM python:3.12-slim AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
+    git=1:2.47.3-0+deb13u1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv for faster dependency management
@@ -34,6 +34,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY . .
 
 # Install the project itself
+# Note: setuptools-scm requires git metadata which is excluded in .dockerignore
+# We set SETUPTOOLS_SCM_PRETEND_VERSION to work around this
+ARG VERSION=0.0.0+docker
+ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_HORDE_MODEL_REFERENCE=${VERSION}
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable
 
@@ -48,8 +52,8 @@ LABEL org.opencontainers.image.title="Horde Model Reference" \
 # Install runtime dependencies
 # Note: git is required for the GitHub sync service
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl \
-    git \
+    curl=8.14.1-2 \
+    git=1:2.47.3-0+deb13u1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user and data directory
