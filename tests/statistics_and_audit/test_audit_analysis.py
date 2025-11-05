@@ -1036,16 +1036,10 @@ class TestSemanticBusinessLogic:
         # Should be flagged for multiple hosts
         assert audit.deletion_risk_flags.has_multiple_hosts
         assert len(audit.download_hosts) == 2
-        from urllib.parse import urlparse
 
-        hosts = set()
-        for h in audit.download_hosts:
-            parsed = urlparse(h)
-            if parsed.hostname:
-                hosts.add(parsed.hostname.lower())
-
-        assert "huggingface.co" in hosts
-        assert "civitai.com" in hosts
+        # download_hosts already contains hostnames, not full URLs
+        assert "huggingface.co" in audit.download_hosts
+        assert "civitai.com" in audit.download_hosts
 
     def test_non_preferred_host_detection(self) -> None:
         """Test that non-preferred hosts are detected.
