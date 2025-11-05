@@ -14,6 +14,10 @@ on:
       - '.dockerignore'
       - '.github/workflows/docker-validation.yml'
 
+permissions:
+  security-events: write
+  contents: read
+
 jobs:
   hadolint:
     name: Dockerfile Linting (hadolint)
