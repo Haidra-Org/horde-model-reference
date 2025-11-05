@@ -241,7 +241,7 @@ class HordeAPIIntegration:
         if min_count is not None:
             params["min_count"] = str(min_count)
 
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
             data = response.json()
@@ -337,7 +337,7 @@ class HordeAPIIntegration:
         url = f"{self._base_url}/{endpoint}"
         params = {"model_state": model_state}
 
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
             data = response.json()
@@ -430,7 +430,7 @@ class HordeAPIIntegration:
         if model_type is not None:
             params["type"] = model_type
 
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
             response = await client.get(url, params=params)
             response.raise_for_status()
             data = response.json()
