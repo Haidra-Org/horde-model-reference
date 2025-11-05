@@ -369,8 +369,19 @@ class GitHubSyncClient:
             "https://token@github.com/owner/repo.git" -> "https://github.com/owner/repo.git"
             "https://user:pass@github.com/owner/repo.git" -> "https://github.com/owner/repo.git"
         """
-        if "github.com" in url and url.startswith("https://") and "@github.com" in url:
-            return "https://github.com/" + url.split("@github.com/", 1)[1]
+        parsed = urlparse(url)
+        # Handle HTTPS URLs: strip credentials if host is github.com
+        if parsed.scheme in ("http", "https") and parsed.hostname and parsed.hostname.lower() == "github.com":
+            # Rebuild URL without username/password
+            path = parsed.path or ""
+            query = f"?{parsed.query}" if parsed.query else ""
+            fragment = f"#{parsed.fragment}" if parsed.fragment else ""
+            return f"{parsed.scheme}://github.com{path}{query}{fragment}"
+
+        # Handle SSH URL format: git@github.com:owner/repo.git
+        if url.startswith("git@github.com:"):
+            # Already no credentials other than 'git'
+            return url
         return url
 
     def _parse_repo_name_from_url(self, url: str) -> str:
@@ -386,14 +397,35 @@ class GitHubSyncClient:
             "https://github.com/Haidra-Org/AI-Horde-image-model-reference.git"
             -> "Haidra-Org/AI-Horde-image-model-reference"
         """
-        if "github.com" in url:
-            if url.startswith("https://"):
-                repo_path = url.replace("https://github.com/", "").replace(".git", "")
-            elif url.startswith("git@"):
-                repo_path = url.split(":")[-1].replace(".git", "")
-            else:
-                repo_path = url.replace("github.com/", "").replace(".git", "")
-            return repo_path.strip("/")
+        # HTTPS clone URL: https://github.com/owner/repo.git
+        if url.startswith("https://"):
+            parsed = urlparse(url)
+            if parsed.hostname != "github.com":
+                raise ValueError(f"URL hostname must be github.com, got: {parsed.hostname}")
+            repo_path = parsed.path.replace(".git", "").strip("/")
+            if "/" not in repo_path:
+                raise ValueError(f"URL path '{repo_path}' does not match owner/repo format")
+            return repo_path
+
+        # SSH clone URL: git@github.com:owner/repo.git
+        if url.startswith("git@github.com:"):
+            repo_path = url[len("git@github.com:") :].replace(".git", "").strip("/")
+            if "/" not in repo_path:
+                raise ValueError(f"URL path '{repo_path}' does not match owner/repo format")
+            return repo_path
+
+        # Also handle "ssh://git@github.com/owner/repo.git"
+        if url.startswith("ssh://"):
+            parsed = urlparse(url)
+            if parsed.hostname != "github.com":
+                raise ValueError(f"URL hostname must be github.com, got: {parsed.hostname}")
+            repo_path = parsed.path.replace(".git", "").strip("/")
+            if repo_path.startswith("~"):
+                repo_path = repo_path.lstrip("~/")
+            if "/" not in repo_path:
+                raise ValueError(f"URL path '{repo_path}' does not match owner/repo format")
+            return repo_path
+
         raise ValueError(f"Unable to parse repository name from URL: {url}")
 
     def _check_for_local_changes(self, repo: Repo) -> bool:
