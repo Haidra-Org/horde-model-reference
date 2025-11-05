@@ -11,6 +11,7 @@ from datetime import datetime
 from pathlib import Path
 from types import TracebackType
 from typing import Any
+from urllib.parse import urlparse
 
 from git import Repo
 from github import Auth, Github, GithubException
@@ -679,7 +680,8 @@ class GitHubSyncClient:
         # Strip any existing authentication before adding new token
         clean_url = self._strip_auth_from_url(remote_url)
 
-        if "github.com" in clean_url:
+        hostname = urlparse(clean_url).hostname
+        if hostname and hostname.lower() == "github.com":
             repo_path = self._parse_repo_name_from_url(clean_url)
 
             # Try GitHub App authentication first
