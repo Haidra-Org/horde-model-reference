@@ -52,8 +52,9 @@ services:
       # Data directory
       - AIWORKER_CACHE_HOME=/data
     env_file:
-      # Load additional configuration from .env file
-      - .env.primary
+      # Load additional configuration from .env file (optional)
+      - path: .env.primary
+        required: false
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:19800/api/heartbeat"]
@@ -68,7 +69,7 @@ services:
       - "org.haidra.mode=primary"
       - "org.haidra.deployment=multi-worker"
     # Run with multiple workers (requires Redis)
-    command: ["/app/.venv/bin/fastapi", "run", "src/horde_model_reference/service/app.py", "--host", "0.0.0.0", "--port", "19800", "--workers", "4"]
+    command: ["/app/.venv/bin/python", "-m", "uvicorn", "horde_model_reference.service.app:app", "--host", "0.0.0.0", "--port", "19800", "--workers", "4"]
 
   # Optional: Add more worker instances for horizontal scaling
   # Uncomment to enable
@@ -122,7 +123,8 @@ services:
     env_file:
       # Load all configuration from .env.sync file
       # Create this file from .env.sync.example
-      - .env.sync
+      - path: .env.sync
+        required: false
     restart: unless-stopped
     networks:
       - horde-network

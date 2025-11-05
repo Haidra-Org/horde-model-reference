@@ -22,8 +22,9 @@ services:
       # Data directory
       - AIWORKER_CACHE_HOME=/data
     env_file:
-      # Load additional configuration from .env file
-      - .env.primary
+      # Load additional configuration from .env file (optional)
+      - path: .env.primary
+        required: false
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:19800/api/heartbeat"]
@@ -59,7 +60,8 @@ services:
     env_file:
       # Load all configuration from .env.sync file
       # Create this file from .env.sync.example
-      - .env.sync
+      - path: .env.sync
+        required: false
     restart: unless-stopped
     labels:
       - "org.haidra.service=github-sync"
