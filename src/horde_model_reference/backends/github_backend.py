@@ -94,7 +94,9 @@ class GitHubBackend(ReplicaBackendBase):
 
             if file_path.exists():
                 self._references_paths_cache[category] = file_path
-                self._load_legacy_json_from_disk(category, file_path)
+                # Only load non-empty files to avoid ujson errors
+                if file_path.stat().st_size > 0:
+                    self._load_legacy_json_from_disk(category, file_path)
             else:
                 if self._replicate_mode == ReplicateMode.REPLICA or (
                     self._replicate_mode == ReplicateMode.PRIMARY

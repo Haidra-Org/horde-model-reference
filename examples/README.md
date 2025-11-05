@@ -75,6 +75,16 @@ Shows working with multiple model categories:
 - Working with ControlNet models
 - Exploring utility models (CLIP, BLIP, upscalers)
 
+### Logging Control Example
+**File:** `scenario_logging_control.py`
+
+Demonstrates controlling logging verbosity:
+- Default quiet operation (WARNING and above)
+- Enabling DEBUG logging for troubleshooting
+- Using INFO level for visibility
+- Completely silencing all logs
+- Environment variable control
+
 ## Key Concepts Demonstrated
 
 ### Type Safety
@@ -101,6 +111,15 @@ Efficiency patterns demonstrated:
 - Caching manager instances
 - Reusing model references
 - Lazy loading when appropriate
+
+### Logging Control
+By default, the library is quiet (WARNING level only):
+- Use `enable_debug_logging()` for troubleshooting
+- Use `configure_logger("INFO")` for visibility
+- Use `disable_logging()` for complete silence
+- Or set `HORDE_MODEL_REFERENCE_LOG_LEVEL` environment variable
+
+See `scenario_logging_control.py` for detailed examples.
 
 ## Testing
 

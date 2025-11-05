@@ -11,8 +11,9 @@ Welcome to the Horde Model Reference onboarding guide! This tutorial will walk y
 5. [Scenario 4: Model Capability Checker](#scenario-4-model-capability-checker)
 6. [Scenario 5: Type-Safe Configuration](#scenario-5-type-safe-configuration)
 7. [Scenario 6: Working with Multiple Categories](#scenario-6-working-with-multiple-categories)
-8. [Best Practices](#best-practices)
-9. [Troubleshooting](#troubleshooting)
+8. [Controlling Logging Verbosity](#controlling-logging-verbosity)
+9. [Best Practices](#best-practices)
+10. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -1067,6 +1068,82 @@ if __name__ == "__main__":
     for category, models in utilities.items():
         print(f"{category}: {len(models)} models")
 ```
+
+---
+
+## Controlling Logging Verbosity
+
+### The Problem
+
+By default, the library logs only WARNING and above to keep your console clean. However, when troubleshooting, you might want to see what's happening under the hood.
+
+### Solution: Logging Control Functions
+
+The library provides several ways to control logging:
+
+```python
+from horde_model_reference import (
+    ModelReferenceManager,
+    enable_debug_logging,
+    configure_logger,
+    disable_logging,
+)
+
+# Option 1: Enable debug logging (most verbose)
+enable_debug_logging()
+
+# Option 2: Set specific log level
+configure_logger("INFO")  # INFO, DEBUG, WARNING, ERROR, CRITICAL
+
+# Option 3: Completely silence the library
+disable_logging()
+```
+
+### Using Environment Variables
+
+You can also control logging without code changes:
+
+```bash
+# Enable debug logging
+export HORDE_MODEL_REFERENCE_LOG_LEVEL=DEBUG
+python your_script.py
+
+# Or for a single run
+HORDE_MODEL_REFERENCE_LOG_LEVEL=INFO python your_script.py
+```
+
+### Recommended Patterns
+
+**Production Code:**
+```python
+# Keep default (WARNING only) or disable completely
+from horde_model_reference import ModelReferenceManager, disable_logging
+
+disable_logging()  # Completely quiet
+manager = ModelReferenceManager()
+```
+
+**Development:**
+```python
+# Use INFO level for visibility without too much detail
+from horde_model_reference import ModelReferenceManager, configure_logger
+
+configure_logger("INFO")
+manager = ModelReferenceManager()
+```
+
+**Debugging:**
+```python
+# Use DEBUG to see everything
+from horde_model_reference import ModelReferenceManager, enable_debug_logging
+
+enable_debug_logging()
+manager = ModelReferenceManager()
+```
+
+### Complete Example
+
+See `examples/scenario_logging_control.py` for a complete demonstration of all logging control options.
 
 ---
 

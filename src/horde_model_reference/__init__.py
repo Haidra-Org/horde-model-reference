@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 import urllib.parse
 from enum import auto
 from typing import Literal
@@ -12,6 +14,16 @@ from loguru import logger
 from pydantic import BaseModel, Field, PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from strenum import StrEnum
+
+# Configure logging early - libraries should be quiet by default
+# Only log WARNING and above unless explicitly configured otherwise
+_default_log_level = os.getenv("HORDE_MODEL_REFERENCE_LOG_LEVEL", "WARNING").upper()
+logger.remove()  # Remove default handler
+logger.add(
+    sys.stderr,
+    level=_default_log_level,
+    format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
+)
 
 SCHEMA_VERSION = "2.0.0"
 
@@ -350,6 +362,12 @@ from .path_consts import (  # noqa: E402
 )
 
 from .model_reference_manager import ModelReferenceManager  # noqa: E402
+from .logging_config import (  # noqa: E402
+    configure_logger,
+    disable_logging,
+    enable_debug_logging,
+    LogLevel,
+)
 
 __all__ = [
     "BASE_PATH",
@@ -363,7 +381,11 @@ __all__ = [
     "MODEL_STYLE",
     "ModelClassification",
     "ModelReferenceManager",
+    "configure_logger",
+    "disable_logging",
+    "enable_debug_logging",
     "get_model_reference_file_path",
     "get_model_reference_filename",
     "horde_model_reference_paths",
+    "LogLevel",
 ]
