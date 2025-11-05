@@ -19,6 +19,9 @@ converted_*.json
 test.json
 
 horde_model_reference/legacy/*.json
+
+# Downloaded model reference data (testing/examples)
+models/
 *.webp
 *.png
 *.jpg
