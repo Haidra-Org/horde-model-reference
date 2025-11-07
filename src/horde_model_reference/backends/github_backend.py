@@ -8,9 +8,11 @@ when the PRIMARY API is unavailable.
 from __future__ import annotations
 
 import asyncio
+import json
+import re
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import aiofiles
 import httpx
@@ -25,6 +27,7 @@ from horde_model_reference.legacy.convert_all_legacy_dbs import (
     convert_all_legacy_model_references,
     convert_legacy_database_by_category,
 )
+from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv
 from horde_model_reference.meta_consts import (
     MODEL_REFERENCE_CATEGORY,
     github_image_model_reference_categories,
@@ -87,9 +90,9 @@ class GitHubBackend(ReplicaBackendBase):
         self._times_downloaded: dict[MODEL_REFERENCE_CATEGORY, int] = {}
 
         for category in MODEL_REFERENCE_CATEGORY:
-            file_path = horde_model_reference_paths.get_model_reference_file_path(
+            file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
                 category,
-                base_path=self.legacy_path,
+                base_path=self.base_path,
             )
 
             if file_path.exists():
@@ -185,7 +188,7 @@ class GitHubBackend(ReplicaBackendBase):
                 # Use helper to determine if we need to fetch
                 if force_refresh or self.should_fetch_data(category):
                     self._download_legacy(category, overwrite_existing=force_refresh)
-                    convert_legacy_database_by_category(category, self.legacy_path, self.base_path)
+                    convert_legacy_database_by_category(category, self.base_path, self.base_path)
                     result[category] = self._load_converted_from_disk(category)
                 else:
                     # Return cached data
@@ -223,7 +226,7 @@ class GitHubBackend(ReplicaBackendBase):
                     httpx_client,
                     overwrite_existing=force_refresh,
                 )
-                convert_legacy_database_by_category(category, self.legacy_path, self.base_path)
+                convert_legacy_database_by_category(category, self.base_path, self.base_path)
                 return self._load_converted_from_disk(category)
 
             # Return cached data
@@ -332,14 +335,17 @@ class GitHubBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         file_path: Path,
     ) -> dict[str, Any] | None:
-        """Load legacy JSON from disk and populate cache via base class.
+        """Load legacy data from disk and populate cache via base class.
+
+        For text_generation category, loads CSV format (models.csv).
+        For other categories, loads JSON format.
 
         Args:
             category: The category to load.
-            file_path: Path to the legacy JSON file.
+            file_path: Path to the legacy file.
 
         Returns:
-            dict[str, Any] | None: The loaded JSON data, or None on error.
+            dict[str, Any] | None: The loaded data, or None on error.
         """
         if not file_path.exists():
             logger.debug(f"Legacy file {file_path} does not exist")
@@ -347,31 +353,180 @@ class GitHubBackend(ReplicaBackendBase):
             return None
 
         try:
+            # Handle CSV format for text_generation
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                data = self._read_legacy_csv_to_dict(file_path)
+                # For CSV, we store the dict and generate a JSON string for cache
+                content_str = ujson.dumps(data, escape_forward_slashes=False, indent=4)
+                self._store_legacy_in_cache(category, data, content_str)
+                logger.debug(f"Loaded legacy CSV for category {category!r} from {file_path!r}")
+                return data
+
+            # Handle JSON format for other categories
             with open(file_path, "rb") as f:
                 content = f.read()
 
-            data: dict[str, Any] = ujson.loads(content)
+            # Handle empty files (e.g., for categories with no GitHub URL)
+            if not content or content.strip() == b"":
+                logger.debug(f"Legacy file {file_path} is empty, treating as empty dict")
+                self._store_legacy_in_cache(category, {}, "{}")
+                return {}
+
+            data = ujson.loads(content)
             content_str = content.decode("utf-8")
 
             self._store_legacy_in_cache(category, data, content_str)
             logger.debug(f"Loaded legacy JSON for category {category!r} from {file_path!r}")
             return data
         except Exception:
-            logger.exception(f"Failed to load legacy JSON for category {category!r} from {file_path!r}")
+            logger.exception(f"Failed to load legacy data for category {category!r} from {file_path!r}")
             self._store_legacy_in_cache(category, None, None)
             return None
+
+    def _read_legacy_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
+        """Read legacy CSV file (models.csv format) and convert to dict format.
+
+        This reads the legacy models.csv format from GitHub and converts it to the
+        grouped dict format with backend prefix duplicates (3 entries per CSV row).
+        Follows the same logic as scripts/legacy_text/convert.py.
+
+        Each CSV row generates 3 entries:
+        1. Base name (e.g., ReadyArt/Broken-Tutu-24B)
+        2. Aphrodite prefixed (e.g., aphrodite/ReadyArt/Broken-Tutu-24B)
+        3. KoboldCPP prefixed (e.g., koboldcpp/Broken-Tutu-24B) - uses model_name only
+
+        Args:
+            file_path: Path to the legacy CSV file.
+
+        Returns:
+            dict[str, Any]: Model data with 3 entries per CSV row (base + 2 backend prefixes).
+
+        Raises:
+            Exception: If CSV parsing fails.
+        """
+        data: dict[str, Any] = {}
+        parsed_rows, parse_issues = parse_legacy_text_csv(file_path)
+        for issue in parse_issues:
+            logger.warning(f"Legacy CSV issue for {issue.row_identifier}: {issue.message}")
+
+        for csv_row in parsed_rows:
+            name = csv_row.name
+            model_name = name.split("/")[1] if "/" in name else name
+            tags = set(csv_row.tags)
+            if csv_row.style:
+                tags.add(csv_row.style)
+            tags.add(f"{round(csv_row.parameters_bn, 0):.0f}B")
+
+            settings_dict = dict(csv_row.settings) if csv_row.settings is not None else {}
+
+            display_name = csv_row.display_name
+            if not display_name:
+                display_name = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
+
+            record: dict[str, Any] = {
+                "name": name,
+                "model_name": model_name,
+                "parameters": csv_row.parameters,
+                "description": csv_row.description,
+                "version": csv_row.version,
+                "style": csv_row.style,
+                "nsfw": csv_row.nsfw,
+                "baseline": csv_row.baseline,
+                "url": csv_row.url,
+                "tags": sorted(tags),
+                "settings": settings_dict,
+                "display_name": display_name,
+            }
+
+            record = {k: v for k, v in record.items() if v or v is False}
+
+            # Generate 3 entries per CSV row following convert.py logic
+            # 1. Base entry
+            data[name] = record.copy()
+            data[name]["name"] = name
+
+            # 2. Aphrodite prefixed entry (uses full name)
+            aphrodite_key = f"aphrodite/{name}"
+            data[aphrodite_key] = record.copy()
+            data[aphrodite_key]["name"] = aphrodite_key
+
+            # 3. KoboldCPP prefixed entry (uses model_name only, not full name)
+            koboldcpp_key = f"koboldcpp/{model_name}"
+            data[koboldcpp_key] = record.copy()
+            data[koboldcpp_key]["name"] = koboldcpp_key
+
+        logger.debug(f"Read {len(data)} models from legacy CSV (includes backend prefix duplicates)")
+        return data
+
+    def _read_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
+        """Read v2 CSV file and convert to dict format (grouped by base name, no backend prefixes).
+
+        This reads the v2 CSV format and returns a dict with one entry per base model.
+        No backend prefix duplicates are generated here - that only happens during GitHub sync.
+
+        Args:
+            file_path: Path to the CSV file.
+
+        Returns:
+            dict[str, Any]: Model data with one entry per base model.
+
+        Raises:
+            Exception: If CSV parsing fails.
+        """
+        data: dict[str, Any] = {}
+        parsed_rows, parse_issues = parse_legacy_text_csv(file_path)
+        for issue in parse_issues:
+            logger.warning(f"CSV issue for {issue.row_identifier}: {issue.message}")
+
+        for csv_row in parsed_rows:
+            name = csv_row.name
+            model_name = name.split("/")[1] if "/" in name else name
+            tags = set(csv_row.tags)
+            if csv_row.style:
+                tags.add(csv_row.style)
+            tags.add(f"{round(csv_row.parameters_bn, 0):.0f}B")
+
+            settings_dict = dict(csv_row.settings) if csv_row.settings is not None else {}
+
+            display_name = csv_row.display_name
+            if not display_name:
+                display_name = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
+
+            record: dict[str, Any] = {
+                "name": name,
+                "model_name": model_name,
+                "parameters": csv_row.parameters,
+                "description": csv_row.description,
+                "version": csv_row.version,
+                "style": csv_row.style,
+                "nsfw": csv_row.nsfw,
+                "baseline": csv_row.baseline,
+                "url": csv_row.url,
+                "tags": sorted(tags),
+                "settings": settings_dict,
+                "display_name": display_name,
+            }
+
+            record = {k: v for k, v in record.items() if v or v is False}
+            data[name] = record
+
+        logger.debug(f"Read {len(data)} models from CSV (grouped, no backend prefixes)")
+        return data
 
     def _load_converted_from_disk(
         self,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> dict[str, Any] | None:
-        """Load converted (v2 format) JSON from disk and cache via base class.
+        """Load converted (v2 format) data from disk and cache via base class.
+
+        All v2 format files (including text_generation.json) are in JSON format.
+        CSV format is only used for legacy files (legacy/models.csv).
 
         Args:
             category: The category to load.
 
         Returns:
-            dict[str, Any] | None: The loaded JSON data, or None on error.
+            dict[str, Any] | None: The loaded data, or None on error.
         """
         file_path = horde_model_reference_paths.get_model_reference_file_path(
             category,
@@ -384,14 +539,15 @@ class GitHubBackend(ReplicaBackendBase):
             return None
 
         try:
+            # All v2 files are JSON format (including text_generation.json)
             with open(file_path) as f:
-                data: dict[str, Any] = ujson.load(f)
+                data = cast(dict[str, Any], ujson.load(f))
 
             self._store_in_cache(category, data)
             logger.debug(f"Loaded converted JSON for category {category!r} from {file_path!r}")
             return data
         except Exception:
-            logger.exception(f"Failed to load converted JSON for category {category!r} from {file_path!r}")
+            logger.exception(f"Failed to load converted data for category {category!r} from {file_path!r}")
             self._store_in_cache(category, None)
             return None
 
@@ -480,14 +636,14 @@ class GitHubBackend(ReplicaBackendBase):
         """
         self._download_legacy(category, overwrite_existing=overwrite_existing)
 
-        convert_legacy_database_by_category(category, self.legacy_path, self.base_path)
+        convert_legacy_database_by_category(category, self.base_path, self.base_path)
 
     def _download_and_convert_all(self, overwrite_existing: bool = False) -> None:
         """Download all legacy files and convert them."""
         for category in MODEL_REFERENCE_CATEGORY:
             self._download_legacy(category, overwrite_existing=overwrite_existing)
 
-        convert_all_legacy_model_references(self.legacy_path, self.base_path)
+        convert_all_legacy_model_references(self.base_path, self.base_path)
 
     def _download_allowed(self) -> bool:
         """Return `True` if downloading is allowed based on replicate mode and settings."""
@@ -512,9 +668,9 @@ class GitHubBackend(ReplicaBackendBase):
         if not self._download_allowed():
             return self._references_paths_cache.get(category)
 
-        target_file_path = horde_model_reference_paths.get_model_reference_file_path(
+        target_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
             category,
-            base_path=self.legacy_path,
+            base_path=self.base_path,
         )
 
         needs_refresh = self.needs_refresh(category)
@@ -554,37 +710,37 @@ class GitHubBackend(ReplicaBackendBase):
                         return None
                     continue
 
-                try:
-                    try:
-                        data = ujson.loads(response.content)
-                    except ImportError:
-                        data = ujson.loads(response.content)
-                except ujson.JSONDecodeError:
-                    logger.error(f"Failed to parse {category} as JSON")
-                    if attempt == self.retry_max_attempts:
-                        return None
-                    continue
-
-                record_keys_to_drop: list[str] = []
-                # if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                #     for key in list(data.keys()):
-                #         if has_legacy_text_backend_prefix(key):
-                #             record_keys_to_drop.append(key)
-
-                #     for key in record_keys_to_drop:
-                #         logger.trace(f"Dropping legacy text generation key {key}")
-                #         data.pop(key, None)
-
-                target_file_path.parent.mkdir(parents=True, exist_ok=True)
-                raw_json_str = response.content.decode("utf-8")
-                if len(record_keys_to_drop) == 0:
+                # Handle CSV format for text_generation category
+                if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                    # Save CSV directly to disk
+                    target_file_path.parent.mkdir(parents=True, exist_ok=True)
                     with open(target_file_path, "wb") as f:
                         f.write(response.content)
-                else:
-                    with open(target_file_path, "w", encoding="utf-8") as f:
-                        logger.warning(f"Dropping {len(record_keys_to_drop)} legacy text generation keys.")
+
+                    # Parse CSV to dict for caching
+                    try:
+                        data = self._read_legacy_csv_to_dict(target_file_path)
                         raw_json_str = ujson.dumps(data, escape_forward_slashes=False, indent=4)
-                        f.write(raw_json_str)
+                    except Exception as e:
+                        logger.error(f"Failed to parse {category} CSV: {e}")
+                        if attempt == self.retry_max_attempts:
+                            return None
+                        continue
+                else:
+                    # Handle JSON format for other categories
+                    try:
+                        data = ujson.loads(response.content)
+                    except ujson.JSONDecodeError:
+                        logger.error(f"Failed to parse {category} as JSON")
+                        if attempt == self.retry_max_attempts:
+                            return None
+                        continue
+
+                    target_file_path.parent.mkdir(parents=True, exist_ok=True)
+                    raw_json_str = response.content.decode("utf-8")
+                    with open(target_file_path, "wb") as f:
+                        f.write(response.content)
+
                 self._times_downloaded[category] += 1
                 if self._times_downloaded[category] > 1:
                     logger.debug(f"Downloaded {category} {self._times_downloaded[category]} times")
@@ -623,9 +779,9 @@ class GitHubBackend(ReplicaBackendBase):
         if httpx_client is None:
             logger.debug("No httpx_client provided, will create a new one for this download")
 
-        target_file_path = horde_model_reference_paths.get_model_reference_file_path(
+        target_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
             category,
-            base_path=self.legacy_path,
+            base_path=self.base_path,
         )
 
         needs_refresh = self.needs_refresh(category)
@@ -667,15 +823,39 @@ class GitHubBackend(ReplicaBackendBase):
                 continue
 
             content = response.content
+            target_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-            try:
-                data = ujson.loads(content)
-            except ujson.JSONDecodeError:
-                logger.error(f"Failed to parse {category} as JSON")
-                if attempt == self.retry_max_attempts:
-                    return None
+            # Handle CSV format for text_generation category
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                # Save CSV directly to disk
+                try:
+                    async with aiofiles.open(target_file_path, "wb") as f:
+                        await f.write(content)
+                except Exception as e:
+                    logger.error(f"Failed to write {category} CSV: {e}")
+                    if attempt == self.retry_max_attempts:
+                        return None
+                    continue
 
-                target_file_path.parent.mkdir(parents=True, exist_ok=True)
+                # Parse CSV to dict for caching
+                try:
+                    data = self._read_legacy_csv_to_dict(target_file_path)
+                    content_str = ujson.dumps(data, escape_forward_slashes=False, indent=4)
+                except Exception as e:
+                    logger.error(f"Failed to parse {category} CSV: {e}")
+                    if attempt == self.retry_max_attempts:
+                        return None
+                    continue
+            else:
+                # Handle JSON format for other categories
+                try:
+                    data = ujson.loads(content)
+                    content_str = content.decode("utf-8")
+                except ujson.JSONDecodeError:
+                    logger.error(f"Failed to parse {category} as JSON")
+                    if attempt == self.retry_max_attempts:
+                        return None
+                    continue
 
                 try:
                     async with aiofiles.open(target_file_path, "wb") as f:
@@ -686,17 +866,17 @@ class GitHubBackend(ReplicaBackendBase):
                         return None
                     continue
 
-                self._times_downloaded[category] += 1
-                if self._times_downloaded[category] > 1:
-                    logger.debug(f"Downloaded {category} {self._times_downloaded[category]} times")
+            self._times_downloaded[category] += 1
+            if self._times_downloaded[category] > 1:
+                logger.debug(f"Downloaded {category} {self._times_downloaded[category]} times")
 
-                logger.info(f"Downloaded {category} to {target_file_path}")
-                self._references_paths_cache[category] = target_file_path
+            logger.info(f"Downloaded {category} to {target_file_path}")
+            self._references_paths_cache[category] = target_file_path
 
-                # Store in base class cache
-                self._store_legacy_in_cache(category, data, content.decode("utf-8"))
-                logger.debug(f"Populated legacy cache for {category} after async download")
+            # Store in base class cache
+            self._store_legacy_in_cache(category, data, content_str)
+            logger.debug(f"Populated legacy cache for {category} after async download")
 
-                return target_file_path
+            return target_file_path
 
         return None
