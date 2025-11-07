@@ -173,7 +173,7 @@ The following critical environment variables are automatically **cleared** befor
 ## Test Data
 
 - `tests/test_data_results/` - Test output directory (logs, generated files)
-- 
+-
 ## Writing New Tests
 
 ### Unit Tests
