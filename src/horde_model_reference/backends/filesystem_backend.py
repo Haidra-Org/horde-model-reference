@@ -12,7 +12,7 @@ import json
 import re
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import aiofiles
 import httpx
@@ -20,8 +20,9 @@ from loguru import logger
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
-from horde_model_reference import ReplicateMode, horde_model_reference_paths
+from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
+from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_metadata import CategoryMetadata, MetadataManager, OperationType
 
@@ -112,6 +113,30 @@ class FileSystemBackend(ReplicaBackendBase):
         else:
             logger.debug("Skipping startup metadata population (will be handled by GitHub seeding)")
 
+    def _resolve_legacy_text_generation_path(self) -> tuple[Path, bool]:
+        """Return the legacy text_generation path and whether it is CSV-based."""
+        csv_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+            MODEL_REFERENCE_CATEGORY.text_generation,
+            base_path=self.base_path,
+        )
+        json_path = csv_path.with_name("text_generation.json")
+
+        if horde_model_reference_settings.canonical_format == "legacy" and (
+            json_path.exists() or not csv_path.exists()
+        ):
+            return json_path, False
+
+        if csv_path.exists():
+            return csv_path, True
+
+        if json_path.exists():
+            return json_path, False
+
+        if horde_model_reference_settings.canonical_format == "legacy":
+            return json_path, False
+
+        return csv_path, True
+
     @override
     def _get_file_path_for_validation(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
         """Return the file path for mtime validation.
@@ -168,6 +193,62 @@ class FileSystemBackend(ReplicaBackendBase):
         self.mark_stale(category)
         logger.debug(f"Marked legacy category {category} as modified")
 
+    def _read_legacy_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
+        """Read legacy CSV file (models.csv format) and convert to dict format.
+
+        This reads the legacy models.csv format and converts it to the
+        grouped dict format (one entry per base model, no backend prefixes).
+        Follows the same logic as scripts/legacy_text/convert.py.
+
+        Args:
+            file_path: Path to the legacy CSV file.
+
+        Returns:
+            dict[str, Any]: Model data with one entry per base model.
+
+        Raises:
+            Exception: If CSV parsing fails.
+        """
+        data: dict[str, Any] = {}
+        parsed_rows, parse_issues = parse_legacy_text_csv(file_path)
+        for issue in parse_issues:
+            logger.warning(f"Legacy CSV issue for {issue.row_identifier}: {issue.message}")
+
+        for csv_row in parsed_rows:
+            name = csv_row.name
+            model_name = name.split("/")[1] if "/" in name else name
+            tags = set(csv_row.tags)
+            if csv_row.style:
+                tags.add(csv_row.style)
+            tags.add(f"{round(csv_row.parameters_bn, 0):.0f}B")
+
+            settings_dict = dict(csv_row.settings) if csv_row.settings is not None else {}
+
+            display_name = csv_row.display_name
+            if not display_name:
+                display_name = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
+
+            record: dict[str, Any] = {
+                "name": name,
+                "model_name": model_name,
+                "parameters": csv_row.parameters,
+                "description": csv_row.description,
+                "version": csv_row.version,
+                "style": csv_row.style,
+                "nsfw": csv_row.nsfw,
+                "baseline": csv_row.baseline,
+                "url": csv_row.url,
+                "tags": sorted(tags),
+                "settings": settings_dict,
+                "display_name": display_name,
+            }
+
+            record = {k: v for k, v in record.items() if v or v is False}
+            data[name] = record
+
+        logger.debug(f"Read {len(data)} models from legacy CSV (grouped, no backend prefixes) from {file_path}")
+        return data
+
     def _read_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
         """Read CSV file and convert to dict format (grouped by base name, no backend prefixes).
 
@@ -184,69 +265,43 @@ class FileSystemBackend(ReplicaBackendBase):
             Exception: If CSV parsing fails.
         """
         data: dict[str, Any] = {}
+        parsed_rows, parse_issues = parse_legacy_text_csv(file_path)
+        for issue in parse_issues:
+            logger.warning(f"CSV issue for {issue.row_identifier}: {issue.message}")
 
-        with open(file_path, newline="", encoding="utf-8") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                name: str = row["name"]
+        for csv_row in parsed_rows:
+            name = csv_row.name
+            model_name = name.split("/")[1] if "/" in name else name
+            tags = set(csv_row.tags)
+            if csv_row.style:
+                tags.add(csv_row.style)
+            tags.add(f"{round(csv_row.parameters_bn, 0):.0f}B")
 
-                # Extract model_name (used for display purposes)
-                model_name = name.split("/")[1] if "/" in name else name
+            settings_dict = dict(csv_row.settings) if csv_row.settings is not None else {}
 
-                # Convert parameters from billions to integer
-                try:
-                    params_f = float(row["parameters_bn"])
-                    parameters = int(params_f * 1_000_000_000)
-                except (ValueError, KeyError) as e:
-                    logger.error(f"Error converting parameters for {name}: {e}")
-                    continue
+            display_name = csv_row.display_name
+            if not display_name:
+                display_name = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
 
-                # Convert tags from comma-separated string to list
-                tags_str = row.get("tags", "")
-                tags = set([t.strip() for t in tags_str.split(",")] if tags_str else [])
+            record: dict[str, Any] = {
+                "name": name,
+                "model_name": model_name,
+                "parameters": csv_row.parameters,
+                "description": csv_row.description,
+                "version": csv_row.version,
+                "style": csv_row.style,
+                "nsfw": csv_row.nsfw,
+                "baseline": csv_row.baseline,
+                "url": csv_row.url,
+                "tags": sorted(tags),
+                "settings": settings_dict,
+                "display_name": display_name,
+            }
 
-                # Add style tag if present
-                if row.get("style"):
-                    tags.add(row["style"])
+            record = {k: v for k, v in record.items() if v or v is False}
+            data[name] = record
 
-                # Add parameter size tag (e.g., "7B", "13B")
-                tags.add(f"{round(params_f, 0):.0f}B")
-
-                # Convert settings from JSON string to dict
-                settings_str = row.get("settings", "")
-                try:
-                    settings = json.loads(settings_str) if settings_str else {}
-                except json.JSONDecodeError as e:
-                    logger.error(f"Error decoding settings for {name}: {e}")
-                    settings = {}
-
-                # Generate display_name if not provided
-                display_name = row.get("display_name", "")
-                if not display_name:
-                    display_name = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
-
-                # Build the record (only the base entry, no backend prefixes)
-                record: dict[str, Any] = {
-                    "name": name,
-                    "model_name": model_name,
-                    "parameters": parameters,
-                    "description": row.get("description", ""),
-                    "version": row.get("version", ""),
-                    "style": row.get("style", ""),
-                    "nsfw": row.get("nsfw", "").lower() == "true",
-                    "baseline": row.get("baseline", ""),
-                    "url": row.get("url", ""),
-                    "tags": sorted(tags),
-                    "settings": settings,
-                    "display_name": display_name,
-                }
-
-                # Remove empty values
-                record = {k: v for k, v in record.items() if v or v is False}
-
-                data[name] = record
-
-        logger.debug(f"Read {len(data)} models from CSV (grouped, no backend prefixes)")
+        logger.debug(f"Read {len(data)} models from CSV (grouped, no backend prefixes) from {file_path}")
         return data
 
     def _write_dict_to_csv(self, data: dict[str, Any], file_path: Path) -> None:
@@ -340,7 +395,7 @@ class FileSystemBackend(ReplicaBackendBase):
             writer.writeheader()
             writer.writerows(csv_rows)
 
-        logger.debug(f"Wrote {len(csv_rows)} models to CSV (grouped, no backend prefixes)")
+        logger.debug(f"Wrote {len(csv_rows)} models to CSV (grouped, no backend prefixes) to {file_path}")
 
     @override
     def fetch_category(
@@ -351,8 +406,8 @@ class FileSystemBackend(ReplicaBackendBase):
     ) -> dict[str, Any] | None:
         """Fetch model reference data for a specific category from filesystem.
 
-        For text_generation category, reads from CSV format (grouped, no backend prefixes).
-        For all other categories, reads from JSON format.
+        All v2 format files (including text_generation.json) are in JSON format.
+        CSV format is only used for legacy files (legacy/models.csv).
 
         Args:
             category: The category to fetch.
@@ -376,14 +431,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 return None
 
             try:
-                # Use CSV format for text_generation category
-                if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                    data = self._read_csv_to_dict(file_path)
-                    self._store_in_cache(category, data)
-                    logger.debug(f"Loaded {category} from CSV: {file_path}")
-                    return data
-
-                # Use JSON format for all other categories
+                # All v2 files are JSON format (including text_generation.json)
                 with open(file_path, encoding="utf-8") as f:
                     data: dict[str, Any] = json.load(f)
 
@@ -511,14 +559,17 @@ class FileSystemBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
     ) -> dict[str, Any] | None:
-        """Get legacy format JSON from legacy/ folder.
+        """Get legacy format data from legacy/ folder.
+
+        For text_generation category, reads from CSV format (models.csv).
+        For other categories, reads from JSON format.
 
         Args:
             category: Category to retrieve.
             redownload: If True, bypass cache and read from disk.
 
         Returns:
-            dict[str, Any] | None: The legacy format JSON data, or None if file doesn't exist.
+            dict[str, Any] | None: The legacy format data, or None if file doesn't exist.
         """
         with self._lock:
             # Check cache first unless redownload
@@ -527,10 +578,19 @@ class FileSystemBackend(ReplicaBackendBase):
                 if legacy_dict is not None:
                     return legacy_dict
 
-            legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
-                category,
-                base_path=self.base_path,
-            )
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                legacy_file_path, is_csv = self._resolve_legacy_text_generation_path()
+                target_write_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                    category,
+                    base_path=self.base_path,
+                )
+            else:
+                legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                    category,
+                    base_path=self.base_path,
+                )
+                target_write_path = legacy_file_path
+                is_csv = False
 
             if not legacy_file_path.exists():
                 logger.debug(f"Legacy file not found for {category}: {legacy_file_path}")
@@ -538,9 +598,24 @@ class FileSystemBackend(ReplicaBackendBase):
                 return None
 
             try:
+                # Handle CSV format for text_generation
+                if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                    if is_csv:
+                        data = self._read_legacy_csv_to_dict(legacy_file_path)
+                    else:
+                        with open(legacy_file_path, encoding="utf-8") as f:
+                            data = cast(dict[str, Any], json.load(f))
+
+                    # Generate JSON string for cache
+                    content = json.dumps(data, indent=2, ensure_ascii=False)
+                    self._store_legacy_in_cache(category, data, content)
+                    logger.debug(f"Loaded legacy CSV for {category} from {legacy_file_path}")
+                    return data
+
+                # Handle JSON format for other categories
                 with open(legacy_file_path, encoding="utf-8") as f:
                     content = f.read()
-                    data: dict[str, Any] = json.loads(content)
+                    data = cast(dict[str, Any], json.loads(content))
 
                 self._store_legacy_in_cache(category, data, content)
                 logger.debug(f"Loaded legacy JSON for {category} from {legacy_file_path}")
@@ -557,14 +632,17 @@ class FileSystemBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         redownload: bool = False,
     ) -> str | None:
-        """Get legacy format JSON string from legacy/ folder.
+        """Get legacy format data as JSON string from legacy/ folder.
+
+        For text_generation category, reads CSV and converts to JSON string.
+        For other categories, reads JSON format directly.
 
         Args:
             category: Category to retrieve.
             redownload: If True, bypass cache and read from disk.
 
         Returns:
-            str | None: The legacy format JSON string, or None if file doesn't exist.
+            str | None: The legacy format as JSON string, or None if file doesn't exist.
         """
         with self._lock:
             # Check cache first unless redownload
@@ -573,10 +651,14 @@ class FileSystemBackend(ReplicaBackendBase):
                 if legacy_string is not None:
                     return legacy_string
 
-            legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
-                category,
-                base_path=self.base_path,
-            )
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                legacy_file_path, is_csv = self._resolve_legacy_text_generation_path()
+            else:
+                legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                    category,
+                    base_path=self.base_path,
+                )
+                is_csv = False
 
             if not legacy_file_path.exists():
                 logger.debug(f"Legacy file not found for {category}: {legacy_file_path}")
@@ -584,9 +666,23 @@ class FileSystemBackend(ReplicaBackendBase):
                 return None
 
             try:
+                # Handle CSV format for text_generation
+                if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                    if is_csv:
+                        data = self._read_legacy_csv_to_dict(legacy_file_path)
+                    else:
+                        with open(legacy_file_path, encoding="utf-8") as f:
+                            data = cast(dict[str, Any], json.load(f))
+                    # Generate JSON string
+                    content = json.dumps(data, indent=2, ensure_ascii=False)
+                    self._store_legacy_in_cache(category, data, content)
+                    logger.debug(f"Loaded legacy CSV string for {category} from {legacy_file_path}")
+                    return content
+
+                # Handle JSON format for other categories
                 with open(legacy_file_path, encoding="utf-8") as f:
                     content = f.read()
-                    data: dict[str, Any] = json.loads(content)
+                    data = cast(dict[str, Any], json.loads(content))
 
                 self._store_legacy_in_cache(category, data, content)
                 logger.debug(f"Loaded legacy JSON string for {category} from {legacy_file_path}")
@@ -648,13 +744,16 @@ class FileSystemBackend(ReplicaBackendBase):
                 raise FileNotFoundError(f"No file path configured for category {category}")
 
             # Read existing data (CSV for text_generation, JSON for others)
+            existing_data: dict[str, Any]
             if file_path.exists():
                 try:
+                    with open(file_path, encoding="utf-8") as f:
+                        existing_data = json.load(f)
+                except json.JSONDecodeError:
                     if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                        existing_data: dict[str, Any] = self._read_csv_to_dict(file_path)
+                        existing_data = self._read_csv_to_dict(file_path)
                     else:
-                        with open(file_path, encoding="utf-8") as f:
-                            existing_data: dict[str, Any] = json.load(f)
+                        raise
                 except Exception as e:
                     logger.error(f"Failed to read {file_path}: {e}")
                     raise
@@ -691,18 +790,15 @@ class FileSystemBackend(ReplicaBackendBase):
             temp_path = file_path.with_suffix(f".tmp.{time.time()}")
             try:
                 # Write to temp file (CSV for text_generation, JSON for others)
-                if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                    self._write_dict_to_csv(existing_data, temp_path)
-                else:
-                    with open(temp_path, "w", encoding="utf-8") as f:
-                        json.dump(existing_data, f, indent=2, ensure_ascii=False)
-                        f.flush()
-                        try:
-                            import os
+                with open(temp_path, "w", encoding="utf-8") as f:
+                    json.dump(existing_data, f, indent=2, ensure_ascii=False)
+                    f.flush()
+                    try:
+                        import os
 
-                            os.fsync(f.fileno())
-                        except Exception:
-                            pass
+                        os.fsync(f.fileno())
+                    except Exception:
+                        pass
 
                 # Atomic replace
                 if file_path.exists():
@@ -761,16 +857,19 @@ class FileSystemBackend(ReplicaBackendBase):
                 base_path=self.base_path,
             )
 
+            existing_data: dict[str, Any]
             if not file_path or not file_path.exists():
                 raise FileNotFoundError(f"Category file not found: {file_path}")
 
             # Read existing data (CSV for text_generation, JSON for others)
             try:
+                with open(file_path, encoding="utf-8") as f:
+                    existing_data = json.load(f)
+            except json.JSONDecodeError:
                 if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                    existing_data: dict[str, Any] = self._read_csv_to_dict(file_path)
+                    existing_data = self._read_csv_to_dict(file_path)
                 else:
-                    with open(file_path, encoding="utf-8") as f:
-                        existing_data: dict[str, Any] = json.load(f)
+                    raise
             except Exception as e:
                 logger.error(f"Failed to read {file_path}: {e}")
                 raise
@@ -783,18 +882,15 @@ class FileSystemBackend(ReplicaBackendBase):
             temp_path = file_path.with_suffix(f".tmp.{time.time()}")
             try:
                 # Write to temp file (CSV for text_generation, JSON for others)
-                if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                    self._write_dict_to_csv(existing_data, temp_path)
-                else:
-                    with open(temp_path, "w", encoding="utf-8") as f:
-                        json.dump(existing_data, f, indent=2, ensure_ascii=False)
-                        f.flush()
-                        try:
-                            import os
+                with open(temp_path, "w", encoding="utf-8") as f:
+                    json.dump(existing_data, f, indent=2, ensure_ascii=False)
+                    f.flush()
+                    try:
+                        import os
 
-                            os.fsync(f.fileno())
-                        except Exception:
-                            pass
+                        os.fsync(f.fileno())
+                    except Exception:
+                        pass
 
                 backup_path = file_path.with_suffix(".bak")
                 file_path.replace(backup_path)
@@ -867,24 +963,39 @@ class FileSystemBackend(ReplicaBackendBase):
             )
 
         with self._lock:
-            legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
-                category,
-                base_path=self.base_path,
-            )
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                legacy_file_path, is_csv = self._resolve_legacy_text_generation_path()
+                target_write_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                    category,
+                    base_path=self.base_path,
+                )
+            else:
+                legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                    category,
+                    base_path=self.base_path,
+                )
+                target_write_path = legacy_file_path
+                is_csv = False
 
             if not legacy_file_path:
                 raise FileNotFoundError(f"No legacy file path configured for category {category}")
 
+            existing_data: dict[str, Any]
             if legacy_file_path.exists():
                 try:
-                    with open(legacy_file_path, encoding="utf-8") as f:
-                        existing_data: dict[str, Any] = json.load(f)
+                    if category == MODEL_REFERENCE_CATEGORY.text_generation and is_csv:
+                        # When canonical format was previously v2, the CSV may still exist.
+                        # Promote it to JSON structure for legacy CRUD operations.
+                        existing_data = self._read_legacy_csv_to_dict(legacy_file_path)
+                    else:
+                        with open(legacy_file_path, encoding="utf-8") as f:
+                            existing_data = json.load(f)
                 except Exception as e:
                     logger.error(f"Failed to read {legacy_file_path}: {e}")
                     raise
             else:
                 existing_data = {}
-                legacy_file_path.parent.mkdir(parents=True, exist_ok=True)
+                target_write_path.parent.mkdir(parents=True, exist_ok=True)
 
             # Determine if this is a create or update operation
             is_update = model_name in existing_data
@@ -892,7 +1003,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
             existing_data[model_name] = record_dict
 
-            temp_path = legacy_file_path.with_suffix(f".tmp.{time.time()}")
+            temp_path = target_write_path.with_suffix(f".tmp.{time.time()}")
             try:
                 with open(temp_path, "w", encoding="utf-8") as f:
                     json.dump(existing_data, f, indent=2, ensure_ascii=False)
@@ -904,16 +1015,16 @@ class FileSystemBackend(ReplicaBackendBase):
                     except Exception:
                         pass
 
-                if legacy_file_path.exists():
-                    backup_path = legacy_file_path.with_suffix(".bak")
-                    legacy_file_path.replace(backup_path)
-                    temp_path.replace(legacy_file_path)
+                if target_write_path.exists():
+                    backup_path = target_write_path.with_suffix(".bak")
+                    target_write_path.replace(backup_path)
+                    temp_path.replace(target_write_path)
                     with contextlib.suppress(Exception):
                         backup_path.unlink()
                 else:
-                    temp_path.replace(legacy_file_path)
+                    temp_path.replace(target_write_path)
 
-                logger.info(f"Updated legacy model {model_name} in category {category} at {legacy_file_path}")
+                logger.info(f"Updated legacy model {model_name} in category {category} at {target_write_path}")
 
                 # Record metadata for observability (centralized hook point)
                 self._metadata_manager.record_legacy_operation(
@@ -924,7 +1035,11 @@ class FileSystemBackend(ReplicaBackendBase):
                     backend_type=self.__class__.__name__,
                 )
 
-                self._mark_legacy_category_modified(category, legacy_file_path)
+                self._mark_legacy_category_modified(category, target_write_path)
+
+                if legacy_file_path != target_write_path and legacy_file_path.exists():
+                    with contextlib.suppress(Exception):
+                        legacy_file_path.unlink()
 
             except Exception as e:
                 try:
@@ -963,17 +1078,30 @@ class FileSystemBackend(ReplicaBackendBase):
             )
 
         with self._lock:
-            legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
-                category,
-                base_path=self.base_path,
-            )
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                legacy_file_path, is_csv = self._resolve_legacy_text_generation_path()
+                target_write_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                    category,
+                    base_path=self.base_path,
+                )
+            else:
+                legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                    category,
+                    base_path=self.base_path,
+                )
+                target_write_path = legacy_file_path
+                is_csv = False
 
+            existing_data: dict[str, Any]
             if not legacy_file_path or not legacy_file_path.exists():
                 raise FileNotFoundError(f"Legacy category file not found: {legacy_file_path}")
 
             try:
-                with open(legacy_file_path, encoding="utf-8") as f:
-                    existing_data: dict[str, Any] = json.load(f)
+                if category == MODEL_REFERENCE_CATEGORY.text_generation and is_csv:
+                    existing_data = self._read_legacy_csv_to_dict(legacy_file_path)
+                else:
+                    with open(legacy_file_path, encoding="utf-8") as f:
+                        existing_data = json.load(f)
             except Exception as e:
                 logger.error(f"Failed to read {legacy_file_path}: {e}")
                 raise
@@ -983,7 +1111,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
             del existing_data[model_name]
 
-            temp_path = legacy_file_path.with_suffix(f".tmp.{time.time()}")
+            temp_path = target_write_path.with_suffix(f".tmp.{time.time()}")
             try:
                 with open(temp_path, "w", encoding="utf-8") as f:
                     json.dump(existing_data, f, indent=2, ensure_ascii=False)
@@ -995,14 +1123,16 @@ class FileSystemBackend(ReplicaBackendBase):
                     except Exception:
                         pass
 
-                backup_path = legacy_file_path.with_suffix(".bak")
-                legacy_file_path.replace(backup_path)
-                temp_path.replace(legacy_file_path)
+                if target_write_path.exists():
+                    backup_path = target_write_path.with_suffix(".bak")
+                    target_write_path.replace(backup_path)
+                    temp_path.replace(target_write_path)
+                    with contextlib.suppress(Exception):
+                        backup_path.unlink()
+                else:
+                    temp_path.replace(target_write_path)
 
-                with contextlib.suppress(Exception):
-                    backup_path.unlink()
-
-                logger.info(f"Deleted legacy model {model_name} from category {category} at {legacy_file_path}")
+                logger.info(f"Deleted legacy model {model_name} from category {category} at {target_write_path}")
 
                 # Record metadata for observability (centralized hook point)
                 self._metadata_manager.record_legacy_operation(
@@ -1013,7 +1143,11 @@ class FileSystemBackend(ReplicaBackendBase):
                     backend_type=self.__class__.__name__,
                 )
 
-                self._mark_legacy_category_modified(category, legacy_file_path)
+                self._mark_legacy_category_modified(category, target_write_path)
+
+                if legacy_file_path != target_write_path and legacy_file_path.exists():
+                    with contextlib.suppress(Exception):
+                        legacy_file_path.unlink()
 
             except Exception as e:
                 try:

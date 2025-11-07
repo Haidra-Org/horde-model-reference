@@ -9,6 +9,7 @@ from horde_model_reference.legacy.classes.legacy_converters import (
     LegacyStableDiffusionConverter,
     LegacyTextGenerationConverter,
 )
+from horde_model_reference.legacy.convert_all_legacy_dbs import convert_legacy_text_generation_database
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import ImageGenerationModelRecord
 
@@ -19,7 +20,7 @@ def test_convert_legacy_stable_diffusion_database(
 ) -> None:
     """Test converting the legacy stable diffusion database to the new format."""
     sd_converter = LegacyStableDiffusionConverter(
-        legacy_folder_path=populated_legacy_path,
+        legacy_folder_path=primary_base,  # Pass base path, converter adds /legacy/
         target_file_folder=primary_base,
     )
     converted = sd_converter.convert_to_new_format()
@@ -32,7 +33,7 @@ def test_convert_legacy_clip_database(
 ) -> None:
     """Test converting the legacy clip database to the new format."""
     clip_converter = LegacyClipConverter(
-        legacy_folder_path=populated_legacy_path,
+        legacy_folder_path=primary_base,  # Pass base path, converter adds /legacy/
         target_file_folder=primary_base,
     )
     converted_clip = clip_converter.convert_to_new_format()
@@ -45,7 +46,7 @@ def test_convert_legacy_controlnet_database(
 ) -> None:
     """Test converting the legacy controlnet database to the new format."""
     controlnet_converter = LegacyControlnetConverter(
-        legacy_folder_path=populated_legacy_path,
+        legacy_folder_path=primary_base,  # Pass base path, converter adds /legacy/
         target_file_folder=primary_base,
     )
     converted = controlnet_converter.convert_to_new_format()
@@ -58,11 +59,27 @@ def test_convert_legacy_text_generation_database(
 ) -> None:
     """Test converting the legacy text generation database to the new format."""
     text_gen_converter = LegacyTextGenerationConverter(
-        legacy_folder_path=populated_legacy_path,
+        legacy_folder_path=primary_base,  # Pass base path, converter adds /legacy/
         target_file_folder=primary_base,
     )
     converted = text_gen_converter.convert_to_new_format()
     assert len(converted) > 0
+
+
+def test_convert_helper_accepts_legacy_directory(
+    primary_base: Path,
+    populated_legacy_path: Path,
+) -> None:
+    """Ensure helper functions tolerate paths pointing at the legacy/ folder itself."""
+
+    result = convert_legacy_text_generation_database(
+        legacy_path=populated_legacy_path,
+        target_path=primary_base,
+    )
+
+    assert result is True
+    output = primary_base / "text_generation.json"
+    assert output.exists()
 
 
 def test_all_base_legacy_converters(
@@ -86,7 +103,7 @@ def test_all_base_legacy_converters(
 
         base_converter = BaseLegacyConverter(
             model_reference_category=reference_category,
-            legacy_folder_path=legacy_path,
+            legacy_folder_path=primary_base,  # Pass base path, converter adds /legacy/
             target_file_folder=primary_base,
         )
         converted = base_converter.convert_to_new_format()
@@ -100,7 +117,7 @@ def test_validate_converted_stable_diffusion_database(
     """Test validating the converted stable diffusion database."""
     # First convert the database
     sd_converter = LegacyStableDiffusionConverter(
-        legacy_folder_path=populated_legacy_path,
+        legacy_folder_path=primary_base,  # Pass base path, converter adds /legacy/
         target_file_folder=primary_base,
     )
     sd_converter.convert_to_new_format()
