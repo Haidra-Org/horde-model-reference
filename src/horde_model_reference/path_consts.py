@@ -153,7 +153,7 @@ class HordeModelReferencePaths:
 
             logger.trace(f"Parsed legacy model GitHub URL for {category}: {composed_url}")
 
-        self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "text_generation.json"
+        self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "text_generation.csv"
         logger.trace(
             f"Renaming {MODEL_REFERENCE_CATEGORY.text_generation}: "
             f"{self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation]}",
