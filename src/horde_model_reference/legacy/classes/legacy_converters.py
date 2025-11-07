@@ -608,15 +608,19 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
 
         model_record_config = self._convert_model_record_config(legacy_record)
 
-        # if has_legacy_text_backend_prefix(legacy_record.name):
-        #     self.add_validation_error_to_log(
-        #         model_record_key=legacy_record.name,
-        #         error=(
-        #             f"Model name '{legacy_record.name}' has a deprecated backend prefix. "
-        #             "Dropping this record as it is necessarily a duplicate."
-        #         ),
-        #     )
-        #     return None
+        # Drop backend-prefixed entries (they are duplicates of base models)
+        # Backend prefixes are only generated during GitHub sync, not stored internally
+        from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
+
+        if has_legacy_text_backend_prefix(legacy_record.name):
+            self.add_validation_error_to_log(
+                model_record_key=legacy_record.name,
+                error=(
+                    f"Model name '{legacy_record.name}' has a backend prefix. "
+                    "Dropping this record as it is a duplicate (backend prefixes are not stored internally)."
+                ),
+            )
+            return None
 
         return TextGenerationModelRecord(
             name=legacy_record.name,

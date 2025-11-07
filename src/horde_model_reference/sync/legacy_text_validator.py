@@ -118,52 +118,46 @@ class LegacyTextValidator:
     ) -> dict[str, LegacyRecordDict]:
         """Validate and transform legacy text generation data.
 
-        This method applies all convert.py transformations:
+        This method applies convert.py validation rules WITHOUT generating backend prefix duplicates:
         1. Validates settings against generation_params.json
         2. Applies defaults.json to all records
         3. Ensures tags include style and parameter size
-        4. Generates backend prefix duplicates
-        5. Auto-generates display_name if missing
+        4. Auto-generates display_name if missing
+
+        NOTE: Backend prefix duplicates (aphrodite/, koboldcpp/) are NO LONGER generated here.
+        They are only generated during GitHub sync to maintain backward compatibility with
+        the legacy GitHub JSON format. Internally, we store grouped data (CSV format).
 
         Args:
             data: Dictionary of model records in legacy format.
 
         Returns:
-            Transformed dictionary with all validation rules applied and
-            backend prefix duplicates added.
+            Transformed dictionary with validation rules applied (no backend prefix duplicates).
 
         Raises:
             ValueError: If validation fails (invalid settings keys, missing required fields, etc.)
         """
-        logger.debug(f"Validating {len(data)} legacy text generation records")
+        logger.debug(f"Validating {len(data)} legacy text generation records (grouped format)")
 
-        # First pass: validate and transform each base record
-        base_records: dict[str, LegacyRecordDict] = {}
+        # Validate and transform each base record
+        result: dict[str, LegacyRecordDict] = {}
         for model_name, record in data.items():
-            # Skip backend-prefixed entries in input (we'll regenerate them)
+            # Skip backend-prefixed entries in input (not stored internally anymore)
             if self._has_backend_prefix(model_name):
-                logger.debug(f"Skipping backend-prefixed entry {model_name} (will be regenerated)")
+                logger.debug(
+                    f"Skipping backend-prefixed entry {model_name} "
+                    "(backend prefixes are not stored internally)"
+                )
                 continue
 
             try:
                 validated_record = self._validate_single_record(model_name, record)
-                base_records[model_name] = validated_record
+                result[model_name] = validated_record
             except ValueError as e:
                 logger.error(f"Validation failed for {model_name}: {e}")
                 raise
 
-        logger.debug(f"Validated {len(base_records)} base records")
-
-        # Second pass: generate backend prefix duplicates
-        result: dict[str, LegacyRecordDict] = {}
-        for model_name, record in base_records.items():
-            # Add base record
-            result[model_name] = record
-
-            # Generate backend prefix duplicates
-            result.update(self._generate_backend_duplicates(model_name, record))
-
-        logger.debug(f"Generated {len(result)} total records (including {len(result) - len(base_records)} duplicates)")
+        logger.debug(f"Validated {len(result)} base records (grouped, no backend prefixes)")
 
         return result
 

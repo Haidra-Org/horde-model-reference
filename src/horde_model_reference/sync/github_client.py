@@ -599,6 +599,60 @@ class GitHubSyncClient:
 
         return branch_name
 
+    def _generate_backend_prefixes_for_github(
+        self,
+        grouped_data: dict[str, dict[str, Any]],
+    ) -> dict[str, dict[str, Any]]:
+        """Generate backend prefix duplicates for GitHub sync (legacy format compatibility).
+
+        This replicates the logic from scripts/legacy_text/convert.py lines 85-87.
+        For each base model, creates 3 entries:
+        1. Base entry (e.g., "llama-2-7b")
+        2. Aphrodite prefixed (e.g., "aphrodite/llama-2-7b")
+        3. KoboldCPP prefixed (e.g., "koboldcpp/llama-2-7b")
+
+        This is ONLY used for GitHub sync to maintain backward compatibility with
+        the legacy GitHub JSON format. Internally, we store grouped data (CSV).
+
+        Args:
+            grouped_data: The grouped model data (one entry per base model).
+
+        Returns:
+            dict[str, dict[str, Any]]: Model data with backend prefix duplicates.
+        """
+        from horde_model_reference.meta_consts import (
+            TEXT_BACKENDS,
+            _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES,
+        )
+
+        result: dict[str, dict[str, Any]] = {}
+
+        for name, record in grouped_data.items():
+            model_name = record.get("model_name", name)
+
+            # Generate 3 entries: base, aphrodite/, koboldcpp/
+            key_formats = [
+                ("{name}", name),  # Base entry
+                (f"{_TEXT_LEGACY_CONVERT_BACKEND_PREFIXES[TEXT_BACKENDS.aphrodite]}{{name}}", name),  # aphrodite/
+                (
+                    f"{_TEXT_LEGACY_CONVERT_BACKEND_PREFIXES[TEXT_BACKENDS.koboldcpp]}{{model_name}}",
+                    model_name,
+                ),  # koboldcpp/
+            ]
+
+            for key_format, value in key_formats:
+                key = key_format.format(name=value, model_name=model_name) if "{" in key_format else key_format
+                # Create a copy with the updated name field
+                record_copy = record.copy()
+                record_copy["name"] = key
+                result[key] = record_copy
+
+        logger.debug(
+            f"Generated {len(result)} total records from {len(grouped_data)} base models "
+            "(including backend prefix duplicates for GitHub)"
+        )
+        return result
+
     def _update_category_file(
         self,
         category: MODEL_REFERENCE_CATEGORY,
@@ -610,11 +664,11 @@ class GitHubSyncClient:
         - For text_generation category, GitHub repos use 'db.json', not 'text_generation.json'
         - We must write to the filename that exists in the GitHub repository
         - This follows the legacy naming convention used by the GitHub repos
-        - For text_generation, applies LegacyTextValidator to ensure convert.py compatibility
+        - For text_generation, applies LegacyTextValidator and generates backend prefixes for GitHub
 
         Args:
             category (MODEL_REFERENCE_CATEGORY): The category to update.
-            primary_data: The complete PRIMARY data in legacy format.
+            primary_data: The complete PRIMARY data in legacy format (grouped, no backend prefixes).
         """
         if not self._current_repo or not self._temp_dir:
             raise RuntimeError("No repository cloned")
@@ -631,17 +685,21 @@ class GitHubSyncClient:
 
         logger.debug(f"Updating {file_path} with PRIMARY data")
 
-        # Apply legacy text validation for text_generation category
-        # This ensures the data matches convert.py expectations (generation_params.json,
-        # defaults.json, backend prefixes, tag auto-generation, etc.)
+        # Apply legacy text validation and backend prefix generation for text_generation category
+        # This ensures the data matches the legacy GitHub format expectations
         if category == MODEL_REFERENCE_CATEGORY.text_generation:
             logger.debug("Applying LegacyTextValidator for text_generation category")
             try:
                 validator = LegacyTextValidator()
                 primary_data = validator.validate_and_transform(primary_data)
-                logger.debug(f"LegacyTextValidator applied: {len(primary_data)} records after transformation")
+                logger.debug(f"LegacyTextValidator applied: {len(primary_data)} base records after validation")
+
+                # Generate backend prefix duplicates for GitHub (backward compatibility)
+                logger.debug("Generating backend prefix duplicates for GitHub sync")
+                primary_data = self._generate_backend_prefixes_for_github(primary_data)
+                logger.debug(f"Backend prefixes generated: {len(primary_data)} total records for GitHub")
             except Exception as e:
-                logger.error(f"LegacyTextValidator failed: {e}")
+                logger.error(f"LegacyTextValidator or backend prefix generation failed: {e}")
                 raise
 
         serialized_data = json.dumps(primary_data, indent=4, sort_keys=False)

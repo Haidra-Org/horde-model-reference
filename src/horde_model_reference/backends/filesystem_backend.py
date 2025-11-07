@@ -7,7 +7,9 @@ It is the source of truth for PRIMARY mode instances and never interacts with Gi
 from __future__ import annotations
 
 import contextlib
+import csv
 import json
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -166,6 +168,183 @@ class FileSystemBackend(ReplicaBackendBase):
         self.mark_stale(category)
         logger.debug(f"Marked legacy category {category} as modified")
 
+    def _read_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
+        """Read CSV file and convert to dict format (grouped by base name, no backend prefixes).
+
+        This reads the grouped CSV format and returns a dict with one entry per base model.
+        No backend prefix duplicates are generated here - that only happens during GitHub sync.
+
+        Args:
+            file_path: Path to the CSV file.
+
+        Returns:
+            dict[str, Any]: Model data with one entry per base model.
+
+        Raises:
+            Exception: If CSV parsing fails.
+        """
+        data: dict[str, Any] = {}
+
+        with open(file_path, newline="", encoding="utf-8") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                name: str = row["name"]
+
+                # Extract model_name (used for display purposes)
+                model_name = name.split("/")[1] if "/" in name else name
+
+                # Convert parameters from billions to integer
+                try:
+                    params_f = float(row["parameters_bn"])
+                    parameters = int(params_f * 1_000_000_000)
+                except (ValueError, KeyError) as e:
+                    logger.error(f"Error converting parameters for {name}: {e}")
+                    continue
+
+                # Convert tags from comma-separated string to list
+                tags_str = row.get("tags", "")
+                tags = set([t.strip() for t in tags_str.split(",")] if tags_str else [])
+
+                # Add style tag if present
+                if row.get("style"):
+                    tags.add(row["style"])
+
+                # Add parameter size tag (e.g., "7B", "13B")
+                tags.add(f"{round(params_f, 0):.0f}B")
+
+                # Convert settings from JSON string to dict
+                settings_str = row.get("settings", "")
+                try:
+                    settings = json.loads(settings_str) if settings_str else {}
+                except json.JSONDecodeError as e:
+                    logger.error(f"Error decoding settings for {name}: {e}")
+                    settings = {}
+
+                # Generate display_name if not provided
+                display_name = row.get("display_name", "")
+                if not display_name:
+                    display_name = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
+
+                # Build the record (only the base entry, no backend prefixes)
+                record: dict[str, Any] = {
+                    "name": name,
+                    "model_name": model_name,
+                    "parameters": parameters,
+                    "description": row.get("description", ""),
+                    "version": row.get("version", ""),
+                    "style": row.get("style", ""),
+                    "nsfw": row.get("nsfw", "").lower() == "true",
+                    "baseline": row.get("baseline", ""),
+                    "url": row.get("url", ""),
+                    "tags": sorted(tags),
+                    "settings": settings,
+                    "display_name": display_name,
+                }
+
+                # Remove empty values
+                record = {k: v for k, v in record.items() if v or v is False}
+
+                data[name] = record
+
+        logger.debug(f"Read {len(data)} models from CSV (grouped, no backend prefixes)")
+        return data
+
+    def _write_dict_to_csv(self, data: dict[str, Any], file_path: Path) -> None:
+        """Write dict format to CSV file (removes backend prefix duplicates).
+
+        This writes the grouped CSV format with one entry per base model.
+        Any backend-prefixed entries in the input are filtered out.
+
+        Args:
+            data: Model data dict (may contain backend-prefixed duplicates).
+            file_path: Path to write the CSV file.
+
+        Raises:
+            Exception: If CSV writing fails.
+        """
+        from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
+
+        # Filter out backend-prefixed entries
+        base_models: dict[str, Any] = {}
+        for model_name, record in data.items():
+            if has_legacy_text_backend_prefix(model_name):
+                logger.debug(f"Skipping backend-prefixed entry during CSV write: {model_name}")
+                continue
+            base_models[model_name] = record
+
+        # Convert to CSV rows
+        csv_rows: list[dict[str, str]] = []
+
+        for model_name, record in base_models.items():
+            # Extract parameters in billions
+            parameters_int = record.get("parameters", 0)
+            params_bn = float(parameters_int) / 1_000_000_000
+
+            # Extract tags and remove auto-generated ones
+            tags = record.get("tags", [])
+            if isinstance(tags, list):
+                tags_set = set(tags)
+            else:
+                tags_set = set()
+
+            # Remove style tag
+            style = record.get("style")
+            if style and style in tags_set:
+                tags_set.discard(style)
+
+            # Remove parameter size tag
+            size_tag = f"{round(params_bn, 0):.0f}B"
+            tags_set.discard(size_tag)
+
+            # Serialize settings to compact JSON
+            settings = record.get("settings", {})
+            settings_str = json.dumps(settings, separators=(",", ":")) if settings else ""
+
+            # Check if display_name is auto-generated (if so, omit it)
+            display_name = record.get("display_name", "")
+            model_name_field = record.get("model_name", model_name)
+            auto_display = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name_field)).strip()
+            if display_name == auto_display:
+                display_name = ""
+
+            csv_row = {
+                "name": model_name,
+                "parameters_bn": f"{params_bn:.1f}",
+                "description": record.get("description", ""),
+                "version": record.get("version", ""),
+                "style": style or "",
+                "nsfw": str(record.get("nsfw", False)).lower(),
+                "baseline": record.get("baseline", ""),
+                "url": record.get("url", ""),
+                "tags": ",".join(sorted(tags_set)),
+                "settings": settings_str,
+                "display_name": display_name,
+            }
+
+            csv_rows.append(csv_row)
+
+        # Write CSV file
+        fieldnames = [
+            "name",
+            "parameters_bn",
+            "description",
+            "version",
+            "style",
+            "nsfw",
+            "baseline",
+            "url",
+            "tags",
+            "settings",
+            "display_name",
+        ]
+
+        with open(file_path, "w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(csv_rows)
+
+        logger.debug(f"Wrote {len(csv_rows)} models to CSV (grouped, no backend prefixes)")
+
     @override
     def fetch_category(
         self,
@@ -174,6 +353,9 @@ class FileSystemBackend(ReplicaBackendBase):
         force_refresh: bool = False,
     ) -> dict[str, Any] | None:
         """Fetch model reference data for a specific category from filesystem.
+
+        For text_generation category, reads from CSV format (grouped, no backend prefixes).
+        For all other categories, reads from JSON format.
 
         Args:
             category: The category to fetch.
@@ -197,6 +379,14 @@ class FileSystemBackend(ReplicaBackendBase):
                 return None
 
             try:
+                # Use CSV format for text_generation category
+                if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                    data = self._read_csv_to_dict(file_path)
+                    self._store_in_cache(category, data)
+                    logger.debug(f"Loaded {category} from CSV: {file_path}")
+                    return data
+
+                # Use JSON format for all other categories
                 with open(file_path, encoding="utf-8") as f:
                     data: dict[str, Any] = json.load(f)
 
@@ -437,7 +627,8 @@ class FileSystemBackend(ReplicaBackendBase):
     ) -> None:
         """Update or create a model reference.
 
-        This method modifies the JSON file on disk atomically.
+        For text_generation category, modifies the CSV file on disk atomically.
+        For other categories, modifies the JSON file on disk atomically.
         Preserves created_at and created_by metadata on updates.
 
         Args:
@@ -448,6 +639,8 @@ class FileSystemBackend(ReplicaBackendBase):
         Raises:
             FileNotFoundError: If the category file path is not configured.
         """
+        from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
+
         with self._lock:
             file_path = horde_model_reference_paths.get_model_reference_file_path(
                 category,
@@ -457,16 +650,30 @@ class FileSystemBackend(ReplicaBackendBase):
             if not file_path:
                 raise FileNotFoundError(f"No file path configured for category {category}")
 
+            # Read existing data (CSV for text_generation, JSON for others)
             if file_path.exists():
                 try:
-                    with open(file_path, encoding="utf-8") as f:
-                        existing_data: dict[str, Any] = json.load(f)
+                    if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                        existing_data: dict[str, Any] = self._read_csv_to_dict(file_path)
+                    else:
+                        with open(file_path, encoding="utf-8") as f:
+                            existing_data: dict[str, Any] = json.load(f)
                 except Exception as e:
                     logger.error(f"Failed to read {file_path}: {e}")
                     raise
             else:
                 existing_data = {}
                 file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # For text_generation, filter out backend prefix entries before updating
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                if has_legacy_text_backend_prefix(model_name):
+                    logger.warning(
+                        f"Attempted to update backend-prefixed model {model_name} in text_generation. "
+                        "Backend prefixes are not stored internally - update the base model instead."
+                    )
+                    # Don't raise an error, just skip the update
+                    return
 
             # Determine if this is a create or update operation
             is_update = model_name in existing_data
@@ -487,16 +694,21 @@ class FileSystemBackend(ReplicaBackendBase):
 
             temp_path = file_path.with_suffix(f".tmp.{time.time()}")
             try:
-                with open(temp_path, "w", encoding="utf-8") as f:
-                    json.dump(existing_data, f, indent=2, ensure_ascii=False)
-                    f.flush()
-                    try:
-                        import os
+                # Write to temp file (CSV for text_generation, JSON for others)
+                if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                    self._write_dict_to_csv(existing_data, temp_path)
+                else:
+                    with open(temp_path, "w", encoding="utf-8") as f:
+                        json.dump(existing_data, f, indent=2, ensure_ascii=False)
+                        f.flush()
+                        try:
+                            import os
 
-                        os.fsync(f.fileno())
-                    except Exception:
-                        pass
+                            os.fsync(f.fileno())
+                        except Exception:
+                            pass
 
+                # Atomic replace
                 if file_path.exists():
                     backup_path = file_path.with_suffix(".bak")
                     file_path.replace(backup_path)
@@ -536,7 +748,8 @@ class FileSystemBackend(ReplicaBackendBase):
     ) -> None:
         """Delete a model reference.
 
-        This method removes the model from the JSON file on disk atomically.
+        For text_generation category, removes the model from the CSV file on disk atomically.
+        For other categories, removes the model from the JSON file on disk atomically.
 
         Args:
             category: The category containing the model.
@@ -555,9 +768,13 @@ class FileSystemBackend(ReplicaBackendBase):
             if not file_path or not file_path.exists():
                 raise FileNotFoundError(f"Category file not found: {file_path}")
 
+            # Read existing data (CSV for text_generation, JSON for others)
             try:
-                with open(file_path, encoding="utf-8") as f:
-                    existing_data: dict[str, Any] = json.load(f)
+                if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                    existing_data: dict[str, Any] = self._read_csv_to_dict(file_path)
+                else:
+                    with open(file_path, encoding="utf-8") as f:
+                        existing_data: dict[str, Any] = json.load(f)
             except Exception as e:
                 logger.error(f"Failed to read {file_path}: {e}")
                 raise
@@ -569,15 +786,19 @@ class FileSystemBackend(ReplicaBackendBase):
 
             temp_path = file_path.with_suffix(f".tmp.{time.time()}")
             try:
-                with open(temp_path, "w", encoding="utf-8") as f:
-                    json.dump(existing_data, f, indent=2, ensure_ascii=False)
-                    f.flush()
-                    try:
-                        import os
+                # Write to temp file (CSV for text_generation, JSON for others)
+                if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                    self._write_dict_to_csv(existing_data, temp_path)
+                else:
+                    with open(temp_path, "w", encoding="utf-8") as f:
+                        json.dump(existing_data, f, indent=2, ensure_ascii=False)
+                        f.flush()
+                        try:
+                            import os
 
-                        os.fsync(f.fileno())
-                    except Exception:
-                        pass
+                            os.fsync(f.fileno())
+                        except Exception:
+                            pass
 
                 backup_path = file_path.with_suffix(".bak")
                 file_path.replace(backup_path)
