@@ -71,7 +71,6 @@ def test_convert_helper_accepts_legacy_directory(
     populated_legacy_path: Path,
 ) -> None:
     """Ensure helper functions tolerate paths pointing at the legacy/ folder itself."""
-
     result = convert_legacy_text_generation_database(
         legacy_path=populated_legacy_path,
         target_path=primary_base,
