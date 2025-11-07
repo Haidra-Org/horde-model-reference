@@ -8,7 +8,6 @@ when the PRIMARY API is unavailable.
 from __future__ import annotations
 
 import asyncio
-import json
 import re
 import time
 from pathlib import Path
