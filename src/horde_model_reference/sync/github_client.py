@@ -621,8 +621,8 @@ class GitHubSyncClient:
             dict[str, dict[str, Any]]: Model data with backend prefix duplicates.
         """
         from horde_model_reference.meta_consts import (
-            TEXT_BACKENDS,
             _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES,
+            TEXT_BACKENDS,
         )
 
         result: dict[str, dict[str, Any]] = {}
