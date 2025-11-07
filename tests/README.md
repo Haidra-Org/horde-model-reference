@@ -46,7 +46,7 @@ This directory contains the test suite for the Horde Model Reference library and
 
 ### Horde API Integration Tests (`horde_api/`)
 
-- `test_audit_analysis_live.py` - Live audit endpoint integration tests (with VCR cassettes)
+- `test_audit_analysis_live.py` - Live audit endpoint integration tests
 - `test_data_merger.py` - Tests for merging data from multiple sources
 - `test_horde_api_integration.py` - Mocked Horde API integration tests
 - `test_horde_api_integration_live.py` - Live Horde API integration tests
@@ -105,44 +105,6 @@ pytest -m integration
 pytest -m "not integration"
 ```
 
-## VCR Cassette Tests
-
-Some integration tests use VCR (Video Cassette Recorder) to record and replay HTTP interactions. This provides:
-
-- **Fast execution**: Replays recorded API responses instead of making real HTTP requests
-- **Reproducibility**: Same responses every time, ideal for CI/CD
-- **Offline testing**: No network required after initial recording
-
-### Using VCR Tests
-
-**Run VCR tests normally** (uses recorded cassettes):
-
-```bash
-pytest tests/horde_api/test_audit_analysis_live.py
-```
-
-**Record new cassettes** (makes real API calls and records responses):
-
-```bash
-pytest --record-mode=rewrite tests/horde_api/test_audit_analysis_live.py
-```
-
-**Update specific cassettes**:
-
-```bash
-pytest --record-mode=rewrite tests/horde_api/test_audit_analysis_live.py::TestAuditEndpointsWithVCR::test_image_generation_audit_basic
-```
-
-### VCR Cassette Location
-
-Cassettes are stored in `tests/horde_api/cassettes/` with test-specific YAML files named after the test class and method (e.g., `TestAuditEndpointsWithVCR.test_image_generation_audit_basic.yaml`)
-
-### VCR Recording Modes
-
-- `none` - Only use cassettes, fail if missing (CI mode)
-- `once` - Use cassettes if available, record if missing (default)
-- `rewrite` - Delete and re-record all cassettes
-- `all` - Always make real requests and record new responses
 
 ## Audit Analysis Tests
 
@@ -163,7 +125,6 @@ Certain models are designated as "golden models" that should never be flagged fo
 
 Golden model validation is tested in:
 
-- `test_audit_analysis_live.py::TestAuditEndpointsWithVCR::test_image_generation_audit_golden_models`
 - `test_audit_analysis_live.py::TestAuditLiveIntegration::test_live_golden_models_consistency`
 
 ### Performance Thresholds
@@ -191,10 +152,6 @@ Audit endpoints must complete within **15 seconds** for full category analysis. 
 - `v1_canonical_manager` - PRIMARY mode manager with legacy format for v1 API tests
 - `caplog` - Capture log messages during tests (loguru-compatible)
 
-### Horde API Test Fixtures (tests/horde_api/conftest.py)
-
-- `vcr_config` - Configuration for VCR cassette recording/playback
-
 ## Environment Variables
 
 Tests automatically set the following environment variables (via conftest.py):
@@ -216,8 +173,7 @@ The following critical environment variables are automatically **cleared** befor
 ## Test Data
 
 - `tests/test_data_results/` - Test output directory (logs, generated files)
-- `tests/horde_api/cassettes/` - VCR recorded HTTP interactions for integration tests
-
+- 
 ## Writing New Tests
 
 ### Unit Tests
@@ -232,18 +188,6 @@ def test_some_functionality():
     assert result == expected_value
 ```
 
-### Integration Tests with VCR
-
-```python
-import pytest
-
-class TestMyFeature:
-    @pytest.mark.vcr()
-    def test_with_cassette(self, api_client):
-        """This test will record/replay HTTP interactions."""
-        response = api_client.get("/v2/some/endpoint")
-        assert response.status_code == 200
-```
 
 ### Integration Tests (Live)
 
@@ -263,19 +207,9 @@ class TestLiveAPI:
 In CI environments:
 
 - Non-integration tests run on every commit
-- VCR tests use recorded cassettes (no network required)
 - Integration tests (marked with `@pytest.mark.integration`) may be run separately
-- Cassettes should be committed to version control
 
 ## Troubleshooting
-
-### VCR Cassette Mismatches
-
-If you see errors about cassette mismatches, the API may have changed. Re-record cassettes:
-
-```bash
-pytest --record-mode=rewrite tests/horde_api/test_audit_analysis_live.py
-```
 
 ### Slow Tests
 
@@ -303,8 +237,7 @@ When adding new tests:
 
 1. Follow existing patterns and naming conventions
 2. Add docstrings explaining what the test validates
-3. Use VCR for external API calls when possible
-4. Mark live API tests with `@pytest.mark.integration`
-5. Validate golden models are not flagged for deletion
-6. Ensure tests complete within performance thresholds
-7. Update this README if adding new test categories
+3. Mark live API tests with `@pytest.mark.integration`
+4. Validate golden models are not flagged for deletion
+5. Ensure tests complete within performance thresholds
+6. Update this README if adding new test categories

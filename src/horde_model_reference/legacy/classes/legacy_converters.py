@@ -21,6 +21,7 @@ from horde_model_reference.legacy.classes.legacy_models import (
     LegacyStableDiffusionRecord,
     LegacyTextGenerationRecord,
 )
+from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
     ClipModelRecord,
@@ -91,15 +92,18 @@ class BaseLegacyConverter:
         elif model_reference_category == MODEL_REFERENCE_CATEGORY.text_generation:
             self.model_reference_type = LegacyTextGenerationRecord
 
-        self.legacy_folder_path = Path(legacy_folder_path)
-        self.legacy_database_path = horde_model_reference_paths.get_model_reference_file_path(
+        normalized_legacy_base = path_consts.normalize_legacy_base_path(legacy_folder_path)
+        normalized_target_base = path_consts.normalize_legacy_base_path(target_file_folder)
+
+        self.legacy_folder_path = normalized_legacy_base / path_consts.LEGACY_REFERENCE_FOLDER_NAME
+        self.legacy_database_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
             model_reference_category=model_reference_category,
-            base_path=legacy_folder_path,
+            base_path=normalized_legacy_base,
         )
-        self.converted_folder_path = Path(target_file_folder)
+        self.converted_folder_path = Path(normalized_target_base)
         self.converted_database_file_path = horde_model_reference_paths.get_model_reference_file_path(
             model_reference_category=model_reference_category,
-            base_path=target_file_folder,
+            base_path=normalized_target_base,
         )
         self.debug_mode = debug_mode
         self.log_folder = Path(log_folder)
@@ -135,6 +139,16 @@ class BaseLegacyConverter:
 
     def _load_and_validate_legacy_records(self) -> None:
         """Load and validate all legacy records using Pydantic models."""
+        # Check if file exists and is not empty
+        if not self.legacy_database_path.exists():
+            logger.debug(f"Legacy database file {self.legacy_database_path} does not exist, skipping conversion")
+            return
+
+        file_size = self.legacy_database_path.stat().st_size
+        if file_size == 0:
+            logger.debug(f"Legacy database file {self.legacy_database_path} is empty, skipping conversion")
+            return
+
         with open(self.legacy_database_path) as legacy_model_reference_file:
             raw_legacy_json_data: dict[str, dict[str, Any]] = json.load(legacy_model_reference_file)
 
@@ -596,6 +610,77 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             model_reference_category=MODEL_REFERENCE_CATEGORY.text_generation,
             debug_mode=debug_mode,
         )
+
+    @override
+    def _load_and_validate_legacy_records(self) -> None:
+        """Load and validate legacy text generation records from CSV format.
+
+        Overrides base class to read CSV instead of JSON for text_generation category.
+
+        IMPORTANT: This is the ONLY converter that reads CSV format. All other categories
+        use JSON for legacy files. The CSV has these columns:
+        - name, parameters_bn (billions), description, version, style, nsfw, baseline,
+          url, tags (comma-separated), settings (JSON string), display_name
+
+        The converter transforms CSV → internal dict → Pydantic validation → v2 JSON output.
+        Output is ALWAYS JSON format (text_generation.json), never CSV.
+
+        Note: parameters_bn is converted to integer parameters (billions * 1,000,000,000)
+        """
+        # Check if file exists and is not empty
+        if not self.legacy_database_path.exists():
+            logger.debug(f"Legacy database file {self.legacy_database_path} does not exist, skipping conversion")
+            return
+
+        file_size = self.legacy_database_path.stat().st_size
+        if file_size == 0:
+            logger.debug(f"Legacy database file {self.legacy_database_path} is empty, skipping conversion")
+            return
+
+        parsed_rows, parse_issues = parse_legacy_text_csv(self.legacy_database_path)
+        for issue in parse_issues:
+            self.add_validation_error_to_log(model_record_key=issue.row_identifier, error=issue.message)
+
+        logger.debug(f"Loaded {len(parsed_rows)} records from CSV")
+
+        # Now validate with Pydantic models (same as base class)
+        for csv_row in parsed_rows:
+            model_payload = {
+                "name": csv_row.name,
+                "description": csv_row.description,
+                "version": csv_row.version,
+                "style": csv_row.style,
+                "nsfw": csv_row.nsfw,
+                "baseline": csv_row.baseline,
+                "url": csv_row.url,
+                "tags": csv_row.tags,
+                "settings": csv_row.settings,
+                "display_name": csv_row.display_name,
+                "parameters": csv_row.parameters,
+            }
+
+            validation_issues: list[str] = []
+            validation_context = {
+                "issues": validation_issues,
+                "model_key": csv_row.name,
+                "debug_mode": self.debug_mode,
+                "category": self.model_reference_category,
+                "host_counter": self._host_counter,
+            }
+
+            if hasattr(self, "existing_showcase_files"):
+                validation_context["existing_showcase_files"] = self.existing_showcase_files
+
+            try:
+                legacy_record = self.model_reference_type.model_validate(model_payload, context=validation_context)
+                self._all_legacy_records[csv_row.name] = legacy_record
+                if validation_issues:
+                    for validation_issue in validation_issues:
+                        self.add_validation_error_to_log(model_record_key=csv_row.name, error=validation_issue)
+            except ValidationError as e:
+                error = f"CRITICAL: Error parsing {csv_row.name}:\n{e}"
+                self.add_validation_error_to_log(model_record_key=csv_row.name, error=error)
+                raise
 
     @override
     def _convert_single_record(
