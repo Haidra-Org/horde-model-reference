@@ -282,10 +282,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
             # Extract tags and remove auto-generated ones
             tags = record.get("tags", [])
-            if isinstance(tags, list):
-                tags_set = set(tags)
-            else:
-                tags_set = set()
+            tags_set = set(tags) if isinstance(tags, list) else set()
 
             # Remove style tag
             style = record.get("style")
@@ -666,14 +663,13 @@ class FileSystemBackend(ReplicaBackendBase):
                 file_path.parent.mkdir(parents=True, exist_ok=True)
 
             # For text_generation, filter out backend prefix entries before updating
-            if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                if has_legacy_text_backend_prefix(model_name):
-                    logger.warning(
-                        f"Attempted to update backend-prefixed model {model_name} in text_generation. "
-                        "Backend prefixes are not stored internally - update the base model instead."
-                    )
-                    # Don't raise an error, just skip the update
-                    return
+            if category == MODEL_REFERENCE_CATEGORY.text_generation and has_legacy_text_backend_prefix(model_name):
+                logger.warning(
+                    f"Attempted to update backend-prefixed model {model_name} in text_generation. "
+                    "Backend prefixes are not stored internally - update the base model instead."
+                )
+                # Don't raise an error, just skip the update
+                return
 
             # Determine if this is a create or update operation
             is_update = model_name in existing_data
