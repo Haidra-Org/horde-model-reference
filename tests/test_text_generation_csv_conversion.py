@@ -27,7 +27,6 @@ import pytest
 from horde_model_reference import horde_model_reference_paths
 from horde_model_reference.legacy.classes.legacy_converters import LegacyTextGenerationConverter
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
-from horde_model_reference.model_reference_records import TextGenerationModelRecord
 
 
 class TestTextGenerationCSVConversion:
@@ -160,7 +159,6 @@ class TestTextGenerationCSVConversion:
                 break
 
         assert model_record is not None, "Could not find test-model-1 in converted records"
-        assert isinstance(model_record, TextGenerationModelRecord)
 
         # Check fields
         assert model_record.description == "A test model"
@@ -169,9 +167,9 @@ class TestTextGenerationCSVConversion:
         assert model_record.nsfw is False
         assert model_record.baseline == "test-baseline"
         assert model_record.url == "https://example.com/model1"
-        assert "tag1" in model_record.tags
-        assert "tag2" in model_record.tags
-        assert "tag3" in model_record.tags
+        assert model_record.tags is not None and "tag1" in model_record.tags
+        assert model_record.tags is not None and "tag2" in model_record.tags
+        assert model_record.tags is not None and "tag3" in model_record.tags
         assert model_record.settings == {"temperature": 0.7}
         assert model_record.display_name == "Test Model 1"
 

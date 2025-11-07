@@ -580,7 +580,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
             if category == MODEL_REFERENCE_CATEGORY.text_generation:
                 legacy_file_path, is_csv = self._resolve_legacy_text_generation_path()
-                target_write_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                horde_model_reference_paths.get_legacy_model_reference_file_path(
                     category,
                     base_path=self.base_path,
                 )
@@ -589,7 +589,6 @@ class FileSystemBackend(ReplicaBackendBase):
                     category,
                     base_path=self.base_path,
                 )
-                target_write_path = legacy_file_path
                 is_csv = False
 
             if not legacy_file_path.exists():
