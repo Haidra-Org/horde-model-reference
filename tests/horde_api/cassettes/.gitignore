@@ -1,6 +1,0 @@
-# VCR Cassettes
-# Uncomment the following lines if you want to ignore cassettes
-# (usually cassettes should be committed for reproducible tests)
-
-*.yaml
-*.json

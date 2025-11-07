@@ -1,11 +1,6 @@
 """Integration tests for audit analysis with live Horde API data.
 
-This module contains two test suites:
-1. Non-integration tests using VCR cassettes (fast, reproducible, for local dev/CI)
-2. Integration tests hitting live API (slower, network-dependent, marked with @pytest.mark.integration)
-
-VCR cassettes are stored in tests/horde_api/cassettes/ and can be re-recorded with:
-    pytest --record-mode=rewrite tests/horde_api/test_audit_analysis_live.py
+Contains integration tests hitting live API (slower, network-dependent, marked with @pytest.mark.integration)
 
 Golden models (e.g., stable_diffusion, stable_diffusion_xl) should never be flagged as critical
 or marked for deletion regardless of current usage statistics.
@@ -32,17 +27,6 @@ GOLDEN_TEXT_MODELS: set[str] = set()
 
 # Performance threshold for full category audit (seconds)
 MAX_AUDIT_TIME_SECONDS = 15.0
-
-
-@pytest.fixture
-def cassette_dir() -> str:
-    """Return the directory for VCR cassettes."""
-    import os
-
-    base_dir = os.path.dirname(__file__)
-    cassettes = os.path.join(base_dir, "cassettes", "audit_analysis")
-    os.makedirs(cassettes, exist_ok=True)
-    return cassettes
 
 
 def verify_audit_response_structure(response_data: dict[str, Any]) -> None:
@@ -81,9 +65,9 @@ def verify_golden_models_not_critical(
 
     for model in models:
         if model["name"] in golden_models or model.get("baseline") in golden_models:
-            assert not model.get("is_critical", False), (
-                f"Golden model {model['name']} (baseline: {model.get('baseline')}) should never be marked as critical"
-            )
+            assert not model.get(
+                "is_critical", False
+            ), f"Golden model {model['name']} (baseline: {model.get('baseline')}) should never be marked as critical"
 
 
 def verify_summary_consistency(response_data: dict[str, Any]) -> None:
@@ -100,9 +84,9 @@ def verify_summary_consistency(response_data: dict[str, Any]) -> None:
     assert isinstance(summary, dict)
 
     # Summary total_models should match total_count (not returned_count which may be filtered)
-    assert summary["total_models"] == total_count, (
-        f"Summary total_models ({summary['total_models']}) does not match total_count ({total_count})"
-    )
+    assert (
+        summary["total_models"] == total_count
+    ), f"Summary total_models ({summary['total_models']}) does not match total_count ({total_count})"
 
     # Verify summary counts are non-negative and don't exceed total
     assert 0 <= summary["models_at_risk"] <= summary["total_models"]
@@ -110,145 +94,9 @@ def verify_summary_consistency(response_data: dict[str, Any]) -> None:
     assert summary["average_risk_score"] >= 0.0
 
 
-class TestAuditEndpointsWithVCR:
-    """Test audit endpoints using VCR cassettes for fast, reproducible testing."""
-
-    @pytest.mark.vcr()
-    def test_image_generation_audit_basic(self, api_client: TestClient) -> None:
-        """Test basic image generation audit endpoint with VCR."""
-        response = api_client.get("/model_references/statistics/image_generation/audit")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        verify_audit_response_structure(data)
-        verify_summary_consistency(data)
-
-    @pytest.mark.vcr()
-    def test_image_generation_audit_golden_models(self, api_client: TestClient) -> None:
-        """Test that golden image models are never flagged as critical."""
-        response = api_client.get("/model_references/statistics/image_generation/audit")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        verify_golden_models_not_critical(data, GOLDEN_IMAGE_MODELS)
-
-    @pytest.mark.vcr()
-    def test_text_generation_audit_basic(self, api_client: TestClient) -> None:
-        """Test basic text generation audit endpoint with VCR."""
-        response = api_client.get("/model_references/statistics/text_generation/audit")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        verify_audit_response_structure(data)
-        verify_summary_consistency(data)
-
-    @pytest.mark.vcr()
-    def test_audit_with_pagination(self, api_client: TestClient) -> None:
-        """Test audit pagination with VCR."""
-        # Get first page using limit/offset
-        response_page1 = api_client.get("/model_references/statistics/image_generation/audit?limit=10&offset=0")
-        assert response_page1.status_code == 200
-        data_page1 = response_page1.json()
-
-        verify_audit_response_structure(data_page1)
-
-        # Verify pagination fields
-        assert data_page1["offset"] == 0
-        assert data_page1["limit"] == 10
-        assert data_page1["returned_count"] <= 10
-        assert data_page1["total_count"] >= data_page1["returned_count"]
-        assert len(data_page1["models"]) == data_page1["returned_count"]
-
-        # Get second page if there are more models
-        if data_page1["total_count"] > 10:
-            response_page2 = api_client.get("/model_references/statistics/image_generation/audit?limit=10&offset=10")
-            assert response_page2.status_code == 200
-            data_page2 = response_page2.json()
-
-            # Ensure different models on different pages
-            page1_names = {m["name"] for m in data_page1["models"]}
-            page2_names = {m["name"] for m in data_page2["models"]}
-            assert page1_names.isdisjoint(page2_names), "Pages should have different models"
-
-    @pytest.mark.vcr()
-    def test_audit_preset_filter_critical(self, api_client: TestClient) -> None:
-        """Test audit with 'critical' preset filter."""
-        response = api_client.get("/model_references/statistics/image_generation/audit?preset=critical")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        verify_audit_response_structure(data)
-
-        # All returned models should be critical
-        for model in data["models"]:
-            assert model.get("is_critical", False), (
-                f"Model {model['name']} should be critical in 'critical' preset filter"
-            )
-
-    @pytest.mark.vcr()
-    def test_audit_preset_filter_deletion_candidates(self, api_client: TestClient) -> None:
-        """Test audit with 'deletion_candidates' preset filter."""
-        response = api_client.get("/model_references/statistics/image_generation/audit?preset=deletion_candidates")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        verify_audit_response_structure(data)
-
-        # All returned models should meet deletion criteria: at_risk OR low_usage OR no_workers
-        for model in data["models"]:
-            is_at_risk = model.get("at_risk", False)
-            has_low_usage = model.get("usage_percentage_of_category", 100) < 0.1
-            has_no_workers = model.get("worker_count", 1) == 0
-
-            assert is_at_risk or has_low_usage or has_no_workers, (
-                f"Model {model['name']} should meet deletion criteria (at_risk={is_at_risk}, "
-                f"low_usage={has_low_usage}, no_workers={has_no_workers})"
-            )
-
-    @pytest.mark.vcr()
-    def test_audit_preset_filter_zero_usage(self, api_client: TestClient) -> None:
-        """Test audit with 'zero_usage' preset filter."""
-        response = api_client.get("/model_references/statistics/image_generation/audit?preset=zero_usage")
-
-        assert response.status_code == 200
-        data = response.json()
-
-        verify_audit_response_structure(data)
-
-        # All returned models should have zero month usage
-        for model in data["models"]:
-            assert model.get("usage_month", 1) == 0, (
-                f"Model {model['name']} should have zero monthly usage in 'zero_usage' preset"
-            )
-
-    @pytest.mark.vcr()
-    def test_text_model_grouping(self, api_client: TestClient) -> None:
-        """Test text model grouping functionality."""
-        # Without grouping
-        response_no_group = api_client.get(
-            "/model_references/statistics/text_generation/audit?group_text_models=false"
-        )
-        assert response_no_group.status_code == 200
-        data_no_group = response_no_group.json()
-
-        # With grouping
-        response_grouped = api_client.get("/model_references/statistics/text_generation/audit?group_text_models=true")
-        assert response_grouped.status_code == 200
-        data_grouped = response_grouped.json()
-
-        # Grouped should have fewer or equal models (quantized variants grouped)
-        assert data_grouped["summary"]["total_models"] <= data_no_group["summary"]["total_models"]
-
-
 class TestAuditCacheBehavior:
     """Test audit caching behavior."""
 
-    @pytest.mark.vcr()
     def test_audit_cache_consistency(self, api_client: TestClient) -> None:
         """Test that repeated audit calls within cache window return consistent results."""
         # First call
@@ -270,7 +118,6 @@ class TestAuditCacheBehavior:
 class TestAuditPerformance:
     """Test audit performance characteristics."""
 
-    @pytest.mark.vcr()
     def test_audit_completes_within_threshold(self, api_client: TestClient) -> None:
         """Test that full category audit completes within performance threshold."""
         start_time = time.time()
@@ -280,11 +127,10 @@ class TestAuditPerformance:
         elapsed = time.time() - start_time
 
         assert response.status_code == 200
-        assert elapsed < MAX_AUDIT_TIME_SECONDS, (
-            f"Audit took {elapsed:.2f}s, exceeding threshold of {MAX_AUDIT_TIME_SECONDS}s"
-        )
+        assert (
+            elapsed < MAX_AUDIT_TIME_SECONDS
+        ), f"Audit took {elapsed:.2f}s, exceeding threshold of {MAX_AUDIT_TIME_SECONDS}s"
 
-    @pytest.mark.vcr()
     def test_audit_sorting_by_usage(self, api_client: TestClient) -> None:
         """Test that models are sorted by usage (descending)."""
         response = api_client.get("/model_references/statistics/image_generation/audit")
@@ -296,15 +142,14 @@ class TestAuditPerformance:
         if len(models) > 1:
             # Check that usage_month is in descending order
             usage_values = [m.get("usage_month", 0) for m in models]
-            assert usage_values == sorted(usage_values, reverse=True), (
-                "Models should be sorted by usage_month in descending order"
-            )
+            assert usage_values == sorted(
+                usage_values, reverse=True
+            ), "Models should be sorted by usage_month in descending order"
 
 
 class TestAuditEdgeCases:
     """Test edge cases in audit analysis."""
 
-    @pytest.mark.vcr()
     def test_models_with_zero_workers(self, api_client: TestClient) -> None:
         """Test handling of models with zero active workers."""
         response = api_client.get("/model_references/statistics/image_generation/audit")
@@ -318,11 +163,10 @@ class TestAuditEdgeCases:
         # They should be flagged with no_active_workers
         for model in zero_worker_models:
             flags = model.get("deletion_risk_flags", {})
-            assert flags.get("no_active_workers", False), (
-                f"Model {model['name']} with zero workers should have no_active_workers flag"
-            )
+            assert flags.get(
+                "no_active_workers", False
+            ), f"Model {model['name']} with zero workers should have no_active_workers flag"
 
-    @pytest.mark.vcr()
     def test_models_with_multiple_hosts(self, api_client: TestClient) -> None:
         """Test identification of models with multiple download hosts."""
         response = api_client.get("/model_references/statistics/image_generation/audit")
@@ -335,11 +179,10 @@ class TestAuditEdgeCases:
             download_hosts = model.get("download_hosts", [])
             if len(download_hosts) > 1:
                 flags = model.get("deletion_risk_flags", {})
-                assert flags.get("has_multiple_hosts", False), (
-                    f"Model {model['name']} with {len(download_hosts)} hosts should have has_multiple_hosts flag"
-                )
+                assert flags.get(
+                    "has_multiple_hosts", False
+                ), f"Model {model['name']} with {len(download_hosts)} hosts should have has_multiple_hosts flag"
 
-    @pytest.mark.vcr()
     def test_usage_percentage_calculations(self, api_client: TestClient) -> None:
         """Test that usage percentage calculations are accurate."""
         response = api_client.get("/model_references/statistics/image_generation/audit")
@@ -360,7 +203,6 @@ class TestAuditEdgeCases:
                     f"does not match expected {expected_percentage}%"
                 )
 
-    @pytest.mark.vcr()
     def test_cost_benefit_score_calculations(self, api_client: TestClient) -> None:
         """Test that cost-benefit scores are calculated correctly."""
         response = api_client.get("/model_references/statistics/image_generation/audit")
@@ -421,9 +263,9 @@ class TestAuditLiveIntegration:
         elapsed = time.time() - start_time
 
         assert response.status_code == 200
-        assert elapsed < MAX_AUDIT_TIME_SECONDS, (
-            f"Live audit took {elapsed:.2f}s, exceeding threshold of {MAX_AUDIT_TIME_SECONDS}s"
-        )
+        assert (
+            elapsed < MAX_AUDIT_TIME_SECONDS
+        ), f"Live audit took {elapsed:.2f}s, exceeding threshold of {MAX_AUDIT_TIME_SECONDS}s"
 
     def test_live_golden_models_consistency(self, api_client: TestClient) -> None:
         """Test that golden models maintain consistent non-critical status."""

@@ -25,6 +25,19 @@ LEGACY_REFERENCE_FOLDER_NAME: str = "legacy"
 """The default name of the legacy model reference folder.
 If you need the default path, use `LEGACY_REFERENCE_FOLDER`."""
 
+
+def normalize_legacy_base_path(path: str | Path) -> Path:
+    """Return the canonical base path for legacy data.
+
+    Accepts either the project base directory or the ``legacy/`` directory itself and
+    always returns the base directory so callers can safely append ``legacy/`` once.
+    """
+    candidate = Path(path)
+    if candidate.name == LEGACY_REFERENCE_FOLDER_NAME:
+        return candidate.parent
+    return candidate
+
+
 DEFAULT_SHOWCASE_FOLDER_NAME: str = "showcase"
 """The default name of the stable diffusion showcase folder. If you need the path, use `SHOWCASE_FOLDER_PATH`."""
 
@@ -42,6 +55,7 @@ class HordeModelReferencePaths:
     """A helper class to manage local and remote model reference paths."""
 
     model_reference_filenames: dict[MODEL_REFERENCE_CATEGORY, str]
+    legacy_model_reference_filenames: dict[MODEL_REFERENCE_CATEGORY, str]
     legacy_image_model_github_urls: dict[MODEL_REFERENCE_CATEGORY, str]
     legacy_text_model_github_urls: dict[MODEL_REFERENCE_CATEGORY, str]
 
@@ -113,6 +127,7 @@ class HordeModelReferencePaths:
         HordeModelReferencePaths._initialized = True
 
         self.model_reference_filenames = {}
+        self.legacy_model_reference_filenames = {}
         self.legacy_image_model_github_urls = {}
         self.legacy_text_model_github_urls = {}
 
@@ -125,39 +140,44 @@ class HordeModelReferencePaths:
             self.make_all_model_reference_folders()
 
         self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.image_generation] = "stable_diffusion.json"
-        self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "db.json"
+        self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "text_generation.json"
+
+        # Legacy filenames for GitHub downloads (may differ from v2 filenames)
+        self.legacy_model_reference_filenames[MODEL_REFERENCE_CATEGORY.image_generation] = "stable_diffusion.json"
+        self.legacy_model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "models.csv"
 
         for category in MODEL_REFERENCE_CATEGORY:
-            filename: str | None = None
+            # Set v2 filename if not already set
             if category not in self.model_reference_filenames:
                 filename = f"{category}.json"
                 self.model_reference_filenames[category] = filename
+                logger.trace(f"Generated v2 filename for {category}: {filename}")
             else:
-                filename = self.model_reference_filenames[category]
                 logger.trace(
-                    f"Using fixed filename for {category}: {filename}",
+                    f"Using fixed v2 filename for {category}: {self.model_reference_filenames[category]}",
                 )
+
+            # Set legacy filename if not already set (defaults to same as v2)
+            if category not in self.legacy_model_reference_filenames:
+                self.legacy_model_reference_filenames[category] = self.model_reference_filenames[category]
+
+            # Use legacy filename for GitHub URL composition
+            legacy_filename = self.legacy_model_reference_filenames[category]
             composed_url: str | None = None
             if category in github_image_model_reference_categories:
                 composed_url = urlparse(
-                    horde_model_reference_settings.image_github_repo.compose_full_file_url(filename),
+                    horde_model_reference_settings.image_github_repo.compose_full_file_url(legacy_filename),
                     allow_fragments=False,
                 ).geturl()
                 self.legacy_image_model_github_urls[category] = composed_url
             else:
                 composed_url = urlparse(
-                    horde_model_reference_settings.text_github_repo.compose_full_file_url(filename),
+                    horde_model_reference_settings.text_github_repo.compose_full_file_url(legacy_filename),
                     allow_fragments=False,
                 ).geturl()
                 self.legacy_text_model_github_urls[category] = composed_url
 
             logger.trace(f"Parsed legacy model GitHub URL for {category}: {composed_url}")
-
-        self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "text_generation.csv"
-        logger.trace(
-            f"Renaming {MODEL_REFERENCE_CATEGORY.text_generation}: "
-            f"{self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation]}",
-        )
 
     def make_all_model_reference_folders(self) -> None:
         """Create all model reference folders if they don't already exist."""
@@ -176,6 +196,22 @@ class HordeModelReferencePaths:
             )
             self.model_reference_filenames[model_reference_category] = f"{model_reference_category}.json"
         return self.model_reference_filenames[model_reference_category]
+
+    def _get_legacy_file_name(self, model_reference_category: MODEL_REFERENCE_CATEGORY) -> str:
+        """Get the legacy filename for a category (used in legacy/ folder).
+
+        Args:
+            model_reference_category: The category to get the legacy filename for.
+
+        Returns:
+            str: The legacy filename (e.g., 'models.csv' for text_generation).
+        """
+        if model_reference_category not in self.legacy_model_reference_filenames:
+            # Default to v2 filename if no legacy-specific filename is set
+            self.legacy_model_reference_filenames[model_reference_category] = self._get_file_name(
+                model_reference_category
+            )
+        return self.legacy_model_reference_filenames[model_reference_category]
 
     def get_model_reference_filename(
         self,
@@ -274,7 +310,7 @@ class HordeModelReferencePaths:
             logger.trace("Using default base_path for legacy model reference file path.")
             base_path = self.base_path
 
-        return Path(base_path) / LEGACY_REFERENCE_FOLDER_NAME / self._get_file_name(model_reference_category)
+        return Path(base_path) / LEGACY_REFERENCE_FOLDER_NAME / self._get_legacy_file_name(model_reference_category)
 
     def get_legacy_metadata_file_path(
         self,

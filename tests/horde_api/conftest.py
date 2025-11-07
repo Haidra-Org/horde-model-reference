@@ -12,32 +12,6 @@ from horde_model_reference import ReplicateMode
 from horde_model_reference.model_reference_manager import ModelReferenceManager
 
 
-@pytest.fixture(scope="module")
-def vcr_config() -> dict[str, Any]:
-    """Configure VCR for HTTP interaction recording in audit tests.
-
-    Returns:
-        Configuration dict for pytest-recording
-    """
-    return {
-        # Filter sensitive headers
-        "filter_headers": [
-            ("authorization", "REDACTED"),
-            ("x-api-key", "REDACTED"),
-        ],
-        # Decode compressed responses for readability
-        "decode_compressed_response": True,
-        # Use cassette if exists, record if missing (good for local dev)
-        "record_mode": "once",
-        # Match requests on these criteria
-        "match_on": ["method", "scheme", "host", "port", "path", "query"],
-        # Store cassettes in this directory
-        "cassette_library_dir": "tests/horde_api/cassettes",
-        # Allow playback to be repeated
-        "allow_playback_repeats": True,
-    }
-
-
 @pytest.fixture(scope="module", autouse=True)
 def setup_model_reference_files(tmp_path_factory: pytest.TempPathFactory) -> Generator[Path, None, None]:
     """Set up model reference files for audit tests using GitHub seeding.

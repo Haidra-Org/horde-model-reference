@@ -270,10 +270,11 @@ print(f"Description: {model['description']}")
 
 ## Documentation
 
-- **📖 Full Documentation**: [MkDocs Site](https://haidra-org.github.io/horde-model-reference/) *(coming soon)*
+- **📖 Full Documentation**: [MkDocs Site](https://horde-model-reference.readthedocs.io/en/latest/)
 - **🚀 Deployment Guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
-- **� GitHub Sync (Docker)**: [DOCKER_SYNC.md](DOCKER_SYNC.md) - Optional automated sync to legacy repos
-- **�🔧 API Reference**: Run service and visit `http://localhost:19800/docs` for interactive Swagger UI
+- **🔄 GitHub Sync (Docker)**: [DOCKER_SYNC.md](DOCKER_SYNC.md) - Optional automated sync to legacy repos
+- **📝 Legacy CSV Conversion**: [docs/legacy_csv_conversion.md](docs/legacy_csv_conversion.md) - Text generation CSV format details
+- **🔧 API Reference**: Run service and visit `http://localhost:19800/docs` for interactive Swagger UI
 - **🤝 Contributing**: [.CONTRIBUTING.md](.CONTRIBUTING.md)
 - **🗂️ Project Structure**:
     - `src/horde_model_reference/` - Core library
