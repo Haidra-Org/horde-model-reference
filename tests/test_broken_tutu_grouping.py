@@ -146,8 +146,6 @@ class TestBrokenTutuGrouping:
 
     def test_broken_tutu_v2_entry_structure(self, broken_tutu_csv_file: Path, tmp_path: Path) -> None:
         """Test that each entry has the correct structure matching the expected JSON."""
-        import re
-
         from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv
 
         parsed_rows, _ = parse_legacy_text_csv(broken_tutu_csv_file)
