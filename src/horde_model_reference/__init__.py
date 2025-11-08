@@ -269,6 +269,18 @@ Only used in PRIMARY mode. If True, will download and convert legacy references 
     """Percentage threshold for low usage flag in audit analysis. Default 0.0065% flags bottom ~10% of models. \
 Set lower (e.g., 0.005%) to flag fewer models or higher (e.g., 0.01%) to flag more models."""
 
+    text_gen_low_usage_threshold_percentage: float = 0.02
+    """Low usage threshold for text_generation models (2% - more lenient than image models at 0.65%)."""
+
+    text_gen_ignore_download_hosts: bool = True
+    """Skip download host validation for text_generation models completely."""
+
+    text_gen_critical_usage_threshold: int = 10
+    """Minimum monthly usage for text_generation to be flagged as critical (allows some usage)."""
+
+    text_gen_critical_worker_threshold: int = 1
+    """Minimum worker count for text_generation to be flagged as critical (allows some workers)."""
+
     @model_validator(mode="after")
     def validate_mode_configuration(self) -> HordeModelReferenceSettings:
         """Validate that settings are appropriate for the configured replication mode."""
