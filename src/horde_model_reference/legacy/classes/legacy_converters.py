@@ -723,6 +723,27 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
 
+    @override
+    def post_parse_records(self) -> None:
+        """Populate text_model_group field for all text generation records."""
+        from horde_model_reference.analytics.text_model_parser import group_text_models_by_base
+
+        # Get all model names
+        model_names = list(self._all_converted_records.keys())
+
+        # Group models by base name
+        grouped_models = group_text_models_by_base(model_names)
+
+        # Update each record with its group name
+        for base_name, group in grouped_models.items():
+            for model_name in group.variants:
+                if model_name in self._all_converted_records:
+                    record = self._all_converted_records[model_name]
+                    if isinstance(record, TextGenerationModelRecord):
+                        record.text_model_group = base_name
+
+        logger.debug(f"Populated text_model_group for {len(self._all_converted_records)} text generation records")
+
 
 class LegacyControlnetConverter(BaseLegacyConverter):
     """Converter for legacy ControlNet model reference records."""

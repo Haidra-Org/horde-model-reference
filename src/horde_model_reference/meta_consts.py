@@ -354,3 +354,58 @@ def has_legacy_text_backend_prefix(model_name: str) -> bool:
         True if the model name has a legacy text backend prefix, False otherwise.
     """
     return any(model_name.startswith(prefix) for prefix in _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES.values())
+
+
+def strip_backend_prefix(model_name: str) -> str:
+    """Strip backend prefix from a model name if present.
+
+    Args:
+        model_name: The model name to strip.
+
+    Returns:
+        The model name without the backend prefix.
+
+    Example:
+        >>> strip_backend_prefix("koboldcpp/Broken-Tutu-24B")
+        "Broken-Tutu-24B"
+        >>> strip_backend_prefix("aphrodite/ReadyArt/Broken-Tutu-24B")
+        "ReadyArt/Broken-Tutu-24B"
+        >>> strip_backend_prefix("ReadyArt/Broken-Tutu-24B")
+        "ReadyArt/Broken-Tutu-24B"
+    """
+    for prefix in _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES.values():
+        if model_name.startswith(prefix):
+            return model_name[len(prefix) :]
+    return model_name
+
+
+def get_model_name_variants(canonical_name: str) -> list[str]:
+    """Get all possible name variants for a canonical model name.
+
+    Given a canonical name like "ReadyArt/Broken-Tutu-24B", returns all possible
+    variants that might appear in the Horde API stats:
+    - Canonical: ReadyArt/Broken-Tutu-24B
+    - Aphrodite: aphrodite/ReadyArt/Broken-Tutu-24B
+    - KoboldCPP: koboldcpp/Broken-Tutu-24B (uses model name only, not org prefix)
+
+    Args:
+        canonical_name: The canonical model name from the model reference.
+
+    Returns:
+        List of all possible name variants, including the canonical name.
+
+    Example:
+        >>> get_model_name_variants("ReadyArt/Broken-Tutu-24B")
+        ["ReadyArt/Broken-Tutu-24B", "aphrodite/ReadyArt/Broken-Tutu-24B", "koboldcpp/Broken-Tutu-24B"]
+    """
+    variants = [canonical_name]
+
+    model_name_only = canonical_name.split("/", 1)[1] if "/" in canonical_name else canonical_name
+
+    for prefix in _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES.values():
+        if prefix == "aphrodite/":
+            variants.append(f"{prefix}{canonical_name}")
+        elif prefix == "koboldcpp/":
+            variants.append(f"{prefix}{model_name_only}")
+
+    return variants
