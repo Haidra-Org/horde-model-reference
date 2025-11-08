@@ -32,6 +32,7 @@ class RouteNames(StrEnum):
     get_reference_info = auto()
     get_reference_names = auto()
     get_reference_by_category = auto()
+    get_text_generation_reference = auto()
     get_single_model = auto()
     image_generation_model = auto()
     text_generation_model = auto()

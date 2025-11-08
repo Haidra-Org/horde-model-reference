@@ -11,6 +11,7 @@ from collections.abc import Iterable
 from pydantic import BaseModel, Field, computed_field
 
 from horde_model_reference.integrations.horde_api_models import (
+    BackendVariation,
     HordeModelStatsResponse,
     HordeModelStatus,
     HordeWorker,
@@ -64,6 +65,10 @@ class CombinedModelStatistics(BaseModel):
     queued: int | None = Field(default=None, description="Number of queued requests")
     usage_stats: UsageStats | None = Field(default=None, description="Usage statistics from Horde")
     worker_summaries: dict[str, WorkerSummary] | None = Field(default=None, description="Workers serving this model")
+    backend_variations: dict[str, BackendVariation] | None = Field(
+        default=None,
+        description="Per-backend statistics for text generation models (e.g., aphrodite, koboldcpp)",
+    )
     worker_count_from_status: int | None = Field(
         default=None,
         description="Worker count from HordeModelStatus (used when worker_summaries not available)",
@@ -76,6 +81,7 @@ def merge_model_with_horde_data(
     horde_status: list[HordeModelStatus] | IndexedHordeModelStatus,
     horde_stats: HordeModelStatsResponse | IndexedHordeModelStats,
     workers: list[HordeWorker] | IndexedHordeWorkers | None = None,
+    include_backend_variations: bool = False,
 ) -> CombinedModelStatistics:
     """Merge a single model reference with Horde runtime data.
 
@@ -88,6 +94,7 @@ def merge_model_with_horde_data(
         horde_status: Model status from Horde API (list or indexed).
         horde_stats: Model statistics from Horde API (response or indexed).
         workers: Optional workers from Horde API (list or indexed).
+        include_backend_variations: If True, include per-backend statistics for text models.
 
     Returns:
         CombinedModelStatistics with runtime fields:
@@ -98,6 +105,7 @@ def merge_model_with_horde_data(
             - queued: Number of queued requests
             - usage_stats: UsageStats with {day, month, total} usage counts
             - worker_summaries: Dict of worker_id -> WorkerSummary (if workers provided)
+            - backend_variations: Dict of backend_name -> BackendVariation (if include_backend_variations=True)
     """
     indexed_status = IndexedHordeModelStatus(horde_status) if isinstance(horde_status, list) else horde_status
     indexed_stats = (
@@ -108,8 +116,42 @@ def merge_model_with_horde_data(
     if workers is not None:
         indexed_workers = IndexedHordeWorkers(workers) if isinstance(workers, list) else workers
 
-    # Extract status data
-    status = indexed_status.get(model_name)
+    # Extract status data (try aggregating across backend variants)
+    backend_variations_data: dict[str, BackendVariation] | None = None
+
+    if include_backend_variations:
+        # Get detailed per-backend status and stats
+        status, status_variations = indexed_status.get_status_with_variations(model_name)
+        (day, month, total), stats_variations = indexed_stats.get_stats_with_variations(model_name)
+
+        # Build backend variations
+        backend_variations_data = {}
+
+        # Combine status and stats variations by backend
+        all_backends = set(status_variations.keys()) | set(stats_variations.keys())
+
+        for backend in all_backends:
+            backend_status = status_variations.get(backend)
+            backend_stats = stats_variations.get(backend, (0, 0, 0))
+
+            if backend_status or backend_stats != (0, 0, 0):
+                backend_variations_data[backend] = BackendVariation(
+                    backend=backend,
+                    variant_name=backend_status.name if backend_status else model_name,
+                    worker_count=backend_status.count if backend_status else 0,
+                    performance=backend_status.performance if backend_status else None,
+                    queued=backend_status.queued if backend_status else None,
+                    queued_jobs=backend_status.jobs if backend_status else None,
+                    eta=backend_status.eta if backend_status else None,
+                    usage_day=backend_stats[0],
+                    usage_month=backend_stats[1],
+                    usage_total=backend_stats[2],
+                )
+    else:
+        # Use existing aggregation method
+        status = indexed_status.get_aggregated_status(model_name)
+        day, month, total = indexed_stats.get_aggregated_stats(model_name)
+
     queued_jobs = status.jobs if status else None
     performance = status.performance if status else None
     eta = status.eta if status else None
@@ -118,11 +160,11 @@ def merge_model_with_horde_data(
 
     # Extract usage stats
     usage_stats = None
-    if indexed_stats.has_stats(model_name):
+    if day > 0 or month > 0 or total > 0:
         usage_stats = UsageStats(
-            day=indexed_stats.get_day(model_name) or 0,
-            month=indexed_stats.get_month(model_name) or 0,
-            total=indexed_stats.get_total(model_name) or 0,
+            day=day,
+            month=month,
+            total=total,
         )
 
     # Extract worker summaries
@@ -149,6 +191,7 @@ def merge_model_with_horde_data(
         queued=queued,
         usage_stats=usage_stats,
         worker_summaries=worker_summaries,
+        backend_variations=backend_variations_data,
         worker_count_from_status=worker_count_from_status,
     )
 
@@ -158,6 +201,7 @@ def merge_category_with_horde_data(
     horde_status: list[HordeModelStatus] | IndexedHordeModelStatus,
     horde_stats: HordeModelStatsResponse | IndexedHordeModelStats,
     workers: list[HordeWorker] | IndexedHordeWorkers | None = None,
+    include_backend_variations: bool = False,
 ) -> dict[str, CombinedModelStatistics]:
     """Merge all models in a category with Horde runtime data.
 
@@ -170,6 +214,7 @@ def merge_category_with_horde_data(
         horde_status: Model status from Horde API (list or indexed).
         horde_stats: Model statistics from Horde API (response or indexed).
         workers: Optional workers from Horde API (list or indexed).
+        include_backend_variations: If True, include per-backend statistics for text models.
 
     Returns:
         Dict of model_name -> CombinedModelStatistics with added runtime fields.
@@ -192,6 +237,7 @@ def merge_category_with_horde_data(
             horde_status=indexed_status,
             horde_stats=indexed_stats,
             workers=indexed_workers,
+            include_backend_variations=include_backend_variations,
         )
 
         all_merged_data[model_name] = merged_data

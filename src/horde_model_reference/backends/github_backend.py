@@ -354,7 +354,7 @@ class GitHubBackend(ReplicaBackendBase):
         try:
             # Handle CSV format for text_generation
             if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                data = self._read_legacy_csv_to_dict(file_path)
+                data: dict[str, Any] = self._read_legacy_csv_to_dict(file_path)
                 # For CSV, we store the dict and generate a JSON string for cache
                 content_str = ujson.dumps(data, escape_forward_slashes=False, indent=4)
                 self._store_legacy_in_cache(category, data, content_str)

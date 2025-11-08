@@ -185,9 +185,22 @@ def normalize_model_name(model_name: str) -> str:
     return normalized.strip("_")
 
 
+@dataclass
+class TextModelGroup:
+    """Represents a group of text model variants sharing the same base model.
+
+    Attributes:
+        base_name: The base model name.
+        variants: List of full model names that are variants of the base model.
+    """
+
+    base_name: str
+    variants: list[str]
+
+
 def group_text_models_by_base(
     model_names: list[str],
-) -> dict[str, list[str]]:
+) -> dict[str, TextModelGroup]:
     """Group text model names by their base model.
 
     Groups variants of the same model together based on extracted base names.
@@ -224,7 +237,13 @@ def group_text_models_by_base(
 
     logger.debug(f"Grouped {len(model_names)} models into {len(grouped)} base models")
 
-    return grouped
+    return {
+        base_name: TextModelGroup(
+            base_name=base_name,
+            variants=variants,
+        )
+        for base_name, variants in grouped.items()
+    }
 
 
 @lru_cache(maxsize=2048)

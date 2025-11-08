@@ -261,6 +261,8 @@ class TextGenerationModelRecord(GenericModelRecord):
     url: str | None = None
     tags: list[str] | None = None
     settings: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
+    text_model_group: str | None = None
+    """The base model group name for grouping model variants together."""
 
 
 @register_record_type(MODEL_REFERENCE_CATEGORY.blip)
