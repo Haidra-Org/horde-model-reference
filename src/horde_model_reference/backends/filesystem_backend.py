@@ -121,20 +121,23 @@ class FileSystemBackend(ReplicaBackendBase):
         )
         json_path = csv_path.with_name("text_generation.json")
 
-        if horde_model_reference_settings.canonical_format == "legacy" and (
-            json_path.exists() or not csv_path.exists()
-        ):
-            return json_path, False
+        # If canonical_format is legacy, prefer CSV if it exists, otherwise JSON if it exists
+        if horde_model_reference_settings.canonical_format == "legacy":
+            if csv_path.exists():
+                return csv_path, True
+            if json_path.exists():
+                return json_path, False
 
-        if csv_path.exists():
+            # Neither file exists, default to CSV path
             return csv_path, True
 
+        # Otherwise, prefer CSV if it exists, else JSON if it exists
+        if csv_path.exists():
+            return csv_path, True
         if json_path.exists():
             return json_path, False
 
-        if horde_model_reference_settings.canonical_format == "legacy":
-            return json_path, False
-
+        # Default to CSV path if nothing exists
         return csv_path, True
 
     @override
@@ -580,10 +583,6 @@ class FileSystemBackend(ReplicaBackendBase):
 
             if category == MODEL_REFERENCE_CATEGORY.text_generation:
                 legacy_file_path, is_csv = self._resolve_legacy_text_generation_path()
-                horde_model_reference_paths.get_legacy_model_reference_file_path(
-                    category,
-                    base_path=self.base_path,
-                )
             else:
                 legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
                     category,
@@ -719,8 +718,7 @@ class FileSystemBackend(ReplicaBackendBase):
     ) -> None:
         """Update or create a model reference.
 
-        For text_generation category, modifies the CSV file on disk atomically.
-        For other categories, modifies the JSON file on disk atomically.
+        Modifies the JSON file on disk atomically for all categories (v2 format is always JSON).
         Preserves created_at and created_by metadata on updates.
 
         Args:
@@ -742,17 +740,19 @@ class FileSystemBackend(ReplicaBackendBase):
             if not file_path:
                 raise FileNotFoundError(f"No file path configured for category {category}")
 
-            # Read existing data (CSV for text_generation, JSON for others)
+            # Read existing data (v2 format is always JSON, including text_generation)
             existing_data: dict[str, Any]
             if file_path.exists():
                 try:
                     with open(file_path, encoding="utf-8") as f:
                         existing_data = json.load(f)
-                except json.JSONDecodeError:
-                    if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                        existing_data = self._read_csv_to_dict(file_path)
-                    else:
-                        raise
+                except json.JSONDecodeError as e:
+                    # V2 files should always be valid JSON - surface corruption errors
+                    logger.error(
+                        f"Invalid JSON in v2 file {file_path}. This indicates data corruption. "
+                        f"V2 format is always JSON, including text_generation.json. Error: {e}"
+                    )
+                    raise
                 except Exception as e:
                     logger.error(f"Failed to read {file_path}: {e}")
                     raise
@@ -788,7 +788,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
             temp_path = file_path.with_suffix(f".tmp.{time.time()}")
             try:
-                # Write to temp file (CSV for text_generation, JSON for others)
+                # Write to temp file (v2 format is always JSON)
                 with open(temp_path, "w", encoding="utf-8") as f:
                     json.dump(existing_data, f, indent=2, ensure_ascii=False)
                     f.flush()
@@ -839,8 +839,8 @@ class FileSystemBackend(ReplicaBackendBase):
     ) -> None:
         """Delete a model reference.
 
-        For text_generation category, removes the model from the CSV file on disk atomically.
-        For other categories, removes the model from the JSON file on disk atomically.
+        Removes the model from the JSON file on disk atomically for all categories
+        (v2 format is always JSON).
 
         Args:
             category: The category containing the model.
@@ -860,15 +860,17 @@ class FileSystemBackend(ReplicaBackendBase):
             if not file_path or not file_path.exists():
                 raise FileNotFoundError(f"Category file not found: {file_path}")
 
-            # Read existing data (CSV for text_generation, JSON for others)
+            # Read existing data (v2 format is always JSON, including text_generation)
             try:
                 with open(file_path, encoding="utf-8") as f:
                     existing_data = json.load(f)
-            except json.JSONDecodeError:
-                if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                    existing_data = self._read_csv_to_dict(file_path)
-                else:
-                    raise
+            except json.JSONDecodeError as e:
+                # V2 files should always be valid JSON - surface corruption errors
+                logger.error(
+                    f"Invalid JSON in v2 file {file_path}. This indicates data corruption. "
+                    f"V2 format is always JSON, including text_generation.json. Error: {e}"
+                )
+                raise
             except Exception as e:
                 logger.error(f"Failed to read {file_path}: {e}")
                 raise
@@ -880,7 +882,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
             temp_path = file_path.with_suffix(f".tmp.{time.time()}")
             try:
-                # Write to temp file (CSV for text_generation, JSON for others)
+                # Write to temp file (v2 format is always JSON)
                 with open(temp_path, "w", encoding="utf-8") as f:
                     json.dump(existing_data, f, indent=2, ensure_ascii=False)
                     f.flush()
