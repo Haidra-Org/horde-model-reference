@@ -154,16 +154,12 @@ class TestBrokenTutuGrouping:
 
         # Process the first row (Broken-Tutu-24B-Unslop-v2.0)
         csv_row = parsed_rows[0]
-        name = csv_row.name
-        model_name = name.split("/")[1] if "/" in name else name
 
         # Build expected structure
         tags = set(csv_row.tags)
         if csv_row.style:
             tags.add(csv_row.style)
         tags.add("24B")  # Parameter size tag
-
-        re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
 
         expected_base = {
             "name": "ReadyArt/Broken-Tutu-24B-Unslop-v2.0",
