@@ -12,7 +12,7 @@ def test_endpoint(include_group: bool, endpoint: str) -> None:
     if endpoint == "text_generation":
         url += f"?include_group={str(include_group).lower()}"
 
-    print(f"\n{'='*80}")
+    print(f"\n{'=' * 80}")
     print(f"Testing: {url}")
     print("=" * 80)
 
