@@ -1,7 +1,6 @@
 """Test script for the new text_generation endpoint."""
 
 import requests
-import json
 
 BASE_URL = "http://localhost:19800/api/model_references/v1"
 
@@ -23,7 +22,7 @@ def test_endpoint(include_group: bool, endpoint: str) -> None:
         data = response.json()
         if data:
             # Get first model
-            first_model_name = list(data.keys())[0]
+            first_model_name = next(iter(data.keys()))
             first_model = data[first_model_name]
 
             print(f"\nFirst Model: {first_model_name}")
