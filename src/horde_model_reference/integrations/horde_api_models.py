@@ -75,6 +75,26 @@ class HordeModelUsageStats(BaseModel):
     total: int = Field(description="All-time usage count")
 
 
+class BackendVariation(BaseModel):
+    """Per-backend statistics for a text generation model variant.
+
+    This tracks statistics for a specific backend (e.g., 'aphrodite' or 'koboldcpp')
+    serving a particular model. Used to show backend-specific details in the UI
+    while still providing aggregated totals at the model level.
+    """
+
+    backend: str = Field(description="Backend name (e.g., 'aphrodite', 'koboldcpp', or 'canonical' for non-prefixed)")
+    variant_name: str = Field(description="Full model name as reported by Horde API (may include backend prefix)")
+    worker_count: int = Field(description="Number of workers serving this backend variant")
+    performance: float | None = Field(default=None, description="Performance metric for this variant")
+    queued: int | None = Field(default=None, description="Number of queued requests for this variant")
+    queued_jobs: int | None = Field(default=None, description="Number of active jobs for this variant")
+    eta: int | None = Field(default=None, description="Estimated time to completion for this variant")
+    usage_day: int = Field(default=0, description="Usage count for the past day")
+    usage_month: int = Field(default=0, description="Usage count for the past month")
+    usage_total: int = Field(default=0, description="All-time usage count")
+
+
 class HordeWorkerTeam(BaseModel):
     """Worker team information."""
 
@@ -134,6 +154,79 @@ class IndexedHordeModelStatus(RootModel[dict[str, HordeModelStatus]]):
         """
         return list(self.root.values())
 
+    def get_aggregated_status(self, canonical_name: str) -> HordeModelStatus | None:
+        """Get aggregated status across all backend variants of a model.
+
+        This method aggregates status from all possible backend-prefixed variants,
+        taking the maximum worker count (count field) and the first non-None value
+        for other fields.
+
+        Args:
+            canonical_name: The canonical model name from the model reference.
+
+        Returns:
+            Aggregated HordeModelStatus or None if no variants have status.
+        """
+        from horde_model_reference.meta_consts import get_model_name_variants
+
+        variants = get_model_name_variants(canonical_name)
+
+        statuses: list[HordeModelStatus] = []
+        for variant in variants:
+            status = self.get(variant)
+            if status is not None:
+                statuses.append(status)
+
+        if not statuses:
+            return None
+
+        return max(statuses, key=lambda s: s.count)
+
+    def get_status_with_variations(
+        self, canonical_name: str
+    ) -> tuple[HordeModelStatus | None, dict[str, HordeModelStatus]]:
+        """Get aggregated status and individual backend variations.
+
+        This method returns both the aggregated status (same as get_aggregated_status)
+        and a dictionary of individual backend statuses keyed by backend name.
+
+        Args:
+            canonical_name: The canonical model name from the model reference.
+
+        Returns:
+            Tuple of (aggregated_status, variations_dict) where:
+            - aggregated_status: Combined status or None if no variants found
+            - variations_dict: Dict of backend_name -> HordeModelStatus
+              Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
+        """
+        from horde_model_reference.meta_consts import get_model_name_variants
+
+        variants = get_model_name_variants(canonical_name)
+        variations: dict[str, HordeModelStatus] = {}
+
+        # Look up each variant and store by backend name
+        for variant in variants:
+            status = self.get(variant)
+            if status is not None:
+                # Determine backend name from variant
+                if variant == canonical_name:
+                    backend_name = "canonical"
+                elif variant.startswith("aphrodite/"):
+                    backend_name = "aphrodite"
+                elif variant.startswith("koboldcpp/"):
+                    backend_name = "koboldcpp"
+                else:
+                    backend_name = "unknown"
+
+                variations[backend_name] = status
+
+        if not variations:
+            return None, {}
+
+        # Aggregate: take max by worker count
+        aggregated = max(variations.values(), key=lambda s: s.count)
+        return aggregated, variations
+
 
 class _StatsLookup(BaseModel):
     """Internal structure for indexed stats lookups."""
@@ -187,6 +280,91 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
         """Check if model has any stats (case-insensitive). O(1)."""
         name_lower = model_name.lower()
         return name_lower in self.root.day or name_lower in self.root.month or name_lower in self.root.total
+
+    def get_aggregated_stats(self, canonical_name: str) -> tuple[int, int, int]:
+        """Get aggregated stats across all backend variants of a model.
+
+        This method aggregates stats from all possible backend-prefixed variants:
+        - Canonical name (e.g., "ReadyArt/Broken-Tutu-24B")
+        - Aphrodite variant (e.g., "aphrodite/ReadyArt/Broken-Tutu-24B")
+        - KoboldCPP variant (e.g., "koboldcpp/Broken-Tutu-24B")
+
+        Args:
+            canonical_name: The canonical model name from the model reference.
+
+        Returns:
+            Tuple of (day_total, month_total, total_total) aggregated across all variants.
+
+        Example:
+            >>> indexed = IndexedHordeModelStats(stats_response)
+            >>> day, month, total = indexed.get_aggregated_stats("ReadyArt/Broken-Tutu-24B")
+        """
+        from horde_model_reference.meta_consts import get_model_name_variants
+
+        variants = get_model_name_variants(canonical_name)
+
+        day_total = 0
+        month_total = 0
+        total_total = 0
+
+        for variant in variants:
+            day_total += self.get_day(variant) or 0
+            month_total += self.get_month(variant) or 0
+            total_total += self.get_total(variant) or 0
+
+        return (day_total, month_total, total_total)
+
+    def get_stats_with_variations(
+        self, canonical_name: str
+    ) -> tuple[tuple[int, int, int], dict[str, tuple[int, int, int]]]:
+        """Get aggregated stats and individual backend variations.
+
+        This method returns both the aggregated stats (same as get_aggregated_stats)
+        and a dictionary of individual backend stats keyed by backend name.
+
+        Args:
+            canonical_name: The canonical model name from the model reference.
+
+        Returns:
+            Tuple of (aggregated_stats, variations_dict) where:
+            - aggregated_stats: (day_total, month_total, total_total) aggregated
+            - variations_dict: Dict of backend_name -> (day, month, total)
+              Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
+        """
+        from horde_model_reference.meta_consts import get_model_name_variants
+
+        variants = get_model_name_variants(canonical_name)
+        variations: dict[str, tuple[int, int, int]] = {}
+
+        day_total = 0
+        month_total = 0
+        total_total = 0
+
+        # Look up each variant and store by backend name
+        for variant in variants:
+            day = self.get_day(variant) or 0
+            month = self.get_month(variant) or 0
+            total = self.get_total(variant) or 0
+
+            # Only store if there's actual data
+            if day > 0 or month > 0 or total > 0:
+                # Determine backend name from variant
+                if variant == canonical_name:
+                    backend_name = "canonical"
+                elif variant.startswith("aphrodite/"):
+                    backend_name = "aphrodite"
+                elif variant.startswith("koboldcpp/"):
+                    backend_name = "koboldcpp"
+                else:
+                    backend_name = "unknown"
+
+                variations[backend_name] = (day, month, total)
+
+            day_total += day
+            month_total += month
+            total_total += total
+
+        return (day_total, month_total, total_total), variations
 
 
 class HordeWorker(BaseModel):

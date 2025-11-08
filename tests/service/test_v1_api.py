@@ -602,6 +602,194 @@ class TestDeleteLegacyModel:
         assert "not found" in response.json()["detail"].lower()
 
 
+class TestTextGenerationEndpoint:
+    """Tests for GET /text_generation endpoint with optional include_group parameter."""
+
+    def test_get_text_generation_success(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+    ) -> None:
+        """GET /text_generation should return text generation models."""
+        test_data = {
+            "model_1": {
+                "name": "model_1",
+                "parameters": 7000000000,
+                "text_model_group": "base_model_1",
+            },
+            "model_2": {
+                "name": "model_2",
+                "parameters": 13000000000,
+                "text_model_group": "base_model_2",
+            },
+        }
+        _create_legacy_json_file(primary_base, MODEL_REFERENCE_CATEGORY.text_generation, test_data)
+
+        response = _make_v1_get_request(api_client, RouteNames.get_text_generation_reference)
+        data = _assert_success_response(response)
+
+        assert "model_1" in data
+        assert "model_2" in data
+
+    def test_get_text_generation_excludes_group_by_default(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+    ) -> None:
+        """GET /text_generation should not include text_model_group by default (legacy format)."""
+        test_data = {
+            "model_without_group": {
+                "name": "model_without_group",
+                "parameters": 7000000000,
+            },
+        }
+        _create_legacy_json_file(primary_base, MODEL_REFERENCE_CATEGORY.text_generation, test_data)
+
+        response = _make_v1_get_request(api_client, RouteNames.get_text_generation_reference)
+        data = _assert_success_response(response)
+
+        assert "model_without_group" in data
+        # Legacy format doesn't include text_model_group
+        assert "text_model_group" not in data["model_without_group"]
+
+    def test_get_text_generation_includes_group_when_requested(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+    ) -> None:
+        """GET /text_generation?include_group=true should compute and add text_model_group."""
+        test_data = {
+            "test-model-8B-v1": {
+                "name": "test-model-8B-v1",
+                "parameters": 8000000000,
+            },
+        }
+        _create_legacy_json_file(primary_base, MODEL_REFERENCE_CATEGORY.text_generation, test_data)
+
+        url = route_registry.url_for(RouteNames.get_text_generation_reference, {}, v1_prefix)
+        response = api_client.get(f"{url}?include_group=true")
+        data = _assert_success_response(response)
+
+        assert "test-model-8B-v1" in data
+        assert "text_model_group" in data["test-model-8B-v1"]
+        # The base name should be computed from the model name (removing size and version)
+        assert data["test-model-8B-v1"]["text_model_group"] == "test-model-v1"
+
+    def test_get_text_generation_explicit_false(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+    ) -> None:
+        """GET /text_generation?include_group=false should not include text_model_group."""
+        test_data = {
+            "model_name": {
+                "name": "model_name",
+                "parameters": 7000000000,
+            },
+        }
+        _create_legacy_json_file(primary_base, MODEL_REFERENCE_CATEGORY.text_generation, test_data)
+
+        url = route_registry.url_for(RouteNames.get_text_generation_reference, {}, v1_prefix)
+        response = api_client.get(f"{url}?include_group=false")
+        data = _assert_success_response(response)
+
+        assert "model_name" in data
+        assert "text_model_group" not in data["model_name"]
+
+    def test_get_text_generation_preserves_other_fields(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+    ) -> None:
+        """GET /text_generation should preserve all other fields when adding text_model_group."""
+        test_data = {
+            "test-model-7B": {
+                "name": "test-model-7B",
+                "parameters": 7000000000,
+                "description": "Test description",
+                "url": "https://example.com/model",
+                "custom_field": "custom_value",
+            },
+        }
+        _create_legacy_json_file(primary_base, MODEL_REFERENCE_CATEGORY.text_generation, test_data)
+
+        url = route_registry.url_for(RouteNames.get_text_generation_reference, {}, v1_prefix)
+        response = api_client.get(f"{url}?include_group=true")
+        data = _assert_success_response(response)
+
+        model = data["test-model-7B"]
+        assert model["name"] == "test-model-7B"
+        assert model["parameters"] == 7000000000
+        assert model["description"] == "Test description"
+        assert model["url"] == "https://example.com/model"
+        assert model["custom_field"] == "custom_value"
+        # text_model_group should be computed and added
+        assert "text_model_group" in model
+        assert model["text_model_group"] == "test-model"
+
+    def test_get_text_generation_handles_missing_field(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+    ) -> None:
+        """GET /text_generation should handle models without text_model_group."""
+        test_data = {
+            "model_without_group": {
+                "name": "model_without_group",
+                "parameters": 7000000000,
+            },
+        }
+        _create_legacy_json_file(primary_base, MODEL_REFERENCE_CATEGORY.text_generation, test_data)
+
+        response = _make_v1_get_request(api_client, RouteNames.get_text_generation_reference)
+        data = _assert_success_response(response)
+
+        assert "model_without_group" in data
+        assert "text_model_group" not in data["model_without_group"]
+
+    def test_get_text_generation_not_found(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+    ) -> None:
+        """GET /text_generation should return 404 when no models exist."""
+        response = _make_v1_get_request(api_client, RouteNames.get_text_generation_reference)
+        _assert_not_found_response(response)
+
+    def test_get_text_generation_empty(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+    ) -> None:
+        """GET /text_generation should return 404 when category is empty."""
+        _create_legacy_json_file(primary_base, MODEL_REFERENCE_CATEGORY.text_generation, {})
+
+        response = _make_v1_get_request(api_client, RouteNames.get_text_generation_reference)
+        _assert_not_found_response(response, "empty")
+
+    def test_get_text_generation_returns_json_content_type(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+    ) -> None:
+        """GET /text_generation should return application/json content type."""
+        test_data = {
+            "model_1": {"name": "model_1", "parameters": 7000000000},
+        }
+        _create_legacy_json_file(primary_base, MODEL_REFERENCE_CATEGORY.text_generation, test_data)
+
+        response = _make_v1_get_request(api_client, RouteNames.get_text_generation_reference)
+        assert response.headers["content-type"] == "application/json"
+
+
 class TestRouteConditionalImport:
     """Tests for conditional import of CRUD routes.
 

@@ -27,6 +27,7 @@ import pytest
 from horde_model_reference import horde_model_reference_paths
 from horde_model_reference.legacy.classes.legacy_converters import LegacyTextGenerationConverter
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.model_reference_records import TextGenerationModelRecord
 
 
 class TestTextGenerationCSVConversion:
@@ -159,6 +160,7 @@ class TestTextGenerationCSVConversion:
                 break
 
         assert model_record is not None, "Could not find test-model-1 in converted records"
+        assert isinstance(model_record, TextGenerationModelRecord), "Model record should be TextGenerationModelRecord"
 
         # Check fields
         assert model_record.description == "A test model"
@@ -246,6 +248,7 @@ class TestTextGenerationCSVConversion:
                 break
 
         assert model is not None
+        assert isinstance(model, TextGenerationModelRecord)
         assert model.name == "minimal-model"
         assert model.parameters_count == 7_000_000_000
         assert model.tags == [] or model.tags is None
@@ -312,6 +315,7 @@ class TestTextGenerationCSVConversion:
                 break
 
         assert model is not None, f"Could not find complex-model. Records: {list(converted_records.keys())}"
+        assert isinstance(model, TextGenerationModelRecord)
         assert model.settings == complex_settings
         assert model.settings["temperature"] == 0.7
         assert model.settings["stop_sequences"] == ["</s>", "[DONE]"]
@@ -432,7 +436,9 @@ class TestTextGenerationCSVConversion:
                 small_model = record
 
         assert large_model is not None
+        assert isinstance(large_model, TextGenerationModelRecord)
         assert large_model.parameters_count == 70_000_000_000
 
         assert small_model is not None
+        assert isinstance(small_model, TextGenerationModelRecord)
         assert small_model.parameters_count == 500_000_000

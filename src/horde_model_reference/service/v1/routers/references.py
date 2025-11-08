@@ -1,11 +1,13 @@
+import json
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 from haidra_core.service_base import ContainsMessage
 
 import horde_model_reference.service.v1.routers.create_update as v1_router_create_update
 from horde_model_reference import ModelReferenceManager
+from horde_model_reference.analytics.text_model_parser import get_base_model_name
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.service.shared import (
     RouteNames,
@@ -81,6 +83,69 @@ async def read_legacy_reference_names(
     Returns a list of all model categories that have legacy format references available.
     """
     return list(manager.backend.get_all_category_file_paths().keys())
+
+
+get_text_generation_reference_route_subpath = "/text_generation"
+"""/text_generation"""
+route_registry.register_route(
+    v1_prefix,
+    RouteNames.get_text_generation_reference,
+    get_text_generation_reference_route_subpath,
+)
+
+
+@router.get(
+    get_text_generation_reference_route_subpath,
+    responses={
+        200: {
+            "description": "All text generation models",
+        },
+        404: {"description": "Text generation models not found or empty"},
+    },
+    summary="Get text generation models with optional grouping field",
+    operation_id="read_legacy_text_generation_reference",
+    tags=["v1"],
+)
+async def read_legacy_text_generation_reference(
+    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    include_group: bool = Query(
+        default=False,
+        description="Include text_model_group field for grouping model variants together",
+    ),
+) -> Response:
+    """Get all text generation models with optional text_model_group field.
+
+    Returns the complete legacy format JSON for text generation models.
+
+    By default, the text_model_group field is not included (legacy format).
+    Set include_group=true to dynamically compute and include the text_model_group
+    field, which contains the base model group name for grouping model variants
+    together (e.g., models with different quantization levels).
+    """
+    raw_json_string = manager.backend.get_legacy_json_string(MODEL_REFERENCE_CATEGORY.text_generation)
+
+    if not raw_json_string or raw_json_string.strip() in ("", "{}", "null"):
+        raise HTTPException(
+            status_code=404,
+            detail="Text generation models not found or empty",
+        )
+
+    # If include_group is True, compute and add text_model_group to each model
+    if include_group:
+        try:
+            models_dict = json.loads(raw_json_string)
+            # Add text_model_group to each model entry by computing base name
+            for model_name, model_data in models_dict.items():
+                base_name = get_base_model_name(model_name)
+                model_data["text_model_group"] = base_name
+            raw_json_string = json.dumps(models_dict)
+        except (json.JSONDecodeError, AttributeError) as e:
+            # If parsing fails, log and return original response
+            from loguru import logger
+
+            logger.warning(f"Failed to parse JSON for text_model_group computation: {e}")
+
+    return Response(content=raw_json_string, media_type="application/json")
 
 
 get_reference_by_category_route_subpath = "/{model_category_name}"
