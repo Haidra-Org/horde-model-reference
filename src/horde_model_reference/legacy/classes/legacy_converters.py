@@ -774,11 +774,16 @@ class LegacyControlnetConverter(BaseLegacyConverter):
 
         model_record_config = self._convert_model_record_config(legacy_record)
 
+        # Legacy controlnet records use 'type' field for the controlnet style
+        # (e.g., control_canny, control_depth, etc.), but some older records
+        # may use the 'style' field instead. Try 'type' first, then fall back to 'style'.
+        controlnet_style = legacy_record.type or legacy_record.style
+
         return ControlNetModelRecord(
             name=legacy_record.name,
             description=legacy_record.description,
             version=legacy_record.version,
             config=model_record_config,
-            controlnet_style=legacy_record.style,
+            controlnet_style=controlnet_style,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
