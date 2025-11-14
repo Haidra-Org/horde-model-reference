@@ -177,6 +177,8 @@ class WatchModeManager:
         logger.info("-" * 80)
 
         watch_iteration = 0
+        last_status_time = time.time()
+        status_update_interval = 300  # Show status update every 5 minutes
 
         while self.running:
             watch_iteration += 1
@@ -208,7 +210,7 @@ class WatchModeManager:
                         logger.error(f"Sync operation raised an exception: {e}")
 
                     logger.info("-" * 80)
-                    logger.info("Resuming watch loop...")
+                    logger.info(f"Waiting for changes every {self.interval_seconds} seconds...")
 
             except Exception as e:
                 logger.error(f"Unexpected error in watch loop: {e}")
@@ -220,7 +222,19 @@ class WatchModeManager:
 
             # Sleep until next check (if still running)
             if self.running:
-                logger.debug(f"Sleeping for {self.interval_seconds} seconds...")
+                current_time = time.time()
+                time_since_last_status = current_time - last_status_time
+
+                # Show periodic status update every 5 minutes (or on first iteration after sync)
+                if time_since_last_status >= status_update_interval or watch_iteration == 1:
+                    logger.info(
+                        f"Still watching for changes every {self.interval_seconds} "
+                        f"seconds (iteration {watch_iteration})..."
+                    )
+                    last_status_time = current_time
+                else:
+                    logger.debug(f"Sleeping for {self.interval_seconds} seconds until next check...")
+
                 try:
                     time.sleep(self.interval_seconds)
                 except KeyboardInterrupt:
