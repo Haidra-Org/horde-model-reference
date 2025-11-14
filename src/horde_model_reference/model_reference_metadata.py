@@ -894,7 +894,11 @@ class MetadataManager:
             metadata = self._read_metadata_file(metadata_path)
 
             if metadata is None:
-                raise RuntimeError(f"V2 metadata for category {category.value} does not exist on disk")
+                # raise RuntimeError(f"V2 metadata for category {category.value} does not exist on disk")
+                logger.warning(f"V2 metadata for category {category.value} does not exist on disk")
+                metadata = self.initialize_v2_metadata(category, "FileSystemBackend")
+                self._write_metadata_file(metadata_path, metadata)
+                logger.debug(f"Initialized v2 metadata for {category.value}")
 
             # Update cache
             self._v2_cache[category] = metadata
