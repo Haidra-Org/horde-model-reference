@@ -10,6 +10,7 @@ from horde_model_reference.legacy.classes.legacy_converters import (
     LegacyStableDiffusionConverter,
     LegacyTextGenerationConverter,
 )
+from horde_model_reference.path_consts import normalize_legacy_base_path
 
 
 def convert_legacy_stable_diffusion_database(
@@ -25,9 +26,12 @@ def convert_legacy_stable_diffusion_database(
     Returns:
         True if the conversion succeeded, False otherwise.
     """
+    base_path = normalize_legacy_base_path(legacy_path)
+    target_base_path = normalize_legacy_base_path(target_path)
+
     sd_converter = LegacyStableDiffusionConverter(
-        legacy_folder_path=legacy_path,
-        target_file_folder=target_path,
+        legacy_folder_path=base_path,
+        target_file_folder=target_base_path,
         debug_mode=False,
     )
     try:
@@ -50,9 +54,12 @@ def convert_legacy_clip_database(
     Returns:
         True if the conversion succeeded, False otherwise.
     """
+    base_path = normalize_legacy_base_path(legacy_path)
+    target_base_path = normalize_legacy_base_path(target_path)
+
     clip_converter = LegacyClipConverter(
-        legacy_folder_path=legacy_path,
-        target_file_folder=target_path,
+        legacy_folder_path=base_path,
+        target_file_folder=target_base_path,
         debug_mode=False,
     )
     try:
@@ -75,9 +82,12 @@ def convert_legacy_text_generation_database(
     Returns:
         True if the conversion succeeded, False otherwise.
     """
+    base_path = normalize_legacy_base_path(legacy_path)
+    target_base_path = normalize_legacy_base_path(target_path)
+
     text_converter = LegacyTextGenerationConverter(
-        legacy_folder_path=legacy_path,
-        target_file_folder=target_path,
+        legacy_folder_path=base_path,
+        target_file_folder=target_base_path,
         debug_mode=False,
     )
     try:
@@ -100,9 +110,12 @@ def convert_legacy_controlnet_database(
     Returns:
         True if the conversion succeeded, False otherwise.
     """
+    base_path = normalize_legacy_base_path(legacy_path)
+    target_base_path = normalize_legacy_base_path(target_path)
+
     controlnet_converter = LegacyControlnetConverter(
-        legacy_folder_path=legacy_path,
-        target_file_folder=target_path,
+        legacy_folder_path=base_path,
+        target_file_folder=target_base_path,
         debug_mode=False,
     )
     try:
@@ -127,21 +140,24 @@ def convert_legacy_database_by_category(
     Returns:
         True if the conversion succeeded, False otherwise.
     """
+    normalized_legacy_path = normalize_legacy_base_path(legacy_path)
+    normalized_target_path = normalize_legacy_base_path(target_path)
+
     if model_category == MODEL_REFERENCE_CATEGORY.image_generation:
-        return convert_legacy_stable_diffusion_database(legacy_path, target_path)
+        return convert_legacy_stable_diffusion_database(normalized_legacy_path, normalized_target_path)
 
     if model_category == MODEL_REFERENCE_CATEGORY.clip:
-        return convert_legacy_clip_database(legacy_path, target_path)
+        return convert_legacy_clip_database(normalized_legacy_path, normalized_target_path)
 
     if model_category == MODEL_REFERENCE_CATEGORY.text_generation:
-        return convert_legacy_text_generation_database(legacy_path, target_path)
+        return convert_legacy_text_generation_database(normalized_legacy_path, normalized_target_path)
 
     if model_category == MODEL_REFERENCE_CATEGORY.controlnet:
-        return convert_legacy_controlnet_database(legacy_path, target_path)
+        return convert_legacy_controlnet_database(normalized_legacy_path, normalized_target_path)
 
     base_converter = BaseLegacyConverter(
-        legacy_folder_path=legacy_path,
-        target_file_folder=target_path,
+        legacy_folder_path=normalized_legacy_path,
+        target_file_folder=normalized_target_path,
         model_reference_category=model_category,
         debug_mode=False,
     )
@@ -167,9 +183,12 @@ def convert_all_legacy_model_references(
     """
     all_succeeded = True
 
+    normalized_legacy_path = normalize_legacy_base_path(legacy_path)
+    normalized_target_path = normalize_legacy_base_path(target_path)
+
     for category in MODEL_REFERENCE_CATEGORY:
         logger.info(f"Converting legacy database for category: {category}")
-        succeeded = convert_legacy_database_by_category(category, legacy_path, target_path)
+        succeeded = convert_legacy_database_by_category(category, normalized_legacy_path, normalized_target_path)
         if not succeeded:
             all_succeeded = False
             logger.error(f"Conversion failed for category: {category}")

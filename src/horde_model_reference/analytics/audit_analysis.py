@@ -123,16 +123,25 @@ class FlagValidatorService:
     def validate_downloads(
         downloads: list[Any] | None,
         preferred_hosts: list[str] | None = None,
+        category: MODEL_REFERENCE_CATEGORY | None = None,
     ) -> tuple[bool, bool, bool, bool]:
         """Validate download URLs and return related flags.
 
         Args:
             downloads: List of download records to validate.
             preferred_hosts: List of preferred file hosts. If None, uses settings.
+            category: Model category - if text_generation and ignore setting is True, returns all False.
 
         Returns:
             Tuple of (no_download_urls, has_multiple_hosts, has_non_preferred_host, has_unknown_host)
         """
+        # Skip download validation for text_generation if configured
+        if (
+            category == MODEL_REFERENCE_CATEGORY.text_generation
+            and horde_model_reference_settings.text_gen_ignore_download_hosts
+        ):
+            return (False, False, False, False)
+
         if preferred_hosts is None:
             preferred_hosts = horde_model_reference_settings.preferred_file_hosts
 
@@ -195,6 +204,7 @@ class FlagValidatorService:
         statistics: CombinedModelStatistics | None,
         category_total_usage: int,
         low_usage_threshold: float | None = None,
+        category: MODEL_REFERENCE_CATEGORY | None = None,
     ) -> tuple[bool, bool, bool, bool, bool]:
         """Validate Horde API statistics and usage data.
 
@@ -202,6 +212,7 @@ class FlagValidatorService:
             statistics: Optional Horde API statistics.
             category_total_usage: Total monthly usage for the category.
             low_usage_threshold: Percentage threshold for low usage. If None, uses settings default.
+            category: Model category for category-specific thresholds.
 
         Returns:
             Tuple of (zero_usage_day, zero_usage_month, zero_usage_total, no_active_workers, low_usage)
@@ -209,9 +220,12 @@ class FlagValidatorService:
         if not statistics:
             return (False, False, False, False, False)
 
-        # Use configured threshold if not provided
+        # Use category-specific threshold for text_generation
         if low_usage_threshold is None:
-            low_usage_threshold = horde_model_reference_settings.low_usage_threshold_percentage
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                low_usage_threshold = horde_model_reference_settings.text_gen_low_usage_threshold_percentage
+            else:
+                low_usage_threshold = horde_model_reference_settings.low_usage_threshold_percentage
 
         # Check for zero workers
         no_active_workers = statistics.worker_count == 0
@@ -422,11 +436,16 @@ class ModelAuditInfo(BaseModel):
     def is_critical(self) -> bool:
         """Determine if model is in critical state.
 
-        Critical = zero month usage AND no active workers.
+        For text_generation: usage_month < threshold AND worker_count < threshold
+        For other models: zero month usage AND no active workers (original logic)
 
         Returns:
             True if model meets critical criteria.
         """
+        if self.category == MODEL_REFERENCE_CATEGORY.text_generation:
+            usage_threshold = horde_model_reference_settings.text_gen_critical_usage_threshold
+            worker_threshold = horde_model_reference_settings.text_gen_critical_worker_threshold
+            return self.usage_month < usage_threshold and self.worker_count < worker_threshold
         return self.deletion_risk_flags.zero_usage_month and self.deletion_risk_flags.no_active_workers
 
     @computed_field  # type: ignore[prop-decorator]
@@ -632,10 +651,16 @@ class ImageGenerationDeletionRiskFlagsHandler(DeletionRiskFlagsHandler):
 
         return (
             DeletionRiskFlagsBuilder()
-            .with_download_flags(*FlagValidatorService.validate_downloads(downloads))
+            .with_download_flags(
+                *FlagValidatorService.validate_downloads(downloads, category=MODEL_REFERENCE_CATEGORY.image_generation)
+            )
             .with_missing_description(FlagValidatorService.validate_description(model_record.description))
             .with_missing_baseline(FlagValidatorService.validate_baseline(model_record.baseline))
-            .with_statistics_flags(*FlagValidatorService.validate_statistics(statistics, category_total_usage))
+            .with_statistics_flags(
+                *FlagValidatorService.validate_statistics(
+                    statistics, category_total_usage, category=MODEL_REFERENCE_CATEGORY.image_generation
+                )
+            )
             .build()
         )
 
@@ -697,10 +722,16 @@ class TextGenerationDeletionRiskFlagsHandler(DeletionRiskFlagsHandler):
 
         return (
             DeletionRiskFlagsBuilder()
-            .with_download_flags(*FlagValidatorService.validate_downloads(downloads))
+            .with_download_flags(
+                *FlagValidatorService.validate_downloads(downloads, category=MODEL_REFERENCE_CATEGORY.text_generation)
+            )
             .with_missing_description(FlagValidatorService.validate_description(model_record.description))
             .with_missing_baseline(FlagValidatorService.validate_baseline(model_record.baseline))
-            .with_statistics_flags(*FlagValidatorService.validate_statistics(statistics, category_total_usage))
+            .with_statistics_flags(
+                *FlagValidatorService.validate_statistics(
+                    statistics, category_total_usage, category=MODEL_REFERENCE_CATEGORY.text_generation
+                )
+            )
             .build()
         )
 

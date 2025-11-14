@@ -498,7 +498,28 @@ def populated_legacy_path(
     minimal_legacy_controlnet_data: dict[str, Any],
     minimal_legacy_text_generation_data: dict[str, Any],
 ) -> Path:
-    """Return a legacy path populated with minimal test JSON files."""
+    """Return a legacy path populated with minimal test files.
+
+    IMPORTANT: This fixture creates files in the legacy/ subdirectory but returns
+    the legacy_path itself (e.g., 'primary/legacy/').
+
+    When using converters, pass primary_base (NOT this populated_legacy_path) to the
+    legacy_folder_path parameter, because converters automatically append '/legacy/'.
+
+    Example:
+        # CORRECT:
+        converter = LegacyTextGenerationConverter(
+            legacy_folder_path=primary_base,  # e.g., 'primary/'
+            target_file_folder=primary_base,
+        )
+
+        # WRONG - results in 'primary/legacy/legacy/' double nesting:
+        converter = LegacyTextGenerationConverter(
+            legacy_folder_path=populated_legacy_path,  # e.g., 'primary/legacy/'
+            target_file_folder=primary_base,
+        )
+    """
+    import csv
     import json
 
     # Create stable_diffusion.json
@@ -516,10 +537,57 @@ def populated_legacy_path(
         json.dumps(minimal_legacy_controlnet_data, indent=2),
     )
 
-    # Create text_generation.json
-    (legacy_path / "text_generation.json").write_text(
-        json.dumps(minimal_legacy_text_generation_data, indent=2),
-    )
+    # Create models.csv for text_generation (CSV format, not JSON like other categories)
+    # IMPORTANT: text_generation is the only category using CSV for legacy format.
+    # The CSV structure matches the format downloaded from GitHub.
+    csv_path = legacy_path / "models.csv"
+    fieldnames = [
+        "name",
+        "parameters_bn",  # Parameters in billions (converted to int in processing)
+        "description",
+        "version",
+        "style",
+        "nsfw",  # String "true"/"false", converted to boolean
+        "baseline",
+        "url",
+        "tags",  # Comma-separated string, converted to list
+        "settings",  # JSON string, converted to dict (flat only, no nested dicts)
+        "display_name",
+    ]
+
+    with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+        # Convert each model from JSON to CSV row
+        for model_name, model_data in minimal_legacy_text_generation_data.items():
+            # Extract parameters_bn from parameters (convert back from integer)
+            params = model_data.get("parameters", 0)
+            params_bn = params / 1_000_000_000 if params else 0
+
+            # Convert tags list to comma-separated string
+            tags = model_data.get("tags", [])
+            tags_str = ",".join(tags) if tags else ""
+
+            # Convert settings dict to JSON string
+            settings = model_data.get("settings")
+            settings_str = json.dumps(settings) if settings else ""
+
+            writer.writerow(
+                {
+                    "name": model_data.get("name", model_name),
+                    "parameters_bn": str(params_bn),
+                    "description": model_data.get("description", ""),
+                    "version": model_data.get("version", ""),
+                    "style": model_data.get("style", ""),
+                    "nsfw": str(model_data.get("nsfw", False)).lower(),
+                    "baseline": model_data.get("baseline", ""),
+                    "url": model_data.get("url", ""),
+                    "tags": tags_str,
+                    "settings": settings_str,
+                    "display_name": model_data.get("display_name", ""),
+                }
+            )
 
     return legacy_path
 
@@ -566,23 +634,3 @@ def pytest_collection_modifyitems(items) -> None:  # type: ignore #  # noqa: ANN
         sorted_items.extend([item for item in items if module_mapping[item] == module])
 
     items[:] = sorted_items
-
-
-# VCR Configuration for API interaction recording/replay
-@pytest.fixture(scope="module")
-def vcr_config() -> dict[str, Any]:
-    """Configure VCR for HTTP interaction recording.
-
-    Returns:
-        Configuration dict for pytest-recording
-    """
-    return {
-        "filter_headers": [
-            ("authorization", "REDACTED"),
-            ("x-api-key", "REDACTED"),
-        ],
-        "decode_compressed_response": True,
-        "record_mode": "once",  # Use cassette if exists, record if missing
-        "match_on": ["method", "scheme", "host", "port", "path", "query"],
-        "cassette_library_dir": "tests/horde_api/cassettes",
-    }

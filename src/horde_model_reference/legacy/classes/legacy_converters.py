@@ -21,6 +21,7 @@ from horde_model_reference.legacy.classes.legacy_models import (
     LegacyStableDiffusionRecord,
     LegacyTextGenerationRecord,
 )
+from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
     ClipModelRecord,
@@ -91,15 +92,18 @@ class BaseLegacyConverter:
         elif model_reference_category == MODEL_REFERENCE_CATEGORY.text_generation:
             self.model_reference_type = LegacyTextGenerationRecord
 
-        self.legacy_folder_path = Path(legacy_folder_path)
-        self.legacy_database_path = horde_model_reference_paths.get_model_reference_file_path(
+        normalized_legacy_base = path_consts.normalize_legacy_base_path(legacy_folder_path)
+        normalized_target_base = path_consts.normalize_legacy_base_path(target_file_folder)
+
+        self.legacy_folder_path = normalized_legacy_base / path_consts.LEGACY_REFERENCE_FOLDER_NAME
+        self.legacy_database_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
             model_reference_category=model_reference_category,
-            base_path=legacy_folder_path,
+            base_path=normalized_legacy_base,
         )
-        self.converted_folder_path = Path(target_file_folder)
+        self.converted_folder_path = Path(normalized_target_base)
         self.converted_database_file_path = horde_model_reference_paths.get_model_reference_file_path(
             model_reference_category=model_reference_category,
-            base_path=target_file_folder,
+            base_path=normalized_target_base,
         )
         self.debug_mode = debug_mode
         self.log_folder = Path(log_folder)
@@ -135,6 +139,16 @@ class BaseLegacyConverter:
 
     def _load_and_validate_legacy_records(self) -> None:
         """Load and validate all legacy records using Pydantic models."""
+        # Check if file exists and is not empty
+        if not self.legacy_database_path.exists():
+            logger.debug(f"Legacy database file {self.legacy_database_path} does not exist, skipping conversion")
+            return
+
+        file_size = self.legacy_database_path.stat().st_size
+        if file_size == 0:
+            logger.debug(f"Legacy database file {self.legacy_database_path} is empty, skipping conversion")
+            return
+
         with open(self.legacy_database_path) as legacy_model_reference_file:
             raw_legacy_json_data: dict[str, dict[str, Any]] = json.load(legacy_model_reference_file)
 
@@ -598,6 +612,77 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
         )
 
     @override
+    def _load_and_validate_legacy_records(self) -> None:
+        """Load and validate legacy text generation records from CSV format.
+
+        Overrides base class to read CSV instead of JSON for text_generation category.
+
+        IMPORTANT: This is the ONLY converter that reads CSV format. All other categories
+        use JSON for legacy files. The CSV has these columns:
+        - name, parameters_bn (billions), description, version, style, nsfw, baseline,
+          url, tags (comma-separated), settings (JSON string), display_name
+
+        The converter transforms CSV → internal dict → Pydantic validation → v2 JSON output.
+        Output is ALWAYS JSON format (text_generation.json), never CSV.
+
+        Note: parameters_bn is converted to integer parameters (billions * 1,000,000,000)
+        """
+        # Check if file exists and is not empty
+        if not self.legacy_database_path.exists():
+            logger.debug(f"Legacy database file {self.legacy_database_path} does not exist, skipping conversion")
+            return
+
+        file_size = self.legacy_database_path.stat().st_size
+        if file_size == 0:
+            logger.debug(f"Legacy database file {self.legacy_database_path} is empty, skipping conversion")
+            return
+
+        parsed_rows, parse_issues = parse_legacy_text_csv(self.legacy_database_path)
+        for issue in parse_issues:
+            self.add_validation_error_to_log(model_record_key=issue.row_identifier, error=issue.message)
+
+        logger.debug(f"Loaded {len(parsed_rows)} records from CSV")
+
+        # Now validate with Pydantic models (same as base class)
+        for csv_row in parsed_rows:
+            model_payload = {
+                "name": csv_row.name,
+                "description": csv_row.description,
+                "version": csv_row.version,
+                "style": csv_row.style,
+                "nsfw": csv_row.nsfw,
+                "baseline": csv_row.baseline,
+                "url": csv_row.url,
+                "tags": csv_row.tags,
+                "settings": csv_row.settings,
+                "display_name": csv_row.display_name,
+                "parameters": csv_row.parameters,
+            }
+
+            validation_issues: list[str] = []
+            validation_context = {
+                "issues": validation_issues,
+                "model_key": csv_row.name,
+                "debug_mode": self.debug_mode,
+                "category": self.model_reference_category,
+                "host_counter": self._host_counter,
+            }
+
+            if hasattr(self, "existing_showcase_files"):
+                validation_context["existing_showcase_files"] = self.existing_showcase_files
+
+            try:
+                legacy_record = self.model_reference_type.model_validate(model_payload, context=validation_context)
+                self._all_legacy_records[csv_row.name] = legacy_record
+                if validation_issues:
+                    for validation_issue in validation_issues:
+                        self.add_validation_error_to_log(model_record_key=csv_row.name, error=validation_issue)
+            except ValidationError as e:
+                error = f"CRITICAL: Error parsing {csv_row.name}:\n{e}"
+                self.add_validation_error_to_log(model_record_key=csv_row.name, error=error)
+                raise
+
+    @override
     def _convert_single_record(
         self,
         legacy_record: LegacyGenericRecord,
@@ -608,15 +693,19 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
 
         model_record_config = self._convert_model_record_config(legacy_record)
 
-        # if has_legacy_text_backend_prefix(legacy_record.name):
-        #     self.add_validation_error_to_log(
-        #         model_record_key=legacy_record.name,
-        #         error=(
-        #             f"Model name '{legacy_record.name}' has a deprecated backend prefix. "
-        #             "Dropping this record as it is necessarily a duplicate."
-        #         ),
-        #     )
-        #     return None
+        # Drop backend-prefixed entries (they are duplicates of base models)
+        # Backend prefixes are only generated during GitHub sync, not stored internally
+        from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
+
+        if has_legacy_text_backend_prefix(legacy_record.name):
+            self.add_validation_error_to_log(
+                model_record_key=legacy_record.name,
+                error=(
+                    f"Model name '{legacy_record.name}' has a backend prefix. "
+                    "Dropping this record as it is a duplicate (backend prefixes are not stored internally)."
+                ),
+            )
+            return None
 
         return TextGenerationModelRecord(
             name=legacy_record.name,
@@ -633,6 +722,27 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             settings=legacy_record.settings,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
+
+    @override
+    def post_parse_records(self) -> None:
+        """Populate text_model_group field for all text generation records."""
+        from horde_model_reference.analytics.text_model_parser import group_text_models_by_base
+
+        # Get all model names
+        model_names = list(self._all_converted_records.keys())
+
+        # Group models by base name
+        grouped_models = group_text_models_by_base(model_names)
+
+        # Update each record with its group name
+        for base_name, group in grouped_models.items():
+            for model_name in group.variants:
+                if model_name in self._all_converted_records:
+                    record = self._all_converted_records[model_name]
+                    if isinstance(record, TextGenerationModelRecord):
+                        record.text_model_group = base_name
+
+        logger.debug(f"Populated text_model_group for {len(self._all_converted_records)} text generation records")
 
 
 class LegacyControlnetConverter(BaseLegacyConverter):
@@ -664,11 +774,16 @@ class LegacyControlnetConverter(BaseLegacyConverter):
 
         model_record_config = self._convert_model_record_config(legacy_record)
 
+        # Legacy controlnet records use 'type' field for the controlnet style
+        # (e.g., control_canny, control_depth, etc.), but some older records
+        # may use the 'style' field instead. Try 'type' first, then fall back to 'style'.
+        controlnet_style = legacy_record.type or legacy_record.style
+
         return ControlNetModelRecord(
             name=legacy_record.name,
             description=legacy_record.description,
             version=legacy_record.version,
             config=model_record_config,
-            controlnet_style=legacy_record.style,
+            controlnet_style=controlnet_style,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )

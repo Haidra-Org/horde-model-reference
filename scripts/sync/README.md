@@ -61,6 +61,13 @@ PRIMARY (v1 API) ────► Comparator ◄──── GitHub (legacy repos
 ## Important Notes
 
 - Ensure your environment variables are set correctly before running the sync service.
+- **Git Identity Configuration**: The user running the sync service must have git identity configured for commits to work:
+
+  ```bash
+  git config --global user.name "Your Name"
+  git config --global user.email "your.email@example.com"
+  ```
+
 - **If running the sync service on the same host as the PRIMARY instance**
     - You must set a different `AIWORKER_CACHE_HOME` for each or it will never detect changes. You should always set this variable when using the sync service.
 

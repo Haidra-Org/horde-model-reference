@@ -205,7 +205,8 @@ class TestGroupTextModelsByBase:
 
         assert len(grouped) == 1
         assert "Llama-3" in grouped
-        assert grouped["Llama-3"] == ["Llama-3-8B-Instruct"]
+        assert grouped["Llama-3"].base_name == "Llama-3"
+        assert grouped["Llama-3"].variants == ["Llama-3-8B-Instruct"]
 
     def test_group_variants_together(self) -> None:
         """Test that variants of the same model are grouped together."""
@@ -219,7 +220,7 @@ class TestGroupTextModelsByBase:
 
         assert len(grouped) == 1
         assert "Llama-3" in grouped
-        assert len(grouped["Llama-3"]) == 4
+        assert len(grouped["Llama-3"].variants) == 4
 
     def test_group_different_models_separately(self) -> None:
         """Test that different models are grouped separately."""
@@ -247,9 +248,9 @@ class TestGroupTextModelsByBase:
         grouped = group_text_models_by_base(models)
 
         assert len(grouped) == 3
-        assert len(grouped["Llama-3"]) == 2
-        assert len(grouped["Llama-2"]) == 1
-        assert len(grouped["Mistral-v0.1"]) == 2
+        assert len(grouped["Llama-3"].variants) == 2
+        assert len(grouped["Llama-2"].variants) == 1
+        assert len(grouped["Mistral-v0.1"].variants) == 2
 
 
 class TestIsQuantizedVariant:

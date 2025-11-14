@@ -32,6 +32,7 @@ class RouteNames(StrEnum):
     get_reference_info = auto()
     get_reference_names = auto()
     get_reference_by_category = auto()
+    get_text_generation_reference = auto()
     get_single_model = auto()
     image_generation_model = auto()
     text_generation_model = auto()
@@ -125,7 +126,7 @@ class Operation(StrEnum):
 
 # Full names, like Tazlin#6572, are unreliable because the user can change them.
 # Instead, we use the immutable user ID for authentication allowlisting.
-allowed_users = ["6572"]
+allowed_users = ["1", "6572"]
 
 
 async def auth_against_horde(apikey: str, client: httpx.AsyncClient) -> bool:

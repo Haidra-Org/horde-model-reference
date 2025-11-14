@@ -222,6 +222,7 @@ async def read_models_with_stats(
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
     horde_api: Annotated[HordeAPIIntegration, Depends(get_horde_api_integration)],
     include_workers: bool = False,
+    include_backend_variations: bool = False,
     min_worker_count: int | None = None,
     sort_by: str | None = None,
     sort_desc: bool = True,
@@ -232,6 +233,7 @@ async def read_models_with_stats(
     - Worker count, queued jobs, performance metrics, ETA
     - Usage statistics (day, month, total)
     - Optional worker details
+    - Optional per-backend variations (for text generation models)
 
     **Caching:**
     - Model reference data: cached by ModelReferenceManager (60s TTL)
@@ -243,6 +245,7 @@ async def read_models_with_stats(
         manager: Model reference manager dependency.
         horde_api: Horde API integration dependency.
         include_workers: Include detailed worker information for each model.
+        include_backend_variations: Include per-backend statistics (aphrodite, koboldcpp) for text models.
         min_worker_count: Filter to models with at least this many workers.
         sort_by: Sort by field (worker_count, usage_total, usage_month, name).
         sort_desc: Sort in descending order (default: True).
@@ -293,6 +296,7 @@ async def read_models_with_stats(
         horde_status=status_data,
         horde_stats=stats_data,
         workers=workers_data,
+        include_backend_variations=include_backend_variations,
     )
 
     # 4. Apply server-side filtering and sorting
