@@ -75,6 +75,8 @@ class MODEL_REFERENCE_CATEGORY(StrEnum):
     video_generation = auto()
     audio_generation = auto()
     miscellaneous = auto()
+    lora = auto()
+    ti = auto()
 
 
 github_image_model_reference_categories = [

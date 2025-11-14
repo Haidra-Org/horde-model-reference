@@ -845,7 +845,11 @@ class MetadataManager:
             metadata = self._read_metadata_file(metadata_path)
 
             if metadata is None:
-                raise RuntimeError(f"Legacy metadata for category {category.value} does not exist on disk")
+                # raise RuntimeError(f"Legacy metadata for category {category.value} does not exist on disk")
+                logger.warning(f"Legacy metadata for category {category.value} does not exist on disk")
+                metadata = self.initialize_legacy_metadata(category, "FileSystemBackend")
+                self._write_metadata_file(metadata_path, metadata)
+                logger.debug(f"Initialized legacy metadata for {category.value}")
 
             # Update cache
             self._legacy_cache[category] = metadata
