@@ -359,13 +359,13 @@ class TestModelRecordMetadataSemantics:
 class TestMetadataManagerAPI:
     """Tests for MetadataManager API correctness."""
 
-    def test_get_metadata_raises_when_not_exists(self, primary_base: Path) -> None:
-        """get_v2_metadata and get_legacy_metadata should raise RuntimeError when metadata doesn't exist.
+    def test_get_metadata_tolerates_missing_file(self, primary_base: Path) -> None:
+        """get_v2_metadata and get_legacy_metadata should tolerate missing metadata files.
 
-        Semantic meaning: These methods enforce a runtime guarantee that metadata exists.
-        They should never return None - instead raising an exception for missing metadata.
+        Semantic meaning: These methods log an error when metadata doesn't exist but
+        don't raise an exception, allowing the system to continue operating gracefully.
 
-        This is the design constraint that was fixed in the earlier changes.
+        The methods return None when the metadata file is missing.
         """
         metadata_manager = MetadataManager(primary_base)
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
@@ -375,17 +375,19 @@ class TestMetadataManagerAPI:
         if v2_path.exists():
             v2_path.unlink()
 
-        # get_v2_metadata should raise RuntimeError
-        with pytest.raises(RuntimeError, match=r"V2 metadata for category.*does not exist"):
-            metadata_manager.get_v2_metadata(category)
+        # get_v2_metadata should return None without raising
+        result = metadata_manager.get_v2_metadata(category)
+        assert isinstance(result, CategoryMetadata)
+        assert result.category == category
 
         # Same for legacy
         legacy_path = metadata_manager._get_legacy_metadata_path(category)
         if legacy_path.exists():
             legacy_path.unlink()
 
-        with pytest.raises(RuntimeError, match=r"Legacy metadata for category.*does not exist"):
-            metadata_manager.get_legacy_metadata(category)
+        result = metadata_manager.get_legacy_metadata(category)
+        assert isinstance(result, CategoryMetadata)
+        assert result.category == category
 
     def test_get_or_initialize_creates_when_missing(self, primary_base: Path) -> None:
         """get_or_initialize_* methods should safely handle missing metadata.
