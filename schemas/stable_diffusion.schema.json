@@ -243,7 +243,9 @@
                 "text_generation",
                 "video_generation",
                 "audio_generation",
-                "miscellaneous"
+                "miscellaneous",
+                "lora",
+                "ti"
             ],
             "title": "MODEL_REFERENCE_CATEGORY",
             "type": "string"

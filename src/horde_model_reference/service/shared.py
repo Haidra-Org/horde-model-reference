@@ -126,7 +126,7 @@ class Operation(StrEnum):
 
 # Full names, like Tazlin#6572, are unreliable because the user can change them.
 # Instead, we use the immutable user ID for authentication allowlisting.
-allowed_users = ["6572"]
+allowed_users = ["1", "6572"]
 
 
 async def auth_against_horde(apikey: str, client: httpx.AsyncClient) -> bool:

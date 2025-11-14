@@ -93,6 +93,8 @@ def test_all_base_legacy_converters(
             MODEL_REFERENCE_CATEGORY.clip,
             MODEL_REFERENCE_CATEGORY.controlnet,
             MODEL_REFERENCE_CATEGORY.text_generation,
+            MODEL_REFERENCE_CATEGORY.lora,
+            MODEL_REFERENCE_CATEGORY.ti,
         ]:
             continue
 

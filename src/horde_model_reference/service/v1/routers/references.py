@@ -197,6 +197,12 @@ async def read_legacy_reference(
             detail=f"Invalid model category: '{model_category_name}'. {e!s}",
         ) from e
 
+    if (
+        model_reference_category == MODEL_REFERENCE_CATEGORY.lora
+        or model_reference_category == MODEL_REFERENCE_CATEGORY.ti
+    ):
+        return Response(content="{}", media_type="application/json")
+
     raw_json_string = manager.backend.get_legacy_json_string(model_reference_category)
 
     if not raw_json_string or raw_json_string.strip() in ("", "{}", "null"):
