@@ -67,10 +67,12 @@ class _InMemoryReplicaBackend(ModelReferenceBackend):
         httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
     ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
-        self.async_calls.append({
-            "httpx_client": httpx_client,
-            "force_refresh": force_refresh,
-        })
+        self.async_calls.append(
+            {
+                "httpx_client": httpx_client,
+                "force_refresh": force_refresh,
+            }
+        )
         return self.fetch_all_categories(force_refresh=force_refresh)
 
     def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
