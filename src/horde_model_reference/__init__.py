@@ -361,7 +361,7 @@ from .path_consts import (  # noqa: E402
     horde_model_reference_paths,
 )
 
-from .model_reference_manager import ModelReferenceManager  # noqa: E402
+from .model_reference_manager import ModelReferenceManager, PrefetchStrategy  # noqa: E402
 
 __all__ = [
     "BASE_PATH",
@@ -375,6 +375,7 @@ __all__ = [
     "MODEL_STYLE",
     "ModelClassification",
     "ModelReferenceManager",
+    "PrefetchStrategy",
     "get_model_reference_file_path",
     "get_model_reference_filename",
     "horde_model_reference_paths",

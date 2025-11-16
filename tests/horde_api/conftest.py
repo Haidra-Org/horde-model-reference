@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from horde_model_reference import ReplicateMode
+from horde_model_reference import PrefetchStrategy, ReplicateMode
 from horde_model_reference.model_reference_manager import ModelReferenceManager
 
 
@@ -44,7 +44,7 @@ def setup_model_reference_files(tmp_path_factory: pytest.TempPathFactory) -> Gen
         # This will automatically fetch missing categories from GitHub
         manager = ModelReferenceManager(
             backend=None,  # Let it auto-create with seeding enabled
-            lazy_mode=False,
+            prefetch_strategy=PrefetchStrategy.SYNC,
             base_path=base_path,
             replicate_mode=ReplicateMode.PRIMARY,
         )

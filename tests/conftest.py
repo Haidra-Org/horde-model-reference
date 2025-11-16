@@ -18,7 +18,7 @@ from fastapi.testclient import TestClient
 from loguru import logger
 from pytest import LogCaptureFixture
 
-from horde_model_reference import ReplicateMode, ai_horde_ci_settings, horde_model_reference_settings
+from horde_model_reference import PrefetchStrategy, ReplicateMode, ai_horde_ci_settings, horde_model_reference_settings
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.model_reference_manager import ModelReferenceManager
 from horde_model_reference.service.app import app
@@ -127,7 +127,7 @@ def setup_logging(base_path_for_tests: Path) -> None:
 def model_reference_manager() -> ModelReferenceManager:
     """Return a ModelReferenceManager instance for tests."""
     return ModelReferenceManager(
-        lazy_mode=True,
+        prefetch_strategy=PrefetchStrategy.LAZY,
     )
 
 
@@ -169,7 +169,7 @@ def primary_manager_override_factory(
         )
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
@@ -225,7 +225,7 @@ def v1_canonical_manager(
     )
     manager = ModelReferenceManager(
         backend=backend,
-        lazy_mode=True,
+        prefetch_strategy=PrefetchStrategy.LAZY,
         replicate_mode=ReplicateMode.PRIMARY,
     )
 

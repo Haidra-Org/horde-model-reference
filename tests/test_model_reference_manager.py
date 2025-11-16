@@ -7,10 +7,11 @@ from loguru import logger
 from pydantic import ValidationError
 from pytest import LogCaptureFixture
 
-from horde_model_reference import ReplicateMode
+from horde_model_reference import PrefetchStrategy, ReplicateMode
 from horde_model_reference.backends.base import ModelReferenceBackend
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.meta_consts import (
+    KNOWN_IMAGE_GENERATION_BASELINE,
     MODEL_CLASSIFICATION_LOOKUP,
     MODEL_DOMAIN,
     MODEL_PURPOSE,
@@ -18,7 +19,7 @@ from horde_model_reference.meta_consts import (
     ModelClassification,
 )
 from horde_model_reference.model_reference_manager import ModelReferenceManager
-from horde_model_reference.model_reference_records import GenericModelRecord
+from horde_model_reference.model_reference_records import GenericModelRecord, ImageGenerationModelRecord
 
 
 class _InMemoryReplicaBackend(ModelReferenceBackend):
@@ -66,12 +67,10 @@ class _InMemoryReplicaBackend(ModelReferenceBackend):
         httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
     ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
-        self.async_calls.append(
-            {
-                "httpx_client": httpx_client,
-                "force_refresh": force_refresh,
-            }
-        )
+        self.async_calls.append({
+            "httpx_client": httpx_client,
+            "force_refresh": force_refresh,
+        })
         return self.fetch_all_categories(force_refresh=force_refresh)
 
     def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
@@ -116,7 +115,9 @@ def test_manager(
     """
     from tests.helpers import verify_model_references_structure
 
-    model_reference_manager = ModelReferenceManager(replicate_mode=ReplicateMode.REPLICA, lazy_mode=True)
+    model_reference_manager = ModelReferenceManager(
+        replicate_mode=ReplicateMode.REPLICA, prefetch_strategy=PrefetchStrategy.LAZY
+    )
 
     legacy_reference_locations = model_reference_manager.backend.get_all_category_file_paths()
 
@@ -192,7 +193,7 @@ def test_manager_new_format(
     restore_manager_singleton: None,
 ) -> None:
     """Test the new format model reference manager."""
-    ModelReferenceManager(replicate_mode=ReplicateMode.REPLICA, lazy_mode=False)
+    ModelReferenceManager(replicate_mode=ReplicateMode.REPLICA, prefetch_strategy=PrefetchStrategy.SYNC)
 
     def assert_all_model_references_exist(
         model_reference_manager: ModelReferenceManager,
@@ -259,10 +260,10 @@ class TestSingleton:
 
     def test_singleton_rejects_different_lazy_mode(self, restore_manager_singleton: None) -> None:
         """Test that singleton rejects re-instantiation with different lazy_mode."""
-        ModelReferenceManager(lazy_mode=True)
+        ModelReferenceManager(prefetch_strategy=PrefetchStrategy.LAZY)
 
         with pytest.raises(RuntimeError, match="different settings"):
-            ModelReferenceManager(lazy_mode=False)
+            ModelReferenceManager(prefetch_strategy=PrefetchStrategy.SYNC)
 
     def test_singleton_rejects_different_replicate_mode(self, restore_manager_singleton: None) -> None:
         """Test that singleton rejects re-instantiation with different replicate_mode."""
@@ -278,14 +279,14 @@ class TestSingleton:
 
         ModelReferenceManager(
             backend=backend1,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
         with pytest.raises(RuntimeError, match="different backend"):
             ModelReferenceManager(
                 backend=backend2,
-                lazy_mode=True,
+                prefetch_strategy=PrefetchStrategy.LAZY,
                 replicate_mode=ReplicateMode.PRIMARY,
             )
 
@@ -296,7 +297,7 @@ class TestCacheAndStaleness:
 
     def test_invalidate_cache(self) -> None:
         """Test that the cache invalidation works."""
-        manager = ModelReferenceManager(lazy_mode=True)
+        manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.LAZY)
 
         manager.get_all_model_references_unsafe(overwrite_existing=False)
         assert manager._cached_records
@@ -305,7 +306,7 @@ class TestCacheAndStaleness:
 
     def test_selective_cache_invalidation(self) -> None:
         """Test that cache can be selectively invalidated by category."""
-        manager = ModelReferenceManager(lazy_mode=True)
+        manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.LAZY)
 
         manager.get_all_model_references_unsafe(overwrite_existing=False)
         initial_cache_size = len(manager._cached_records)
@@ -330,7 +331,7 @@ class TestCacheAndStaleness:
         backend = FileSystemBackend(base_path=tmp_path, replicate_mode=ReplicateMode.PRIMARY)
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
@@ -369,7 +370,7 @@ class TestCacheAndStaleness:
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Test that lazy_mode=False triggers immediate fetch on initialization."""
+        """Test that prefetch_strategy=PrefetchStrategy.SYNC triggers immediate fetch on initialization."""
         backend = _InMemoryReplicaBackend()
         fetch_called = {"count": 0}
 
@@ -385,14 +386,14 @@ class TestCacheAndStaleness:
 
         _manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=False,
+            prefetch_strategy=PrefetchStrategy.SYNC,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
         assert fetch_called["count"] == 1
 
     def test_lazy_mode_true_defers_fetch(self, tmp_path: Path) -> None:
-        """Test that lazy_mode=True defers fetch until first access."""
+        """Test that prefetch_strategy=PrefetchStrategy.LAZY defers fetch until first access."""
         backend = _InMemoryReplicaBackend()
 
         backend.mark_stale(MODEL_REFERENCE_CATEGORY.miscellaneous)
@@ -411,13 +412,230 @@ class TestCacheAndStaleness:
 
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
         assert fetch_called["count"] == 0
 
         manager.get_all_model_references_unsafe()
+        assert fetch_called["count"] == 1
+
+
+@pytest.mark.usefixtures("restore_manager_singleton")
+class TestTypedModelAccessors:
+    """Ensure typed accessors enforce runtime safety."""
+
+    @staticmethod
+    def _create_manager_with_image_record() -> ModelReferenceManager:
+        backend = _InMemoryReplicaBackend()
+
+        record = ImageGenerationModelRecord(
+            name="valid_model",
+            description="Test model",
+            version="1.0",
+            inpainting=False,
+            baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1,
+            tags=["test"],
+            nsfw=False,
+        )
+
+        backend._data[MODEL_REFERENCE_CATEGORY.image_generation] = {
+            record.name: record.model_dump(exclude_none=True),
+        }
+
+        return ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+
+    def test_image_generation_models_returns_typed_dict(self) -> None:
+        """Verify the accessor returns only ImageGenerationModelRecord values."""
+        manager = self._create_manager_with_image_record()
+
+        models = manager.image_generation_models
+
+        assert set(models.keys()) == {"valid_model"}
+        assert isinstance(models["valid_model"], ImageGenerationModelRecord)
+
+    def test_image_generation_models_raises_if_cache_corrupted(self) -> None:
+        """Ensure a corrupted cache triggers a runtime error."""
+        manager = self._create_manager_with_image_record()
+
+        _ = manager.image_generation_models
+
+        manager._cached_records[MODEL_REFERENCE_CATEGORY.image_generation] = {
+            "bad_model": GenericModelRecord(
+                record_type=MODEL_REFERENCE_CATEGORY.miscellaneous,
+                name="bad_model",
+                model_classification=ModelClassification(
+                    domain=MODEL_DOMAIN.image,
+                    purpose=MODEL_PURPOSE.miscellaneous,
+                ),
+            )
+        }
+
+        with pytest.raises(RuntimeError, match="image_generation"):
+            _ = manager.image_generation_models
+
+    def test_deferred_prefetch_strategy_exposes_handle(self) -> None:
+        """Ensure PrefetchStrategy.DEFERRED avoids blocking init but provides a handle."""
+        backend = _InMemoryReplicaBackend()
+        fetch_called = {"count": 0}
+
+        original_fetch = backend.fetch_all_categories
+
+        def tracking_fetch(
+            *,
+            force_refresh: bool = False,
+        ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
+            fetch_called["count"] += 1
+            return original_fetch(force_refresh=force_refresh)
+
+        backend.fetch_all_categories = tracking_fetch  # type: ignore[method-assign]
+
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.DEFERRED,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+
+        assert fetch_called["count"] == 0
+        handle = manager.deferred_prefetch_handle
+        assert handle is not None
+        handle.run_sync()
+        assert fetch_called["count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_deferred_prefetch_handle_async(self) -> None:
+        """Deferred handles should leverage the backend async API when awaited."""
+        backend = _InMemoryReplicaBackend()
+
+        manager = ModelReferenceManager(
+            backend=backend,
+            replicate_mode=ReplicateMode.REPLICA,
+            prefetch_strategy=PrefetchStrategy.DEFERRED,
+        )
+
+        handle = manager.deferred_prefetch_handle
+        assert handle is not None
+
+        await handle
+
+        assert len(backend.async_calls) == 1
+        assert backend.async_calls[0]["force_refresh"] is False
+
+    def test_prefetch_strategy_none_skips_initial_fetch(self) -> None:
+        """PrefetchStrategy.NONE should skip eager fetch even when lazy mode is False."""
+        backend = _InMemoryReplicaBackend()
+        fetch_called = {"count": 0}
+
+        original_fetch = backend.fetch_all_categories
+
+        def tracking_fetch(
+            *,
+            force_refresh: bool = False,
+        ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
+            fetch_called["count"] += 1
+            return original_fetch(force_refresh=force_refresh)
+
+        backend.fetch_all_categories = tracking_fetch  # type: ignore[method-assign]
+
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.NONE,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+
+        assert fetch_called["count"] == 0
+
+        manual_handle = manager.create_deferred_prefetch_handle()
+        manual_handle.run_sync()
+        assert fetch_called["count"] == 1
+
+
+@pytest.mark.usefixtures("restore_manager_singleton")
+class TestAsyncErgonomics:
+    """Validate the new async API surface for ModelReferenceManager."""
+
+    @pytest.mark.asyncio
+    async def test_warm_cache_async_populates_records(self) -> None:
+        """warm_cache_async should populate the pydantic cache via async backend calls."""
+        backend = _InMemoryReplicaBackend()
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+
+        await manager.warm_cache_async()
+
+        assert len(manager._cached_records) == len(MODEL_REFERENCE_CATEGORY)
+        assert all(category in manager._cached_records for category in MODEL_REFERENCE_CATEGORY)
+        assert len(backend.async_calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_get_all_model_references_async_uses_cache(self) -> None:
+        """Async getter should hit backend once and reuse cached data afterwards."""
+        backend = _InMemoryReplicaBackend()
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+
+        first_result = await manager.get_all_model_references_async()
+        assert len(first_result) == len(MODEL_REFERENCE_CATEGORY)
+        assert len(backend.async_calls) == 1
+
+        second_result = await manager.get_all_model_references_async()
+        assert second_result == first_result
+        assert len(backend.async_calls) == 1, "Cached async call should not refetch"
+
+    @pytest.mark.asyncio
+    async def test_prefetch_strategy_async_schedules_task(self) -> None:
+        """PrefetchStrategy.ASYNC should schedule a task when a loop is running."""
+        backend = _InMemoryReplicaBackend()
+
+        manager = ModelReferenceManager(
+            backend=backend,
+            replicate_mode=ReplicateMode.REPLICA,
+            prefetch_strategy=PrefetchStrategy.ASYNC,
+        )
+
+        task = manager._async_prefetch_task
+        assert task is not None
+        await task
+        assert len(backend.async_calls) == 1
+
+    def test_prefetch_strategy_async_without_loop_falls_back_to_handle(self) -> None:
+        """When no event loop exists, async prefetch should expose a manual handle."""
+        backend = _InMemoryReplicaBackend()
+        fetch_called = {"count": 0}
+
+        original_fetch = backend.fetch_all_categories
+
+        def tracking_fetch(
+            *,
+            force_refresh: bool = False,
+        ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
+            fetch_called["count"] += 1
+            return original_fetch(force_refresh=force_refresh)
+
+        backend.fetch_all_categories = tracking_fetch  # type: ignore[method-assign]
+
+        manager = ModelReferenceManager(
+            backend=backend,
+            replicate_mode=ReplicateMode.REPLICA,
+            prefetch_strategy=PrefetchStrategy.ASYNC,
+        )
+
+        assert manager._async_prefetch_task is None
+        handle = manager.deferred_prefetch_handle
+        assert handle is not None
+
+        handle.run_sync()
         assert fetch_called["count"] == 1
 
 
@@ -433,7 +651,7 @@ class TestBackendConfiguration:
         manager = ModelReferenceManager(
             base_path=tmp_path,
             replicate_mode=ReplicateMode.PRIMARY,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
         )
         assert isinstance(manager.backend, FileSystemBackend), "Expected FileSystemBackend for PRIMARY mode"
         assert manager.backend.replicate_mode == ReplicateMode.PRIMARY
@@ -571,7 +789,7 @@ async def test_fetch_from_backend_if_needed_async_forwards(restore_manager_singl
     backend = _InMemoryReplicaBackend()
     manager = ModelReferenceManager(
         backend=backend,
-        lazy_mode=True,
+        prefetch_strategy=PrefetchStrategy.LAZY,
         replicate_mode=ReplicateMode.REPLICA,
     )
 
@@ -597,7 +815,7 @@ class TestCRUDOperations:
         backend = _InMemoryReplicaBackend()
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -628,7 +846,7 @@ class TestCRUDOperations:
         )
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
@@ -671,7 +889,7 @@ class TestCRUDOperations:
         )
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
@@ -725,7 +943,7 @@ class TestFileJsonIO:
 
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
@@ -760,7 +978,7 @@ class TestFileJsonIO:
 
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
@@ -782,7 +1000,7 @@ class TestFileJsonIO:
         backend = FileSystemBackend(base_path=tmp_path, replicate_mode=ReplicateMode.PRIMARY)
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
@@ -806,7 +1024,7 @@ class TestFileJsonIO:
 
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
@@ -833,7 +1051,7 @@ class TestFileJsonIO:
 
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
@@ -846,7 +1064,7 @@ class TestFileJsonIO:
 
     def test_model_reference_to_json_dict_safe_success(self) -> None:
         """Test model_reference_to_json_dict_safe with valid input."""
-        manager = ModelReferenceManager(lazy_mode=True, replicate_mode=ReplicateMode.REPLICA)
+        manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.LAZY, replicate_mode=ReplicateMode.REPLICA)
 
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
         model_classification = ModelClassification(
