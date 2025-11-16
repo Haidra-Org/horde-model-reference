@@ -677,7 +677,7 @@ class TestCanonicalFormatEdgeCases:
     def test_invalid_canonical_format_value(self) -> None:
         """Test that invalid canonical_format values are rejected."""
         with pytest.raises(ValueError):
-            HordeModelReferenceSettings(canonical_format="invalid")  # type: ignore[arg-type]
+            HordeModelReferenceSettings(canonical_format="invalid")
 
     def test_legacy_writes_with_multiple_models(
         self,
