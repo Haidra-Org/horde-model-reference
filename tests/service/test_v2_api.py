@@ -11,6 +11,7 @@ from httpx import Response
 from horde_model_reference import (
     MODEL_REFERENCE_CATEGORY,
     ModelReferenceManager,
+    PrefetchStrategy,
     ReplicateMode,
 )
 from horde_model_reference.service.shared import (
@@ -403,7 +404,7 @@ class TestReplicaModeRestriction:
         )
         manager = ModelReferenceManager(
             backend=backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.REPLICA,
         )
 

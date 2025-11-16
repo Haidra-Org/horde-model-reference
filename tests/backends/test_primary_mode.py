@@ -10,6 +10,7 @@ from horde_model_reference import (
     MODEL_PURPOSE,
     MODEL_REFERENCE_CATEGORY,
     ModelClassification,
+    PrefetchStrategy,
     ReplicateMode,
     horde_model_reference_paths,
 )
@@ -128,7 +129,7 @@ def test_model_reference_manager_primary_write_paths(
     )
     manager = ModelReferenceManager(
         backend=backend,
-        lazy_mode=True,
+        prefetch_strategy=PrefetchStrategy.LAZY,
         replicate_mode=ReplicateMode.PRIMARY,
     )
 
@@ -169,7 +170,7 @@ def test_manager_detects_external_file_update(
     )
     manager = ModelReferenceManager(
         backend=backend,
-        lazy_mode=True,
+        prefetch_strategy=PrefetchStrategy.LAZY,
         replicate_mode=ReplicateMode.PRIMARY,
     )
 
@@ -217,7 +218,7 @@ def test_get_all_model_references_returns_empty_dicts_when_missing(
     )
     manager = ModelReferenceManager(
         backend=backend,
-        lazy_mode=True,
+        prefetch_strategy=PrefetchStrategy.LAZY,
         replicate_mode=ReplicateMode.PRIMARY,
     )
 
@@ -326,7 +327,7 @@ def test_manager_cache_invalidated_on_update(
     )
     manager = ModelReferenceManager(
         backend=backend,
-        lazy_mode=True,
+        prefetch_strategy=PrefetchStrategy.LAZY,
         replicate_mode=ReplicateMode.PRIMARY,
     )
 
@@ -375,7 +376,7 @@ def test_manager_cache_invalidated_on_delete(
     )
     manager = ModelReferenceManager(
         backend=backend,
-        lazy_mode=True,
+        prefetch_strategy=PrefetchStrategy.LAZY,
         replicate_mode=ReplicateMode.PRIMARY,
     )
 
@@ -415,7 +416,7 @@ def test_manager_detects_backend_invalidation(
     )
     manager = ModelReferenceManager(
         backend=backend,
-        lazy_mode=True,
+        prefetch_strategy=PrefetchStrategy.LAZY,
         replicate_mode=ReplicateMode.PRIMARY,
     )
 

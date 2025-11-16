@@ -13,7 +13,7 @@ import httpx
 import pytest
 from typing_extensions import override
 
-from horde_model_reference import HordeModelReferenceSettings, ReplicateMode
+from horde_model_reference import HordeModelReferenceSettings, PrefetchStrategy, ReplicateMode
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
@@ -388,7 +388,7 @@ class TestReplicaModeWriteRestrictions:
         stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
             backend=stub_backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -411,7 +411,7 @@ class TestReplicaModeWriteRestrictions:
         stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
             backend=stub_backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -431,7 +431,7 @@ class TestReplicaModeWriteRestrictions:
         stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
             backend=stub_backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -458,7 +458,7 @@ class TestReplicaModeWriteRestrictions:
         stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
             backend=stub_backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -677,7 +677,7 @@ class TestCanonicalFormatEdgeCases:
     def test_invalid_canonical_format_value(self) -> None:
         """Test that invalid canonical_format values are rejected."""
         with pytest.raises(ValueError):
-            HordeModelReferenceSettings(canonical_format="invalid")
+            HordeModelReferenceSettings(canonical_format="invalid")  # type: ignore[arg-type]
 
     def test_legacy_writes_with_multiple_models(
         self,
@@ -896,7 +896,7 @@ class TestManagerSingletonBehavior:
         stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
             backend=stub_backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
@@ -914,7 +914,7 @@ class TestManagerSingletonBehavior:
         stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
             backend=stub_backend,
-            lazy_mode=True,
+            prefetch_strategy=PrefetchStrategy.LAZY,
             replicate_mode=ReplicateMode.REPLICA,
         )
 
