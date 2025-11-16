@@ -5,7 +5,7 @@ from loguru import logger
 
 logger.remove()
 
-from horde_model_reference import MODEL_REFERENCE_CATEGORY, ModelReferenceManager  # noqa: E402
+from horde_model_reference import MODEL_REFERENCE_CATEGORY, ModelReferenceManager, PrefetchStrategy  # noqa: E402
 
 ALIASES = {"stable_diffusion": "image_generation"}
 
@@ -22,7 +22,7 @@ def configure_logger(quiet: bool) -> None:
 def get_all_names(model_reference_category: MODEL_REFERENCE_CATEGORY, refresh: bool) -> list[str]:
     """Get all model names for a given model reference category."""
     logger.debug(f"Getting all names for category: {model_reference_category}")
-    model_reference_manager = ModelReferenceManager(lazy_mode=False)
+    model_reference_manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.SYNC)
     all_references = model_reference_manager.get_all_model_references(overwrite_existing=refresh)
 
     if model_reference_category not in all_references:
