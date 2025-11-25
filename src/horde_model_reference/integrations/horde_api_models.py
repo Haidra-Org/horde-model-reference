@@ -317,9 +317,7 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
 
         # Build base name index from all unique model names across all time periods
         all_model_names = (
-            set(stats_response.day.keys())
-            | set(stats_response.month.keys())
-            | set(stats_response.total.keys())
+            set(stats_response.day.keys()) | set(stats_response.month.keys()) | set(stats_response.total.keys())
         )
         self._base_name_index = _build_base_name_index(list(all_model_names))
 
