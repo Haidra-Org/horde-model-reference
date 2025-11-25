@@ -184,3 +184,64 @@ class TestIndexedHordeModelStatsAggregation:
         assert day == 0
         assert month == 0
         assert total == 0
+
+    def test_aggregate_stats_canonical_name_with_org_prefix(self) -> None:
+        """Test that canonical names with org prefix correctly match API stats.
+
+        This is a critical test case because model reference entries often have
+        org prefixes (e.g., "NeverSleep/Lumimaid-v0.2") but API stats may have
+        different prefixing patterns.
+        """
+        stats = HordeModelStatsResponse(
+            day={
+                "koboldcpp/Lumimaid-v0.2-8B": 4080,
+                "koboldcpp/Lumimaid-v0.2-8B-Q8_0": 1500,
+                "aphrodite/NeverSleep/Lumimaid-v0.2-8B": 2000,
+            },
+            month={
+                "koboldcpp/Lumimaid-v0.2-8B": 40000,
+                "koboldcpp/Lumimaid-v0.2-8B-Q8_0": 15000,
+                "aphrodite/NeverSleep/Lumimaid-v0.2-8B": 20000,
+            },
+            total={},
+        )
+
+        indexed = IndexedHordeModelStats(stats)
+
+        # Query with canonical name that HAS org prefix (like in model reference)
+        canonical_with_org = "NeverSleep/Lumimaid-v0.2"
+        day, month, _total = indexed.get_aggregated_stats(canonical_with_org)
+
+        # Should aggregate all variants even though canonical has org prefix
+        assert day == 4080 + 1500 + 2000
+        assert month == 40000 + 15000 + 20000
+
+    def test_get_stats_with_variations_canonical_with_org_prefix(self) -> None:
+        """Test variations breakdown with canonical name that has org prefix.
+
+        When querying for a specific model like 'NeverSleep/Lumimaid-v0.2-8B',
+        get_stats_with_variations should find:
+        - The aphrodite variant: aphrodite/NeverSleep/Lumimaid-v0.2-8B
+        - The koboldcpp variant: koboldcpp/Lumimaid-v0.2-8B
+        - Quantization variants: koboldcpp/Lumimaid-v0.2-8B-Q8_0
+        """
+        stats = HordeModelStatsResponse(
+            day={
+                "koboldcpp/Lumimaid-v0.2-8B": 300,
+                "koboldcpp/Lumimaid-v0.2-8B-Q8_0": 400,
+                "aphrodite/NeverSleep/Lumimaid-v0.2-8B": 200,
+            },
+            month={},
+            total={},
+        )
+
+        indexed = IndexedHordeModelStats(stats)
+
+        # Query with canonical name that HAS org prefix (like in model reference)
+        (day_total, _m, _t), variations = indexed.get_stats_with_variations("NeverSleep/Lumimaid-v0.2-8B")
+
+        assert day_total == 300 + 400 + 200
+        assert "aphrodite" in variations
+        assert "koboldcpp" in variations
+        assert variations["aphrodite"][0] == 200
+        assert variations["koboldcpp"][0] == 300 + 400
