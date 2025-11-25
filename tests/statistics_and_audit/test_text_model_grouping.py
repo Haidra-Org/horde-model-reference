@@ -269,7 +269,8 @@ class TestGroupAuditModels:
         result = group_audit_models([model1, model2])
         assert len(result) == 1
         grouped = result[0]
-        assert "grouped" in grouped.name.lower()
+        # Grouped model name should be the base name (without (grouped) suffix for frontend compatibility)
+        assert grouped.name == "llama-2"
         # Usage should be summed
         assert grouped.usage_day == 130  # 50 + 80
         assert grouped.usage_month == 3900  # 1500 + 2400
@@ -522,7 +523,8 @@ class TestApplyTextModelGroupingToAudit:
         result = apply_text_model_grouping_to_audit(response)
         # Should have grouped into 1 model
         assert len(result.models) == 1
-        assert "grouped" in result.models[0].name.lower()
+        # Grouped model name should be the base name (without (grouped) suffix for frontend compatibility)
+        assert result.models[0].name == "llama-2"
         # Summary should be recalculated
         assert result.summary.total_models == 1
         # Preserve original total_count (before grouping)

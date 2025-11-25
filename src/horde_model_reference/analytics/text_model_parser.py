@@ -143,22 +143,39 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
 def get_base_model_name(model_name: str) -> str:
     """Get the base model name for grouping purposes.
 
-    Extracts just the base name without size, variant, or quantization info.
-    Useful for grouping different variants of the same model together.
+    Extracts just the base name without backend prefix, author prefix,
+    size, variant, or quantization info. Useful for grouping different
+    variants of the same model together.
 
     Args:
-        model_name: The full model name.
+        model_name: The full model name (may include backend and author prefixes).
 
     Returns:
-        The base model name.
+        The base model name without prefixes.
 
     Example:
         >>> get_base_model_name("Llama-3-8B-Instruct-Q4_K_M")
         "Llama-3"
         >>> get_base_model_name("Mistral-7B-v0.1")
         "Mistral"
+        >>> get_base_model_name("koboldcpp/sophosympatheia/StrawberryLemonade-L3-70B-v1.2")
+        "StrawberryLemonade-L3-v1"
+        >>> get_base_model_name("aphrodite/ReadyArt/Broken-Tutu-24B")
+        "Broken-Tutu"
     """
-    parsed = parse_text_model_name(model_name)
+    from horde_model_reference.meta_consts import strip_backend_prefix
+
+    # First strip backend prefix (e.g., "koboldcpp/", "aphrodite/")
+    name_without_backend = strip_backend_prefix(model_name)
+
+    # Then strip author prefix if present (e.g., "sophosympatheia/", "ReadyArt/")
+    # Author prefix is the first part before "/" if there's one remaining
+    if "/" in name_without_backend:
+        name_without_author = name_without_backend.split("/", 1)[1]
+    else:
+        name_without_author = name_without_backend
+
+    parsed = parse_text_model_name(name_without_author)
     return parsed.base_name
 
 

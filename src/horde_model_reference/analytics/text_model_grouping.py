@@ -151,7 +151,7 @@ def group_audit_models(models: list[ModelAuditInfo]) -> list[ModelAuditInfo]:
             cost_benefit = total_usage_month / avg_size_gb
 
         grouped_model = ModelAuditInfo(
-            name=f"{base_name} (grouped)",
+            name=base_name,
             category=first_variant.category,
             deletion_risk_flags=merged_flags,
             at_risk=merged_flags.any_flags(),

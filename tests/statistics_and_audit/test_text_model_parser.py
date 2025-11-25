@@ -188,6 +188,31 @@ class TestGetBaseModelName:
         assert get_base_model_name("Llama-3") == "Llama-3"
         assert get_base_model_name("Mistral") == "Mistral"
 
+    def test_get_base_strips_backend_prefix(self) -> None:
+        """Test that backend prefixes (koboldcpp/, aphrodite/) are stripped."""
+        assert get_base_model_name("koboldcpp/Llama-3-8B-Instruct") == "Llama-3"
+        assert get_base_model_name("aphrodite/Mistral-7B-v0.1") == "Mistral-v0.1"
+
+    def test_get_base_strips_author_prefix(self) -> None:
+        """Test that author prefixes are stripped."""
+        assert get_base_model_name("ReadyArt/Broken-Tutu-24B") == "Broken-Tutu"
+        assert get_base_model_name("sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == "StrawberryLemonade-L3-v1.2"
+
+    def test_get_base_strips_both_backend_and_author_prefixes(self) -> None:
+        """Test that both backend and author prefixes are stripped."""
+        assert get_base_model_name("koboldcpp/sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == "StrawberryLemonade-L3-v1.2"
+        assert get_base_model_name("aphrodite/ReadyArt/Broken-Tutu-24B") == "Broken-Tutu"
+        assert get_base_model_name("aphrodite/NeverSleep/Lumimaid-v0.2-8B") == "Lumimaid-v0.2"
+
+    def test_get_base_consistent_across_variations(self) -> None:
+        """Test that all variations of a model name return the same base name."""
+        # All these should return the same base name
+        expected = "StrawberryLemonade-L3-v1.2"
+        assert get_base_model_name("StrawberryLemonade-L3-70B-v1.2") == expected
+        assert get_base_model_name("sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == expected
+        assert get_base_model_name("koboldcpp/sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == expected
+        assert get_base_model_name("aphrodite/sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == expected
+
 
 class TestNormalizeModelName:
     """Tests for normalize_model_name function."""
