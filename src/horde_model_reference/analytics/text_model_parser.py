@@ -49,7 +49,9 @@ VARIANT_PATTERNS = [
 
 # Quantization patterns
 QUANT_PATTERNS = [
-    r"\b(Q[2-8](?:_K)?(?:_[SMLH])?)\b",  # Q4_K_M, Q8, Q5_K_S
+    r"\b(Q[2-8]_K(?:_[SMLH])?)\b",  # Q4_K_M, Q5_K_S, Q6_K (K-quants with optional size)
+    r"\b(Q[2-8]_[01])\b",  # Q4_0, Q5_0, Q5_1, Q8_0 (legacy/standard quants)
+    r"\b(Q[2-8])\b",  # Q4, Q8 (bare quant indicators)
     r"\b(GGUF|GGML|GPTQ|AWQ|EXL2)\b",
     r"\b(fp16|fp32|int8|int4)\b",
 ]
