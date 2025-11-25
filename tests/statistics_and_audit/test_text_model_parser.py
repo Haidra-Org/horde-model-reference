@@ -153,6 +153,26 @@ class TestParseTextModelName:
         assert parsed.size == "1.5B"
         assert parsed.variant == "Chat"
 
+    def test_parse_legacy_quant_formats(self) -> None:
+        """Test parsing models with legacy GGUF quantization formats like Q*_0, Q*_1."""
+        # Test Q8_0 format
+        parsed = parse_text_model_name("Lumimaid-v0.2-8B-Q8_0")
+        assert parsed.base_name == "Lumimaid-v0.2"
+        assert parsed.size == "8B"
+        assert parsed.quant == "Q8_0"
+
+        # Test Q4_0 format
+        parsed = parse_text_model_name("Llama-3-8B-Q4_0")
+        assert parsed.base_name == "Llama-3"
+        assert parsed.size == "8B"
+        assert parsed.quant == "Q4_0"
+
+        # Test Q5_1 format
+        parsed = parse_text_model_name("Mistral-7B-Q5_1")
+        assert parsed.base_name == "Mistral"
+        assert parsed.size == "7B"
+        assert parsed.quant == "Q5_1"
+
 
 class TestGetBaseModelName:
     """Tests for get_base_model_name function."""
@@ -252,6 +272,20 @@ class TestGroupTextModelsByBase:
         assert len(grouped["Llama-2"].variants) == 1
         assert len(grouped["Mistral-v0.1"].variants) == 2
 
+    def test_group_lumimaid_variants(self) -> None:
+        """Test grouping Lumimaid model variants with different quantizations."""
+        models = [
+            "Lumimaid-v0.2-8B",
+            "Lumimaid-v0.2-8B-Q4_K_M",
+            "Lumimaid-v0.2-8B-Q8_0",
+        ]
+        grouped = group_text_models_by_base(models)
+
+        assert len(grouped) == 1
+        assert "Lumimaid-v0.2" in grouped
+        assert len(grouped["Lumimaid-v0.2"].variants) == 3
+        assert all(model in grouped["Lumimaid-v0.2"].variants for model in models)
+
 
 class TestIsQuantizedVariant:
     """Tests for is_quantized_variant function."""
@@ -259,6 +293,12 @@ class TestIsQuantizedVariant:
     def test_quantized_q4(self) -> None:
         """Test detection of Q4 quantized models."""
         assert is_quantized_variant("Llama-3-8B-Instruct-Q4_K_M")
+
+    def test_quantized_legacy_formats(self) -> None:
+        """Test detection of legacy GGUF quantization formats."""
+        assert is_quantized_variant("Lumimaid-v0.2-8B-Q8_0")
+        assert is_quantized_variant("Model-Q4_0")
+        assert is_quantized_variant("Model-Q5_1")
 
     def test_quantized_gguf(self) -> None:
         """Test detection of GGUF quantized models."""

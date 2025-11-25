@@ -236,11 +236,61 @@ class _StatsLookup(BaseModel):
     total: dict[str, int] = Field(default_factory=dict)
 
 
+def _build_base_name_index(model_names: list[str]) -> dict[str, list[str]]:
+    """Build an index mapping base model names to all matching model names.
+
+    This enables aggregating stats across quantization variants (e.g., Q4_K_M, Q8_0)
+    and different backend prefixes (aphrodite/, koboldcpp/).
+
+    Args:
+        model_names: List of model names from API stats (may include backend prefixes
+            and quantization suffixes).
+
+    Returns:
+        Dictionary mapping lowercase base model names to lists of original model names
+        (lowercase) that match that base.
+
+    Example:
+        Input: ["koboldcpp/Lumimaid-v0.2-8B", "koboldcpp/Lumimaid-v0.2-8B-Q8_0",
+                "aphrodite/NeverSleep/Lumimaid-v0.2-8B"]
+        Output: {"lumimaid-v0.2": ["koboldcpp/lumimaid-v0.2-8b",
+                                   "koboldcpp/lumimaid-v0.2-8b-q8_0",
+                                   "aphrodite/neversleep/lumimaid-v0.2-8b"]}
+    """
+    from horde_model_reference.analytics.text_model_parser import get_base_model_name
+    from horde_model_reference.meta_consts import strip_backend_prefix
+
+    base_name_index: dict[str, list[str]] = {}
+
+    for model_name in model_names:
+        # Store lowercase version for case-insensitive matching
+        model_name_lower = model_name.lower()
+
+        # Strip backend prefix first, then extract base name
+        stripped = strip_backend_prefix(model_name)
+
+        # Also strip org prefix for base name extraction (e.g., "NeverSleep/Lumimaid-v0.2-8B" -> "Lumimaid-v0.2-8B")
+        if "/" in stripped:
+            stripped = stripped.split("/")[-1]
+
+        base_name = get_base_model_name(stripped).lower()
+
+        if base_name not in base_name_index:
+            base_name_index[base_name] = []
+        if model_name_lower not in base_name_index[base_name]:
+            base_name_index[base_name].append(model_name_lower)
+
+    return base_name_index
+
+
 class IndexedHordeModelStats(RootModel[_StatsLookup]):
     """Indexed model stats for O(1) lookups by model name.
 
     This wraps the stats response and provides case-insensitive dictionary access.
     Time complexity: O(1) for lookups instead of O(n) for dict iteration.
+
+    Also builds a base-name index for aggregating stats across quantization variants
+    and different backend prefixes.
 
     Usage:
         indexed = IndexedHordeModelStats(stats_response)
@@ -249,6 +299,7 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
     """
 
     root: _StatsLookup
+    _base_name_index: dict[str, list[str]] = {}
 
     def __init__(self, stats_response: HordeModelStatsResponse) -> None:
         """Build indexed lookups from stats response.
@@ -263,6 +314,14 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
             total={k.lower(): v for k, v in stats_response.total.items()},
         )
         super().__init__(root=lookups)
+
+        # Build base name index from all unique model names across all time periods
+        all_model_names = (
+            set(stats_response.day.keys())
+            | set(stats_response.month.keys())
+            | set(stats_response.total.keys())
+        )
+        self._base_name_index = _build_base_name_index(list(all_model_names))
 
     def get_day(self, model_name: str) -> int | None:
         """Get day count for a model (case-insensitive). O(1)."""
@@ -282,12 +341,12 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
         return name_lower in self.root.day or name_lower in self.root.month or name_lower in self.root.total
 
     def get_aggregated_stats(self, canonical_name: str) -> tuple[int, int, int]:
-        """Get aggregated stats across all backend variants of a model.
+        """Get aggregated stats across all backend variants and quantization versions of a model.
 
-        This method aggregates stats from all possible backend-prefixed variants:
-        - Canonical name (e.g., "ReadyArt/Broken-Tutu-24B")
-        - Aphrodite variant (e.g., "aphrodite/ReadyArt/Broken-Tutu-24B")
-        - KoboldCPP variant (e.g., "koboldcpp/Broken-Tutu-24B")
+        This method aggregates stats from:
+        - Exact name variants (canonical, aphrodite/, koboldcpp/ prefixed)
+        - All quantization variants sharing the same base model name (Q4_K_M, Q8_0, etc.)
+        - Different org-prefixed variants (e.g., "NeverSleep/Lumimaid" matches "Lumimaid")
 
         Args:
             canonical_name: The canonical model name from the model reference.
@@ -297,20 +356,37 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
 
         Example:
             >>> indexed = IndexedHordeModelStats(stats_response)
-            >>> day, month, total = indexed.get_aggregated_stats("ReadyArt/Broken-Tutu-24B")
+            >>> day, month, total = indexed.get_aggregated_stats("Lumimaid-v0.2-8B")
+            # Will aggregate: Lumimaid-v0.2-8B, koboldcpp/Lumimaid-v0.2-8B,
+            #                 koboldcpp/Lumimaid-v0.2-8B-Q8_0, aphrodite/NeverSleep/Lumimaid-v0.2-8B, etc.
         """
+        from horde_model_reference.analytics.text_model_parser import get_base_model_name
         from horde_model_reference.meta_consts import get_model_name_variants
 
-        variants = get_model_name_variants(canonical_name)
+        # Collect all model names to aggregate (use set to avoid double-counting)
+        names_to_aggregate: set[str] = set()
 
+        # First, add exact variants from get_model_name_variants
+        variants = get_model_name_variants(canonical_name)
+        for variant in variants:
+            names_to_aggregate.add(variant.lower())
+
+        # Then, add all model names that share the same base model name
+        # This catches quantization variants and org-prefixed variants
+        base_name = get_base_model_name(canonical_name).lower()
+        if base_name in self._base_name_index:
+            for api_model_name in self._base_name_index[base_name]:
+                names_to_aggregate.add(api_model_name)
+
+        # Aggregate stats across all matched names
         day_total = 0
         month_total = 0
         total_total = 0
 
-        for variant in variants:
-            day_total += self.get_day(variant) or 0
-            month_total += self.get_month(variant) or 0
-            total_total += self.get_total(variant) or 0
+        for name in names_to_aggregate:
+            day_total += self.get_day(name) or 0
+            month_total += self.get_month(name) or 0
+            total_total += self.get_total(name) or 0
 
         return (day_total, month_total, total_total)
 
@@ -321,6 +397,7 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
 
         This method returns both the aggregated stats (same as get_aggregated_stats)
         and a dictionary of individual backend stats keyed by backend name.
+        Now includes quantization variants and org-prefixed variants via base name matching.
 
         Args:
             canonical_name: The canonical model name from the model reference.
@@ -331,38 +408,59 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
             - variations_dict: Dict of backend_name -> (day, month, total)
               Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
         """
+        from horde_model_reference.analytics.text_model_parser import get_base_model_name
         from horde_model_reference.meta_consts import get_model_name_variants
 
+        # Collect all model names to aggregate (use set to avoid double-counting)
+        names_to_aggregate: set[str] = set()
+
+        # First, add exact variants from get_model_name_variants
         variants = get_model_name_variants(canonical_name)
-        variations: dict[str, tuple[int, int, int]] = {}
+        for variant in variants:
+            names_to_aggregate.add(variant.lower())
+
+        # Then, add all model names that share the same base model name
+        base_name = get_base_model_name(canonical_name).lower()
+        if base_name in self._base_name_index:
+            for api_model_name in self._base_name_index[base_name]:
+                names_to_aggregate.add(api_model_name)
+
+        # Track stats by backend for variations dict
+        backend_stats: dict[str, tuple[int, int, int]] = {
+            "canonical": (0, 0, 0),
+            "aphrodite": (0, 0, 0),
+            "koboldcpp": (0, 0, 0),
+        }
 
         day_total = 0
         month_total = 0
         total_total = 0
 
-        # Look up each variant and store by backend name
-        for variant in variants:
-            day = self.get_day(variant) or 0
-            month = self.get_month(variant) or 0
-            total = self.get_total(variant) or 0
+        # Look up each name and aggregate by backend
+        for name in names_to_aggregate:
+            day = self.get_day(name) or 0
+            month = self.get_month(name) or 0
+            total = self.get_total(name) or 0
 
-            # Only store if there's actual data
             if day > 0 or month > 0 or total > 0:
-                # Determine backend name from variant
-                if variant == canonical_name:
-                    backend_name = "canonical"
-                elif variant.startswith("aphrodite/"):
+                # Determine backend name from the model name
+                if name.startswith("aphrodite/"):
                     backend_name = "aphrodite"
-                elif variant.startswith("koboldcpp/"):
+                elif name.startswith("koboldcpp/"):
                     backend_name = "koboldcpp"
                 else:
-                    backend_name = "unknown"
+                    backend_name = "canonical"
 
-                variations[backend_name] = (day, month, total)
+                # Accumulate stats for this backend
+                prev_day, prev_month, prev_total = backend_stats[backend_name]
+                backend_stats[backend_name] = (prev_day + day, prev_month + month, prev_total + total)
 
             day_total += day
             month_total += month
             total_total += total
+
+        # Filter to only backends with data
+        variations = {k: v for k, v in backend_stats.items() if v != (0, 0, 0)}
 
         return (day_total, month_total, total_total), variations
 
