@@ -5,13 +5,13 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from horde_model_reference.audit.events import AuditOperation
 
 from horde_model_reference import (
     MODEL_REFERENCE_CATEGORY,
     ModelReferenceManager,
     horde_model_reference_settings,
 )
-from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.pending_queue import PendingQueueService
 from horde_model_reference.service.shared import get_model_reference_manager
 

@@ -13,8 +13,8 @@ from typing import TYPE_CHECKING, Literal
 from loguru import logger
 
 from horde_model_reference import ModelReferenceManager, horde_model_reference_settings
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.integrations.horde_api_integration import HordeAPIIntegration
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 if TYPE_CHECKING:
     from horde_model_reference.analytics.audit_analysis import CategoryAuditResponse
