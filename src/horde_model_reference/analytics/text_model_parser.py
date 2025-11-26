@@ -80,7 +80,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
         >>> print(parsed.variant)  # "Instruct"
         >>> print(parsed.quant)  # "Q4_K_M"
     """
-    logger.debug(f"Parsing text model name: {model_name}")
+    logger.trace(f"Parsing text model name: {model_name}")
 
     name_parts = model_name
     size = None
@@ -93,7 +93,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
         if match:
             size = match.group(1).upper()
             name_parts = name_parts[: match.start()] + name_parts[match.end() :]
-            logger.debug(f"Extracted size: {size}")
+            logger.trace(f"Extracted size: {size}")
             break
 
     # Extract quantization
@@ -102,7 +102,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
         if match:
             quant = match.group(1).upper()
             name_parts = name_parts[: match.start()] + name_parts[match.end() :]
-            logger.debug(f"Extracted quant: {quant}")
+            logger.trace(f"Extracted quant: {quant}")
             break
 
     # Extract variant
@@ -111,7 +111,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
         if match:
             variant = match.group(1)
             name_parts = name_parts[: match.start()] + name_parts[match.end() :]
-            logger.debug(f"Extracted variant: {variant}")
+            logger.trace(f"Extracted variant: {variant}")
             break
 
     # Clean up base name
@@ -125,7 +125,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
         base_name = model_name
         logger.debug(f"Could not extract base name, using original: {base_name}")
     else:
-        logger.debug(f"Extracted base name: {base_name}")
+        logger.trace(f"Extracted base name: {base_name}")
 
     normalized = normalize_model_name(model_name)
 

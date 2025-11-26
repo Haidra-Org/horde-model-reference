@@ -36,6 +36,31 @@ class UsageTrend(BaseModel):
     """Ratio of month usage to total usage (month/total). None if total usage is zero."""
 
 
+class BackendAuditVariation(BaseModel):
+    """Per-backend statistics for a text generation model in audit context.
+
+    Provides breakdown of workers and usage by backend (aphrodite, koboldcpp, canonical).
+    Used in ungrouped audit view to show backend-specific details for each model.
+    """
+
+    model_config = ConfigDict(use_attribute_docstrings=True)
+
+    backend: str
+    """Backend name (e.g., 'aphrodite', 'koboldcpp', 'canonical')."""
+    variant_name: str
+    """Full model name as reported by Horde API (may include backend prefix)."""
+    worker_count: int = Field(ge=0, default=0)
+    """Number of workers serving this backend variant."""
+    performance: float | None = None
+    """Performance metric for this backend variant."""
+    usage_day: int = Field(ge=0, default=0)
+    """Usage count for the past day from this backend."""
+    usage_month: int = Field(ge=0, default=0)
+    """Usage count for the past month from this backend."""
+    usage_total: int = Field(ge=0, default=0)
+    """Total usage count from this backend."""
+
+
 class DeletionRiskFlags(BaseModel):
     """Flags indicating potential reasons for model deletion.
 
@@ -74,21 +99,19 @@ class DeletionRiskFlags(BaseModel):
         Returns:
             True if at least one flag is set, False otherwise.
         """
-        return any(
-            [
-                self.zero_usage_day,
-                self.zero_usage_month,
-                self.zero_usage_total,
-                self.no_active_workers,
-                self.has_multiple_hosts,
-                self.has_non_preferred_host,
-                self.has_unknown_host,
-                self.no_download_urls,
-                self.missing_description,
-                self.missing_baseline,
-                self.low_usage,
-            ]
-        )
+        return any([
+            self.zero_usage_day,
+            self.zero_usage_month,
+            self.zero_usage_total,
+            self.no_active_workers,
+            self.has_multiple_hosts,
+            self.has_non_preferred_host,
+            self.has_unknown_host,
+            self.no_download_urls,
+            self.missing_description,
+            self.missing_baseline,
+            self.low_usage,
+        ])
 
     def flag_count(self) -> int:
         """Count the number of flags set.
@@ -96,21 +119,19 @@ class DeletionRiskFlags(BaseModel):
         Returns:
             Number of deletion risk flags that are True.
         """
-        return sum(
-            [
-                self.zero_usage_day,
-                self.zero_usage_month,
-                self.zero_usage_total,
-                self.no_active_workers,
-                self.has_multiple_hosts,
-                self.has_non_preferred_host,
-                self.has_unknown_host,
-                self.no_download_urls,
-                self.missing_description,
-                self.missing_baseline,
-                self.low_usage,
-            ]
-        )
+        return sum([
+            self.zero_usage_day,
+            self.zero_usage_month,
+            self.zero_usage_total,
+            self.no_active_workers,
+            self.has_multiple_hosts,
+            self.has_non_preferred_host,
+            self.has_unknown_host,
+            self.no_download_urls,
+            self.missing_description,
+            self.missing_baseline,
+            self.low_usage,
+        ])
 
 
 class FlagValidatorService:
@@ -421,6 +442,8 @@ class ModelAuditInfo(BaseModel):
     """Number of download entries."""
     download_hosts: list[str] = Field(default_factory=list)
     """List of download host domains."""
+    backend_variations: list[BackendAuditVariation] | None = Field(default=None)
+    """Per-backend statistics for text generation models (ungrouped view)."""
 
     @property
     def flag_count(self) -> int:
@@ -917,6 +940,7 @@ class ModelAuditInfoHandler:
         statistics: CombinedModelStatistics | None,
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
+        include_backend_variations: bool = False,
     ) -> ModelAuditInfo:
         """Create ModelAuditInfo for a model record.
 
@@ -926,6 +950,7 @@ class ModelAuditInfoHandler:
             statistics: Optional Horde API statistics.
             category_total_usage: Total monthly usage for the category.
             category: The model reference category.
+            include_backend_variations: Whether to include per-backend breakdown (text models only).
 
         Returns:
             ModelAuditInfo object.
@@ -944,6 +969,7 @@ class ModelAuditInfoHandler:
         baseline: str | None,
         nsfw: bool | None,
         size_bytes: int | None,
+        include_backend_variations: bool = False,
     ) -> ModelAuditInfo:
         """Build ModelAuditInfo from common components.
 
@@ -957,6 +983,7 @@ class ModelAuditInfoHandler:
             baseline: Model baseline (if applicable).
             nsfw: Whether model is NSFW (if applicable).
             size_bytes: Model size in bytes (if available).
+            include_backend_variations: Whether to include per-backend breakdown.
 
         Returns:
             ModelAuditInfo object.
@@ -1016,6 +1043,22 @@ class ModelAuditInfoHandler:
                 except Exception:
                     pass
 
+        # Build backend variations list if requested and available
+        backend_variations_list: list[BackendAuditVariation] | None = None
+        if include_backend_variations and statistics and statistics.backend_variations:
+            backend_variations_list = [
+                BackendAuditVariation(
+                    backend=bv.backend,
+                    variant_name=bv.variant_name,
+                    worker_count=bv.worker_count,
+                    performance=bv.performance,
+                    usage_day=bv.usage_day,
+                    usage_month=bv.usage_month,
+                    usage_total=bv.usage_total,
+                )
+                for bv in statistics.backend_variations.values()
+            ]
+
         # Create audit info
         return ModelAuditInfo(
             name=model_name,
@@ -1038,6 +1081,7 @@ class ModelAuditInfoHandler:
             has_description=has_description,
             download_count=download_count,
             download_hosts=download_hosts,
+            backend_variations=backend_variations_list,
         )
 
 
@@ -1072,6 +1116,7 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
         statistics: CombinedModelStatistics | None,
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
+        include_backend_variations: bool = False,
     ) -> ModelAuditInfo:
         """Create ModelAuditInfo for an image generation model.
 
@@ -1081,6 +1126,7 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
             statistics: Optional Horde API statistics.
             category_total_usage: Total monthly usage for the category.
             category: The model reference category.
+            include_backend_variations: Ignored for image models (always False).
 
         Returns:
             ModelAuditInfo object.
@@ -1108,6 +1154,7 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
             baseline=baseline,
             nsfw=nsfw,
             size_bytes=size_bytes,
+            include_backend_variations=False,  # Not applicable for image models
         )
 
 
@@ -1142,6 +1189,7 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
         statistics: CombinedModelStatistics | None,
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
+        include_backend_variations: bool = False,
     ) -> ModelAuditInfo:
         """Create ModelAuditInfo for a text generation model.
 
@@ -1151,6 +1199,7 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
             statistics: Optional Horde API statistics.
             category_total_usage: Total monthly usage for the category.
             category: The model reference category.
+            include_backend_variations: Whether to include per-backend breakdown.
 
         Returns:
             ModelAuditInfo object.
@@ -1178,6 +1227,7 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
             baseline=baseline,
             nsfw=nsfw,
             size_bytes=size_bytes,
+            include_backend_variations=include_backend_variations,
         )
 
 
@@ -1205,6 +1255,7 @@ class GenericModelAuditHandler(ModelAuditInfoHandler):
         statistics: CombinedModelStatistics | None,
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
+        include_backend_variations: bool = False,
     ) -> ModelAuditInfo:
         """Create ModelAuditInfo for a generic/unsupported model type.
 
@@ -1214,6 +1265,7 @@ class GenericModelAuditHandler(ModelAuditInfoHandler):
             statistics: Optional Horde API statistics.
             category_total_usage: Total monthly usage for the category.
             category: The model reference category.
+            include_backend_variations: Ignored for generic models.
 
         Returns:
             ModelAuditInfo object.
@@ -1238,6 +1290,7 @@ class GenericModelAuditHandler(ModelAuditInfoHandler):
             baseline=None,
             nsfw=None,
             size_bytes=None,
+            include_backend_variations=False,  # Not applicable for generic models
         )
 
 
@@ -1306,6 +1359,7 @@ class ModelAuditInfoFactory:
         statistics: CombinedModelStatistics | None,
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
+        include_backend_variations: bool = False,
     ) -> ModelAuditInfo:
         """Create ModelAuditInfo for a model record using the appropriate handler.
 
@@ -1315,6 +1369,7 @@ class ModelAuditInfoFactory:
             statistics: Optional Horde API statistics.
             category_total_usage: Total monthly usage for the category.
             category: The model reference category.
+            include_backend_variations: Whether to include per-backend breakdown (text models only).
 
         Returns:
             ModelAuditInfo object.
@@ -1330,6 +1385,7 @@ class ModelAuditInfoFactory:
                     statistics=statistics,
                     category_total_usage=category_total_usage,
                     category=category,
+                    include_backend_variations=include_backend_variations,
                 )
 
         error_message = f"No handler found for model record type: {type(model_record).__name__}"
@@ -1345,6 +1401,7 @@ class ModelAuditInfoFactory:
         model_statistics: dict[str, CombinedModelStatistics],
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
+        include_backend_variations: bool = False,
     ) -> list[ModelAuditInfo]:
         """Analyze model records and statistics to create audit information.
 
@@ -1353,6 +1410,7 @@ class ModelAuditInfoFactory:
             model_statistics: Dictionary of model names to Horde API statistics.
             category_total_usage: Total monthly usage for the entire category.
             category: The model reference category.
+            include_backend_variations: Whether to include per-backend breakdown (text models only).
 
         Returns:
             List of ModelAuditInfo sorted by usage (descending).
@@ -1372,6 +1430,7 @@ class ModelAuditInfoFactory:
                 statistics=statistics,
                 category_total_usage=category_total_usage,
                 category=category,
+                include_backend_variations=include_backend_variations,
             )
 
             audit_models.append(audit_info)
@@ -1395,6 +1454,7 @@ class ModelAuditInfoFactory:
         model_statistics: dict[str, CombinedModelStatistics],
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
+        include_backend_variations: bool = False,
     ) -> CategoryAuditResponse:
         """Analyze models and create complete audit response with summary.
 
@@ -1403,6 +1463,7 @@ class ModelAuditInfoFactory:
             model_statistics: Dictionary of model names to Horde API statistics.
             category_total_usage: Total monthly usage for the entire category.
             category: The model reference category.
+            include_backend_variations: Whether to include per-backend breakdown (text models only).
 
         Returns:
             CategoryAuditResponse with models and summary.
@@ -1413,6 +1474,7 @@ class ModelAuditInfoFactory:
             model_statistics=model_statistics,
             category_total_usage=category_total_usage,
             category=category,
+            include_backend_variations=include_backend_variations,
         )
 
         # Calculate summary

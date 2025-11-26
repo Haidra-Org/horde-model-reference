@@ -198,3 +198,9 @@ class ErrorResponse(BaseModel):
 
     detail: str | list[ErrorDetail]
     """Error details - either a string message or list of validation errors."""
+
+
+def get_model_reference_manager() -> ModelReferenceManager:
+    """Dependency helper that returns the singleton model reference manager."""
+    return ModelReferenceManager()
+
