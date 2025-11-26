@@ -8,7 +8,7 @@ from loguru import logger
 from pydantic import BaseModel
 from strenum import StrEnum
 
-from horde_model_reference import ModelReferenceManager, ai_horde_worker_settings, horde_model_reference_settings
+from horde_model_reference import ModelReferenceManager, ai_horde_worker_settings
 
 header_auth_scheme = APIKeyHeader(name="apikey")
 
@@ -203,4 +203,3 @@ class ErrorResponse(BaseModel):
 def get_model_reference_manager() -> ModelReferenceManager:
     """Dependency helper that returns the singleton model reference manager."""
     return ModelReferenceManager()
-
