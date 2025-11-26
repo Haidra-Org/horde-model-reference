@@ -184,7 +184,7 @@ class TestGroupAuditModels:
         assert result == []
 
     def test_group_single_model(self) -> None:
-        """Single model should be returned unchanged."""
+        """Single model should have its name normalized to base name."""
         model = ModelAuditInfo(
             name="llama-2-7b-Q4_K_M",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
@@ -200,10 +200,14 @@ class TestGroupAuditModels:
         )
         result = group_audit_models([model])
         assert len(result) == 1
-        assert result[0] == model
+        # Name should be normalized to base name (strips size, quant info)
+        assert result[0].name == "llama-2"
+        # Other fields should be preserved
+        assert result[0].worker_count == 10
+        assert result[0].usage_month == 3000
 
     def test_group_different_base_names(self) -> None:
-        """Models with different base names should not be grouped."""
+        """Models with different base names should not be grouped but names normalized."""
         model1 = ModelAuditInfo(
             name="llama-2-7b",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
@@ -232,9 +236,9 @@ class TestGroupAuditModels:
         )
         result = group_audit_models([model1, model2])
         assert len(result) == 2
-        # Should be returned in same order
-        assert result[0].name == "llama-2-7b"
-        assert result[1].name == "mistral-7b"
+        # Names should be normalized to base names (strip size info)
+        result_names = {r.name for r in result}
+        assert result_names == {"llama-2", "mistral"}
 
     def test_group_variants_of_same_base(self) -> None:
         """Variants of the same base model should be grouped."""
@@ -357,6 +361,46 @@ class TestGroupAuditModels:
         assert grouped.size_gb == 6.0  # Only one size available
         # Cost-benefit should be computed if size available
         assert grouped.cost_benefit_score is not None
+
+    def test_group_normalizes_backend_prefixes(self) -> None:
+        """Models with backend/author prefixes should be normalized to base name."""
+        model = ModelAuditInfo(
+            name="koboldcpp/SicariusSicariiStuff/Fiendish_LLAMA_3B",
+            category=MODEL_REFERENCE_CATEGORY.text_generation,
+            deletion_risk_flags=DeletionRiskFlags(),
+            at_risk=False,
+            risk_score=0,
+            worker_count=1,
+            usage_day=10,
+            usage_month=100,
+            usage_total=1000,
+            usage_percentage_of_category=0.1,
+            usage_trend=UsageTrend(),
+        )
+        result = group_audit_models([model])
+        assert len(result) == 1
+        # Backend and author prefixes should be stripped
+        assert result[0].name == "Fiendish_LLAMA_3B"
+
+    def test_group_normalizes_size_in_name(self) -> None:
+        """Models with size info should have it stripped from base name."""
+        model = ModelAuditInfo(
+            name="koboldcpp/allura-org/MS-Meadowlark-22B",
+            category=MODEL_REFERENCE_CATEGORY.text_generation,
+            deletion_risk_flags=DeletionRiskFlags(),
+            at_risk=False,
+            risk_score=0,
+            worker_count=1,
+            usage_day=10,
+            usage_month=100,
+            usage_total=1000,
+            usage_percentage_of_category=0.1,
+            usage_trend=UsageTrend(),
+        )
+        result = group_audit_models([model])
+        assert len(result) == 1
+        # Backend, author, and size should all be stripped
+        assert result[0].name == "MS-Meadowlark"
 
 
 class TestRecalculateAuditSummary:
