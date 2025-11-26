@@ -200,7 +200,10 @@ class TestGetBaseModelName:
 
     def test_get_base_strips_both_backend_and_author_prefixes(self) -> None:
         """Test that both backend and author prefixes are stripped."""
-        assert get_base_model_name("koboldcpp/sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == "StrawberryLemonade-L3-v1.2"
+        assert (
+            get_base_model_name("koboldcpp/sophosympatheia/StrawberryLemonade-L3-70B-v1.2")
+            == "StrawberryLemonade-L3-v1.2"
+        )
         assert get_base_model_name("aphrodite/ReadyArt/Broken-Tutu-24B") == "Broken-Tutu"
         assert get_base_model_name("aphrodite/NeverSleep/Lumimaid-v0.2-8B") == "Lumimaid-v0.2"
 

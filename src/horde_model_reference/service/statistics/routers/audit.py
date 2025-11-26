@@ -20,16 +20,17 @@ from horde_model_reference.analytics.text_model_grouping import apply_text_model
 from horde_model_reference.integrations.data_merger import merge_category_with_horde_data
 from horde_model_reference.integrations.horde_api_integration import HordeAPIIntegration
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
-from horde_model_reference.service.shared import PathVariables, RouteNames, route_registry, v2_prefix
+from horde_model_reference.service.shared import (
+    PathVariables,
+    RouteNames,
+    get_model_reference_manager,
+    route_registry,
+    v2_prefix,
+)
 
 router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
-
-
-def get_model_reference_manager() -> ModelReferenceManager:
-    """Dependency to get the model reference manager singleton."""
-    return ModelReferenceManager()
 
 
 def get_horde_api_integration() -> HordeAPIIntegration:
@@ -80,6 +81,13 @@ async def get_category_audit(
     horde_api: Annotated[HordeAPIIntegration, Depends(get_horde_api_integration)],
     audit_cache: Annotated[AuditCache, Depends(get_audit_cache)],
     group_text_models: bool = Query(default=False, description="Group text models by base name (strips quantization)"),
+    include_backend_variations: bool = Query(
+        default=False,
+        description=(
+            "Include per-backend breakdown (aphrodite, koboldcpp) for text models. "
+            "Only applies when group_text_models=False."
+        ),
+    ),
     preset: str | None = Query(
         default=None,
         description=(
@@ -110,6 +118,7 @@ async def get_category_audit(
         horde_api: The Horde API integration (injected).
         audit_cache: The audit cache (injected).
         group_text_models: Group text models by base name (strips quantization info).
+        include_backend_variations: Include per-backend breakdown for text models (ungrouped view).
         preset: Optional preset filter to apply (deletion_candidates, zero_usage, etc.).
         limit: Maximum number of models to return (None = all).
         offset: Number of models to skip (for pagination).
@@ -120,16 +129,29 @@ async def get_category_audit(
     Raises:
         HTTPException: 400 for unsupported categories or invalid preset, 404 if not found, 500 for errors.
     """
+    # Determine effective backend variations flag
+    # Only include backend variations for text models in ungrouped mode
+    is_text_category = model_category_name == MODEL_REFERENCE_CATEGORY.text_generation
+    effective_include_backend_variations = include_backend_variations and is_text_category and not group_text_models
+
     logger.debug(
         f"Audit request for category: {model_category_name}, "
-        f"group_text_models={group_text_models}, preset={preset}, limit={limit}, offset={offset}"
+        f"group_text_models={group_text_models}, include_backend_variations={effective_include_backend_variations}, "
+        f"preset={preset}, limit={limit}, offset={offset}"
     )
 
-    # Try cache first (uses grouped parameter, but not with preset filter)
+    # Try cache first (uses grouped parameter and backend_variations, but not with preset filter)
     if not preset:
-        cached_audit = audit_cache.get(model_category_name, grouped=group_text_models)
+        cached_audit = audit_cache.get(
+            model_category_name,
+            grouped=group_text_models,
+            include_backend_variations=effective_include_backend_variations,
+        )
         if cached_audit:
-            logger.debug(f"Returning cached audit for {model_category_name} (grouped={group_text_models})")
+            logger.debug(
+                f"Returning cached audit for {model_category_name} "
+                f"(grouped={group_text_models}, backend_variations={effective_include_backend_variations})"
+            )
             # Apply pagination to cached results if requested
             if limit is not None or offset > 0:
                 total_models = len(cached_audit.models)
@@ -213,6 +235,7 @@ async def get_category_audit(
             horde_status=status_data,
             horde_stats=stats_data,
             workers=None,  # Not needed for audit
+            include_backend_variations=effective_include_backend_variations,
         )
     except Exception as e:
         logger.exception(f"Error merging Horde API data for {model_category_name}: {e}")
@@ -235,6 +258,7 @@ async def get_category_audit(
             model_statistics,
             category_total_month_usage,
             model_category_name,
+            include_backend_variations=effective_include_backend_variations,
         )
     except Exception as e:
         logger.exception(f"Error analyzing models for audit: {e}")
@@ -245,8 +269,16 @@ async def get_category_audit(
 
     # Cache the base response (before preset filtering, before grouping)
     if not preset:
-        audit_cache.set(model_category_name, audit_response, grouped=group_text_models)
-        logger.debug(f"Cached audit results for {model_category_name} (grouped={group_text_models})")
+        audit_cache.set(
+            model_category_name,
+            audit_response,
+            grouped=group_text_models,
+            include_backend_variations=effective_include_backend_variations,
+        )
+        logger.debug(
+            f"Cached audit results for {model_category_name} "
+            f"(grouped={group_text_models}, backend_variations={effective_include_backend_variations})"
+        )
 
     # Apply text model grouping if requested
     if group_text_models:
