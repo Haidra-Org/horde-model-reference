@@ -422,6 +422,7 @@ class TestModelAuditInfoFactory:
                 statistics: CombinedModelStatistics | None,
                 category_total_usage: int,
                 category: MODEL_REFERENCE_CATEGORY,
+                include_backend_variations: bool = False,
             ) -> ModelAuditInfo:
                 """Create custom audit info with hardcoded risk score."""
                 from horde_model_reference.analytics.audit_analysis import (
@@ -493,6 +494,7 @@ class TestModelAuditInfoFactory:
                 statistics: CombinedModelStatistics | None,
                 category_total_usage: int,
                 category: MODEL_REFERENCE_CATEGORY,
+                include_backend_variations: bool = False,
             ) -> ModelAuditInfo:
                 from horde_model_reference.analytics.audit_analysis import (
                     DeletionRiskFlags,
@@ -527,6 +529,7 @@ class TestModelAuditInfoFactory:
                 statistics: CombinedModelStatistics | None,
                 category_total_usage: int,
                 category: MODEL_REFERENCE_CATEGORY,
+                include_backend_variations: bool = False,
             ) -> ModelAuditInfo:
                 from horde_model_reference.analytics.audit_analysis import (
                     DeletionRiskFlags,
@@ -592,6 +595,7 @@ class TestModelAuditInfoFactory:
                 statistics: CombinedModelStatistics | None,
                 category_total_usage: int,
                 category: MODEL_REFERENCE_CATEGORY,
+                include_backend_variations: bool = False,
             ) -> ModelAuditInfo:
                 raise NotImplementedError("Should never be called")
 
@@ -636,6 +640,7 @@ class TestModelAuditInfoFactory:
                 statistics: CombinedModelStatistics | None,
                 category_total_usage: int,
                 category: MODEL_REFERENCE_CATEGORY,
+                include_backend_variations: bool = False,
             ) -> ModelAuditInfo:
                 from horde_model_reference.analytics.audit_analysis import (
                     DeletionRiskFlags,

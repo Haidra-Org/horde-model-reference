@@ -22,6 +22,7 @@ from horde_model_reference.service.shared import (
     ErrorResponse,
     PathVariables,
     RouteNames,
+    get_model_reference_manager,
     route_registry,
     statistics_prefix,
 )
@@ -29,11 +30,6 @@ from horde_model_reference.service.shared import (
 router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
-
-
-def get_model_reference_manager() -> ModelReferenceManager:
-    """Dependency to get the model reference manager singleton."""
-    return ModelReferenceManager()
 
 
 def get_statistics_cache() -> StatisticsCache:

@@ -389,6 +389,7 @@ def get_model_name_variants(canonical_name: str) -> list[str]:
     - Canonical: ReadyArt/Broken-Tutu-24B
     - Aphrodite: aphrodite/ReadyArt/Broken-Tutu-24B
     - KoboldCPP: koboldcpp/Broken-Tutu-24B (uses model name only, not org prefix)
+    - Legacy KoboldCPP: koboldcpp/ReadyArt_Broken-Tutu-24B (slashes flattened)
 
     Args:
         canonical_name: The canonical model name from the model reference.
@@ -398,16 +399,28 @@ def get_model_name_variants(canonical_name: str) -> list[str]:
 
     Example:
         >>> get_model_name_variants("ReadyArt/Broken-Tutu-24B")
-        ["ReadyArt/Broken-Tutu-24B", "aphrodite/ReadyArt/Broken-Tutu-24B", "koboldcpp/Broken-Tutu-24B"]
+        [
+            "ReadyArt/Broken-Tutu-24B",
+            "aphrodite/ReadyArt/Broken-Tutu-24B",
+            "koboldcpp/Broken-Tutu-24B",
+            "koboldcpp/ReadyArt_Broken-Tutu-24B",
+        ]
     """
     variants = [canonical_name]
 
     model_name_only = canonical_name.split("/", 1)[1] if "/" in canonical_name else canonical_name
+    sanitized_name = canonical_name.replace("/", "_")
+
+    def _append_variant(value: str) -> None:
+        if value not in variants:
+            variants.append(value)
 
     for prefix in _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES.values():
         if prefix == "aphrodite/":
-            variants.append(f"{prefix}{canonical_name}")
+            _append_variant(f"{prefix}{canonical_name}")
         elif prefix == "koboldcpp/":
-            variants.append(f"{prefix}{model_name_only}")
+            _append_variant(f"{prefix}{model_name_only}")
+            if sanitized_name not in {canonical_name, model_name_only}:
+                _append_variant(f"{prefix}{sanitized_name}")
 
     return variants

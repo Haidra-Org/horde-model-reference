@@ -135,9 +135,19 @@ def merge_model_with_horde_data(
             backend_stats = stats_variations.get(backend, (0, 0, 0))
 
             if backend_status or backend_stats != (0, 0, 0):
+                # Determine variant name: use status.name if available,
+                # otherwise construct from backend prefix + model_name
+                if backend_status:
+                    variant_name = backend_status.name
+                elif backend == "canonical":
+                    variant_name = model_name
+                else:
+                    # Backend prefix (aphrodite/, koboldcpp/) + canonical name
+                    variant_name = f"{backend}/{model_name}"
+
                 backend_variations_data[backend] = BackendVariation(
                     backend=backend,
-                    variant_name=backend_status.name if backend_status else model_name,
+                    variant_name=variant_name,
                     worker_count=backend_status.count if backend_status else 0,
                     performance=backend_status.performance if backend_status else None,
                     queued=backend_status.queued if backend_status else None,

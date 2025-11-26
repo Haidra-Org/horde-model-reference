@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
-from horde_model_reference import horde_model_reference_settings
+from horde_model_reference.analytics import base_cache as base_cache_module
 from horde_model_reference.analytics.base_cache import RedisCache
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
@@ -34,7 +34,8 @@ class AuditCache(RedisCache["CategoryAuditResponse"]):
         Returns:
             Redis key prefix string.
         """
-        return f"{horde_model_reference_settings.redis.key_prefix}:audit"
+        settings = base_cache_module.horde_model_reference_settings
+        return f"{settings.redis.key_prefix}:audit"
 
     def _get_ttl(self) -> int:
         """Get the TTL in seconds for audit cache entries.
@@ -42,7 +43,7 @@ class AuditCache(RedisCache["CategoryAuditResponse"]):
         Returns:
             TTL in seconds from settings.
         """
-        return horde_model_reference_settings.audit_cache_ttl
+        return base_cache_module.horde_model_reference_settings.audit_cache_ttl
 
     def _get_model_class(self) -> type[CategoryAuditResponse]:
         """Get the Pydantic model class for deserialization.

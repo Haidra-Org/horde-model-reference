@@ -118,7 +118,33 @@ def group_audit_models(models: list[ModelAuditInfo]) -> list[ModelAuditInfo]:
     result: list[ModelAuditInfo] = []
     for base_name, variants in grouped.items():
         if len(variants) == 1:
-            result.append(variants[0])
+            # Single variant - normalize the name to base_name (strip backend/author prefixes)
+            single_model = variants[0]
+            if single_model.name != base_name:
+                # Create a copy with the normalized base name
+                single_model = ModelAuditInfo(
+                    name=base_name,
+                    category=single_model.category,
+                    deletion_risk_flags=single_model.deletion_risk_flags,
+                    at_risk=single_model.at_risk,
+                    risk_score=single_model.risk_score,
+                    worker_count=single_model.worker_count,
+                    usage_day=single_model.usage_day,
+                    usage_month=single_model.usage_month,
+                    usage_total=single_model.usage_total,
+                    usage_hour=single_model.usage_hour,
+                    usage_minute=single_model.usage_minute,
+                    usage_percentage_of_category=single_model.usage_percentage_of_category,
+                    usage_trend=single_model.usage_trend,
+                    cost_benefit_score=single_model.cost_benefit_score,
+                    size_gb=single_model.size_gb,
+                    baseline=single_model.baseline,
+                    nsfw=single_model.nsfw,
+                    has_description=single_model.has_description,
+                    download_count=single_model.download_count,
+                    download_hosts=single_model.download_hosts,
+                )
+            result.append(single_model)
             continue
 
         logger.debug(f"Grouping {len(variants)} variants of '{base_name}'")

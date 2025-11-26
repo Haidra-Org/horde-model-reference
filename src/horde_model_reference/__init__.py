@@ -281,6 +281,22 @@ Set lower (e.g., 0.005%) to flag fewer models or higher (e.g., 0.01%) to flag mo
     text_gen_critical_worker_threshold: int = 1
     """Minimum worker count for text_generation to be flagged as critical (allows some workers)."""
 
+    cache_hydration_enabled: bool = False
+    """Enable background cache hydration to keep audit/statistics caches warm. \
+When enabled, caches are proactively refreshed before TTL expiry so clients always get fast cached responses."""
+
+    cache_hydration_interval_seconds: int = 240
+    """Interval in seconds between cache hydration refreshes. Should be less than cache TTLs \
+(statistics_cache_ttl, audit_cache_ttl) to ensure caches stay warm. Default 240s (4 min) with 300s TTLs."""
+
+    cache_hydration_stale_ttl_seconds: int = 3600
+    """Maximum age in seconds before stale cached data is discarded. While hydration is running, \
+clients receive stale data instead of waiting for fresh data. Default 1 hour."""
+
+    cache_hydration_startup_delay_seconds: int = 5
+    """Delay in seconds before first hydration run after service startup. \
+Allows service to fully initialize before background tasks begin."""
+
     @model_validator(mode="after")
     def validate_mode_configuration(self) -> HordeModelReferenceSettings:
         """Validate that settings are appropriate for the configured replication mode."""

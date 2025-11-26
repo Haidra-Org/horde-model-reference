@@ -1,7 +1,8 @@
 """Generic base cache class for analytics results with Redis support.
 
 Provides a thread-safe singleton cache that can store typed Pydantic models
-with Redis distributed caching and in-memory fallback.
+with Redis distributed caching and in-memory fallback. Supports stale-while-revalidate
+pattern when cache hydration is enabled.
 """
 
 from __future__ import annotations
@@ -29,6 +30,11 @@ class RedisCache(ABC, Generic[T]):
 
     Provides common caching infrastructure with Redis distributed caching
     and in-memory fallback. Thread-safe with RLock pattern.
+
+    When cache hydration is enabled (via settings), implements stale-while-revalidate:
+    - Normal TTL controls when background hydration refreshes the cache
+    - Stale TTL controls maximum age before returning None (forcing computation)
+    - Clients always receive cached data immediately while hydration runs in background
 
     Subclasses must implement:
     - _get_cache_key_prefix(): Return the Redis key prefix for this cache type
@@ -123,18 +129,25 @@ class RedisCache(ABC, Generic[T]):
         """
         ...
 
-    def _build_cache_key(self, category: MODEL_REFERENCE_CATEGORY, grouped: bool = False) -> str:
-        """Build cache key from category and grouping state.
+    def _build_cache_key(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        grouped: bool = False,
+        include_backend_variations: bool = False,
+    ) -> str:
+        """Build cache key from category and options.
 
         Args:
             category: The model reference category.
             grouped: Whether this is for grouped text models.
+            include_backend_variations: Whether backend variations are included.
 
         Returns:
             Cache key string.
         """
         group_suffix = ":grouped=true" if grouped else ":grouped=false"
-        return f"{category.value}{group_suffix}"
+        variations_suffix = ":variations=true" if include_backend_variations else ""
+        return f"{category.value}{group_suffix}{variations_suffix}"
 
     def _get_redis_key(self, cache_key: str) -> str:
         """Generate Redis key from cache key.
@@ -151,20 +164,35 @@ class RedisCache(ABC, Generic[T]):
         self,
         category: MODEL_REFERENCE_CATEGORY,
         grouped: bool = False,
+        include_backend_variations: bool = False,
+        allow_stale: bool | None = None,
     ) -> T | None:
         """Get cached result for a category.
 
         Checks Redis first (if available), then in-memory cache.
-        Returns None if no valid cache entry exists.
+
+        When cache hydration is enabled (settings.cache_hydration_enabled=True) and
+        allow_stale is True (or None with hydration enabled), implements stale-while-revalidate:
+        - Returns cached data even if past normal TTL
+        - Only returns None if data exceeds stale_ttl (default 1 hour)
+        - Background hydration is expected to refresh data before stale_ttl
 
         Args:
             category: The model reference category.
             grouped: Whether to get grouped text models variant.
+            include_backend_variations: Whether backend variations are included.
+            allow_stale: Whether to return stale data beyond normal TTL.
+                If None, defaults to True when hydration is enabled, False otherwise.
 
         Returns:
-            Cached result or None if not cached or expired.
+            Cached result or None if not cached or expired beyond stale TTL.
         """
-        cache_key = self._build_cache_key(category, grouped)
+        cache_key = self._build_cache_key(category, grouped, include_backend_variations)
+
+        # Determine stale behavior
+        hydration_enabled = horde_model_reference_settings.cache_hydration_enabled
+        effective_allow_stale = allow_stale if allow_stale is not None else hydration_enabled
+        stale_ttl = horde_model_reference_settings.cache_hydration_stale_ttl_seconds
 
         # Try Redis first
         if self._redis_client:
@@ -185,21 +213,75 @@ class RedisCache(ABC, Generic[T]):
         with self._lock:
             if cache_key in self._cache:
                 age = time.time() - self._timestamps.get(cache_key, 0)
+
+                # Fresh data - always return
                 if age < self._ttl:
                     logger.debug(f"{self.__class__.__name__} cache hit (memory): {cache_key}")
                     return self._cache[cache_key]
-                logger.debug(f"{self.__class__.__name__} cache expired (memory): {cache_key}, age={age:.1f}s")
+
+                # Stale data - return if stale allowed and within stale TTL
+                if effective_allow_stale and age < stale_ttl:
+                    logger.debug(
+                        f"{self.__class__.__name__} returning stale data (memory): {cache_key}, "
+                        f"age={age:.1f}s (TTL={self._ttl}s, stale_ttl={stale_ttl}s)"
+                    )
+                    return self._cache[cache_key]
+
+                # Data too old - remove and return None
+                logger.debug(
+                    f"{self.__class__.__name__} cache expired (memory): {cache_key}, "
+                    f"age={age:.1f}s (stale_allowed={effective_allow_stale})"
+                )
                 self._cache.pop(cache_key, None)
                 self._timestamps.pop(cache_key, None)
 
         logger.debug(f"{self.__class__.__name__} cache miss: {cache_key}")
         return None
 
+    def is_fresh(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        grouped: bool = False,
+        include_backend_variations: bool = False,
+    ) -> bool:
+        """Check if cached data is fresh (within normal TTL).
+
+        Useful for determining if background hydration should run.
+
+        Args:
+            category: The model reference category.
+            grouped: Whether to check grouped text models variant.
+            include_backend_variations: Whether backend variations are included.
+
+        Returns:
+            True if fresh data exists within TTL, False otherwise.
+        """
+        cache_key = self._build_cache_key(category, grouped, include_backend_variations)
+
+        # Check Redis TTL
+        if self._redis_client:
+            try:
+                redis_key = self._get_redis_key(cache_key)
+                ttl = self._redis_client.ttl(redis_key)
+                if ttl > 0:
+                    return True
+            except Exception as e:
+                logger.warning(f"Failed to check Redis TTL for {cache_key}: {e}")
+
+        # Check in-memory
+        with self._lock:
+            if cache_key in self._cache:
+                age = time.time() - self._timestamps.get(cache_key, 0)
+                return age < self._ttl
+
+        return False
+
     def set(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         result: T,
         grouped: bool = False,
+        include_backend_variations: bool = False,
     ) -> None:
         """Store result in cache.
 
@@ -209,8 +291,9 @@ class RedisCache(ABC, Generic[T]):
             category: The model reference category.
             result: The computed result to cache.
             grouped: Whether this is the grouped text models variant.
+            include_backend_variations: Whether backend variations are included.
         """
-        cache_key = self._build_cache_key(category, grouped)
+        cache_key = self._build_cache_key(category, grouped, include_backend_variations)
 
         # Store in Redis
         if self._redis_client:
@@ -232,39 +315,44 @@ class RedisCache(ABC, Generic[T]):
         self,
         category: MODEL_REFERENCE_CATEGORY,
         grouped: bool | None = None,
+        include_backend_variations: bool | None = None,
     ) -> None:
         """Invalidate cached results for a category.
 
         Removes from both Redis and in-memory cache. If grouped is None,
-        invalidates both grouped and ungrouped variants.
+        invalidates all grouped/ungrouped variants. If include_backend_variations
+        is None, invalidates all variation states.
 
         Args:
             category: The model reference category to invalidate.
             grouped: Whether to invalidate grouped variant (None = both).
+            include_backend_variations: Whether to invalidate variation states (None = both).
         """
         # Determine which variants to invalidate
-        variants = [False, True] if grouped is None else [grouped]
+        grouped_variants = [False, True] if grouped is None else [grouped]
+        variations_variants = [False, True] if include_backend_variations is None else [include_backend_variations]
 
-        for variant in variants:
-            cache_key = self._build_cache_key(category, variant)
-            logger.debug(f"Invalidating cache: {cache_key}")
+        for gv in grouped_variants:
+            for vv in variations_variants:
+                cache_key = self._build_cache_key(category, gv, vv)
+                logger.debug(f"Invalidating cache: {cache_key}")
 
-            # Invalidate Redis
-            if self._redis_client:
-                try:
-                    redis_key = self._get_redis_key(cache_key)
-                    deleted_count = self._redis_client.delete(redis_key)
-                    if deleted_count > 0:
-                        logger.debug(f"Deleted Redis key: {redis_key}")
-                except Exception as e:
-                    logger.warning(f"Failed to delete from Redis for {cache_key}: {e}")
+                # Invalidate Redis
+                if self._redis_client:
+                    try:
+                        redis_key = self._get_redis_key(cache_key)
+                        deleted_count = self._redis_client.delete(redis_key)
+                        if deleted_count > 0:
+                            logger.debug(f"Deleted Redis key: {redis_key}")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete from Redis for {cache_key}: {e}")
 
-            # Invalidate in-memory
-            with self._lock:
-                removed = self._cache.pop(cache_key, None) is not None
-                self._timestamps.pop(cache_key, None)
-                if removed:
-                    logger.debug(f"Removed from memory cache: {cache_key}")
+                # Invalidate in-memory
+                with self._lock:
+                    removed = self._cache.pop(cache_key, None) is not None
+                    self._timestamps.pop(cache_key, None)
+                    if removed:
+                        logger.debug(f"Removed from memory cache: {cache_key}")
 
     def clear_all(self) -> None:
         """Clear all cached results.
@@ -278,9 +366,10 @@ class RedisCache(ABC, Generic[T]):
             try:
                 for category in MODEL_REFERENCE_CATEGORY:
                     for grouped in [False, True]:
-                        cache_key = self._build_cache_key(category, grouped)
-                        redis_key = self._get_redis_key(cache_key)
-                        self._redis_client.delete(redis_key)
+                        for variations in [False, True]:
+                            cache_key = self._build_cache_key(category, grouped, variations)
+                            redis_key = self._get_redis_key(cache_key)
+                            self._redis_client.delete(redis_key)
                 logger.debug("Cleared all Redis keys")
             except Exception as e:
                 logger.warning(f"Failed to clear Redis cache: {e}")
