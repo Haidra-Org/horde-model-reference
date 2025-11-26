@@ -8,7 +8,7 @@ from loguru import logger
 from pydantic import BaseModel
 from strenum import StrEnum
 
-from horde_model_reference import ai_horde_worker_settings
+from horde_model_reference import ModelReferenceManager, ai_horde_worker_settings, horde_model_reference_settings
 
 header_auth_scheme = APIKeyHeader(name="apikey")
 
