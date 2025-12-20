@@ -172,6 +172,8 @@ class KNOWN_IMAGE_GENERATION_BASELINE(StrEnum):
     flux_1 = auto()  # TODO: Extract flux and create "IMAGE_GENERATION_BASELINE_CATEGORY" due to name inconsistency
     flux_schnell = auto()  # FIXME
     flux_dev = auto()  # FIXME
+    qwen_image = auto()
+    z_image_turbo = auto()
 
 
 STABLE_DIFFUSION_BASELINE_CATEGORY = KNOWN_IMAGE_GENERATION_BASELINE
@@ -213,6 +215,10 @@ _alternative_stable_cascade_baseline_names = [
     "stable cascade",
 ]
 
+_alternative_qwen_image_baseline_names = ["qwen_image", "qwen image", "qwen-image", "qwen"]
+
+_alternative_z_image_turbo_baseline_names = ["z_image_turbo", "z image turbo", "zimage-turbo", "zimage"]
+
 
 def matching_baseline_exists(
     baseline: str,
@@ -238,6 +244,10 @@ def matching_baseline_exists(
         return baseline in _alternative_flux_dev_baseline_names
     if known_image_generation_baseline == KNOWN_IMAGE_GENERATION_BASELINE.stable_cascade:
         return baseline in _alternative_stable_cascade_baseline_names
+    if known_image_generation_baseline == KNOWN_IMAGE_GENERATION_BASELINE.qwen_image:
+        return baseline in _alternative_qwen_image_baseline_names
+    if known_image_generation_baseline == KNOWN_IMAGE_GENERATION_BASELINE.z_image_turbo:
+        return baseline in _alternative_z_image_turbo_baseline_names
 
     return baseline == known_image_generation_baseline.name
 
