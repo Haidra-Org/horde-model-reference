@@ -18,7 +18,7 @@ from horde_model_reference.backends import (
     ModelReferenceBackend,
     RedisBackend,
 )
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, categories_managed_elsewhere
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
     AudioGenerationModelRecord,
@@ -477,6 +477,10 @@ class ModelReferenceManager:
         """
         if file_json_dict is None:
             logger.warning(f"File dict json is None for {category}.")
+            return None
+
+        if category in categories_managed_elsewhere:
+            logger.info(f"Skipping conversion for category: {category} (managed elsewhere)")
             return None
 
         try:

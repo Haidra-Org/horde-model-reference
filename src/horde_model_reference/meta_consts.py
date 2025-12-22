@@ -100,6 +100,13 @@ github_text_model_reference_categories = [
 no_legacy_format_available_categories = [
     MODEL_REFERENCE_CATEGORY.video_generation,
     MODEL_REFERENCE_CATEGORY.audio_generation,
+    MODEL_REFERENCE_CATEGORY.lora,
+    MODEL_REFERENCE_CATEGORY.ti,
+]
+
+categories_managed_elsewhere = [
+    MODEL_REFERENCE_CATEGORY.lora,
+    MODEL_REFERENCE_CATEGORY.ti,
 ]
 
 
@@ -310,6 +317,10 @@ IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP: dict[KNOWN_IMAGE_GENERATION_
     KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl: 1024,
     KNOWN_IMAGE_GENERATION_BASELINE.stable_cascade: 1024,
     KNOWN_IMAGE_GENERATION_BASELINE.flux_1: 1024,
+    KNOWN_IMAGE_GENERATION_BASELINE.flux_schnell: 1024,
+    KNOWN_IMAGE_GENERATION_BASELINE.flux_dev: 1024,
+    KNOWN_IMAGE_GENERATION_BASELINE.qwen_image: 1024,
+    KNOWN_IMAGE_GENERATION_BASELINE.z_image_turbo: 1024,
 }
 """The single-side preferred resolution for each known stable diffusion baseline."""
 
