@@ -374,7 +374,7 @@ class MetadataManager:
             return None
 
         try:
-            with open(file_path) as f:
+            with open(file_path, encoding="utf-8") as f:
                 data = json.load(f)
             return CategoryMetadata(**data)
         except Exception as e:
@@ -395,7 +395,7 @@ class MetadataManager:
 
         try:
             # Write to temp file
-            with open(temp_path, "w") as f:
+            with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(metadata.model_dump(mode="json"), f, indent=2)
                 os.fsync(f.fileno())
 

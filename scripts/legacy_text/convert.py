@@ -23,19 +23,19 @@ output_file = "db.json"
 
 # Keys and values from defaults.json are always present in the model record.
 # Values from defaults.json are used to fill in missing fields in the CSV file.
-with open("defaults.json") as defaults_file:
+with open("defaults.json", encoding="utf-8") as defaults_file:
     defaults = json.load(defaults_file)
 
 
 # Keys from generation_params.json are used to validate the 'settings' field.
 # Values from generation_params.json are not used.
-with open("generation_params.json") as params_file:
+with open("generation_params.json", encoding="utf-8") as params_file:
     params = json.load(params_file)
 
 
 data = {}
 
-with open(input_file, newline="") as csvfile:
+with open(input_file, newline="", encoding="utf-8") as csvfile:
     reader = csv.DictReader(csvfile)
     row: dict[str, Any]
     for row in reader:
@@ -97,20 +97,20 @@ if TESTS_ONGOING and output_file_existed_before:
     # If tests are ongoing, we don't want to overwrite the db.json file
     # Instead, we'll write to a new file and make sure the two files are the same
     # by comparing them as strings
-    with open("db_test.json", "w") as f:
+    with open("db_test.json", "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
         f.write("\n")
 
-    with open(output_file) as f:
+    with open(output_file, encoding="utf-8") as f:
         old_data = f.read()
 
-    with open("db_test.json") as f:
+    with open("db_test.json", encoding="utf-8") as f:
         new_data = f.read()
 
     if old_data != new_data:
         print("db.json and db_test.json are different. Did you forget to run `convert.py`?")
         exit(1)
 else:
-    with open(output_file, "w") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4)
         f.write("\n")

@@ -547,7 +547,7 @@ class TestMetadataFileIO:
         assert expected_path.is_file(), "V2 metadata path should be a file"
 
         # Verify file contains valid JSON
-        with open(expected_path) as f:
+        with open(expected_path, encoding="utf-8") as f:
             file_content = f.read()
             assert file_content, "Metadata file should not be empty"
             file_data = json.loads(file_content)
@@ -590,7 +590,7 @@ class TestMetadataFileIO:
         assert expected_path != v2_path, "Legacy and v2 metadata paths should be different"
 
         # Verify file contents
-        with open(expected_path) as f:
+        with open(expected_path, encoding="utf-8") as f:
             file_data = json.loads(f.read())
 
         assert file_data["category"] == category.value
@@ -715,7 +715,7 @@ class TestMetadataFileIO:
         )
 
         metadata_path = primary_base / "meta" / "v2" / f"{category.value}_metadata.json"
-        with open(metadata_path) as f:
+        with open(metadata_path, encoding="utf-8") as f:
             content = f.read()
 
         # Verify JSON is indented (not minified)
@@ -754,13 +754,13 @@ class TestMetadataFileIO:
 
         # Modify file directly (simulating external change)
         metadata_path = primary_base / "meta" / "v2" / f"{category.value}_metadata.json"
-        with open(metadata_path) as f:
+        with open(metadata_path, encoding="utf-8") as f:
             file_data = json.loads(f.read())
 
         file_data["total_creates"] = initial_creates + 10
         file_data["last_updated"] = int(time.time())
 
-        with open(metadata_path, "w") as f:
+        with open(metadata_path, "w", encoding="utf-8") as f:
             json.dump(file_data, f, indent=2)
 
         # Touch file to update mtime
@@ -826,7 +826,7 @@ class TestMetadataFileIO:
             "backend_type": "FileSystemBackend",
         }
 
-        with open(metadata_path, "w") as f:
+        with open(metadata_path, "w", encoding="utf-8") as f:
             json.dump(minimal_data, f)
 
         # Clear cache

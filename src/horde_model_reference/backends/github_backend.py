@@ -539,7 +539,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         try:
             # All v2 files are JSON format (including text_generation.json)
-            with open(file_path) as f:
+            with open(file_path, encoding="utf-8") as f:
                 data = cast(dict[str, Any], ujson.load(f))
 
             self._store_in_cache(category, data)

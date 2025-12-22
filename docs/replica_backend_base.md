@@ -274,7 +274,7 @@ Protected method that stores fetched data and updates all cache metadata (timest
 
 ```python
 # ✅ GitHubBackend pattern (inside _load_converted_from_disk)
-with open(file_path) as f:
+with open(file_path, encoding="utf-8") as f:
     data: dict[str, Any] = ujson.load(f)
 
 self._store_in_cache(category, data)
@@ -615,7 +615,7 @@ When errors occur during fetch/read operations, invalidate the cache to force re
 
 ```python
 try:
-    with open(file_path) as f:
+    with open(file_path, encoding="utf-8") as f:
         data = json.load(f)
     self._store_in_cache(category, data)
     return data
@@ -651,7 +651,7 @@ def fetch_category(self, category, *, force_refresh=False):
         if force_refresh or self.should_fetch_data(category):
             file_path = self._get_file_path(category)
             try:
-                with open(file_path) as f:
+                with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
                 self._store_in_cache(category, data)
                 return data
@@ -806,7 +806,7 @@ def fetch_category(self, category, *, force_refresh=False):
         if force_refresh or self.should_fetch_data(category):
             file_path = self._get_file_path(category)
             try:
-                with open(file_path) as f:
+                with open(file_path, encoding="utf-8") as f:
                     data = json.load(f)
                 self._store_in_cache(category, data)
                 return data
