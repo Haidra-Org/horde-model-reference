@@ -36,9 +36,9 @@ input_file = "db.json"
 output_file = "models.csv"
 
 # Load defaults and generation params for validation
-with open("defaults.json") as f:
+with open("defaults.json", encoding="utf-8") as f:
     defaults = json.load(f)
-with open("generation_params.json") as f:
+with open("generation_params.json", encoding="utf-8") as f:
     params = json.load(f)
 
 
@@ -226,7 +226,7 @@ def has_empty_config(record: dict[str, Any]) -> bool:
 
 # Read db.json
 try:
-    with open(input_file) as f:
+    with open(input_file, encoding="utf-8") as f:
         data: dict[str, dict[str, Any]] = json.load(f)
 except FileNotFoundError:
     print(f"Error: {input_file} not found")
@@ -341,17 +341,17 @@ fieldnames = [
     "display_name",
 ]
 
-with open(actual_output, "w", newline="") as csvfile:
+with open(actual_output, "w", newline="", encoding="utf-8") as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
     writer.writerows(csv_rows)
 
 if TESTS_ONGOING and output_file_existed_before:
     # Compare the test output with the existing file
-    with open(output_file) as f:
+    with open(output_file, encoding="utf-8") as f:
         old_data = f.read()
 
-    with open(actual_output) as f:
+    with open(actual_output, encoding="utf-8") as f:
         new_data = f.read()
 
     if old_data != new_data:

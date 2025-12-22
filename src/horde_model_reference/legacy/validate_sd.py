@@ -26,7 +26,7 @@ def validate_legacy_stable_diffusion_db(
         bool: True if the validation passes, False otherwise.
     """
     raw_json_sd_db: str
-    with open(sd_db) as sd_db_file:
+    with open(sd_db, encoding="utf-8") as sd_db_file:
         raw_json_sd_db = sd_db_file.read()
     try:
         loaded_json_sd_db = json.loads(raw_json_sd_db)
