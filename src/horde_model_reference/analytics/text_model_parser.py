@@ -163,7 +163,7 @@ def get_base_model_name(model_name: str) -> str:
         >>> get_base_model_name("aphrodite/ReadyArt/Broken-Tutu-24B")
         "Broken-Tutu"
     """
-    from horde_model_reference.meta_consts import strip_backend_prefix
+    from horde_model_reference.text_backend_names import strip_backend_prefix
 
     # First strip backend prefix (e.g., "koboldcpp/", "aphrodite/")
     name_without_backend = strip_backend_prefix(model_name)

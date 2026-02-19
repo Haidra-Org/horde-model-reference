@@ -167,7 +167,7 @@ class IndexedHordeModelStatus(RootModel[dict[str, HordeModelStatus]]):
         Returns:
             Aggregated HordeModelStatus or None if no variants have status.
         """
-        from horde_model_reference.meta_consts import get_model_name_variants
+        from horde_model_reference.text_backend_names import get_model_name_variants
 
         variants = get_model_name_variants(canonical_name)
 
@@ -199,7 +199,7 @@ class IndexedHordeModelStatus(RootModel[dict[str, HordeModelStatus]]):
             - variations_dict: Dict of backend_name -> HordeModelStatus
               Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
         """
-        from horde_model_reference.meta_consts import get_model_name_variants
+        from horde_model_reference.text_backend_names import get_model_name_variants
 
         variants = get_model_name_variants(canonical_name)
         variations: dict[str, HordeModelStatus] = {}
@@ -293,7 +293,7 @@ def _build_base_name_index(model_names: list[str]) -> dict[str, list[str]]:
                                    "aphrodite/neversleep/lumimaid-v0.2-8b"]}
     """
     from horde_model_reference.analytics.text_model_parser import get_base_model_name
-    from horde_model_reference.meta_consts import strip_backend_prefix
+    from horde_model_reference.text_backend_names import strip_backend_prefix
 
     base_name_index: dict[str, list[str]] = {}
 
@@ -468,7 +468,7 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
             #                 koboldcpp/Lumimaid-v0.2-8B-Q8_0, aphrodite/NeverSleep/Lumimaid-v0.2-8B, etc.
         """
         from horde_model_reference.analytics.text_model_parser import get_base_model_name
-        from horde_model_reference.meta_consts import get_model_name_variants
+        from horde_model_reference.text_backend_names import get_model_name_variants
 
         # Collect all model names to aggregate (use set to avoid double-counting)
         names_to_aggregate: set[str] = set()
@@ -521,7 +521,7 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
             - variations_dict: Dict of backend_name -> (day, month, total)
               Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
         """
-        from horde_model_reference.meta_consts import get_model_name_variants
+        from horde_model_reference.text_backend_names import get_model_name_variants
 
         # Collect all model names that are variants of this specific model
         # Use _model_with_size_index to include quantization variants, but NOT size variants

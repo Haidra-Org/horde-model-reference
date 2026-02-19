@@ -363,6 +363,8 @@ if horde_model_reference_settings.text_github_repo != TextGithubRepoSettings():
 
 
 from .meta_consts import (  # noqa: E402, I001
+    BaselineDescriptor,
+    CategoryDescriptor,
     KNOWN_IMAGE_GENERATION_BASELINE,
     KNOWN_TAGS,
     MODEL_CLASSIFICATION_LOOKUP,
@@ -371,6 +373,18 @@ from .meta_consts import (  # noqa: E402, I001
     MODEL_REFERENCE_CATEGORY,
     MODEL_STYLE,
     ModelClassification,
+    get_all_registered_baselines,
+    get_all_registered_categories,
+    get_baseline_descriptor,
+    get_category_descriptor,
+    get_known_tags,
+    register_image_baseline,
+    register_category,
+)
+from .text_backend_names import (  # noqa: E402
+    get_model_name_variants,
+    has_legacy_text_backend_prefix,
+    strip_backend_prefix,
 )
 from .path_consts import (  # noqa: E402
     DEFAULT_SHOWCASE_FOLDER_NAME,
@@ -380,7 +394,6 @@ from .path_consts import (  # noqa: E402
 from .model_reference_manager import ModelReferenceManager, PrefetchStrategy  # noqa: E402
 
 __all__ = [
-    "BASE_PATH",
     "DEFAULT_SHOWCASE_FOLDER_NAME",
     "KNOWN_IMAGE_GENERATION_BASELINE",
     "KNOWN_TAGS",
@@ -389,10 +402,22 @@ __all__ = [
     "MODEL_PURPOSE",
     "MODEL_REFERENCE_CATEGORY",
     "MODEL_STYLE",
+    "BaselineDescriptor",
+    "CategoryDescriptor",
     "ModelClassification",
     "ModelReferenceManager",
     "PrefetchStrategy",
-    "get_model_reference_file_path",
-    "get_model_reference_filename",
+    "get_all_registered_baselines",
+    "get_all_registered_categories",
+    "get_baseline_descriptor",
+    "get_category_descriptor",
+    "get_known_tags",
+    "get_model_name_variants",
+    "get_record_type_for_category",
+    "has_legacy_text_backend_prefix",
     "horde_model_reference_paths",
+    "register_category",
+    "register_image_baseline",
+    "register_record_type",
+    "strip_backend_prefix",
 ]

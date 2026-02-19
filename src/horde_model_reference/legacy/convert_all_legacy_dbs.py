@@ -10,7 +10,7 @@ from horde_model_reference.legacy.classes.legacy_converters import (
     LegacyStableDiffusionConverter,
     LegacyTextGenerationConverter,
 )
-from horde_model_reference.meta_consts import no_legacy_format_available_categories
+from horde_model_reference.meta_consts import get_no_legacy_format_categories
 from horde_model_reference.path_consts import normalize_legacy_base_path
 
 
@@ -141,7 +141,7 @@ def convert_legacy_database_by_category(
     Returns:
         True if the conversion succeeded, False otherwise.
     """
-    if model_category in no_legacy_format_available_categories:
+    if model_category in get_no_legacy_format_categories():
         logger.info(f"Skipping legacy database conversion for category: {model_category} (no legacy format available)")
         return True
 
