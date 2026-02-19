@@ -34,7 +34,6 @@ class EnumRegistry(Generic[T]):
 
     def mutable_values(self) -> set[str]:
         """Expose a live set for backwards-compatible global aliases."""
-
         return self._known
 
 

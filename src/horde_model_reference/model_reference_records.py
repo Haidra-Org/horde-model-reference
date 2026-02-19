@@ -24,8 +24,8 @@ from horde_model_reference.meta_consts import (
     CONTROLNET_STYLE,
     get_category_descriptor,
     is_known_controlnet_style,
-    is_known_model_style,
     is_known_image_baseline,
+    is_known_model_style,
 )
 from horde_model_reference.model_kind_validation import (
     FieldPolicy,
