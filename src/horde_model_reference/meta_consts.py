@@ -7,6 +7,7 @@ from typing import Literal
 from loguru import logger
 from pydantic import BaseModel, model_validator
 from strenum import StrEnum
+
 from horde_model_reference.registries import DescriptorRegistry, EnumRegistry
 
 
@@ -26,13 +27,11 @@ _MODEL_STYLE_REGISTRY = EnumRegistry(item.value for item in MODEL_STYLE)
 
 def register_model_style(style: MODEL_STYLE | str) -> None:
     """Register a new model style."""
-
     _MODEL_STYLE_REGISTRY.register(style)
 
 
 def is_known_model_style(style: MODEL_STYLE | str) -> bool:
     """Check if a model style is known."""
-
     return _MODEL_STYLE_REGISTRY.is_known(style)
 
 
@@ -61,13 +60,11 @@ _CONTROLNET_STYLE_REGISTRY = EnumRegistry(item.value for item in CONTROLNET_STYL
 
 def register_controlnet_style(style: CONTROLNET_STYLE | str) -> None:
     """Register a new ControlNet style."""
-
     _CONTROLNET_STYLE_REGISTRY.register(style)
 
 
 def is_known_controlnet_style(style: CONTROLNET_STYLE | str) -> bool:
     """Check if a ControlNet style is known."""
-
     return _CONTROLNET_STYLE_REGISTRY.is_known(style)
 
 
@@ -103,13 +100,11 @@ def get_known_tags() -> list[str]:
 
 def register_tag(tag: str | StrEnum) -> None:
     """Register a new known tag."""
-
     _TAG_REGISTRY.register(tag)
 
 
 def is_known_tag(tag: str | StrEnum) -> bool:
     """Check if a tag is known."""
-
     return _TAG_REGISTRY.is_known(tag)
 
 
@@ -128,13 +123,11 @@ _MODEL_DOMAIN_REGISTRY = EnumRegistry(item.value for item in MODEL_DOMAIN)
 
 def register_model_domain(domain: MODEL_DOMAIN | str) -> None:
     """Register a new model domain."""
-
     _MODEL_DOMAIN_REGISTRY.register(domain)
 
 
 def is_known_model_domain(domain: MODEL_DOMAIN | str) -> bool:
     """Check if a model domain is known."""
-
     return _MODEL_DOMAIN_REGISTRY.is_known(domain)
 
 
@@ -165,13 +158,11 @@ _MODEL_PURPOSE_REGISTRY = EnumRegistry(item.value for item in MODEL_PURPOSE)
 
 def register_model_purpose(purpose: MODEL_PURPOSE | str) -> None:
     """Register a new model purpose."""
-
     _MODEL_PURPOSE_REGISTRY.register(purpose)
 
 
 def is_known_model_purpose(purpose: MODEL_PURPOSE | str) -> bool:
     """Check if a model purpose is known."""
-
     return _MODEL_PURPOSE_REGISTRY.is_known(purpose)
 
 
@@ -258,7 +249,6 @@ def _rebuild_category_derived_data(
     data: dict[MODEL_REFERENCE_CATEGORY | str, CategoryDescriptor],
 ) -> None:
     """Rebuild derived category data from the registry."""
-
     global github_image_model_reference_categories
     global github_text_model_reference_categories
     global no_legacy_format_available_categories
@@ -270,9 +260,9 @@ def _rebuild_category_derived_data(
     categories_managed_elsewhere = [c for c, d in data.items() if d.managed_elsewhere]
 
     MODEL_CLASSIFICATION_LOOKUP.clear()
-    MODEL_CLASSIFICATION_LOOKUP.update({
-        c: ModelClassification(domain=d.domain, purpose=d.purpose) for c, d in data.items()
-    })
+    MODEL_CLASSIFICATION_LOOKUP.update(
+        {c: ModelClassification(domain=d.domain, purpose=d.purpose) for c, d in data.items()}
+    )
 
 
 _CATEGORY_REGISTRY = DescriptorRegistry[MODEL_REFERENCE_CATEGORY | str, CategoryDescriptor](
@@ -282,7 +272,6 @@ _CATEGORY_REGISTRY = DescriptorRegistry[MODEL_REFERENCE_CATEGORY | str, Category
 
 def register_category(name: MODEL_REFERENCE_CATEGORY | str, descriptor: CategoryDescriptor) -> None:
     """Register a new model reference category."""
-
     _CATEGORY_REGISTRY.register(name, descriptor)
 
 
@@ -440,7 +429,6 @@ def get_category_descriptor(category: MODEL_REFERENCE_CATEGORY | str) -> Categor
 
 def get_all_registered_categories() -> dict[MODEL_REFERENCE_CATEGORY | str, CategoryDescriptor]:
     """Return a shallow copy of the category registry."""
-
     return _CATEGORY_REGISTRY.all()
 
 
@@ -491,11 +479,10 @@ def _rebuild_baseline_derived_data(
     data: dict[KNOWN_IMAGE_GENERATION_BASELINE | str, BaselineDescriptor],
 ) -> None:
     """Rebuild derived baseline lookups from the registry."""
-
     IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP.clear()
-    IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP.update({
-        b: d.native_resolution for b, d in data.items() if d.native_resolution is not None
-    })
+    IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP.update(
+        {b: d.native_resolution for b, d in data.items() if d.native_resolution is not None}
+    )
 
     _ALTERNATIVE_NAME_TO_BASELINE.clear()
     for bl, desc in data.items():
@@ -510,7 +497,6 @@ _IMAGE_BASELINE_REGISTRY = DescriptorRegistry[KNOWN_IMAGE_GENERATION_BASELINE | 
 
 def register_image_baseline(name: KNOWN_IMAGE_GENERATION_BASELINE | str, descriptor: BaselineDescriptor) -> None:
     """Register a new image-generation baseline."""
-
     _IMAGE_BASELINE_REGISTRY.register(name, descriptor)
 
 

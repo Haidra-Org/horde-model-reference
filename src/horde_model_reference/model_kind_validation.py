@@ -42,7 +42,6 @@ class KindPolicyRegistry:
 
 def category_key(category: str | Enum) -> str:
     """Normalize category identifiers to a string key for the registry."""
-
     return str(category)
 
 
