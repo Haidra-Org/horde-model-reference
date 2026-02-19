@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from enum import Enum
 
 import pytest
-from typing import Generator
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.meta_consts import (
@@ -58,8 +58,8 @@ from horde_model_reference.text_backend_names import (
 @pytest.fixture(autouse=True)
 def reset_registries() -> Generator[None, None, None]:
     """Snapshot registry state and restore after each test to avoid cross-test coupling."""
-
     import copy
+
     import horde_model_reference.meta_consts as mc
 
     category_snapshot = mc._CATEGORY_REGISTRY.all()
@@ -447,14 +447,13 @@ class TestCategoryDescriptorAccessors:
         assert desc.filename_override == "stable_diffusion.json"
 
     def test_managed_elsewhere_flag(self) -> None:
-        """lora and ti are managed by external systems."""
+        """Lora and ti are managed by external systems."""
         assert get_category_descriptor(MODEL_REFERENCE_CATEGORY.lora).managed_elsewhere is True
         assert get_category_descriptor(MODEL_REFERENCE_CATEGORY.ti).managed_elsewhere is True
         assert get_category_descriptor(MODEL_REFERENCE_CATEGORY.image_generation).managed_elsewhere is False
 
     def test_runtime_category_registration_updates_derived_state(self) -> None:
         """Registering a new category should rebuild derived lists and classification lookups."""
-
         register_category(
             "runtime_category",
             CategoryDescriptor(
@@ -473,7 +472,6 @@ class TestCategoryDescriptorAccessors:
 
     def test_duplicate_category_registration_raises(self) -> None:
         """Registering the same category twice should surface a ValueError to callers."""
-
         register_category(
             "dup_category",
             CategoryDescriptor(
@@ -544,7 +542,6 @@ class TestBaselineDescriptorAccessors:
 
     def test_runtime_baseline_registration_updates_derived_state(self) -> None:
         """Registering a new baseline should refresh resolution and alias lookups."""
-
         import horde_model_reference.meta_consts as mc
 
         register_image_baseline(
@@ -559,7 +556,6 @@ class TestBaselineDescriptorAccessors:
 
     def test_duplicate_baseline_registration_raises(self) -> None:
         """Registering the same baseline twice should surface a ValueError to callers."""
-
         register_image_baseline("dup_baseline", BaselineDescriptor(native_resolution=512))
 
         with pytest.raises(ValueError):
