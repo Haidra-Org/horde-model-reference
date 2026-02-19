@@ -695,7 +695,7 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
 
         # Drop backend-prefixed entries (they are duplicates of base models)
         # Backend prefixes are only generated during GitHub sync, not stored internally
-        from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
+        from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 
         if has_legacy_text_backend_prefix(legacy_record.name):
             self.add_validation_error_to_log(

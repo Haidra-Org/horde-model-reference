@@ -30,7 +30,7 @@ from typing import Any
 # Add parent directory to path to import horde_model_reference
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
+from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 
 input_file = "db.json"
 output_file = "models.csv"

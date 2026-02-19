@@ -29,8 +29,8 @@ from horde_model_reference.legacy.convert_all_legacy_dbs import (
 from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv
 from horde_model_reference.meta_consts import (
     MODEL_REFERENCE_CATEGORY,
-    github_image_model_reference_categories,
-    github_text_model_reference_categories,
+    get_github_image_categories,
+    get_github_text_categories,
 )
 from horde_model_reference.path_consts import LEGACY_REFERENCE_FOLDER_NAME
 
@@ -683,9 +683,9 @@ class GitHubBackend(ReplicaBackendBase):
                 return target_file_path
 
             target_url: str | None = None
-            if category in github_image_model_reference_categories:
+            if category in get_github_image_categories():
                 target_url = horde_model_reference_paths.legacy_image_model_github_urls[category]
-            elif category in github_text_model_reference_categories:
+            elif category in get_github_text_categories():
                 target_url = horde_model_reference_paths.legacy_text_model_github_urls[category]
             else:
                 logger.debug(f"No known GitHub URL for {category}, creating empty file")
@@ -793,9 +793,9 @@ class GitHubBackend(ReplicaBackendBase):
             return target_file_path
 
         target_url: str | None = None
-        if category in github_image_model_reference_categories:
+        if category in get_github_image_categories():
             target_url = horde_model_reference_paths.legacy_image_model_github_urls[category]
-        elif category in github_text_model_reference_categories:
+        elif category in get_github_text_categories():
             target_url = horde_model_reference_paths.legacy_text_model_github_urls[category]
         else:
             logger.debug(f"No known GitHub URL for {category}")

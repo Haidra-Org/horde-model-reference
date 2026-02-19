@@ -29,10 +29,8 @@ from typing import TypeAlias
 
 from loguru import logger
 
-from horde_model_reference.meta_consts import (
-    _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES,
-    TEXT_BACKENDS,
-)
+from horde_model_reference.meta_consts import TEXT_BACKENDS
+from horde_model_reference.text_backend_names import TEXT_LEGACY_BACKEND_PREFIXES
 
 # Type aliases for legacy text generation record structures
 SettingsValue: TypeAlias = int | float | str | list[int] | list[float] | list[str] | bool
@@ -178,7 +176,7 @@ class LegacyTextValidator:
         Returns:
             True if the model name has a backend prefix (aphrodite/ or koboldcpp/).
         """
-        return any(model_name.startswith(prefix) for prefix in _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES.values())
+        return any(model_name.startswith(prefix) for prefix in TEXT_LEGACY_BACKEND_PREFIXES.values())
 
     def _validate_single_record(
         self,
@@ -409,7 +407,7 @@ class LegacyTextValidator:
         model_name = record.get("model_name", base_name)
 
         # Generate entries with backend prefixes
-        for backend, prefix in _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES.items():
+        for backend, prefix in TEXT_LEGACY_BACKEND_PREFIXES.items():
             if backend == TEXT_BACKENDS.aphrodite:
                 # aphrodite uses base_name
                 prefixed_name = f"{prefix}{base_name}"
