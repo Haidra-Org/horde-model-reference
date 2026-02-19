@@ -14,7 +14,8 @@ from horde_model_reference import (
 )
 from horde_model_reference.meta_consts import (
     MODEL_REFERENCE_CATEGORY,
-    github_image_model_reference_categories,
+    get_category_descriptor,
+    get_github_image_categories,
 )
 
 PACKAGE_NAME = "horde_model_reference"
@@ -164,7 +165,7 @@ class HordeModelReferencePaths:
             # Use legacy filename for GitHub URL composition
             legacy_filename = self.legacy_model_reference_filenames[category]
             composed_url: str | None = None
-            if category in github_image_model_reference_categories:
+            if category in get_github_image_categories():
                 composed_url = urlparse(
                     horde_model_reference_settings.image_github_repo.compose_full_file_url(legacy_filename),
                     allow_fragments=False,

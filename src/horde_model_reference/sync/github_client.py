@@ -620,10 +620,8 @@ class GitHubSyncClient:
         Returns:
             dict[str, dict[str, Any]]: Model data with backend prefix duplicates.
         """
-        from horde_model_reference.meta_consts import (
-            _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES,
-            TEXT_BACKENDS,
-        )
+        from horde_model_reference.meta_consts import TEXT_BACKENDS
+        from horde_model_reference.text_backend_names import TEXT_LEGACY_BACKEND_PREFIXES
 
         result: dict[str, dict[str, Any]] = {}
 
@@ -633,9 +631,9 @@ class GitHubSyncClient:
             # Generate 3 entries: base, aphrodite/, koboldcpp/
             key_formats = [
                 ("{name}", name),  # Base entry
-                (f"{_TEXT_LEGACY_CONVERT_BACKEND_PREFIXES[TEXT_BACKENDS.aphrodite]}{{name}}", name),  # aphrodite/
+                (f"{TEXT_LEGACY_BACKEND_PREFIXES[TEXT_BACKENDS.aphrodite]}{{name}}", name),  # aphrodite/
                 (
-                    f"{_TEXT_LEGACY_CONVERT_BACKEND_PREFIXES[TEXT_BACKENDS.koboldcpp]}{{model_name}}",
+                    f"{TEXT_LEGACY_BACKEND_PREFIXES[TEXT_BACKENDS.koboldcpp]}{{model_name}}",
                     model_name,
                 ),  # koboldcpp/
             ]

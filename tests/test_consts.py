@@ -2,6 +2,7 @@ import urllib.parse
 from urllib.parse import ParseResult
 
 from horde_model_reference import horde_model_reference_paths, meta_consts
+from horde_model_reference.text_backend_names import get_model_name_variants
 
 
 def test_github_urls() -> None:
@@ -34,7 +35,7 @@ def test_get_model_name_variants_includes_sanitized_koboldcpp_variant() -> None:
     """Ensure canonical names with org prefixes map to flattened koboldcpp variants."""
     canonical_name = "Qwen/Qwen3-4B-Instruct-2507"
 
-    variants = meta_consts.get_model_name_variants(canonical_name)
+    variants = get_model_name_variants(canonical_name)
 
     assert "koboldcpp/Qwen3-4B-Instruct-2507" in variants
     assert "koboldcpp/Qwen_Qwen3-4B-Instruct-2507" in variants
@@ -42,6 +43,6 @@ def test_get_model_name_variants_includes_sanitized_koboldcpp_variant() -> None:
 
 def test_get_model_name_variants_does_not_duplicate_without_org() -> None:
     """Ensure flattened variants are not duplicated when no org prefix exists."""
-    variants = meta_consts.get_model_name_variants("Broken-Tutu-24B")
+    variants = get_model_name_variants("Broken-Tutu-24B")
 
     assert variants.count("koboldcpp/Broken-Tutu-24B") == 1

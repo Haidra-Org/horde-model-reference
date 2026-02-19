@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from enum import auto
+from typing import Literal
 
 from loguru import logger
 from pydantic import BaseModel, model_validator
 from strenum import StrEnum
+from horde_model_reference.registries import DescriptorRegistry, EnumRegistry
 
 
 class MODEL_STYLE(StrEnum):
@@ -16,6 +19,21 @@ class MODEL_STYLE(StrEnum):
     artistic = auto()
     other = auto()
     realistic = auto()
+
+
+_MODEL_STYLE_REGISTRY = EnumRegistry(item.value for item in MODEL_STYLE)
+
+
+def register_model_style(style: MODEL_STYLE | str) -> None:
+    """Register a new model style."""
+
+    _MODEL_STYLE_REGISTRY.register(style)
+
+
+def is_known_model_style(style: MODEL_STYLE | str) -> bool:
+    """Check if a model style is known."""
+
+    return _MODEL_STYLE_REGISTRY.is_known(style)
 
 
 class CONTROLNET_STYLE(StrEnum):
@@ -38,7 +56,22 @@ class CONTROLNET_STYLE(StrEnum):
     control_qr_xl = auto()
 
 
-KNOWN_TAGS = [
+_CONTROLNET_STYLE_REGISTRY = EnumRegistry(item.value for item in CONTROLNET_STYLE)
+
+
+def register_controlnet_style(style: CONTROLNET_STYLE | str) -> None:
+    """Register a new ControlNet style."""
+
+    _CONTROLNET_STYLE_REGISTRY.register(style)
+
+
+def is_known_controlnet_style(style: CONTROLNET_STYLE | str) -> bool:
+    """Check if a ControlNet style is known."""
+
+    return _CONTROLNET_STYLE_REGISTRY.is_known(style)
+
+
+_KNOWN_TAGS_INITIAL = (
     "anime",
     "manga",
     "cyberpunk",
@@ -57,57 +90,27 @@ KNOWN_TAGS = [
     "cartoon",
     "painting",
     "game",
-]
+)
+
+_TAG_REGISTRY = EnumRegistry(_KNOWN_TAGS_INITIAL)
+KNOWN_TAGS = _TAG_REGISTRY.mutable_values()
 
 
-class MODEL_REFERENCE_CATEGORY(StrEnum):
-    """The categories of model reference entries."""
-
-    blip = auto()
-    clip = auto()
-    codeformer = auto()
-    controlnet = auto()
-    esrgan = auto()
-    gfpgan = auto()
-    safety_checker = auto()
-    image_generation = auto()
-    text_generation = auto()
-    video_generation = auto()
-    audio_generation = auto()
-    miscellaneous = auto()
-    lora = auto()
-    ti = auto()
+def get_known_tags() -> list[str]:
+    """Return a snapshot of all known tags as a list."""
+    return sorted(_TAG_REGISTRY.values())
 
 
-github_image_model_reference_categories = [
-    MODEL_REFERENCE_CATEGORY.blip,
-    MODEL_REFERENCE_CATEGORY.clip,
-    MODEL_REFERENCE_CATEGORY.codeformer,
-    MODEL_REFERENCE_CATEGORY.controlnet,
-    MODEL_REFERENCE_CATEGORY.esrgan,
-    MODEL_REFERENCE_CATEGORY.gfpgan,
-    MODEL_REFERENCE_CATEGORY.safety_checker,
-    MODEL_REFERENCE_CATEGORY.image_generation,
-    MODEL_REFERENCE_CATEGORY.miscellaneous,
-]
-"""This distinguishes the original github repo locations and has no other meaning."""
+def register_tag(tag: str | StrEnum) -> None:
+    """Register a new known tag."""
 
-github_text_model_reference_categories = [
-    MODEL_REFERENCE_CATEGORY.text_generation,
-]
-"""This distinguishes the original github repo locations and has no other meaning."""
+    _TAG_REGISTRY.register(tag)
 
-no_legacy_format_available_categories = [
-    MODEL_REFERENCE_CATEGORY.video_generation,
-    MODEL_REFERENCE_CATEGORY.audio_generation,
-    MODEL_REFERENCE_CATEGORY.lora,
-    MODEL_REFERENCE_CATEGORY.ti,
-]
 
-categories_managed_elsewhere = [
-    MODEL_REFERENCE_CATEGORY.lora,
-    MODEL_REFERENCE_CATEGORY.ti,
-]
+def is_known_tag(tag: str | StrEnum) -> bool:
+    """Check if a tag is known."""
+
+    return _TAG_REGISTRY.is_known(tag)
 
 
 class MODEL_DOMAIN(StrEnum):
@@ -118,6 +121,21 @@ class MODEL_DOMAIN(StrEnum):
     video = auto()
     audio = auto()
     rendered_3d = auto()
+
+
+_MODEL_DOMAIN_REGISTRY = EnumRegistry(item.value for item in MODEL_DOMAIN)
+
+
+def register_model_domain(domain: MODEL_DOMAIN | str) -> None:
+    """Register a new model domain."""
+
+    _MODEL_DOMAIN_REGISTRY.register(domain)
+
+
+def is_known_model_domain(domain: MODEL_DOMAIN | str) -> bool:
+    """Check if a model domain is known."""
+
+    return _MODEL_DOMAIN_REGISTRY.is_known(domain)
 
 
 class MODEL_PURPOSE(StrEnum):
@@ -142,6 +160,21 @@ class MODEL_PURPOSE(StrEnum):
     """The model does not fit into any other category or is very specialized."""
 
 
+_MODEL_PURPOSE_REGISTRY = EnumRegistry(item.value for item in MODEL_PURPOSE)
+
+
+def register_model_purpose(purpose: MODEL_PURPOSE | str) -> None:
+    """Register a new model purpose."""
+
+    _MODEL_PURPOSE_REGISTRY.register(purpose)
+
+
+def is_known_model_purpose(purpose: MODEL_PURPOSE | str) -> bool:
+    """Check if a model purpose is known."""
+
+    return _MODEL_PURPOSE_REGISTRY.is_known(purpose)
+
+
 class ModelClassification(BaseModel):
     """Contains specific information about how to categorize a model.
 
@@ -157,12 +190,263 @@ class ModelClassification(BaseModel):
     @model_validator(mode="after")
     def validator_known_purpose(self) -> ModelClassification:
         """Check if the purpose is known."""
-        if str(self.purpose) not in MODEL_PURPOSE.__members__:
+        if not is_known_model_purpose(str(self.purpose)):
             logger.debug(f"Unknown purpose {self.purpose} for model classification {self}")
-        if str(self.domain) not in MODEL_DOMAIN.__members__:
+        if not is_known_model_domain(str(self.domain)):
             logger.debug(f"Unknown domain {self.domain} for model classification {self}")
 
         return self
+
+
+class MODEL_REFERENCE_CATEGORY(StrEnum):
+    """The categories of model reference entries."""
+
+    blip = auto()
+    clip = auto()
+    codeformer = auto()
+    controlnet = auto()
+    esrgan = auto()
+    gfpgan = auto()
+    safety_checker = auto()
+    image_generation = auto()
+    text_generation = auto()
+    video_generation = auto()
+    audio_generation = auto()
+    miscellaneous = auto()
+    lora = auto()
+    ti = auto()
+
+
+@dataclass(frozen=True)
+class CategoryDescriptor:
+    """Describes a model reference category's traits in a single place."""
+
+    domain: MODEL_DOMAIN
+    """The ``MODEL_DOMAIN`` this category belongs to, e.g. image, text, video, etc."""
+    purpose: MODEL_PURPOSE
+    """The ``MODEL_PURPOSE`` of models in this category, e.g. generation, feature extraction, etc."""
+    github_source: Literal["image", "text"] | None = None
+    """Whether a legacy-format JSON file exists for this category. (e.g., ``"image"`` or ``"text"``).
+    ``None`` means the category has no legacy GitHub source.
+    """
+    has_legacy_format: bool = True
+    """Whether a legacy-format JSON file exists for this category."""
+    managed_elsewhere: bool = False
+    """Whether this category is managed by an external system."""
+    filename_override: str | None = None
+    """Non-default v2 filename (default is ``{category}.json``)."""
+    legacy_filename_override: str | None = None
+    """Non-default legacy filename (default matches v2)."""
+
+
+github_image_model_reference_categories: list[MODEL_REFERENCE_CATEGORY | str] = []
+"""This distinguishes the original github repo locations and has no other meaning."""
+
+github_text_model_reference_categories: list[MODEL_REFERENCE_CATEGORY | str] = []
+"""This distinguishes the original github repo locations and has no other meaning."""
+
+no_legacy_format_available_categories: list[MODEL_REFERENCE_CATEGORY | str] = []
+"""Categories for which no legacy-format JSON file exists.."""
+
+categories_managed_elsewhere: list[MODEL_REFERENCE_CATEGORY | str] = []
+"""Categories that are managed by an external system."""
+
+MODEL_CLASSIFICATION_LOOKUP: dict[MODEL_REFERENCE_CATEGORY | str, ModelClassification] = {}
+
+
+def _rebuild_category_derived_data(
+    data: dict[MODEL_REFERENCE_CATEGORY | str, CategoryDescriptor],
+) -> None:
+    """Rebuild derived category data from the registry."""
+
+    global github_image_model_reference_categories
+    global github_text_model_reference_categories
+    global no_legacy_format_available_categories
+    global categories_managed_elsewhere
+
+    github_image_model_reference_categories = [c for c, d in data.items() if d.github_source == "image"]
+    github_text_model_reference_categories = [c for c, d in data.items() if d.github_source == "text"]
+    no_legacy_format_available_categories = [c for c, d in data.items() if not d.has_legacy_format]
+    categories_managed_elsewhere = [c for c, d in data.items() if d.managed_elsewhere]
+
+    MODEL_CLASSIFICATION_LOOKUP.clear()
+    MODEL_CLASSIFICATION_LOOKUP.update({
+        c: ModelClassification(domain=d.domain, purpose=d.purpose) for c, d in data.items()
+    })
+
+
+_CATEGORY_REGISTRY = DescriptorRegistry[MODEL_REFERENCE_CATEGORY | str, CategoryDescriptor](
+    _rebuild_category_derived_data
+)
+
+
+def register_category(name: MODEL_REFERENCE_CATEGORY | str, descriptor: CategoryDescriptor) -> None:
+    """Register a new model reference category."""
+
+    _CATEGORY_REGISTRY.register(name, descriptor)
+
+
+def get_github_image_categories() -> list[MODEL_REFERENCE_CATEGORY | str]:
+    """Return categories whose legacy JSON lives in the image GitHub repo."""
+    return list(github_image_model_reference_categories)
+
+
+def get_github_text_categories() -> list[MODEL_REFERENCE_CATEGORY | str]:
+    """Return categories whose legacy JSON lives in the text GitHub repo."""
+    return list(github_text_model_reference_categories)
+
+
+def get_no_legacy_format_categories() -> list[MODEL_REFERENCE_CATEGORY | str]:
+    """Return categories that have no legacy-format JSON file."""
+    return list(no_legacy_format_available_categories)
+
+
+def get_model_classification(
+    category: MODEL_REFERENCE_CATEGORY | str,
+) -> ModelClassification:
+    """Return the ModelClassification for *category*, or raise KeyError."""
+    return MODEL_CLASSIFICATION_LOOKUP[category]
+
+
+register_category(
+    MODEL_REFERENCE_CATEGORY.blip,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.feature_extractor,
+        github_source="image",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.clip,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.feature_extractor,
+        github_source="image",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.codeformer,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.post_processing,
+        github_source="image",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.controlnet,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.auxiliary_or_patch,
+        github_source="image",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.esrgan,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.post_processing,
+        github_source="image",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.gfpgan,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.post_processing,
+        github_source="image",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.safety_checker,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.safety_checker,
+        github_source="image",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.image_generation,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.generation,
+        github_source="image",
+        filename_override="stable_diffusion.json",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.text_generation,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.text,
+        purpose=MODEL_PURPOSE.generation,
+        github_source="text",
+        filename_override="text_generation.json",
+        legacy_filename_override="models.csv",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.video_generation,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.video,
+        purpose=MODEL_PURPOSE.generation,
+        has_legacy_format=False,
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.audio_generation,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.audio,
+        purpose=MODEL_PURPOSE.generation,
+        has_legacy_format=False,
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.miscellaneous,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.miscellaneous,
+        github_source="image",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.lora,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.auxiliary_or_patch,
+        has_legacy_format=False,
+        managed_elsewhere=True,
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.ti,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.auxiliary_or_patch,
+        has_legacy_format=False,
+        managed_elsewhere=True,
+    ),
+)
+
+_CATEGORY_REGISTRY.finalize()
+
+
+def get_category_descriptor(category: MODEL_REFERENCE_CATEGORY | str) -> CategoryDescriptor:
+    """Return the ``CategoryDescriptor`` for *category*.
+
+    Raises:
+        KeyError: If the category is not registered.
+    """
+    return _CATEGORY_REGISTRY.get(category)
+
+
+def get_all_registered_categories() -> dict[MODEL_REFERENCE_CATEGORY | str, CategoryDescriptor]:
+    """Return a shallow copy of the category registry."""
+
+    return _CATEGORY_REGISTRY.all()
+
+
+# ---------------------------------------------------------------------------
+# Baseline registry
+# ---------------------------------------------------------------------------
 
 
 class KNOWN_IMAGE_GENERATION_BASELINE(StrEnum):
@@ -183,153 +467,209 @@ class KNOWN_IMAGE_GENERATION_BASELINE(StrEnum):
     z_image_turbo = auto()
 
 
-STABLE_DIFFUSION_BASELINE_CATEGORY = KNOWN_IMAGE_GENERATION_BASELINE
-"""Deprecated: Use KNOWN_IMAGE_GENERATION_BASELINE instead."""
+@dataclass(frozen=True)
+class BaselineDescriptor:
+    """Describes a known image-generation baseline in a single place.
 
-_alternative_sd1_baseline_names = [
-    "stable diffusion 1",
-    "stable diffusion 1.4",
-    "stable diffusion 1.5",
-    "SD1",
-    "SD14",
-    "SD1.4",
-    "SD15",
-    "SD1.5",
-    "stable_diffusion",
-    "stable_diffusion_1",
-    "stable_diffusion_1.4",
-    "stable_diffusion_1.5",
-]
-
-alternative_sdxl_baseline_names = [
-    "stable diffusion xl",
-    "SDXL",
-    "stable_diffusion_xl",
-]
-
-_alternative_flux_schnell_baseline_names = [
-    "flux_schnell",
-    "flux schnell",
-]
-
-_alternative_flux_dev_baseline_names = [
-    "flux_dev",
-    "flux dev",
-]
-
-_alternative_stable_cascade_baseline_names = [
-    "stable_cascade",
-    "stable cascade",
-]
-
-_alternative_qwen_image_baseline_names = ["qwen_image", "qwen image", "qwen-image", "qwen"]
-
-_alternative_z_image_turbo_baseline_names = ["z_image_turbo", "z image turbo", "zimage-turbo", "zimage"]
-
-
-def matching_baseline_exists(
-    baseline: str,
-    known_image_generation_baseline: KNOWN_IMAGE_GENERATION_BASELINE,
-) -> bool:
-    """Return True if a matching baseline exists.
-
-    Args:
-        baseline (str): The baseline name.
-        known_image_generation_baseline (KNOWN_IMAGE_GENERATION_BASELINE): The known image generation baseline to
-            check against.
-
-    Returns:
-        True if the baseline name is of the category, False otherwise.
+    Attributes:
+        native_resolution: Preferred single-side resolution, or ``None`` for baselines
+            like ``infer`` that have no fixed resolution.
+        alternative_names: Alternative human/API names that map to this baseline.
     """
-    if known_image_generation_baseline == KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1:
-        return baseline in _alternative_sd1_baseline_names
-    if known_image_generation_baseline == KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl:
-        return baseline in alternative_sdxl_baseline_names
-    if known_image_generation_baseline == KNOWN_IMAGE_GENERATION_BASELINE.flux_schnell:
-        return baseline in _alternative_flux_schnell_baseline_names
-    if known_image_generation_baseline == KNOWN_IMAGE_GENERATION_BASELINE.flux_dev:
-        return baseline in _alternative_flux_dev_baseline_names
-    if known_image_generation_baseline == KNOWN_IMAGE_GENERATION_BASELINE.stable_cascade:
-        return baseline in _alternative_stable_cascade_baseline_names
-    if known_image_generation_baseline == KNOWN_IMAGE_GENERATION_BASELINE.qwen_image:
-        return baseline in _alternative_qwen_image_baseline_names
-    if known_image_generation_baseline == KNOWN_IMAGE_GENERATION_BASELINE.z_image_turbo:
-        return baseline in _alternative_z_image_turbo_baseline_names
 
-    return baseline == known_image_generation_baseline.name
+    native_resolution: int | None
+    alternative_names: tuple[str, ...] = field(default_factory=tuple)
 
 
-MODEL_CLASSIFICATION_LOOKUP: dict[MODEL_REFERENCE_CATEGORY, ModelClassification] = {
-    MODEL_REFERENCE_CATEGORY.clip: ModelClassification(
-        domain=MODEL_DOMAIN.image,
-        purpose=MODEL_PURPOSE.feature_extractor,
-    ),
-    MODEL_REFERENCE_CATEGORY.blip: ModelClassification(
-        domain=MODEL_DOMAIN.image,
-        purpose=MODEL_PURPOSE.feature_extractor,
-    ),
-    MODEL_REFERENCE_CATEGORY.codeformer: ModelClassification(
-        domain=MODEL_DOMAIN.image,
-        purpose=MODEL_PURPOSE.feature_extractor,
-    ),
-    MODEL_REFERENCE_CATEGORY.controlnet: ModelClassification(
-        domain=MODEL_DOMAIN.image,
-        purpose=MODEL_PURPOSE.auxiliary_or_patch,
-    ),
-    MODEL_REFERENCE_CATEGORY.esrgan: ModelClassification(
-        domain=MODEL_DOMAIN.image,
-        purpose=MODEL_PURPOSE.post_processing,
-    ),
-    MODEL_REFERENCE_CATEGORY.gfpgan: ModelClassification(
-        domain=MODEL_DOMAIN.image,
-        purpose=MODEL_PURPOSE.post_processing,
-    ),
-    MODEL_REFERENCE_CATEGORY.safety_checker: ModelClassification(
-        domain=MODEL_DOMAIN.image,
-        purpose=MODEL_PURPOSE.post_processing,
-    ),
-    MODEL_REFERENCE_CATEGORY.image_generation: ModelClassification(
-        domain=MODEL_DOMAIN.image,
-        purpose=MODEL_PURPOSE.generation,
-    ),
-    MODEL_REFERENCE_CATEGORY.text_generation: ModelClassification(
-        domain=MODEL_DOMAIN.text,
-        purpose=MODEL_PURPOSE.generation,
-    ),
-    MODEL_REFERENCE_CATEGORY.miscellaneous: ModelClassification(
-        domain=MODEL_DOMAIN.image,
-        purpose=MODEL_PURPOSE.miscellaneous,
-    ),
-    MODEL_REFERENCE_CATEGORY.video_generation: ModelClassification(
-        domain=MODEL_DOMAIN.video,
-        purpose=MODEL_PURPOSE.generation,
-    ),
-    MODEL_REFERENCE_CATEGORY.audio_generation: ModelClassification(
-        domain=MODEL_DOMAIN.audio,
-        purpose=MODEL_PURPOSE.generation,
-    ),
-}
-
-IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP: dict[KNOWN_IMAGE_GENERATION_BASELINE, int] = {
-    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1: 512,
-    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_2_768: 768,
-    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_2_512: 512,
-    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl: 1024,
-    KNOWN_IMAGE_GENERATION_BASELINE.stable_cascade: 1024,
-    KNOWN_IMAGE_GENERATION_BASELINE.flux_1: 1024,
-    KNOWN_IMAGE_GENERATION_BASELINE.flux_schnell: 1024,
-    KNOWN_IMAGE_GENERATION_BASELINE.flux_dev: 1024,
-    KNOWN_IMAGE_GENERATION_BASELINE.qwen_image: 1024,
-    KNOWN_IMAGE_GENERATION_BASELINE.z_image_turbo: 1024,
-}
+IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP: dict[KNOWN_IMAGE_GENERATION_BASELINE | str, int] = {}
 """The single-side preferred resolution for each known stable diffusion baseline."""
 
+_ALTERNATIVE_NAME_TO_BASELINE: dict[str, KNOWN_IMAGE_GENERATION_BASELINE | str] = {}
 
-def get_baseline_native_resolution(baseline: KNOWN_IMAGE_GENERATION_BASELINE) -> int:
+
+def _rebuild_baseline_derived_data(
+    data: dict[KNOWN_IMAGE_GENERATION_BASELINE | str, BaselineDescriptor],
+) -> None:
+    """Rebuild derived baseline lookups from the registry."""
+
+    IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP.clear()
+    IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP.update({
+        b: d.native_resolution for b, d in data.items() if d.native_resolution is not None
+    })
+
+    _ALTERNATIVE_NAME_TO_BASELINE.clear()
+    for bl, desc in data.items():
+        for alt in desc.alternative_names:
+            _ALTERNATIVE_NAME_TO_BASELINE[alt] = bl
+
+
+_IMAGE_BASELINE_REGISTRY = DescriptorRegistry[KNOWN_IMAGE_GENERATION_BASELINE | str, BaselineDescriptor](
+    _rebuild_baseline_derived_data
+)
+
+
+def register_image_baseline(name: KNOWN_IMAGE_GENERATION_BASELINE | str, descriptor: BaselineDescriptor) -> None:
+    """Register a new image-generation baseline."""
+
+    _IMAGE_BASELINE_REGISTRY.register(name, descriptor)
+
+
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.infer,
+    BaselineDescriptor(native_resolution=None),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1,
+    BaselineDescriptor(
+        native_resolution=512,
+        alternative_names=(
+            "stable diffusion 1",
+            "stable diffusion 1.4",
+            "stable diffusion 1.5",
+            "SD1",
+            "SD14",
+            "SD1.4",
+            "SD15",
+            "SD1.5",
+            "stable_diffusion",
+            "stable_diffusion_1",
+            "stable_diffusion_1.4",
+            "stable_diffusion_1.5",
+        ),
+    ),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_2_768,
+    BaselineDescriptor(native_resolution=768),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_2_512,
+    BaselineDescriptor(native_resolution=512),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl,
+    BaselineDescriptor(
+        native_resolution=1024,
+        alternative_names=(
+            "stable diffusion xl",
+            "SDXL",
+            "stable_diffusion_xl",
+        ),
+    ),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.stable_cascade,
+    BaselineDescriptor(
+        native_resolution=1024,
+        alternative_names=(
+            "stable_cascade",
+            "stable cascade",
+        ),
+    ),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.flux_1,
+    BaselineDescriptor(native_resolution=1024),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.flux_schnell,
+    BaselineDescriptor(
+        native_resolution=1024,
+        alternative_names=(
+            "flux_schnell",
+            "flux schnell",
+        ),
+    ),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.flux_dev,
+    BaselineDescriptor(
+        native_resolution=1024,
+        alternative_names=(
+            "flux_dev",
+            "flux dev",
+        ),
+    ),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.qwen_image,
+    BaselineDescriptor(
+        native_resolution=1024,
+        alternative_names=("qwen_image", "qwen image", "qwen-image", "qwen"),
+    ),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.z_image_turbo,
+    BaselineDescriptor(
+        native_resolution=1024,
+        alternative_names=("z_image_turbo", "z image turbo", "zimage-turbo", "zimage"),
+    ),
+)
+
+_IMAGE_BASELINE_REGISTRY.finalize()
+
+alternative_sdxl_baseline_names: list[str] = list(
+    _IMAGE_BASELINE_REGISTRY.get(KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl).alternative_names,
+)
+
+
+def _matching_image_baseline_exists(
+    baseline: str,
+    known_image_generation_baseline: KNOWN_IMAGE_GENERATION_BASELINE | str,
+) -> bool:
+    """Return True if *baseline* is a recognized alternative name for *known_image_generation_baseline*.
+
+    Args:
+        baseline: The baseline name to look up.
+        known_image_generation_baseline: The known image generation baseline to check against.
+
+    Returns:
+        True if the baseline name matches the given known baseline, False otherwise.
+    """
+    desc = _IMAGE_BASELINE_REGISTRY.get(known_image_generation_baseline)
+    if desc is not None and desc.alternative_names:
+        return baseline in desc.alternative_names
+    return baseline == str(known_image_generation_baseline)
+
+
+def is_known_image_baseline(baseline: str) -> bool:
+    """Return True if *baseline* is a known baseline or alternative name.
+
+    Args:
+        baseline: The baseline name to check.
+
+    Returns:
+        True if the baseline is known, False otherwise.
+    """
+    return _IMAGE_BASELINE_REGISTRY.contains(baseline) or baseline in _ALTERNATIVE_NAME_TO_BASELINE
+
+
+def get_baseline_descriptor(baseline: KNOWN_IMAGE_GENERATION_BASELINE | str) -> BaselineDescriptor:
+    """Return the ``BaselineDescriptor`` for *baseline*.
+
+    Args:
+        baseline: The known image generation baseline (enum member or plain string).
+
+    Raises:
+        KeyError: If the baseline is not registered.
+    """
+    return _IMAGE_BASELINE_REGISTRY.get(baseline)
+
+
+def get_all_registered_baselines() -> dict[KNOWN_IMAGE_GENERATION_BASELINE | str, BaselineDescriptor]:
+    """Return a shallow copy of the baseline registry.
+
+    This includes both built-in ``KNOWN_IMAGE_GENERATION_BASELINE`` members and
+    any externally registered baselines.
+    """
+    return _IMAGE_BASELINE_REGISTRY.all()
+
+
+def get_baseline_native_resolution(baseline: KNOWN_IMAGE_GENERATION_BASELINE | str) -> int:
     """Get the native resolution of a stable diffusion baseline.
 
     Args:
-        baseline: The stable diffusion baseline.
+        baseline: The stable diffusion baseline (enum member or plain string).
 
     Returns:
         The native resolution of the baseline.
@@ -337,7 +677,7 @@ def get_baseline_native_resolution(baseline: KNOWN_IMAGE_GENERATION_BASELINE) ->
     return IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP[baseline]
 
 
-def get_baselines_by_resolution(resolution: int) -> list[KNOWN_IMAGE_GENERATION_BASELINE]:
+def get_baselines_by_resolution(resolution: int) -> list[KNOWN_IMAGE_GENERATION_BASELINE | str]:
     """Get all baselines that have the given native resolution.
 
     Args:
@@ -353,6 +693,19 @@ def get_baselines_by_resolution(resolution: int) -> list[KNOWN_IMAGE_GENERATION_
     ]
 
 
+_unregistered_categories = {c for c in MODEL_REFERENCE_CATEGORY if not _CATEGORY_REGISTRY.contains(c)}
+if _unregistered_categories:
+    raise RuntimeError(
+        f"MODEL_REFERENCE_CATEGORY members not registered in _CATEGORY_REGISTRY: {_unregistered_categories}"
+    )
+
+_unregistered_baselines = {b for b in KNOWN_IMAGE_GENERATION_BASELINE if not _IMAGE_BASELINE_REGISTRY.contains(b)}
+if _unregistered_baselines:
+    raise RuntimeError(
+        f"KNOWN_IMAGE_GENERATION_BASELINE members not registered in _BASELINE_REGISTRY: {_unregistered_baselines}"
+    )
+
+
 class TEXT_BACKENDS(StrEnum):
     """An enum of all the text backends."""
 
@@ -360,88 +713,26 @@ class TEXT_BACKENDS(StrEnum):
     koboldcpp = auto()
 
 
-_TEXT_LEGACY_CONVERT_BACKEND_PREFIXES = {
-    TEXT_BACKENDS.aphrodite: "aphrodite/",
-    TEXT_BACKENDS.koboldcpp: "koboldcpp/",
-}
-"""These prefixes exist on duplicate entries for backwards compatibility, in the legacy format."""
+_TEXT_BACKEND_REGISTRY = EnumRegistry(item.value for item in TEXT_BACKENDS)
+KNOWN_TEXT_BACKENDS = _TEXT_BACKEND_REGISTRY.mutable_values()
 
 
-def has_legacy_text_backend_prefix(model_name: str) -> bool:
-    """Check if a model name has a legacy text backend prefix.
+def register_text_backend(backend: str) -> None:
+    """Register a new text backend.
 
     Args:
-        model_name: The model name to check.
-
-    Returns:
-        True if the model name has a legacy text backend prefix, False otherwise.
+        backend: The text backend to register.
     """
-    return any(model_name.startswith(prefix) for prefix in _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES.values())
+    _TEXT_BACKEND_REGISTRY.register(backend)
 
 
-def strip_backend_prefix(model_name: str) -> str:
-    """Strip backend prefix from a model name if present.
+def is_known_text_backend(backend: str) -> bool:
+    """Check if a text backend is known.
 
     Args:
-        model_name: The model name to strip.
+        backend: The text backend to check.
 
     Returns:
-        The model name without the backend prefix.
-
-    Example:
-        >>> strip_backend_prefix("koboldcpp/Broken-Tutu-24B")
-        "Broken-Tutu-24B"
-        >>> strip_backend_prefix("aphrodite/ReadyArt/Broken-Tutu-24B")
-        "ReadyArt/Broken-Tutu-24B"
-        >>> strip_backend_prefix("ReadyArt/Broken-Tutu-24B")
-        "ReadyArt/Broken-Tutu-24B"
+        True if the text backend is known, False otherwise.
     """
-    for prefix in _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES.values():
-        if model_name.startswith(prefix):
-            return model_name[len(prefix) :]
-    return model_name
-
-
-def get_model_name_variants(canonical_name: str) -> list[str]:
-    """Get all possible name variants for a canonical model name.
-
-    Given a canonical name like "ReadyArt/Broken-Tutu-24B", returns all possible
-    variants that might appear in the Horde API stats:
-    - Canonical: ReadyArt/Broken-Tutu-24B
-    - Aphrodite: aphrodite/ReadyArt/Broken-Tutu-24B
-    - KoboldCPP: koboldcpp/Broken-Tutu-24B (uses model name only, not org prefix)
-    - Legacy KoboldCPP: koboldcpp/ReadyArt_Broken-Tutu-24B (slashes flattened)
-
-    Args:
-        canonical_name: The canonical model name from the model reference.
-
-    Returns:
-        List of all possible name variants, including the canonical name.
-
-    Example:
-        >>> get_model_name_variants("ReadyArt/Broken-Tutu-24B")
-        [
-            "ReadyArt/Broken-Tutu-24B",
-            "aphrodite/ReadyArt/Broken-Tutu-24B",
-            "koboldcpp/Broken-Tutu-24B",
-            "koboldcpp/ReadyArt_Broken-Tutu-24B",
-        ]
-    """
-    variants = [canonical_name]
-
-    model_name_only = canonical_name.split("/", 1)[1] if "/" in canonical_name else canonical_name
-    sanitized_name = canonical_name.replace("/", "_")
-
-    def _append_variant(value: str) -> None:
-        if value not in variants:
-            variants.append(value)
-
-    for prefix in _TEXT_LEGACY_CONVERT_BACKEND_PREFIXES.values():
-        if prefix == "aphrodite/":
-            _append_variant(f"{prefix}{canonical_name}")
-        elif prefix == "koboldcpp/":
-            _append_variant(f"{prefix}{model_name_only}")
-            if sanitized_name not in {canonical_name, model_name_only}:
-                _append_variant(f"{prefix}{sanitized_name}")
-
-    return variants
+    return _TEXT_BACKEND_REGISTRY.is_known(backend)

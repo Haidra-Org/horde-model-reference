@@ -39,7 +39,7 @@ def test_image_generation_model_record() -> None:
 
 def test_image_generation_model_record_unknown_baseline() -> None:
     """Tests the ImageGeneration_ModelRecord class with an unknown baseline."""
-    with pytest.raises(ValidationError, match="baseline\n"):
+    with pytest.raises(ValidationError, match="Unknown baseline:"):
         ImageGenerationModelRecord(
             name="test_name",
             description="test_description",
@@ -63,7 +63,7 @@ def test_image_generation_model_record_unknown_baseline() -> None:
 
 def test_image_generation_model_record_unknown_style() -> None:
     """Tests the ImageGeneration_ModelRecord class with an unknown style."""
-    with pytest.raises(ValidationError, match="style\n"):
+    with pytest.raises(ValidationError, match="Unknown style:"):
         ImageGenerationModelRecord(
             name="test_name",
             description="test_description",
