@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -245,7 +244,7 @@ def test_display_name_generation(validator: LegacyTextValidator) -> None:
     ]
 
     for model_name, expected_display in test_cases:
-        assert validator._generate_display_name(model_name) == expected_display
+        assert validator._processor.generate_display_name(model_name) == expected_display
 
 
 def test_display_name_not_overwritten_if_provided(
@@ -387,31 +386,23 @@ def test_parameter_size_rounding(validator: LegacyTextValidator) -> None:
         assert expected_tag in base["tags"], f"Expected {expected_tag} for {params} parameters"
 
 
-def test_validator_with_custom_paths(tmp_path: Path) -> None:
-    """Test validator with custom generation_params and defaults paths."""
-    # Create custom files
-    gen_params_path = tmp_path / "gen_params.json"
-    gen_params_path.write_text(json.dumps({"custom_param": 123}))
-
-    defaults_path = tmp_path / "defaults.json"
-    defaults_path.write_text(json.dumps({"custom_default": "value"}))
-
+def test_validator_ignores_custom_paths() -> None:
+    """Test that custom path args are accepted but ignored (bundled data is always used)."""
     validator = LegacyTextValidator(
-        generation_params_path=gen_params_path,
-        defaults_path=defaults_path,
+        generation_params_path="ignored/path",
+        defaults_path="ignored/path",
     )
 
-    assert validator.generation_params == {"custom_param": 123}
-    assert validator.defaults == {"custom_default": "value"}
+    # Should still load bundled data
+    assert "temperature" in validator.generation_params
+    assert "baseline" in validator.defaults
 
 
-def test_validator_raises_on_missing_files(tmp_path: Path) -> None:
-    """Test that validator raises error if required files are missing."""
-    with pytest.raises(FileNotFoundError, match="Required file not found"):
-        LegacyTextValidator(
-            generation_params_path=tmp_path / "nonexistent.json",
-            defaults_path=tmp_path / "defaults.json",
-        )
+def test_validator_always_loads_bundled_data() -> None:
+    """Test that validator always loads bundled data regardless of constructor args."""
+    validator = LegacyTextValidator()
+    assert len(validator.generation_params) > 0
+    assert len(validator.defaults) > 0
 
 
 def test_settings_none_is_valid(

@@ -5,12 +5,13 @@ from collections.abc import Awaitable, Generator, Iterable
 from enum import Enum
 from pathlib import Path
 from threading import RLock
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import httpx
 from loguru import logger
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
+from horde_model_reference.audit import AuditTrailWriter
 from horde_model_reference.backends import (
     FileSystemBackend,
     GitHubBackend,
@@ -35,6 +36,16 @@ from horde_model_reference.model_reference_records import (
     TextGenerationModelRecord,
     VideoGenerationModelRecord,
 )
+from horde_model_reference.query import (
+    ModelQuery,
+    TextModelQuery,
+    build_cross_category_query,
+    build_query,
+    build_text_query,
+)
+
+if TYPE_CHECKING:
+    from horde_model_reference.pending_queue import PendingQueueService
 
 
 class PrefetchStrategy(str, Enum):
@@ -83,6 +94,8 @@ class ModelReferenceManager:
     _prefetch_strategy: PrefetchStrategy = PrefetchStrategy.SYNC
     _deferred_prefetch_handle: DeferredPrefetchHandle | None = None
     _async_prefetch_task: asyncio.Task[None] | None = None
+    _audit_writer: AuditTrailWriter | None = None
+    _pending_queue_service: PendingQueueService | None = None
 
     _lock: RLock = RLock()
 
@@ -115,12 +128,14 @@ class ModelReferenceManager:
     def _create_backend(
         base_path: str | Path,
         replicate_mode: ReplicateMode,
+        audit_writer: AuditTrailWriter | None,
     ) -> ModelReferenceBackend:
         """Create the appropriate backend based on mode and settings.
 
         Args:
             base_path: Base path for model reference files.
             replicate_mode: The replication mode.
+            audit_writer: Optional audit writer used by write-capable backends.
 
         Returns:
             ModelReferenceBackend: The configured backend instance.
@@ -141,6 +156,7 @@ class ModelReferenceManager:
                 cache_ttl_seconds=horde_model_reference_settings.cache_ttl_seconds,
                 replicate_mode=ReplicateMode.PRIMARY,
                 skip_startup_metadata_population=github_seeding_will_occur,
+                audit_writer=audit_writer,
             )
 
             if horde_model_reference_settings.github_seed_enabled:
@@ -249,8 +265,19 @@ class ModelReferenceManager:
             if not cls._instance:
                 cls._instance = super().__new__(cls)
 
+                audit_writer: AuditTrailWriter | None = None
+                if horde_model_reference_settings.audit.enabled:
+                    audit_writer = AuditTrailWriter(
+                        root_path=horde_model_reference_paths.audit_path,
+                        max_file_size_bytes=horde_model_reference_settings.audit.max_segment_bytes,
+                    )
+
                 if backend is None:
-                    backend = cls._create_backend(base_path=base_path, replicate_mode=replicate_mode)
+                    backend = cls._create_backend(
+                        base_path=base_path,
+                        replicate_mode=replicate_mode,
+                        audit_writer=audit_writer,
+                    )
 
                 backend_mode = backend.replicate_mode
                 if backend_mode != replicate_mode:
@@ -261,6 +288,14 @@ class ModelReferenceManager:
 
                 cls._instance.backend = backend
                 cls._instance._replicate_mode = replicate_mode
+                if backend.supports_writes():
+                    cls._instance._audit_writer = audit_writer
+                    cls._instance._pending_queue_service = cls._build_pending_queue_service(
+                        audit_writer=audit_writer,
+                    )
+                else:
+                    cls._instance._audit_writer = None
+                    cls._instance._pending_queue_service = None
                 cls._instance._cached_records = {}
                 cls._instance._deferred_prefetch_handle = None
                 cls._instance._async_prefetch_task = None
@@ -373,10 +408,29 @@ class ModelReferenceManager:
             httpx_client=httpx_client,
         )
 
+    @staticmethod
+    def _build_pending_queue_service(
+        *,
+        audit_writer: AuditTrailWriter | None,
+    ) -> PendingQueueService | None:
+        """Create the pending queue service when enabled."""
+        if not horde_model_reference_settings.pending_queue.enabled:
+            return None
+
+        from horde_model_reference.pending_queue.service import PendingQueueService, PendingQueueStore
+
+        store = PendingQueueStore(root_path=horde_model_reference_paths.pending_queue_path)
+        return PendingQueueService(store=store, audit_writer=audit_writer)
+
     @property
     def prefetch_strategy(self) -> PrefetchStrategy:
         """Return the prefetch strategy originally configured for this manager."""
         return self._prefetch_strategy
+
+    @property
+    def pending_queue_service(self) -> PendingQueueService | None:
+        """Return the pending queue service when queueing is enabled."""
+        return self._pending_queue_service
 
     @property
     def deferred_prefetch_handle(self) -> DeferredPrefetchHandle | None:
@@ -644,10 +698,7 @@ class ModelReferenceManager:
         overwrite_existing: bool = False,
         *,
         safe_mode: bool = False,
-    ) -> dict[
-        MODEL_REFERENCE_CATEGORY,
-        dict[str, GenericModelRecord] | None,
-    ]:
+    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord] | None]:
         """Return a mapping of all model reference categories to their corresponding model reference objects.
 
         Note that values may be None if the model reference file could not be found or parsed.
@@ -715,10 +766,7 @@ class ModelReferenceManager:
     def get_all_model_references(
         self,
         overwrite_existing: bool = False,
-    ) -> dict[
-        MODEL_REFERENCE_CATEGORY,
-        dict[str, GenericModelRecord],
-    ]:
+    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]:
         """Return a mapping of all model reference categories to their corresponding model reference objects.
 
         If a model reference file could not be found or parsed, an exception is raised. If you want to allow
@@ -741,10 +789,7 @@ class ModelReferenceManager:
         *,
         safe_mode: bool = False,
         httpx_client: httpx.AsyncClient | None = None,
-    ) -> dict[
-        MODEL_REFERENCE_CATEGORY,
-        dict[str, GenericModelRecord] | None,
-    ]:
+    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord] | None]:
         """Return model references asynchronously without enforcing presence.
 
         Args:
@@ -786,10 +831,7 @@ class ModelReferenceManager:
         overwrite_existing: bool = False,
         *,
         httpx_client: httpx.AsyncClient | None = None,
-    ) -> dict[
-        MODEL_REFERENCE_CATEGORY,
-        dict[str, GenericModelRecord],
-    ]:
+    ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]:
         """Return all model references asynchronously, raising on missing categories.
 
         Args:

@@ -6,16 +6,12 @@ invalidation system. Automatically invalidates when model reference data changes
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from loguru import logger
 
 from horde_model_reference import horde_model_reference_settings
 from horde_model_reference.analytics.base_cache import RedisCache
+from horde_model_reference.analytics.statistics import CategoryStatistics
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
-
-if TYPE_CHECKING:
-    from horde_model_reference.analytics.statistics import CategoryStatistics
 
 
 class StatisticsCache(RedisCache["CategoryStatistics"]):

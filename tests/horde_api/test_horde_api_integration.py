@@ -3,19 +3,115 @@
 from __future__ import annotations
 
 from collections.abc import Generator
-from typing import Any
+from typing import NotRequired, TypedDict
 from unittest.mock import patch
 
 import pytest
 from pytest_httpx import HTTPXMock
 
-from horde_model_reference import horde_model_reference_settings
+from horde_model_reference import ai_horde_worker_settings, horde_model_reference_settings
 from horde_model_reference.integrations import (
     HordeAPIIntegration,
     HordeModelStatsResponse,
     HordeModelStatus,
+    HordeModelType,
     HordeWorker,
 )
+from horde_model_reference.integrations.horde_api_models import HordeWorkerType
+
+
+class ModelStatusPayload(TypedDict):
+    """Typed representation of the Horde status endpoint payload."""
+
+    name: str
+    count: int
+    performance: float
+    queued: int
+    jobs: int
+    eta: int
+    type: HordeModelType
+
+
+class ModelStatsPayload(TypedDict):
+    """Typed representation of the Horde stats endpoint payload."""
+
+    day: dict[str, int]
+    month: dict[str, int]
+    total: dict[str, int]
+
+
+class WorkerTeamPayload(TypedDict, total=False):
+    """Minimal schema for worker team data."""
+
+    name: str | None
+    id: str | None
+
+
+class KudosDetailsPayload(TypedDict, total=False):
+    """Minimal schema for kudos detail data."""
+
+    generated: float | None
+    uptime: float | None
+
+
+WorkerPayload = TypedDict(
+    "WorkerPayload",
+    {
+        "id": str,
+        "name": str,
+        "type": HordeWorkerType,
+        "performance": str,
+        "requests_fulfilled": int,
+        "kudos_rewards": float,
+        "kudos_details": KudosDetailsPayload,
+        "threads": int,
+        "uptime": int,
+        "uncompleted_jobs": int,
+        "maintenance_mode": bool,
+        "nsfw": bool,
+        "trusted": bool,
+        "flagged": bool,
+        "online": bool,
+        "models": list[str],
+        "team": WorkerTeamPayload,
+        "bridge_agent": str,
+        "max_pixels": NotRequired[int],
+        "megapixelsteps_generated": NotRequired[float],
+        "img2img": NotRequired[bool],
+        "painting": NotRequired[bool],
+        "post-processing": NotRequired[bool],
+        "lora": NotRequired[bool],
+        "controlnet": NotRequired[bool],
+        "sdxl_controlnet": NotRequired[bool],
+        "max_length": NotRequired[int],
+        "max_context_length": NotRequired[int],
+        "info": NotRequired[str],
+    },
+)
+
+
+def _status_url(base_url: str, model_type: HordeModelType) -> str:
+    """Return the fully qualified status endpoint URL for a model type."""
+    return f"{base_url}/status/models?type={model_type}&model_state=known"
+
+
+def _stats_url(base_url: str, model_type: HordeModelType) -> str:
+    """Return the fully qualified stats endpoint URL for a model type."""
+    endpoint = "img" if model_type == "image" else "text"
+    return f"{base_url}/stats/{endpoint}/models?model_state=known"
+
+
+def _workers_url(base_url: str, model_type: HordeModelType | None) -> str:
+    """Return the fully qualified workers endpoint URL for an optional model type."""
+    if model_type is None:
+        return f"{base_url}/workers"
+    return f"{base_url}/workers?type={model_type}"
+
+
+@pytest.fixture(scope="module")
+def api_base_url() -> str:
+    """Provide the resolved base URL for Horde API requests under test."""
+    return f"{str(ai_horde_worker_settings.ai_horde_url).rstrip('/')}/v2"
 
 
 @pytest.fixture(autouse=True)
@@ -46,7 +142,13 @@ def mock_horde_settings(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def sample_status_response() -> list[dict[str, Any]]:
+def integration(mock_horde_settings: None) -> HordeAPIIntegration:
+    """Return a HordeAPIIntegration instance with test-specific settings."""
+    return HordeAPIIntegration()
+
+
+@pytest.fixture
+def sample_status_response() -> list[ModelStatusPayload]:
     """Sample model status response data."""
     return [
         {
@@ -71,7 +173,7 @@ def sample_status_response() -> list[dict[str, Any]]:
 
 
 @pytest.fixture
-def sample_stats_response() -> dict[str, dict[str, int]]:
+def sample_stats_response() -> ModelStatsPayload:
     """Sample model statistics response data."""
     return {
         "day": {
@@ -90,7 +192,7 @@ def sample_stats_response() -> dict[str, dict[str, int]]:
 
 
 @pytest.fixture
-def sample_workers_response() -> list[dict[str, Any]]:
+def sample_workers_response() -> list[WorkerPayload]:
     """Sample workers response data."""
     return [
         {
@@ -150,15 +252,14 @@ class TestHordeAPIIntegrationStatus:
     @pytest.mark.asyncio
     async def test_get_model_status_success(
         self,
-        mock_horde_settings: None,
-        sample_status_response: list[dict[str, Any]],
+        integration: HordeAPIIntegration,
+        sample_status_response: list[ModelStatusPayload],
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test successful model status fetching."""
-        integration = HordeAPIIntegration()
-
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/status/models?type=image&model_state=known",
+            url=_status_url(api_base_url, "image"),
             json=sample_status_response,
         )
 
@@ -173,15 +274,14 @@ class TestHordeAPIIntegrationStatus:
     @pytest.mark.asyncio
     async def test_get_model_status_caching(
         self,
-        mock_horde_settings: None,
-        sample_status_response: list[dict[str, Any]],
+        integration: HordeAPIIntegration,
+        sample_status_response: list[ModelStatusPayload],
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test that status responses are cached."""
-        integration = HordeAPIIntegration()
-
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/status/models?type=image&model_state=known",
+            url=_status_url(api_base_url, "image"),
             json=sample_status_response,
         )
 
@@ -202,20 +302,19 @@ class TestHordeAPIIntegrationStatus:
     @pytest.mark.asyncio
     async def test_get_model_status_force_refresh(
         self,
-        mock_horde_settings: None,
-        sample_status_response: list[dict[str, Any]],
+        integration: HordeAPIIntegration,
+        sample_status_response: list[ModelStatusPayload],
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test force refresh bypasses cache."""
-        integration = HordeAPIIntegration()
-
         # Register response twice since we expect two calls
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/status/models?type=image&model_state=known",
+            url=_status_url(api_base_url, "image"),
             json=sample_status_response,
         )
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/status/models?type=image&model_state=known",
+            url=_status_url(api_base_url, "image"),
             json=sample_status_response,
         )
 
@@ -236,15 +335,14 @@ class TestHordeAPIIntegrationStats:
     @pytest.mark.asyncio
     async def test_get_model_stats_success(
         self,
-        mock_horde_settings: None,
-        sample_stats_response: dict[str, dict[str, int]],
+        integration: HordeAPIIntegration,
+        sample_stats_response: ModelStatsPayload,
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test successful model stats fetching."""
-        integration = HordeAPIIntegration()
-
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/stats/img/models?model_state=known",
+            url=_stats_url(api_base_url, "image"),
             json=sample_stats_response,
         )
 
@@ -258,15 +356,14 @@ class TestHordeAPIIntegrationStats:
     @pytest.mark.asyncio
     async def test_get_model_stats_caching(
         self,
-        mock_horde_settings: None,
-        sample_stats_response: dict[str, dict[str, int]],
+        integration: HordeAPIIntegration,
+        sample_stats_response: ModelStatsPayload,
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test that stats responses are cached."""
-        integration = HordeAPIIntegration()
-
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/stats/img/models?model_state=known",
+            url=_stats_url(api_base_url, "image"),
             json=sample_stats_response,
         )
 
@@ -287,15 +384,14 @@ class TestHordeAPIIntegrationWorkers:
     @pytest.mark.asyncio
     async def test_get_workers_success(
         self,
-        mock_horde_settings: None,
-        sample_workers_response: list[dict[str, Any]],
+        integration: HordeAPIIntegration,
+        sample_workers_response: list[WorkerPayload],
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test successful workers fetching."""
-        integration = HordeAPIIntegration()
-
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/workers?type=image",
+            url=_workers_url(api_base_url, "image"),
             json=sample_workers_response,
         )
 
@@ -309,15 +405,14 @@ class TestHordeAPIIntegrationWorkers:
     @pytest.mark.asyncio
     async def test_get_workers_all_types(
         self,
-        mock_horde_settings: None,
-        sample_workers_response: list[dict[str, Any]],
+        integration: HordeAPIIntegration,
+        sample_workers_response: list[WorkerPayload],
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test fetching all workers without type filter."""
-        integration = HordeAPIIntegration()
-
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/workers",
+            url=_workers_url(api_base_url, None),
             json=sample_workers_response,
         )
 
@@ -333,26 +428,25 @@ class TestHordeAPIIntegrationCombined:
     @pytest.mark.asyncio
     async def test_get_combined_data(
         self,
-        mock_horde_settings: None,
-        sample_status_response: list[dict[str, Any]],
-        sample_stats_response: dict[str, dict[str, int]],
-        sample_workers_response: list[dict[str, Any]],
+        integration: HordeAPIIntegration,
+        sample_status_response: list[ModelStatusPayload],
+        sample_stats_response: ModelStatsPayload,
+        sample_workers_response: list[WorkerPayload],
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test fetching all data in parallel."""
-        integration = HordeAPIIntegration()
-
         # Register responses for all three endpoints
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/status/models?type=image&model_state=known",
+            url=_status_url(api_base_url, "image"),
             json=sample_status_response,
         )
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/stats/img/models?model_state=known",
+            url=_stats_url(api_base_url, "image"),
             json=sample_stats_response,
         )
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/workers?type=image",
+            url=_workers_url(api_base_url, "image"),
             json=sample_workers_response,
         )
 
@@ -366,20 +460,19 @@ class TestHordeAPIIntegrationCombined:
     @pytest.mark.asyncio
     async def test_get_combined_data_without_workers(
         self,
-        mock_horde_settings: None,
-        sample_status_response: list[dict[str, Any]],
-        sample_stats_response: dict[str, dict[str, int]],
+        integration: HordeAPIIntegration,
+        sample_status_response: list[ModelStatusPayload],
+        sample_stats_response: ModelStatsPayload,
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test fetching combined data without workers."""
-        integration = HordeAPIIntegration()
-
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/status/models?type=image&model_state=known",
+            url=_status_url(api_base_url, "image"),
             json=sample_status_response,
         )
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/stats/img/models?model_state=known",
+            url=_stats_url(api_base_url, "image"),
             json=sample_stats_response,
         )
 
@@ -396,20 +489,19 @@ class TestHordeAPIIntegrationCacheInvalidation:
     @pytest.mark.asyncio
     async def test_invalidate_specific_type(
         self,
-        mock_horde_settings: None,
-        sample_status_response: list[dict[str, Any]],
+        integration: HordeAPIIntegration,
+        sample_status_response: list[ModelStatusPayload],
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test invalidating cache for specific model type."""
-        integration = HordeAPIIntegration()
-
         # Register response twice since we expect two calls
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/status/models?type=image&model_state=known",
+            url=_status_url(api_base_url, "image"),
             json=sample_status_response,
         )
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/status/models?type=image&model_state=known",
+            url=_status_url(api_base_url, "image"),
             json=sample_status_response,
         )
 
@@ -429,21 +521,20 @@ class TestHordeAPIIntegrationCacheInvalidation:
     @pytest.mark.asyncio
     async def test_invalidate_all(
         self,
-        mock_horde_settings: None,
-        sample_status_response: list[dict[str, Any]],
-        sample_stats_response: dict[str, dict[str, int]],
+        integration: HordeAPIIntegration,
+        sample_status_response: list[ModelStatusPayload],
+        sample_stats_response: ModelStatsPayload,
         httpx_mock: HTTPXMock,
+        api_base_url: str,
     ) -> None:
         """Test invalidating all caches."""
-        integration = HordeAPIIntegration()
-
         # Register responses for initial fetches
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/status/models?type=image&model_state=known",
+            url=_status_url(api_base_url, "image"),
             json=sample_status_response,
         )
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/stats/img/models?model_state=known",
+            url=_stats_url(api_base_url, "image"),
             json=sample_stats_response,
         )
 
@@ -456,11 +547,11 @@ class TestHordeAPIIntegrationCacheInvalidation:
 
         # Register responses again for post-invalidation fetches
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/status/models?type=image&model_state=known",
+            url=_status_url(api_base_url, "image"),
             json=sample_status_response,
         )
         httpx_mock.add_response(
-            url="https://aihorde.net/api/v2/stats/img/models?model_state=known",
+            url=_stats_url(api_base_url, "image"),
             json=sample_stats_response,
         )
 

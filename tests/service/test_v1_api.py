@@ -14,8 +14,11 @@ from horde_model_reference import (
     horde_model_reference_paths,
     horde_model_reference_settings,
 )
+from horde_model_reference.audit.events import AuditOperation
+from horde_model_reference.pending_queue.models import PendingChangeStatus
 from horde_model_reference.service.shared import PathVariables, RouteNames, route_registry, v1_prefix
-from tests.helpers import ALL_MODEL_CATEGORIES
+
+from ..helpers import ALL_MODEL_CATEGORIES
 
 # Note: The v1_canonical_manager fixture is now defined in conftest.py
 # It provides a PRIMARY mode manager with canonical_format='legacy' for v1 API tests
@@ -29,18 +32,19 @@ def _create_legacy_json_file(base_path: Path, category: MODEL_REFERENCE_CATEGORY
         category: Model category
         data: Legacy format data to write
     """
-    legacy_path = base_path / "legacy"
-    legacy_path.mkdir(parents=True, exist_ok=True)
+    # Use the canonical path helper to get the base legacy path
+    legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+        category,
+        base_path=base_path,
+    )
 
-    if category == MODEL_REFERENCE_CATEGORY.image_generation:
-        filename = "stable_diffusion.json"
-    elif category == MODEL_REFERENCE_CATEGORY.text_generation:
-        filename = "text_generation.json"
-    else:
-        filename = f"{category.value}.json"
+    # For text_generation, the path returns models.csv but we're writing JSON,
+    # so use text_generation.json instead (the backend's fallback for JSON format)
+    if category == MODEL_REFERENCE_CATEGORY.text_generation:
+        legacy_file_path = legacy_file_path.with_name("text_generation.json")
 
-    file_path = legacy_path / filename
-    file_path.write_text(json.dumps(data, indent=2))
+    legacy_file_path.parent.mkdir(parents=True, exist_ok=True)
+    legacy_file_path.write_text(json.dumps(data, indent=2))
 
 
 def _create_legacy_model_payload(
@@ -98,6 +102,45 @@ def _create_legacy_model_payload(
     return payload
 
 
+_V1_PENDING_QUEUE_BASE = f"{v1_prefix}/pending_queue"
+_V1_QUEUE_USER_ID = "test-user-id"
+_V1_QUEUE_USERNAME = f"tester#{_V1_QUEUE_USER_ID}"
+
+
+def _queue_auth_headers() -> dict[str, str]:
+    """Return headers accepted by queue approver/requestor auth mocks."""
+    return {"apikey": "test_key"}
+
+
+def _enqueue_legacy_pending_change(
+    manager: ModelReferenceManager,
+    *,
+    model_name: str,
+    category: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.miscellaneous,
+    operation: AuditOperation = AuditOperation.CREATE,
+    payload: dict[str, Any] | None = None,
+) -> int:
+    """Enqueue a pending change using the manager's queue service."""
+    queue_service = manager.pending_queue_service
+    assert queue_service is not None, "Pending queue must be enabled for tests"
+
+    effective_payload = payload
+    if effective_payload is None and operation is not AuditOperation.DELETE:
+        effective_payload = _create_legacy_model_payload(model_name, category)
+
+    record = queue_service.enqueue_change(
+        category=category,
+        model_name=model_name,
+        operation=operation,
+        payload=effective_payload,
+        requestor_id=_V1_QUEUE_USER_ID,
+        requestor_username=_V1_QUEUE_USERNAME,
+        notes=None,
+        request_metadata={"source": "v1-tests"},
+    )
+    return record.change_id
+
+
 def _get_create_route_for_category(category: MODEL_REFERENCE_CATEGORY) -> RouteNames | None:
     """Get the create route name for a category, or None if not supported."""
     category_route_map = {
@@ -133,6 +176,12 @@ def _read_legacy_model_file(base_path: Path, category: MODEL_REFERENCE_CATEGORY)
         category,
         base_path=base_path,
     )
+
+    # For text_generation, the path returns models.csv but we're reading JSON,
+    # so use text_generation.json instead (matches _create_legacy_json_file)
+    if category == MODEL_REFERENCE_CATEGORY.text_generation:
+        legacy_path = legacy_path.with_name("text_generation.json")
+
     with open(legacy_path, encoding="utf-8") as legacy_file:
         return cast(dict[str, Any], json.load(legacy_file))
 
@@ -405,7 +454,12 @@ class TestGetLegacyReference:
 
 
 class TestCreateLegacyModel:
-    """Tests for POST /{category}/create_model endpoint."""
+    """Tests for POST /{category}/create_model endpoint.
+
+    When pending queue is enabled, create operations return 202 Accepted with a
+    PendingChangeRecord. The model is not written to disk until the change is
+    approved and applied.
+    """
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_create_model_success(
@@ -417,10 +471,12 @@ class TestCreateLegacyModel:
         mock_auth_success: None,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
-        """POST should create a new legacy model file entry."""
+        """POST should enqueue a new legacy model creation and return 202."""
         route_name = _get_create_route_for_category(category)
         if route_name is None:
             pytest.skip(f"Category {category} does not have a v1 create endpoint")
+            assert route_name is not None
+            route_name = cast(RouteNames, route_name)
 
         model_name = "new_legacy_model"
         payload = _create_legacy_model_payload(model_name, category, description="Created via POST")
@@ -429,16 +485,24 @@ class TestCreateLegacyModel:
 
         response = api_client.post(url, json=payload, headers={"apikey": "test_key"})
 
-        assert response.status_code == 201
+        assert response.status_code == 202
 
         response_json = response.json()
-        for key, value in payload.items():
-            if not isinstance(value, dict) and not isinstance(value, list):
-                assert response_json[key] == value
+        # With pending queue enabled, response is a PendingChangeRecord
+        assert "change_id" in response_json
+        assert response_json["model_name"] == model_name
+        assert response_json["category"] == category.value
+        assert response_json["operation"] == AuditOperation.CREATE.value
+        assert response_json["status"] == PendingChangeStatus.PENDING.value
 
-        legacy_data = _read_legacy_model_file(primary_base, category)
-        assert model_name in legacy_data
-        assert legacy_data[model_name]["description"] == "Created via POST"
+        # Verify the change is in the queue, not written to disk yet
+        queue_service = v1_canonical_manager.pending_queue_service
+        assert queue_service is not None
+        change = queue_service.get_change(response_json["change_id"])
+        assert change is not None
+        assert change.model_name == model_name
+        assert change.payload is not None
+        assert change.payload["description"] == "Created via POST"
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_create_model_conflict(
@@ -454,6 +518,7 @@ class TestCreateLegacyModel:
         route_name = _get_create_route_for_category(category)
         if route_name is None:
             pytest.skip(f"Category {category} does not have a v1 create endpoint")
+        route_name = cast(RouteNames, route_name)
 
         model_name = "existing_model"
         existing_payload = _create_legacy_model_payload(model_name, category)
@@ -497,7 +562,12 @@ class TestLegacyFormatWriteRestriction:
 
 
 class TestUpdateLegacyModel:
-    """Tests for PUT /{category} endpoint."""
+    """Tests for PUT /{category} endpoint.
+
+    When pending queue is enabled, update operations return 202 Accepted with a
+    PendingChangeRecord. The model is not updated on disk until the change is
+    approved and applied.
+    """
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_update_existing_model(
@@ -509,10 +579,11 @@ class TestUpdateLegacyModel:
         mock_auth_success: None,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
-        """PUT should update an existing legacy model."""
+        """PUT should enqueue an update for an existing legacy model and return 202."""
         route_name = _get_create_route_for_category(category)
         if route_name is None:
             pytest.skip(f"Category {category} does not have a v1 update endpoint")
+        route_name = cast(RouteNames, route_name)
 
         model_name = "update_me"
         original_payload = _create_legacy_model_payload(model_name, category, description="Original")
@@ -524,17 +595,36 @@ class TestUpdateLegacyModel:
 
         response = api_client.put(url, json=updated_payload, headers={"apikey": "test_key"})
 
-        assert response.status_code == 200
+        assert response.status_code == 202
         response_json = response.json()
 
-        assert response_json["description"] == "Updated"
+        # With pending queue enabled, response is a PendingChangeRecord
+        assert "change_id" in response_json
+        assert response_json["model_name"] == model_name
+        assert response_json["category"] == category.value
+        assert response_json["operation"] == AuditOperation.UPDATE.value
+        assert response_json["status"] == PendingChangeStatus.PENDING.value
 
+        # Verify the change is in the queue with the updated payload
+        queue_service = v1_canonical_manager.pending_queue_service
+        assert queue_service is not None
+        change = queue_service.get_change(response_json["change_id"])
+        assert change is not None
+        assert change.payload is not None
+        assert change.payload["description"] == "Updated"
+
+        # Original file should still have the old value (not yet applied)
         legacy_data = _read_legacy_model_file(primary_base, category)
-        assert legacy_data[model_name]["description"] == "Updated"
+        assert legacy_data[model_name]["description"] == "Original"
 
 
 class TestDeleteLegacyModel:
-    """Tests for DELETE /{category}/{model_name} endpoint."""
+    """Tests for DELETE /{category}/{model_name} endpoint.
+
+    When pending queue is enabled, delete operations return 202 Accepted with a
+    PendingChangeRecord. The model is not deleted from disk until the change is
+    approved and applied.
+    """
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_delete_model_success(
@@ -546,7 +636,7 @@ class TestDeleteLegacyModel:
         mock_auth_success: None,
         category: MODEL_REFERENCE_CATEGORY,
     ) -> None:
-        """DELETE should remove the model from the legacy file."""
+        """DELETE should enqueue a deletion and return 202."""
         model_name = "delete_me"
         payload = _create_legacy_model_payload(model_name, category)
         _create_legacy_json_file(primary_base, category, {model_name: payload})
@@ -555,10 +645,27 @@ class TestDeleteLegacyModel:
             _legacy_model_url(RouteNames.delete_model, category, model_name), headers={"apikey": "test_key"}
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 202
 
+        response_json = response.json()
+        # With pending queue enabled, response is a PendingChangeRecord
+        assert "change_id" in response_json
+        assert response_json["model_name"] == model_name
+        assert response_json["category"] == category.value
+        assert response_json["operation"] == AuditOperation.DELETE.value
+        assert response_json["status"] == PendingChangeStatus.PENDING.value
+
+        # Verify the change is in the queue
+        queue_service = v1_canonical_manager.pending_queue_service
+        assert queue_service is not None
+        change = queue_service.get_change(response_json["change_id"])
+        assert change is not None
+        assert change.model_name == model_name
+        assert change.operation == AuditOperation.DELETE
+
+        # Model should still exist (not yet deleted)
         legacy_data = _read_legacy_model_file(primary_base, category)
-        assert model_name not in legacy_data
+        assert model_name in legacy_data
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_delete_model_not_found(
@@ -580,6 +687,88 @@ class TestDeleteLegacyModel:
 
         assert response.status_code == 404
         assert "not found" in response.json()["detail"].lower()
+
+
+class TestLegacyPendingQueueAdmin:
+    """Tests for pending queue management endpoints exposed under /v1."""
+
+    _base_url = _V1_PENDING_QUEUE_BASE
+
+    def test_list_pending_changes_includes_enqueued_records(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        mock_auth_success: None,
+    ) -> None:
+        """GET /pending_queue/changes should surface legacy queued updates."""
+        change_id = _enqueue_legacy_pending_change(
+            v1_canonical_manager,
+            model_name="legacy_queue_list",
+        )
+
+        response = api_client.get(f"{self._base_url}/changes", headers=_queue_auth_headers())
+        payload = _assert_success_response(response)
+        returned_ids = {item["change_id"] for item in payload["items"]}
+        assert change_id in returned_ids
+
+    def test_apply_pending_change_updates_legacy_file(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+        mock_auth_success: None,
+    ) -> None:
+        """POST /pending_queue/changes/{id}/apply should write to legacy JSON."""
+        category = MODEL_REFERENCE_CATEGORY.image_generation
+        model_name = "legacy_queue_apply"
+        original_payload = _create_legacy_model_payload(model_name, category, description="old")
+        updated_payload = _create_legacy_model_payload(model_name, category, description="new")
+        _create_legacy_json_file(primary_base, category, {model_name: original_payload})
+
+        change_id = _enqueue_legacy_pending_change(
+            v1_canonical_manager,
+            model_name=model_name,
+            category=category,
+            operation=AuditOperation.UPDATE,
+            payload=updated_payload,
+        )
+        queue_service = v1_canonical_manager.pending_queue_service
+        assert queue_service is not None
+        queue_service.process_batch(
+            approver_id=_V1_QUEUE_USER_ID,
+            approver_username=_V1_QUEUE_USERNAME,
+            batch_title="apply legacy",
+            approved_ids=[change_id],
+            rejected_ids=None,
+            reject_reason=None,
+        )
+
+        response = api_client.post(
+            f"{self._base_url}/changes/{change_id}/apply",
+            headers=_queue_auth_headers(),
+            json={"job_id": "legacy-job"},
+        )
+        payload = _assert_success_response(response)
+        assert payload["record"]["status"] == PendingChangeStatus.APPLIED.value
+        assert payload["record"]["applied_job_id"] == "legacy-job"
+
+        legacy_data = _read_legacy_model_file(primary_base, category)
+        assert legacy_data[model_name]["description"] == "new"
+
+    def test_pending_queue_works_in_v2_mode(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        mock_auth_success: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Pending queue should work in v2 mode - both legacy and v2 support enqueued changes."""
+        _enqueue_legacy_pending_change(v1_canonical_manager, model_name="v2_queue_test")
+        monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "v2")
+
+        response = api_client.get(f"{self._base_url}/changes", headers=_queue_auth_headers())
+        # Both legacy and v2 modes support pending queue
+        assert response.status_code == 200
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_delete_model_category_missing(
@@ -827,6 +1016,7 @@ class TestRouteConditionalImport:
 
         if route_name is None:
             pytest.skip(f"Category {category} does not have a v1 create endpoint")
+        route_name = cast(RouteNames, route_name)
 
         model_name = "test_model"
         payload = _create_legacy_model_payload(model_name, category)
@@ -834,4 +1024,4 @@ class TestRouteConditionalImport:
         url = route_registry.url_for(route_name, {}, v1_prefix)
         response = api_client.post(url, json=payload, headers={"apikey": "test_key"})
 
-        assert response.status_code in (201, 409, 422, 500)
+        assert response.status_code in (201, 202, 409, 422, 500)

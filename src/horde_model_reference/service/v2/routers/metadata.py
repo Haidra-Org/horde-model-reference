@@ -10,6 +10,7 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_metadata import CategoryMetadata
 from horde_model_reference.service.shared import (
     RouteNames,
+    get_model_reference_manager,
     route_registry,
     v2_prefix,
 )
@@ -17,11 +18,6 @@ from horde_model_reference.service.shared import (
 router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
-
-
-def get_model_reference_manager() -> ModelReferenceManager:
-    """Dependency to get the model reference manager singleton."""
-    return ModelReferenceManager()
 
 
 class LastUpdatedResponse(BaseModel):

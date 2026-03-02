@@ -1,6 +1,6 @@
 import os
 import sys
-from collections.abc import Callable, Generator, Iterator
+from collections.abc import Callable, Collection, Generator, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +22,7 @@ from horde_model_reference import PrefetchStrategy, ReplicateMode, ai_horde_ci_s
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.model_reference_manager import ModelReferenceManager
 from horde_model_reference.service.app import app
+from horde_model_reference.service.shared import HordeUserContext
 
 # Environment variable prefixes that should be cleared before tests
 _HORDE_MODEL_REFERENCE_ENV_PREFIX = "HORDE_MODEL_REFERENCE_"
@@ -160,6 +161,10 @@ def primary_manager_override_factory(
     dependency_override: Callable[[Callable[[], Any], Callable[[], Any]], None],
 ) -> Iterator[Callable[[Callable[[], ModelReferenceManager]], ModelReferenceManager]]:
     """Provide a factory to create PRIMARY managers and set dependency overrides."""
+    queue_root = primary_base / "pending_queue"
+    queue_root.mkdir(parents=True, exist_ok=True)
+    previous_override = horde_model_reference_settings.pending_queue.root_path_override
+    horde_model_reference_settings.pending_queue.root_path_override = str(queue_root)
 
     def _create(dependency: Callable[[], ModelReferenceManager]) -> ModelReferenceManager:
         backend = FileSystemBackend(
@@ -176,7 +181,10 @@ def primary_manager_override_factory(
         dependency_override(dependency, lambda: manager)
         return manager
 
-    yield _create
+    try:
+        yield _create
+    finally:
+        horde_model_reference_settings.pending_queue.root_path_override = previous_override
 
 
 @pytest.fixture
@@ -214,9 +222,14 @@ def v1_canonical_manager(
     3. Registers it as a dependency override for v1 API endpoints
     4. Cleans up automatically after the test
     """
-    from horde_model_reference.service.v1.routers.shared import get_model_reference_manager
+    from horde_model_reference.service.shared import get_model_reference_manager
 
     monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "legacy")
+
+    queue_root = primary_base / "pending_queue"
+    queue_root.mkdir(parents=True, exist_ok=True)
+    previous_override = horde_model_reference_settings.pending_queue.root_path_override
+    horde_model_reference_settings.pending_queue.root_path_override = str(queue_root)
 
     backend = FileSystemBackend(
         base_path=primary_base,
@@ -230,7 +243,10 @@ def v1_canonical_manager(
     )
 
     dependency_override(get_model_reference_manager, lambda: manager)
-    yield manager
+    try:
+        yield manager
+    finally:
+        horde_model_reference_settings.pending_queue.root_path_override = previous_override
 
 
 @pytest.fixture
@@ -594,13 +610,27 @@ def populated_legacy_path(
 
 @pytest.fixture
 def mock_auth_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Mock auth_against_horde to always return True for testing write operations."""
+    """Mock Horde authentication helpers and seed pending queue allowlists for tests."""
+    test_user_id = "test-user-id"
 
-    async def _mock_auth(apikey: str, client: Any) -> bool:  # noqa: ANN401
-        return True
+    async def _mock_auth(
+        apikey: str,
+        client: Any,  # noqa: ANN401
+        *,
+        allowed_user_ids: Collection[str] | None = None,
+    ) -> HordeUserContext | None:
+        if allowed_user_ids and test_user_id not in allowed_user_ids:
+            return None
+        return HordeUserContext(user_id=test_user_id, username=f"tester#{test_user_id}")
 
-    monkeypatch.setattr("horde_model_reference.service.v1.routers.create_update.auth_against_horde", _mock_auth)
-    monkeypatch.setattr("horde_model_reference.service.v1.routers.shared.auth_against_horde", _mock_auth)
+    # Patch auth_against_horde in the modules where it's actually defined/imported
+    monkeypatch.setattr("horde_model_reference.service.shared.auth_against_horde", _mock_auth)
+
+    allowed_user_ids = [test_user_id]
+    monkeypatch.setattr("horde_model_reference.service.shared.allowed_users", allowed_user_ids)
+
+    horde_model_reference_settings.pending_queue.requestor_ids = [test_user_id]
+    horde_model_reference_settings.pending_queue.approver_ids = [test_user_id]
 
 
 @pytest.fixture
