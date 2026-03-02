@@ -11,10 +11,10 @@ from horde_model_reference.analytics.text_model_parser import get_base_model_nam
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.service.shared import (
     RouteNames,
+    get_model_reference_manager,
     route_registry,
     v1_prefix,
 )
-from horde_model_reference.service.v1.routers.shared import get_model_reference_manager
 
 router = APIRouter(
     # prefix="/references",
@@ -211,5 +211,5 @@ async def read_legacy_reference(
     return Response(content=raw_json_string, media_type="application/json")
 
 
-if ModelReferenceManager().backend.supports_legacy_writes():
+if get_model_reference_manager().backend.supports_legacy_writes():
     router.include_router(v1_router_create_update.router)

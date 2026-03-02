@@ -9,17 +9,24 @@ from loguru import logger
 import horde_model_reference.service.statistics.routers.audit as ref_audit
 import horde_model_reference.service.statistics.routers.statistics as ref_statistics
 import horde_model_reference.service.v1.routers.metadata as v1_metadata
+import horde_model_reference.service.v1.routers.pending_queue as v1_pending_queue
+import horde_model_reference.service.v1.routers.pending_queue_audit as v1_pending_queue_audit
 import horde_model_reference.service.v1.routers.references as v1_references
 import horde_model_reference.service.v2.routers.metadata as v2_metadata
+import horde_model_reference.service.v2.routers.pending_queue as v2_pending_queue
+import horde_model_reference.service.v2.routers.pending_queue_audit as v2_pending_queue_audit
 import horde_model_reference.service.v2.routers.references as v2_references
-from horde_model_reference import ReplicateMode, horde_model_reference_settings
+import horde_model_reference.service.v2.routers.user as v2_user
+from horde_model_reference import BackendInfo, CanonicalFormat, ReplicateMode, horde_model_reference_settings
 from horde_model_reference.service.shared import statistics_prefix, v1_prefix, v2_prefix
-
-app = FastAPI(root_path="/api")
 
 origins = [
     "http://localhost:51457",
+    "http://localhost:53941",
+    "http://localhost:54822",
     "http://localhost:4200",
+    "http://localhost:4205",
+    "http://localhost:4400",
     "http://localhost:9877",
 ]
 
@@ -60,10 +67,15 @@ app.add_middleware(
 )
 
 
+app.include_router(v2_pending_queue.router, prefix=v2_prefix, tags=["v2", "pending_queue"])
+app.include_router(v2_pending_queue_audit.router, prefix=v2_prefix, tags=["v2", "pending_queue", "audit"])
+app.include_router(v2_user.router, prefix=v2_prefix, tags=["v2", "user"])
 app.include_router(v2_references.router, prefix=v2_prefix, tags=["v2"])
 app.include_router(ref_statistics.router, prefix=statistics_prefix, tags=["v2", "statistics"])
 app.include_router(ref_audit.router, prefix=statistics_prefix, tags=["v2", "audit"])
 app.include_router(v2_metadata.router, prefix=f"{v2_prefix}/metadata", tags=["v2", "metadata"])
+app.include_router(v1_pending_queue.router, prefix=v1_prefix, tags=["v1", "pending_queue"])
+app.include_router(v1_pending_queue_audit.router, prefix=v1_prefix, tags=["v1", "pending_queue", "audit"])
 app.include_router(v1_references.router, prefix=v1_prefix)
 app.include_router(v1_metadata.router, prefix=f"{v1_prefix}/metadata", tags=["v1", "metadata"])
 
@@ -83,8 +95,28 @@ async def heartbeat() -> ContainsStatus:
 
 
 @app.get("/replicate_mode")
-async def replicate_mode() -> ReplicateMode:
-    """Endpoint to get the current replication mode."""
+async def replicate_mode() -> BackendInfo:
+    """Get backend configuration and capabilities.
+
+    Returns information about the backend's replication mode, canonical format,
+    and whether write operations are supported.
+
+    Clients should use this endpoint on startup to determine:
+    - Whether the backend supports write operations (writable=True)
+    - Which API version to use for CRUD operations (based on canonical_format)
+
+    Note: For backward compatibility, this endpoint path is retained but now
+    returns a richer BackendInfo response instead of just the ReplicateMode.
+    """
     from horde_model_reference import horde_model_reference_settings
 
-    return horde_model_reference_settings.replicate_mode
+    # Map the string setting to the enum
+    canonical_format = (
+        CanonicalFormat.LEGACY if horde_model_reference_settings.canonical_format == "legacy" else CanonicalFormat.V2
+    )
+
+    return BackendInfo(
+        replicate_mode=horde_model_reference_settings.replicate_mode,
+        canonical_format=canonical_format,
+        writable=horde_model_reference_settings.replicate_mode == ReplicateMode.PRIMARY,
+    )

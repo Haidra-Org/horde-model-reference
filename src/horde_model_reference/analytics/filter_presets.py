@@ -8,14 +8,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from enum import Enum
-from typing import TYPE_CHECKING
 
 from loguru import logger
 
+from horde_model_reference.analytics.audit_analysis import ModelAuditInfo
 from horde_model_reference.analytics.constants import LOW_USAGE_THRESHOLD
-
-if TYPE_CHECKING:
-    from horde_model_reference.analytics.audit_analysis import ModelAuditInfo
 
 
 class AuditFilterPreset(str, Enum):

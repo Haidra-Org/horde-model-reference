@@ -1,5 +1,8 @@
 import urllib.parse
+from collections.abc import Collection
+from dataclasses import dataclass
 from enum import auto
+from typing import Literal
 
 import httpx
 from fastapi import HTTPException
@@ -8,7 +11,7 @@ from loguru import logger
 from pydantic import BaseModel
 from strenum import StrEnum
 
-from horde_model_reference import ModelReferenceManager, ai_horde_worker_settings
+from horde_model_reference import ModelReferenceManager, ai_horde_worker_settings, horde_model_reference_settings
 
 header_auth_scheme = APIKeyHeader(name="apikey")
 
@@ -46,6 +49,9 @@ class RouteNames(StrEnum):
     miscellaneous_model = auto()
     create_model = auto()
     update_model = auto()
+    update_image_generation_model = auto()
+    update_text_generation_model = auto()
+    update_controlnet_model = auto()
     delete_model = auto()
     get_models_with_stats = auto()
     get_category_statistics = auto()
@@ -127,9 +133,24 @@ class Operation(StrEnum):
 # Full names, like Tazlin#6572, are unreliable because the user can change them.
 # Instead, we use the immutable user ID for authentication allowlisting.
 allowed_users = ["1", "6572"]
+_requestor_fallback_logged = False
+_approver_fallback_logged = False
 
 
-async def auth_against_horde(apikey: str, client: httpx.AsyncClient) -> bool:
+@dataclass(frozen=True)
+class HordeUserContext:
+    """Immutable details about the authenticated Horde user."""
+
+    user_id: str
+    username: str
+
+
+async def auth_against_horde(
+    apikey: str,
+    client: httpx.AsyncClient,
+    *,
+    allowed_user_ids: Collection[str] | None = None,
+) -> HordeUserContext | None:
     """Authenticate the provided API key against the AI-Horde.
 
     This uses the endpoint defined by AI_HORDE_URL by AIHordeClientSettings in haidra_core.
@@ -137,9 +158,10 @@ async def auth_against_horde(apikey: str, client: httpx.AsyncClient) -> bool:
     Args:
         apikey (str): The API key to authenticate.
         client (httpx.AsyncClient): The HTTP client to use for the request.
+        allowed_user_ids (Collection[str] | None): Optional allowlist of Horde user IDs permitted for the caller.
 
     Returns:
-        bool: True if authentication is successful, False otherwise.
+        HordeUserContext | None: User details if authentication is successful, None otherwise.
     """
     find_user_subpath = "v2/find_user"
     url = urllib.parse.urljoin(
@@ -152,22 +174,127 @@ async def auth_against_horde(apikey: str, client: httpx.AsyncClient) -> bool:
         headers={"apikey": f"{apikey}"},
     )
 
-    if response.status_code == 200:
-        user_data = response.json()
-        user_name = user_data.get("username", "")
+    if response.status_code != 200:
+        return None
 
-        if "#" not in user_name:
-            logger.warning(f"Unknown apikey: {user_data}")
-            return False
+    user_data = response.json()
+    user_name = user_data.get("username", "")
 
-        user_id = user_name.split("#")[-1]
+    if "#" not in user_name:
+        logger.warning(f"Unknown apikey: {user_data}")
+        return None
 
-        if user_id in allowed_users:
-            return True
+    user_id = user_name.split("#")[-1]
 
+    if allowed_user_ids and user_id not in allowed_user_ids:
         logger.warning(f"Unauthorized user ID: {user_id}")
+        return None
 
-    return False
+    return HordeUserContext(user_id=user_id, username=user_name)
+
+
+def _normalize_ids(values: Collection[str]) -> set[str]:
+    return {value.strip() for value in values if value and value.strip()}
+
+
+def _fallback_allowed_users(context: Literal["requestor", "approver"]) -> set[str]:
+    fallback = _normalize_ids(allowed_users)
+    if not fallback:
+        logger.warning(
+            "Pending queue %s allowlist is empty and no fallback IDs are defined; rejecting access",
+            context,
+        )
+        return set()
+
+    global _requestor_fallback_logged, _approver_fallback_logged
+    already_logged = _requestor_fallback_logged if context == "requestor" else _approver_fallback_logged
+    if not already_logged:
+        logger.warning(
+            "Pending queue %s allowlist is not configured; falling back to built-in IDs for development use",
+            context,
+        )
+        if context == "requestor":
+            _requestor_fallback_logged = True
+        else:
+            _approver_fallback_logged = True
+
+    return fallback
+
+
+def _queue_requestor_allowlist() -> set[str]:
+    settings = horde_model_reference_settings.pending_queue
+    allowlist = _normalize_ids(settings.requestor_ids)
+    allowlist.update(_normalize_ids(settings.approver_ids))
+    if allowlist:
+        return allowlist
+    return _fallback_allowed_users("requestor")
+
+
+def _queue_approver_allowlist() -> set[str]:
+    settings = horde_model_reference_settings.pending_queue
+    allowlist = _normalize_ids(settings.approver_ids)
+    if allowlist:
+        return allowlist
+    return _fallback_allowed_users("approver")
+
+
+async def authenticate_queue_requestor(apikey: str) -> HordeUserContext:
+    """Authenticate a queue requestor using the configured allowlist."""
+    allowlist = _queue_requestor_allowlist()
+    if not allowlist:
+        raise APIKeyInvalidException()
+
+    context = await auth_against_horde(apikey, httpx_client, allowed_user_ids=allowlist)
+    if context is None:
+        raise APIKeyInvalidException()
+    return context
+
+
+async def authenticate_queue_approver(apikey: str) -> HordeUserContext:
+    """Authenticate a queue approver using the configured allowlist."""
+    allowlist = _queue_approver_allowlist()
+    if not allowlist:
+        raise APIKeyInvalidException()
+
+    context = await auth_against_horde(apikey, httpx_client, allowed_user_ids=allowlist)
+    logger.debug(f"Approver authenticated: {context} with allowlist {allowlist}")
+    if context is None:
+        raise APIKeyInvalidException()
+    return context
+
+
+async def get_user_roles(apikey: str) -> tuple[HordeUserContext | None, set[str]]:
+    """Authenticate a user and determine their roles based on configured allowlists.
+
+    This function authenticates the user without enforcing any specific role requirement,
+    then checks which roles the user has been granted.
+
+    Args:
+        apikey: The API key to authenticate.
+
+    Returns:
+        A tuple of (user_context, roles) where:
+        - user_context: The authenticated user details, or None if authentication failed.
+        - roles: A set of role names the user has (e.g., {'approver', 'requestor'}).
+    """
+    # Authenticate without any allowlist restriction first
+    context = await auth_against_horde(apikey, httpx_client, allowed_user_ids=None)
+    if context is None:
+        return None, set()
+
+    roles: set[str] = set()
+
+    # Check approver status
+    approver_allowlist = _queue_approver_allowlist()
+    if context.user_id in approver_allowlist:
+        roles.add("approver")
+
+    # Check requestor status
+    requestor_allowlist = _queue_requestor_allowlist()
+    if context.user_id in requestor_allowlist:
+        roles.add("requestor")
+
+    return context, roles
 
 
 class APIKeyInvalidException(HTTPException):
@@ -203,3 +330,85 @@ class ErrorResponse(BaseModel):
 def get_model_reference_manager() -> ModelReferenceManager:
     """Dependency helper that returns the singleton model reference manager."""
     return ModelReferenceManager()
+
+
+def assert_canonical_write_enabled(
+    manager: ModelReferenceManager,
+    *,
+    canonical_format: Literal["legacy", "v2"],
+) -> None:
+    """Ensure that writes are attempted only when the canonical format allows them."""
+    backend = manager.backend
+    expected_format = horde_model_reference_settings.canonical_format
+    if canonical_format == "v2":
+        if not backend.supports_writes():
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "This instance is in REPLICA mode and does not support write operations. "
+                    "Only PRIMARY instances can queue model changes."
+                ),
+            )
+        if expected_format != canonical_format:
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "This deployment does not expose write operations for this API. "
+                    f"Expected canonical_format='{canonical_format}', got '{expected_format}'."
+                ),
+            )
+        return
+
+    if not backend.supports_legacy_writes():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "This instance cannot process legacy writes. PRIMARY deployments with legacy canonical format "
+                "must enable legacy write support."
+            ),
+        )
+
+    if expected_format != canonical_format:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "This deployment does not expose write operations for this API. "
+                f"Expected canonical_format='{canonical_format}', got '{expected_format}'."
+            ),
+        )
+
+
+def assert_pending_queue_write_enabled(manager: ModelReferenceManager) -> None:
+    """Ensure pending-queue operations are allowed for the active canonical format."""
+    backend = manager.backend
+    canonical_format = horde_model_reference_settings.canonical_format
+
+    if canonical_format == "v2":
+        if not backend.supports_writes():
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "This instance is in REPLICA mode and does not support write operations. "
+                    "Only PRIMARY instances can queue model changes."
+                ),
+            )
+        return
+
+    if canonical_format == "legacy":
+        if not backend.supports_legacy_writes():
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "This instance cannot process legacy writes. PRIMARY deployments with legacy canonical "
+                    "format must enable legacy write support."
+                ),
+            )
+        return
+
+    raise HTTPException(
+        status_code=503,
+        detail=(
+            "Pending queue writes are not available for the configured canonical format. "
+            f"canonical_format='{canonical_format}'"
+        ),
+    )

@@ -6,21 +6,17 @@ quantization information) and aggregate metrics across grouped variants.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from loguru import logger
 
+from horde_model_reference.analytics.audit_analysis import (
+    CategoryAuditResponse,
+    CategoryAuditSummary,
+    DeletionRiskFlags,
+    ModelAuditInfo,
+    UsageTrend,
+)
 from horde_model_reference.analytics.text_model_parser import get_base_model_name
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
-
-if TYPE_CHECKING:
-    from horde_model_reference.analytics.audit_analysis import (
-        CategoryAuditResponse,
-        CategoryAuditSummary,
-        DeletionRiskFlags,
-        ModelAuditInfo,
-        UsageTrend,
-    )
 
 
 def merge_deletion_flags(flags_list: list[DeletionRiskFlags]) -> DeletionRiskFlags:

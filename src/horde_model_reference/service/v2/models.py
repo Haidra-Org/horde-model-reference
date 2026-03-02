@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from horde_model_reference.model_reference_records import (
     ControlNetModelRecord,
@@ -10,6 +10,26 @@ from horde_model_reference.model_reference_records import (
     ImageGenerationModelRecord,
     TextGenerationModelRecord,
 )
+
+
+class UserRolesResponse(BaseModel):
+    """Response model for the user roles endpoint."""
+
+    user_id: str
+    """The unique Horde user ID (e.g., '6572')."""
+
+    username: str
+    """The full Horde username including discriminator (e.g., 'Tazlin#6572')."""
+
+    roles: list[str]
+    """List of roles assigned to the user (e.g., ['approver', 'requestor'])."""
+
+    is_approver: bool
+    """Whether the user has approver privileges for the pending queue."""
+
+    is_requestor: bool
+    """Whether the user has requestor privileges for the pending queue."""
+
 
 ModelRecordUnion = Annotated[
     ImageGenerationModelRecord | TextGenerationModelRecord | ControlNetModelRecord | GenericModelRecord,

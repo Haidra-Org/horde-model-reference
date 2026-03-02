@@ -1,8 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, status
 from fastapi.responses import JSONResponse
-from loguru import logger
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY, ModelReferenceManager
 from horde_model_reference.legacy.classes.legacy_models import (
@@ -18,20 +17,19 @@ from horde_model_reference.legacy.classes.legacy_models import (
     LegacyTextGenerationRecord,
     get_legacy_model_type,
 )
+from horde_model_reference.pending_queue import PendingChangeRecord
 from horde_model_reference.service.shared import (
-    APIKeyInvalidException,
     Operation,
     PathVariables,
     RouteNames,
-    auth_against_horde,
+    get_model_reference_manager,
     header_auth_scheme,
-    httpx_client,
     route_registry,
     v1_prefix,
 )
 from horde_model_reference.service.v1.routers.shared import (
     _create_or_update_legacy_model,
-    get_model_reference_manager,
+    _delete_legacy_model,
 )
 
 router = APIRouter(responses={404: {"description": "Not Found"}}, tags=["v1_create_update"])
@@ -53,6 +51,10 @@ route_registry.register_route(
         200: {
             "description": "Model deleted successfully",
         },
+        202: {
+            "description": "Model deletion queued for approval",
+            "model": PendingChangeRecord,
+        },
         404: {"description": "Model not found"},
         503: {"description": "Service unavailable (not in legacy canonical mode)"},
     },
@@ -64,40 +66,19 @@ async def delete_legacy_model(
     model_name: str,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
     apikey: Annotated[str, Depends(header_auth_scheme)],
-) -> Response:
+) -> JSONResponse:
     """Delete a model from a legacy model reference category.
 
-    Permanently removes the specified model from the category.
+    When pending queue is enabled, this enqueues the deletion and returns HTTP 202.
+    When pending queue is disabled, this deletes the model immediately and returns HTTP 200.
     """
-    authenticated = await auth_against_horde(apikey, httpx_client)
-
-    if not authenticated:
-        raise APIKeyInvalidException()
-
-    existing_models = manager.backend.get_legacy_json(model_category_name)
-    if existing_models is None or model_name not in existing_models:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Model '{model_name}' not found in category '{model_category_name}'",
-        )
-
-    try:
-        manager.backend.delete_model_legacy(model_category_name, model_name)
-        logger.info(f"Deleted legacy model '{model_name}' from category '{model_category_name}'")
-    except KeyError as e:
-        logger.warning(f"Model '{model_name}' not found during deletion: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Model '{model_name}' not found in category '{model_category_name}'",
-        ) from e
-    except Exception as e:
-        logger.exception(f"Error deleting legacy model '{model_name}': {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete model: {e!s}",
-        ) from e
-
-    return Response(status_code=status.HTTP_200_OK)
+    return await _delete_legacy_model(
+        manager,
+        model_category_name,
+        model_name,
+        apikey,
+        route_name="delete_legacy_model",
+    )
 
 
 # region Image Generation
@@ -117,6 +98,10 @@ route_registry.register_route(
     responses={
         201: {
             "description": "Model created successfully",
+        },
+        202: {
+            "description": "Model creation queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         409: {"description": "Model already exists"},
@@ -138,15 +123,15 @@ async def create_legacy_image_generation_model(
     model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.image_generation
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         category,
         model_name,
         new_model_record,
         Operation.create,
         apikey,
+        route_name="create_legacy_image_generation_model",
     )
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
 
 
 @router.put(
@@ -154,6 +139,10 @@ async def create_legacy_image_generation_model(
     responses={
         200: {
             "description": "Model updated successfully",
+        },
+        202: {
+            "description": "Model update queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         422: {"description": "Validation error"},
@@ -179,15 +168,15 @@ async def update_legacy_image_generation_model(
     model_category_name = MODEL_REFERENCE_CATEGORY.image_generation
     model_name = new_model_record.name
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         model_category_name,
         model_name,
         new_model_record,
         Operation.update,
         apikey,
+        route_name="update_legacy_model",
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=new_model_record.model_dump())
 
 
 # endregion Image Generation
@@ -210,6 +199,10 @@ route_registry.register_route(
         201: {
             "description": "Model created successfully",
         },
+        202: {
+            "description": "Model creation queued for approval",
+            "model": PendingChangeRecord,
+        },
         400: {"description": "Invalid request"},
         409: {"description": "Model already exists"},
         422: {"description": "Validation error"},
@@ -230,15 +223,15 @@ async def create_legacy_text_generation_model(
     model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.text_generation
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         category,
         model_name,
         new_model_record,
         Operation.create,
         apikey,
+        route_name="create_legacy_text_generation_model",
     )
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
 
 
 @router.put(
@@ -246,6 +239,10 @@ async def create_legacy_text_generation_model(
     responses={
         200: {
             "description": "Model updated successfully",
+        },
+        202: {
+            "description": "Model update queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         422: {"description": "Validation error"},
@@ -271,15 +268,15 @@ async def update_legacy_text_generation_model(
     model_name = new_model_record.name
     model_category_name = MODEL_REFERENCE_CATEGORY.text_generation
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         model_category_name,
         model_name,
         new_model_record,
         Operation.update,
         apikey,
+        route_name="update_legacy_text_generation_model",
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=new_model_record.model_dump())
 
 
 # endregion Text Generation
@@ -302,6 +299,10 @@ route_registry.register_route(
         201: {
             "description": "Model created successfully",
         },
+        202: {
+            "description": "Model creation queued for approval",
+            "model": PendingChangeRecord,
+        },
         400: {"description": "Invalid request"},
         409: {"description": "Model already exists (use PUT to update)"},
         422: {"description": "Validation error in request body"},
@@ -322,15 +323,15 @@ async def create_legacy_clip_model(
     model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.clip
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         category,
         model_name,
         new_model_record,
         Operation.create,
         apikey,
+        route_name="create_legacy_clip_model",
     )
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
 
 
 @router.put(
@@ -338,6 +339,10 @@ async def create_legacy_clip_model(
     responses={
         200: {
             "description": "Model updated successfully",
+        },
+        202: {
+            "description": "Model update queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         422: {"description": "Validation error"},
@@ -363,15 +368,15 @@ async def update_legacy_clip_model(
     model_name = new_model_record.name
     model_category_name = MODEL_REFERENCE_CATEGORY.clip
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         model_category_name,
         model_name,
         new_model_record,
         Operation.update,
         apikey,
+        route_name="update_legacy_clip_model",
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=new_model_record.model_dump())
 
 
 # endregion CLIP
@@ -394,6 +399,10 @@ route_registry.register_route(
         201: {
             "description": "Model created successfully",
         },
+        202: {
+            "description": "Model creation queued for approval",
+            "model": PendingChangeRecord,
+        },
         400: {"description": "Invalid request"},
         409: {"description": "Model already exists (use PUT to update)"},
         422: {"description": "Validation error in request body"},
@@ -414,15 +423,15 @@ async def create_legacy_blip_model(
     model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.blip
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         category,
         model_name,
         new_model_record,
         Operation.create,
         apikey,
+        route_name="create_legacy_blip_model",
     )
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
 
 
 @router.put(
@@ -430,6 +439,10 @@ async def create_legacy_blip_model(
     responses={
         200: {
             "description": "Model updated successfully",
+        },
+        202: {
+            "description": "Model update queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         422: {"description": "Validation error"},
@@ -455,15 +468,15 @@ async def update_legacy_blip_model(
     model_name = new_model_record.name
     model_category_name = MODEL_REFERENCE_CATEGORY.blip
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         model_category_name,
         model_name,
         new_model_record,
         Operation.update,
         apikey,
+        route_name="update_legacy_blip_model",
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=new_model_record.model_dump())
 
 
 # endregion BLIP
@@ -486,6 +499,10 @@ route_registry.register_route(
         201: {
             "description": "Model created successfully",
         },
+        202: {
+            "description": "Model creation queued for approval",
+            "model": PendingChangeRecord,
+        },
         400: {"description": "Invalid request"},
         409: {"description": "Model already exists (use PUT to update)"},
         422: {"description": "Validation error in request body"},
@@ -506,15 +523,15 @@ async def create_legacy_codeformer_model(
     model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.codeformer
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         category,
         model_name,
         new_model_record,
         Operation.create,
         apikey,
+        route_name="create_legacy_codeformer_model",
     )
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
 
 
 @router.put(
@@ -522,6 +539,10 @@ async def create_legacy_codeformer_model(
     responses={
         200: {
             "description": "Model updated successfully",
+        },
+        202: {
+            "description": "Model update queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         422: {"description": "Validation error"},
@@ -547,15 +568,15 @@ async def update_legacy_codeformer_model(
     model_name = new_model_record.name
     model_category_name = MODEL_REFERENCE_CATEGORY.codeformer
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         model_category_name,
         model_name,
         new_model_record,
         Operation.update,
         apikey,
+        route_name="update_legacy_codeformer_model",
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=new_model_record.model_dump())
 
 
 # endregion Codeformer
@@ -578,6 +599,10 @@ route_registry.register_route(
         201: {
             "description": "Model created successfully",
         },
+        202: {
+            "description": "Model creation queued for approval",
+            "model": PendingChangeRecord,
+        },
         400: {"description": "Invalid request"},
         409: {"description": "Model already exists (use PUT to update)"},
         422: {"description": "Validation error in request body"},
@@ -598,15 +623,15 @@ async def create_legacy_controlnet_model(
     model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.controlnet
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         category,
         model_name,
         new_model_record,
         Operation.create,
         apikey,
+        route_name="create_legacy_controlnet_model",
     )
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
 
 
 @router.put(
@@ -614,6 +639,10 @@ async def create_legacy_controlnet_model(
     responses={
         200: {
             "description": "Model updated successfully",
+        },
+        202: {
+            "description": "Model update queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         422: {"description": "Validation error"},
@@ -639,15 +668,15 @@ async def update_legacy_controlnet_model(
     model_name = new_model_record.name
     model_category_name = MODEL_REFERENCE_CATEGORY.controlnet
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         model_category_name,
         model_name,
         new_model_record,
         Operation.update,
         apikey,
+        route_name="update_legacy_controlnet_model",
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=new_model_record.model_dump())
 
 
 # endregion ControlNet
@@ -670,6 +699,10 @@ route_registry.register_route(
         201: {
             "description": "Model created successfully",
         },
+        202: {
+            "description": "Model creation queued for approval",
+            "model": PendingChangeRecord,
+        },
         400: {"description": "Invalid request"},
         409: {"description": "Model already exists (use PUT to update)"},
         422: {"description": "Validation error in request body"},
@@ -690,15 +723,15 @@ async def create_legacy_esrgan_model(
     model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.esrgan
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         category,
         model_name,
         new_model_record,
         Operation.create,
         apikey,
+        route_name="create_legacy_esrgan_model",
     )
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
 
 
 @router.put(
@@ -706,6 +739,10 @@ async def create_legacy_esrgan_model(
     responses={
         200: {
             "description": "Model updated successfully",
+        },
+        202: {
+            "description": "Model update queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         422: {"description": "Validation error"},
@@ -731,15 +768,15 @@ async def update_legacy_esrgan_model(
     model_name = new_model_record.name
     model_category_name = MODEL_REFERENCE_CATEGORY.esrgan
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         model_category_name,
         model_name,
         new_model_record,
         Operation.update,
         apikey,
+        route_name="update_legacy_esrgan_model",
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=new_model_record.model_dump())
 
 
 # endregion ESRGAN
@@ -762,6 +799,10 @@ route_registry.register_route(
         201: {
             "description": "Model created successfully",
         },
+        202: {
+            "description": "Model creation queued for approval",
+            "model": PendingChangeRecord,
+        },
         400: {"description": "Invalid request"},
         409: {"description": "Model already exists (use PUT to update)"},
         422: {"description": "Validation error in request body"},
@@ -782,15 +823,15 @@ async def create_legacy_gfpgan_model(
     model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.gfpgan
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         category,
         model_name,
         new_model_record,
         Operation.create,
         apikey,
+        route_name="create_legacy_gfpgan_model",
     )
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
 
 
 @router.put(
@@ -798,6 +839,10 @@ async def create_legacy_gfpgan_model(
     responses={
         200: {
             "description": "Model updated successfully",
+        },
+        202: {
+            "description": "Model update queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         422: {"description": "Validation error"},
@@ -823,15 +868,15 @@ async def update_legacy_gfpgan_model(
     model_name = new_model_record.name
     model_category_name = MODEL_REFERENCE_CATEGORY.gfpgan
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         model_category_name,
         model_name,
         new_model_record,
         Operation.update,
         apikey,
+        route_name="update_legacy_gfpgan_model",
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=new_model_record.model_dump())
 
 
 # endregion GFPGAN
@@ -854,6 +899,10 @@ route_registry.register_route(
         201: {
             "description": "Model created successfully",
         },
+        202: {
+            "description": "Model creation queued for approval",
+            "model": PendingChangeRecord,
+        },
         400: {"description": "Invalid request"},
         409: {"description": "Model already exists (use PUT to update)"},
         422: {"description": "Validation error in request body"},
@@ -874,15 +923,15 @@ async def create_legacy_safety_checker_model(
     model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.safety_checker
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         category,
         model_name,
         new_model_record,
         Operation.create,
         apikey,
+        route_name="create_legacy_safety_checker_model",
     )
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
 
 
 @router.put(
@@ -890,6 +939,10 @@ async def create_legacy_safety_checker_model(
     responses={
         200: {
             "description": "Model updated successfully",
+        },
+        202: {
+            "description": "Model update queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         422: {"description": "Validation error"},
@@ -915,15 +968,15 @@ async def update_legacy_safety_checker_model(
     model_name = new_model_record.name
     model_category_name = MODEL_REFERENCE_CATEGORY.safety_checker
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         model_category_name,
         model_name,
         new_model_record,
         Operation.update,
         apikey,
+        route_name="update_legacy_safety_checker_model",
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=new_model_record.model_dump())
 
 
 # endregion Safety Checker
@@ -946,6 +999,10 @@ route_registry.register_route(
         201: {
             "description": "Model created successfully",
         },
+        202: {
+            "description": "Model creation queued for approval",
+            "model": PendingChangeRecord,
+        },
         400: {"description": "Invalid request"},
         409: {"description": "Model already exists (use PUT to update)"},
         422: {"description": "Validation error in request body"},
@@ -966,15 +1023,15 @@ async def create_legacy_miscellaneous_model(
     model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.miscellaneous
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         category,
         model_name,
         new_model_record,
         Operation.create,
         apikey,
+        route_name="create_legacy_miscellaneous_model",
     )
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
 
 
 @router.put(
@@ -982,6 +1039,10 @@ async def create_legacy_miscellaneous_model(
     responses={
         200: {
             "description": "Model updated successfully",
+        },
+        202: {
+            "description": "Model update queued for approval",
+            "model": PendingChangeRecord,
         },
         400: {"description": "Invalid request"},
         422: {"description": "Validation error"},
@@ -1007,15 +1068,15 @@ async def update_legacy_miscellaneous_model(
     model_name = new_model_record.name
     model_category_name = MODEL_REFERENCE_CATEGORY.miscellaneous
 
-    await _create_or_update_legacy_model(
+    return await _create_or_update_legacy_model(
         manager,
         model_category_name,
         model_name,
         new_model_record,
         Operation.update,
         apikey,
+        route_name="update_legacy_miscellaneous_model",
     )
-    return JSONResponse(status_code=status.HTTP_200_OK, content=new_model_record.model_dump())
 
 
 # endregion Miscellaneous

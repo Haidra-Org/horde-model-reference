@@ -8,17 +8,15 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 
 from loguru import logger
 
 from horde_model_reference import ModelReferenceManager, horde_model_reference_settings
+from horde_model_reference.analytics.audit_analysis import CategoryAuditResponse
+from horde_model_reference.analytics.statistics import CategoryStatistics
 from horde_model_reference.integrations.horde_api_integration import HordeAPIIntegration
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
-
-if TYPE_CHECKING:
-    from horde_model_reference.analytics.audit_analysis import CategoryAuditResponse
-    from horde_model_reference.analytics.statistics import CategoryStatistics
 
 
 class CacheHydrator:
