@@ -10,10 +10,10 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_metadata import CategoryMetadata
 from horde_model_reference.service.shared import (
     RouteNames,
+    get_model_reference_manager,
     route_registry,
     v1_prefix,
 )
-from horde_model_reference.service.v1.routers.shared import get_model_reference_manager
 
 router = APIRouter(
     responses={404: {"description": "Not found"}},

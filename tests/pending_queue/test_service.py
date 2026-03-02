@@ -35,18 +35,16 @@ class _StubAuditWriter:
         request_id: str | None = None,
         timestamp: int | None = None,
     ) -> None:  # type: ignore[override]
-        self.events.append(
-            {
-                "domain": domain,
-                "category": category,
-                "model_name": model_name,
-                "operation": operation,
-                "logical_user_id": logical_user_id,
-                "payload": payload,
-                "request_id": request_id,
-                "timestamp": timestamp,
-            }
-        )
+        self.events.append({
+            "domain": domain,
+            "category": category,
+            "model_name": model_name,
+            "operation": operation,
+            "logical_user_id": logical_user_id,
+            "payload": payload,
+            "request_id": request_id,
+            "timestamp": timestamp,
+        })
 
 
 @pytest.fixture()
@@ -181,6 +179,28 @@ def test_process_batch_requires_reason_when_rejecting(
             rejected_ids=[rejected_id],
             reject_reason=None,
         )
+
+
+def test_process_batch_reject_only_skips_batch_allocation(
+    pending_queue_service: tuple[PendingQueueService, _StubAuditWriter],
+) -> None:
+    """Reject-only reviews should not bump the batch counter or assign batch ids."""
+    service, _ = pending_queue_service
+    rejected_id = _enqueue(service, model_name="reject-only")
+
+    result = service.process_batch(
+        approver_id=_TEST_APPROVER_ID,
+        approver_username=_TEST_APPROVER_USERNAME,
+        batch_title="reject-only",
+        approved_ids=None,
+        rejected_ids=[rejected_id],
+        reject_reason="nope",
+    )
+
+    rejected_record = service.get_change(rejected_id)
+    assert rejected_record is not None
+    assert rejected_record.batch_id is None
+    assert result.batch_id is None
 
 
 def test_mark_applied_transitions_and_audits(

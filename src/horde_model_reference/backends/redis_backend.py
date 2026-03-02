@@ -449,9 +449,18 @@ class RedisBackend(ModelReferenceBackend):
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         record_dict: dict[str, Any],
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Update model via file backend, then invalidate Redis cache."""
-        self._file_backend.update_model(category, model_name, record_dict)
+        self._file_backend.update_model(
+            category,
+            model_name,
+            record_dict,
+            logical_user_id=logical_user_id,
+            request_id=request_id,
+        )
 
         self.mark_stale(category)
 
@@ -460,9 +469,17 @@ class RedisBackend(ModelReferenceBackend):
         self,
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Delete model via file backend, then invalidate Redis cache."""
-        self._file_backend.delete_model(category, model_name)
+        self._file_backend.delete_model(
+            category,
+            model_name,
+            logical_user_id=logical_user_id,
+            request_id=request_id,
+        )
 
         self.mark_stale(category)
 

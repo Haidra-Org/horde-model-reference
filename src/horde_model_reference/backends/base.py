@@ -500,6 +500,9 @@ class ModelReferenceBackend(ABC):
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         record_dict: dict[str, Any],
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Update or create a model reference.
 
@@ -510,6 +513,10 @@ class ModelReferenceBackend(ABC):
             category: The category to update.
             model_name: The name of the model to update or create.
             record_dict: The model record data as a dictionary.
+
+        Args:
+            logical_user_id: Immutable Horde user id for auditing contexts (optional).
+            request_id: Optional tracing/idempotency identifier for audit correlation.
 
         Raises:
             NotImplementedError: If the backend does not support write operations.
@@ -534,6 +541,9 @@ class ModelReferenceBackend(ABC):
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         record_model: BaseModel,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Update or create a model reference from a pydantic BaseModel.
 
@@ -564,12 +574,21 @@ class ModelReferenceBackend(ABC):
             raise NotImplementedError(f"{self.__class__.__name__} does not support write operations")
 
         record_dict = record_model.model_dump(exclude_unset=True)
-        self.update_model(category, model_name, record_dict)
+        self.update_model(
+            category,
+            model_name,
+            record_dict,
+            logical_user_id=logical_user_id,
+            request_id=request_id,
+        )
 
     def delete_model(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Delete a model reference.
 
@@ -579,6 +598,10 @@ class ModelReferenceBackend(ABC):
         Args:
             category: The category containing the model.
             model_name: The name of the model to delete.
+
+        Args:
+            logical_user_id: Immutable Horde user id for auditing contexts (optional).
+            request_id: Optional tracing/idempotency identifier for audit correlation.
 
         Raises:
             NotImplementedError: If the backend does not support write operations.
@@ -601,6 +624,9 @@ class ModelReferenceBackend(ABC):
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         record_dict: dict[str, Any],
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Update or create a model reference in legacy format.
 
@@ -622,6 +648,9 @@ class ModelReferenceBackend(ABC):
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         record_model: BaseModel,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Update or create a model reference in legacy format from a pydantic BaseModel.
 
@@ -640,12 +669,21 @@ class ModelReferenceBackend(ABC):
             raise NotImplementedError(f"{self.__class__.__name__} does not support legacy write operations")
 
         record_dict = record_model.model_dump(exclude_unset=True)
-        self.update_model_legacy(category, model_name, record_dict)
+        self.update_model_legacy(
+            category,
+            model_name,
+            record_dict,
+            logical_user_id=logical_user_id,
+            request_id=request_id,
+        )
 
     def delete_model_legacy(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Delete a model reference from legacy format files.
 

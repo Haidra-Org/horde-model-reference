@@ -51,6 +51,12 @@ META_LEGACY_FOLDER_NAME: str = "legacy"
 META_V2_FOLDER_NAME: str = "v2"
 """The name of the v2 metadata subfolder within the meta folder."""
 
+AUDIT_FOLDER_NAME: str = "audit"
+"""The name of the folder storing append-only audit logs."""
+
+PENDING_QUEUE_FOLDER_NAME: str = "pending_queue"
+"""Folder storing pending change queue persistence."""
+
 
 class HordeModelReferencePaths:
     """A helper class to manage local and remote model reference paths."""
@@ -86,6 +92,26 @@ class HordeModelReferencePaths:
     def meta_v2_path(self) -> Path:
         """Return the path to the v2 metadata folder (meta/v2/)."""
         return self.meta_path.joinpath(META_V2_FOLDER_NAME)
+
+    @property
+    def audit_path(self) -> Path:
+        """Return the root path for audit log storage."""
+        override = horde_model_reference_settings.audit.root_path_override
+        if override:
+            return Path(override).expanduser().resolve()
+
+        subdir = horde_model_reference_settings.audit.relative_subdir or AUDIT_FOLDER_NAME
+        return self.base_path.joinpath(subdir)
+
+    @property
+    def pending_queue_path(self) -> Path:
+        """Return the root path for pending queue persistence."""
+        override = horde_model_reference_settings.pending_queue.root_path_override
+        if override:
+            return Path(override).expanduser().resolve()
+
+        subdir = horde_model_reference_settings.pending_queue.relative_subdir or PENDING_QUEUE_FOLDER_NAME
+        return self.base_path.joinpath(subdir)
 
     log_folder: Path
 
@@ -140,30 +166,17 @@ class HordeModelReferencePaths:
             logger.info(f"BASE_PATH: {self.base_path}")
             self.make_all_model_reference_folders()
 
-        self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.image_generation] = "stable_diffusion.json"
-        self.model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "text_generation.json"
-
-        # Legacy filenames for GitHub downloads (may differ from v2 filenames)
-        self.legacy_model_reference_filenames[MODEL_REFERENCE_CATEGORY.image_generation] = "stable_diffusion.json"
-        self.legacy_model_reference_filenames[MODEL_REFERENCE_CATEGORY.text_generation] = "models.csv"
-
         for category in MODEL_REFERENCE_CATEGORY:
-            # Set v2 filename if not already set
-            if category not in self.model_reference_filenames:
-                filename = f"{category}.json"
-                self.model_reference_filenames[category] = filename
-                logger.trace(f"Generated v2 filename for {category}: {filename}")
-            else:
-                logger.trace(
-                    f"Using fixed v2 filename for {category}: {self.model_reference_filenames[category]}",
-                )
+            desc = get_category_descriptor(category)
 
-            # Set legacy filename if not already set (defaults to same as v2)
-            if category not in self.legacy_model_reference_filenames:
-                self.legacy_model_reference_filenames[category] = self.model_reference_filenames[category]
+            v2_filename = desc.filename_override or f"{category}.json"
+            self.model_reference_filenames[category] = v2_filename
 
-            # Use legacy filename for GitHub URL composition
-            legacy_filename = self.legacy_model_reference_filenames[category]
+            legacy_filename = desc.legacy_filename_override or v2_filename
+            self.legacy_model_reference_filenames[category] = legacy_filename
+
+            logger.trace(f"Filenames for {category}: v2={v2_filename}, legacy={legacy_filename}")
+
             composed_url: str | None = None
             if category in get_github_image_categories():
                 composed_url = urlparse(
@@ -187,6 +200,8 @@ class HordeModelReferencePaths:
         self.legacy_path.mkdir(parents=True, exist_ok=True)
         self.meta_legacy_path.mkdir(parents=True, exist_ok=True)
         self.meta_v2_path.mkdir(parents=True, exist_ok=True)
+        self.audit_path.mkdir(parents=True, exist_ok=True)
+        self.pending_queue_path.mkdir(parents=True, exist_ok=True)
 
     def _get_file_name(self, model_reference_category: MODEL_REFERENCE_CATEGORY) -> str:
         if model_reference_category not in self.model_reference_filenames:

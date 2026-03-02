@@ -1,32 +1,35 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from haidra_core.service_base import ContainsMessage
-from loguru import logger
-from strenum import StrEnum
 
 from horde_model_reference import ModelReferenceManager
+from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import (
     ControlNetModelRecord,
     ImageGenerationModelRecord,
     TextGenerationModelRecord,
 )
-from horde_model_reference.service.shared import ErrorResponse, PathVariables, RouteNames, route_registry, v2_prefix
+from horde_model_reference.pending_queue import PendingChangeRecord, PendingQueueService
+from horde_model_reference.service.pending_queue.dependencies import require_pending_queue_service
+from horde_model_reference.service.shared import (
+    ErrorResponse,
+    PathVariables,
+    RouteNames,
+    authenticate_queue_requestor,
+    get_model_reference_manager,
+    header_auth_scheme,
+    route_registry,
+    v2_prefix,
+)
 from horde_model_reference.service.v2.models import ModelRecordUnion, ModelRecordUnionType
+from horde_model_reference.service.v2.routers.write_validations import assert_v2_write_enabled
 
 router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
-
-
-class Operation(StrEnum):
-    """CRUD operation types."""
-
-    create = "create"
-    update = "update"
-    delete = "delete"
 
 
 def _check_model_exists(
@@ -39,34 +42,211 @@ def _check_model_exists(
     return existing_models is not None and model_name in existing_models
 
 
-def _create_or_update_v2_model(
+def _model_payload(record: ModelRecordUnionType) -> dict[str, Any]:
+    return record.model_dump(mode="json", exclude_none=True)
+
+
+def _enqueue_pending_change(
+    *,
+    queue_service: PendingQueueService,
+    category: MODEL_REFERENCE_CATEGORY,
+    model_name: str,
+    operation: AuditOperation,
+    payload: dict[str, Any] | None,
+    requestor_id: str,
+    requestor_username: str,
+    request_metadata: dict[str, Any] | None = None,
+    related_models: list[str] | None = None,
+) -> PendingChangeRecord:
+    return queue_service.enqueue_change(
+        category=category,
+        model_name=model_name,
+        operation=operation,
+        payload=payload,
+        requestor_id=requestor_id,
+        requestor_username=requestor_username,
+        notes=None,
+        request_metadata=request_metadata,
+        related_models=related_models,
+    )
+
+
+def _queue_response(record: PendingChangeRecord, *, status_code: int = status.HTTP_202_ACCEPTED) -> JSONResponse:
+    return JSONResponse(status_code=status_code, content=record.model_dump(mode="json", exclude_none=True))
+
+
+def _preserve_created_metadata(
     manager: ModelReferenceManager,
     category: MODEL_REFERENCE_CATEGORY,
     model_name: str,
     model_record: ModelRecordUnionType,
-    operation: Operation,
-) -> None:
-    """Create or update a v2 model record.
+) -> ModelRecordUnionType:
+    """Copy created_* metadata fields from the stored record into the new payload."""
+    existing_models = manager.get_raw_model_reference_json(category)
+    if not existing_models:
+        return model_record
 
-    Args:
-        manager: The model reference manager.
-        category: The model reference category.
-        model_name: The name of the model.
-        model_record: The model record data.
-        operation: Description of operation for logging (e.g., "create", "update").
+    existing_model = existing_models.get(model_name)
+    if not isinstance(existing_model, dict):
+        return model_record
 
-    Raises:
-        HTTPException: On failure to create/update the model.
-    """
-    try:
-        manager.backend.update_model_from_base_model(category, model_name, model_record)
-        logger.info(f"{operation.capitalize()} v2 model '{model_name}' in category '{category}'")
-    except Exception as e:
-        logger.exception(f"Error {operation}ing v2 model '{model_name}': {e}")
+    metadata = existing_model.get("metadata")
+    if not isinstance(metadata, dict):
+        return model_record
+
+    preserved_fields: dict[str, Any] = {}
+    for field in ("created_at", "created_by"):
+        value = metadata.get(field)
+        if value is not None:
+            preserved_fields[field] = value
+
+    if not preserved_fields:
+        return model_record
+
+    new_metadata = model_record.metadata.model_copy(update=preserved_fields)
+    return model_record.model_copy(update={"metadata": new_metadata})
+
+
+def _queue_change(
+    *,
+    manager: ModelReferenceManager,
+    category: MODEL_REFERENCE_CATEGORY,
+    model_name: str,
+    operation: AuditOperation,
+    payload: dict[str, Any] | None,
+    requestor_id: str,
+    requestor_username: str,
+    request_metadata: dict[str, Any],
+    related_models: list[str] | None = None,
+) -> PendingChangeRecord:
+    queue_service = require_pending_queue_service(manager)
+    return _enqueue_pending_change(
+        queue_service=queue_service,
+        category=category,
+        model_name=model_name,
+        operation=operation,
+        payload=payload,
+        requestor_id=requestor_id,
+        requestor_username=requestor_username,
+        request_metadata=request_metadata,
+        related_models=related_models,
+    )
+
+
+async def _queue_model_record_request(
+    *,
+    manager: ModelReferenceManager,
+    category: MODEL_REFERENCE_CATEGORY,
+    model_record: ModelRecordUnionType,
+    apikey: str,
+    operation: AuditOperation,
+    route_name: str,
+) -> JSONResponse:
+    requestor = await authenticate_queue_requestor(apikey)
+    model_name = model_record.name
+    assert_v2_write_enabled(manager)
+
+    # Reject backend-prefixed names for text_generation: server auto-generates duplicates
+    if category == MODEL_REFERENCE_CATEGORY.text_generation:
+        from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
+
+        if has_legacy_text_backend_prefix(model_name):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Model name '{model_name}' contains a backend prefix (aphrodite/, koboldcpp/). "
+                    "Submit only the base model name \u2014 backend duplicates are generated automatically."
+                ),
+            )
+
+    model_exists = _check_model_exists(manager, category, model_name)
+
+    if operation is AuditOperation.CREATE and model_exists:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to {operation} model: {e!s}",
-        ) from e
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Model '{model_name}' already exists in category '{category}'. Use PUT to update existing models.",
+        )
+
+    if operation is AuditOperation.UPDATE and not model_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model '{model_name}' not found in category '{category}'. Use POST to create new models.",
+        )
+
+    if operation is AuditOperation.UPDATE:
+        model_record = _preserve_created_metadata(manager, category, model_name, model_record)
+
+    # Compute related_models for text_generation so UI can display affected variants
+    related_models: list[str] | None = None
+    if category == MODEL_REFERENCE_CATEGORY.text_generation:
+        from horde_model_reference.text_model_duplicates import TextModelDuplicateManager
+
+        related_models = TextModelDuplicateManager.get_variant_names(model_name)
+
+    change = _queue_change(
+        manager=manager,
+        category=category,
+        model_name=model_name,
+        operation=operation,
+        payload=_model_payload(model_record),
+        requestor_id=requestor.user_id,
+        requestor_username=requestor.username,
+        request_metadata={"route": route_name},
+        related_models=related_models,
+    )
+    return _queue_response(change)
+
+
+async def _queue_delete_request(
+    *,
+    manager: ModelReferenceManager,
+    category: MODEL_REFERENCE_CATEGORY,
+    model_name: str,
+    apikey: str,
+    route_name: str,
+) -> JSONResponse:
+    requestor = await authenticate_queue_requestor(apikey)
+    assert_v2_write_enabled(manager)
+
+    # Reject backend-prefixed names for text_generation: server auto-generates duplicates
+    if category == MODEL_REFERENCE_CATEGORY.text_generation:
+        from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
+
+        if has_legacy_text_backend_prefix(model_name):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=(
+                    f"Model name '{model_name}' contains a backend prefix (aphrodite/, koboldcpp/). "
+                    "Submit only the base model name \u2014 backend duplicates are deleted automatically."
+                ),
+            )
+
+    existing_models = manager.get_raw_model_reference_json(category)
+    if existing_models is None or model_name not in existing_models:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model '{model_name}' not found in category '{category}'",
+        )
+
+    # Compute related_models for text_generation so UI can display affected variants
+    related_models: list[str] | None = None
+    if category == MODEL_REFERENCE_CATEGORY.text_generation:
+        from horde_model_reference.text_model_duplicates import TextModelDuplicateManager
+
+        related_models = TextModelDuplicateManager.get_variant_names(model_name)
+
+    change = _queue_change(
+        manager=manager,
+        category=category,
+        model_name=model_name,
+        operation=AuditOperation.DELETE,
+        payload=existing_models[model_name],
+        requestor_id=requestor.user_id,
+        requestor_username=requestor.username,
+        request_metadata={"route": route_name},
+        related_models=related_models,
+    )
+    return _queue_response(change)
 
 
 info_route_subpath = "/info"
@@ -101,11 +281,6 @@ async def read_v2_reference_info() -> ContainsMessage:
     """
     info = read_v2_reference_info.__doc__ or "No information available."
     return ContainsMessage(message=info.replace("\n\n", " ").replace("\n", " ").strip())
-
-
-def get_model_reference_manager() -> ModelReferenceManager:
-    """Dependency to get the model reference manager singleton."""
-    return ModelReferenceManager()
 
 
 read_reference_route_subpath = "/model_categories"
@@ -299,10 +474,10 @@ route_registry.register_route(
 
 @router.post(
     create_model_image_generation_route_subpath,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_202_ACCEPTED,
     responses={
-        201: {
-            "description": "Model created successfully",
+        202: {
+            "description": "Model change queued for approval",
             "links": {
                 "GetCreatedImageModel": {
                     "operationId": "read_v2_reference",
@@ -335,12 +510,13 @@ route_registry.register_route(
         503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
     },
     summary="Create a new image generation model in v2 format",
-    response_model=ImageGenerationModelRecord,
+    response_model=PendingChangeRecord,
     operation_id="create_v2_image_generation_model",
 )
 async def create_v2_image_generation_model(
     new_model_record: ImageGenerationModelRecord,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    apikey: Annotated[str, Depends(header_auth_scheme)],
 ) -> JSONResponse:
     """Create a new image generation model in v2 format.
 
@@ -348,34 +524,15 @@ async def create_v2_image_generation_model(
 
     The model name in the request body must not already exist in the image generation category.
     """
-    from horde_model_reference import horde_model_reference_settings
-
-    if not manager.backend.supports_writes():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance is in REPLICA mode and does not support write operations. "
-            "Only PRIMARY instances can create models.",
-        )
-
-    if horde_model_reference_settings.canonical_format != "v2":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance uses legacy format as canonical. "
-            "Write operations are only available via v1 API when canonical_format='legacy'. "
-            "To use v2 CRUD, set canonical_format='v2'.",
-        )
-
-    model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.image_generation
-
-    if _check_model_exists(manager, category, model_name):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Model '{model_name}' already exists in category '{category}'. Use PUT to update existing models.",
-        )
-
-    _create_or_update_v2_model(manager, category, model_name, new_model_record, Operation.create)
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
+    return await _queue_model_record_request(
+        manager=manager,
+        category=category,
+        model_record=new_model_record,
+        apikey=apikey,
+        operation=AuditOperation.CREATE,
+        route_name="create_v2_image_generation_model",
+    )
 
 
 create_model_text_generation_route_subpath = f"/{MODEL_REFERENCE_CATEGORY.text_generation}/create_model"
@@ -389,10 +546,10 @@ route_registry.register_route(
 
 @router.post(
     create_model_text_generation_route_subpath,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_202_ACCEPTED,
     responses={
-        201: {
-            "description": "Model created successfully",
+        202: {
+            "description": "Model change queued for approval",
             "links": {
                 "GetCreatedTextModel": {
                     "operationId": "read_v2_reference",
@@ -425,12 +582,13 @@ route_registry.register_route(
         503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
     },
     summary="Create a new text generation model in v2 format",
-    response_model=TextGenerationModelRecord,
+    response_model=PendingChangeRecord,
     operation_id="create_v2_text_generation_model",
 )
 async def create_v2_text_generation_model(
     new_model_record: TextGenerationModelRecord,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    apikey: Annotated[str, Depends(header_auth_scheme)],
 ) -> JSONResponse:
     """Create a new text generation model in v2 format.
 
@@ -438,34 +596,15 @@ async def create_v2_text_generation_model(
 
     The model name in the request body must not already exist in the text generation category.
     """
-    from horde_model_reference import horde_model_reference_settings
-
-    if not manager.backend.supports_writes():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance is in REPLICA mode and does not support write operations. "
-            "Only PRIMARY instances can create models.",
-        )
-
-    if horde_model_reference_settings.canonical_format != "v2":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance uses legacy format as canonical. "
-            "Write operations are only available via v1 API when canonical_format='legacy'. "
-            "To use v2 CRUD, set canonical_format='v2'.",
-        )
-
-    model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.text_generation
-
-    if _check_model_exists(manager, category, model_name):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Model '{model_name}' already exists in category '{category}'. Use PUT to update existing models.",
-        )
-
-    _create_or_update_v2_model(manager, category, model_name, new_model_record, Operation.create)
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
+    return await _queue_model_record_request(
+        manager=manager,
+        category=category,
+        model_record=new_model_record,
+        apikey=apikey,
+        operation=AuditOperation.CREATE,
+        route_name="create_v2_text_generation_model",
+    )
 
 
 create_model_controlnet_route_subpath = f"/{MODEL_REFERENCE_CATEGORY.controlnet}/create_model"
@@ -479,10 +618,10 @@ route_registry.register_route(
 
 @router.post(
     create_model_controlnet_route_subpath,
-    status_code=status.HTTP_201_CREATED,
+    status_code=status.HTTP_202_ACCEPTED,
     responses={
-        201: {
-            "description": "Model created successfully",
+        202: {
+            "description": "Model change queued for approval",
             "links": {
                 "GetCreatedControlNetModel": {
                     "operationId": "read_v2_reference",
@@ -515,12 +654,13 @@ route_registry.register_route(
         503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
     },
     summary="Create a new ControlNet model in v2 format",
-    response_model=ControlNetModelRecord,
+    response_model=PendingChangeRecord,
     operation_id="create_v2_controlnet_model",
 )
 async def create_v2_controlnet_model(
     new_model_record: ControlNetModelRecord,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    apikey: Annotated[str, Depends(header_auth_scheme)],
 ) -> JSONResponse:
     """Create a new ControlNet model in v2 format.
 
@@ -528,34 +668,15 @@ async def create_v2_controlnet_model(
 
     The model name in the request body must not already exist in the ControlNet category.
     """
-    from horde_model_reference import horde_model_reference_settings
-
-    if not manager.backend.supports_writes():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance is in REPLICA mode and does not support write operations. "
-            "Only PRIMARY instances can create models.",
-        )
-
-    if horde_model_reference_settings.canonical_format != "v2":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance uses legacy format as canonical. "
-            "Write operations are only available via v1 API when canonical_format='legacy'. "
-            "To use v2 CRUD, set canonical_format='v2'.",
-        )
-
-    model_name = new_model_record.name
     category = MODEL_REFERENCE_CATEGORY.controlnet
-
-    if _check_model_exists(manager, category, model_name):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Model '{model_name}' already exists in category '{category}'. Use PUT to update existing models.",
-        )
-
-    _create_or_update_v2_model(manager, category, model_name, new_model_record, Operation.create)
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
+    return await _queue_model_record_request(
+        manager=manager,
+        category=category,
+        model_record=new_model_record,
+        apikey=apikey,
+        operation=AuditOperation.CREATE,
+        route_name="create_v2_controlnet_model",
+    )
 
 
 add_model_route_subpath = f"/{{{PathVariables.model_category_name}}}/add"
@@ -569,11 +690,11 @@ route_registry.register_route(
 
 @router.post(
     add_model_route_subpath,
-    response_model=ModelRecordUnion,
-    status_code=status.HTTP_201_CREATED,
+    response_model=PendingChangeRecord,
+    status_code=status.HTTP_202_ACCEPTED,
     responses={
-        201: {
-            "description": "Model created successfully",
+        202: {
+            "description": "Model change queued for approval",
             "links": {
                 "GetCreatedModel": {
                     "operationId": "read_v2_single_model",
@@ -620,6 +741,7 @@ async def create_v2_model(
     model_category_name: MODEL_REFERENCE_CATEGORY,
     new_model_record: ModelRecordUnion,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    apikey: Annotated[str, Depends(header_auth_scheme)],
 ) -> JSONResponse:
     """Create a new model in the specified category.
 
@@ -627,34 +749,212 @@ async def create_v2_model(
 
     The model name in the request body must not already exist in the specified category.
     """
-    from horde_model_reference import horde_model_reference_settings
+    return await _queue_model_record_request(
+        manager=manager,
+        category=model_category_name,
+        model_record=new_model_record,
+        apikey=apikey,
+        operation=AuditOperation.CREATE,
+        route_name="create_v2_model",
+    )
 
-    if not manager.backend.supports_writes():
+
+update_model_image_generation_route_subpath = (
+    f"/{MODEL_REFERENCE_CATEGORY.image_generation}/update_model/{{{PathVariables.model_name}}}"
+)
+"""/image_generation/update_model/{model_name}"""
+route_registry.register_route(
+    v2_prefix,
+    RouteNames.update_image_generation_model,
+    update_model_image_generation_route_subpath,
+)
+
+
+@router.put(
+    update_model_image_generation_route_subpath,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        202: {
+            "description": "Model change queued for approval",
+            "links": {
+                "GetUpdatedImageModel": {
+                    "operationId": "read_v2_single_model",
+                    "parameters": {
+                        "model_category_name": MODEL_REFERENCE_CATEGORY.image_generation,
+                        "model_name": "$request.path.model_name",
+                    },
+                    "description": "Retrieve the updated image generation model.",
+                },
+            },
+        },
+        400: {"description": "Invalid request", "model": ErrorResponse},
+        404: {"description": "Model not found (use POST to create)", "model": ErrorResponse},
+        422: {"description": "Validation error in request body", "model": ErrorResponse},
+        503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
+    },
+    summary="Update an existing image generation model in v2 format",
+    response_model=PendingChangeRecord,
+    operation_id="update_v2_image_generation_model",
+)
+async def update_v2_image_generation_model(
+    model_name: str,
+    new_model_record: ImageGenerationModelRecord,
+    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    apikey: Annotated[str, Depends(header_auth_scheme)],
+) -> JSONResponse:
+    """Update an existing image generation model in v2 format.
+
+    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
+
+    The model must already exist in the image generation category. Use POST to create new models.
+    """
+    if new_model_record.name != model_name:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance is in REPLICA mode and does not support write operations. "
-            "Only PRIMARY instances can create models.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Model name in the path must match the payload when queuing updates.",
         )
 
-    if horde_model_reference_settings.canonical_format != "v2":
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+    return await _queue_model_record_request(
+        manager=manager,
+        category=category,
+        model_record=new_model_record,
+        apikey=apikey,
+        operation=AuditOperation.UPDATE,
+        route_name="update_v2_image_generation_model",
+    )
+
+
+update_model_text_generation_route_subpath = (
+    f"/{MODEL_REFERENCE_CATEGORY.text_generation}/update_model/{{{PathVariables.model_name}}}"
+)
+"""/text_generation/update_model/{model_name}"""
+route_registry.register_route(
+    v2_prefix,
+    RouteNames.update_text_generation_model,
+    update_model_text_generation_route_subpath,
+)
+
+
+@router.put(
+    update_model_text_generation_route_subpath,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        202: {
+            "description": "Model change queued for approval",
+            "links": {
+                "GetUpdatedTextModel": {
+                    "operationId": "read_v2_single_model",
+                    "parameters": {
+                        "model_category_name": MODEL_REFERENCE_CATEGORY.text_generation,
+                        "model_name": "$request.path.model_name",
+                    },
+                    "description": "Retrieve the updated text generation model.",
+                },
+            },
+        },
+        400: {"description": "Invalid request", "model": ErrorResponse},
+        404: {"description": "Model not found (use POST to create)", "model": ErrorResponse},
+        422: {"description": "Validation error in request body", "model": ErrorResponse},
+        503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
+    },
+    summary="Update an existing text generation model in v2 format",
+    response_model=PendingChangeRecord,
+    operation_id="update_v2_text_generation_model",
+)
+async def update_v2_text_generation_model(
+    model_name: str,
+    new_model_record: TextGenerationModelRecord,
+    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    apikey: Annotated[str, Depends(header_auth_scheme)],
+) -> JSONResponse:
+    """Update an existing text generation model in v2 format.
+
+    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
+
+    The model must already exist in the text generation category. Use POST to create new models.
+    """
+    if new_model_record.name != model_name:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance uses legacy format as canonical. "
-            "Write operations are only available via v1 API when canonical_format='legacy'. "
-            "To use v2 CRUD, set canonical_format='v2'.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Model name in the path must match the payload when queuing updates.",
         )
 
-    model_name = new_model_record.name
+    category = MODEL_REFERENCE_CATEGORY.text_generation
+    return await _queue_model_record_request(
+        manager=manager,
+        category=category,
+        model_record=new_model_record,
+        apikey=apikey,
+        operation=AuditOperation.UPDATE,
+        route_name="update_v2_text_generation_model",
+    )
 
-    if _check_model_exists(manager, model_category_name, model_name):
+
+update_model_controlnet_route_subpath = (
+    f"/{MODEL_REFERENCE_CATEGORY.controlnet}/update_model/{{{PathVariables.model_name}}}"
+)
+"""/controlnet/update_model/{model_name}"""
+route_registry.register_route(
+    v2_prefix,
+    RouteNames.update_controlnet_model,
+    update_model_controlnet_route_subpath,
+)
+
+
+@router.put(
+    update_model_controlnet_route_subpath,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        202: {
+            "description": "Model change queued for approval",
+            "links": {
+                "GetUpdatedControlNetModel": {
+                    "operationId": "read_v2_single_model",
+                    "parameters": {
+                        "model_category_name": MODEL_REFERENCE_CATEGORY.controlnet,
+                        "model_name": "$request.path.model_name",
+                    },
+                    "description": "Retrieve the updated ControlNet model.",
+                },
+            },
+        },
+        400: {"description": "Invalid request", "model": ErrorResponse},
+        404: {"description": "Model not found (use POST to create)", "model": ErrorResponse},
+        422: {"description": "Validation error in request body", "model": ErrorResponse},
+        503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
+    },
+    summary="Update an existing ControlNet model in v2 format",
+    response_model=PendingChangeRecord,
+    operation_id="update_v2_controlnet_model",
+)
+async def update_v2_controlnet_model(
+    model_name: str,
+    new_model_record: ControlNetModelRecord,
+    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    apikey: Annotated[str, Depends(header_auth_scheme)],
+) -> JSONResponse:
+    """Update an existing ControlNet model in v2 format.
+
+    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
+
+    The model must already exist in the ControlNet category. Use POST to create new models.
+    """
+    if new_model_record.name != model_name:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"Model '{model_name}' already exists in category '{model_category_name}'. "
-            "Use PUT to update existing models.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Model name in the path must match the payload when queuing updates.",
         )
 
-    _create_or_update_v2_model(manager, model_category_name, model_name, new_model_record, Operation.create)
-    return JSONResponse(status_code=status.HTTP_201_CREATED, content=new_model_record.model_dump())
+    category = MODEL_REFERENCE_CATEGORY.controlnet
+    return await _queue_model_record_request(
+        manager=manager,
+        category=category,
+        model_record=new_model_record,
+        apikey=apikey,
+        operation=AuditOperation.UPDATE,
+        route_name="update_v2_controlnet_model",
+    )
 
 
 update_model_route_subpath = f"/{{{PathVariables.model_category_name}}}/{{{PathVariables.model_name}}}"
@@ -668,10 +968,10 @@ route_registry.register_route(
 
 @router.put(
     update_model_route_subpath,
-    response_model=ModelRecordUnion,
+    response_model=PendingChangeRecord,
     responses={
-        200: {
-            "description": "Model updated successfully",
+        202: {
+            "description": "Model change queued for approval",
             "links": {
                 "GetUpdatedModel": {
                     "operationId": "read_v2_single_model",
@@ -718,7 +1018,8 @@ async def update_v2_model(
     model_name: str,
     new_model_record: ModelRecordUnion,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
-) -> ModelRecordUnion:
+    apikey: Annotated[str, Depends(header_auth_scheme)],
+) -> JSONResponse:
     """Update an existing model in v2 format.
 
     ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
@@ -728,32 +1029,20 @@ async def update_v2_model(
     - Preserves original `created_at` and `created_by` metadata
     - Updates `updated_at` timestamp
     """
-    from horde_model_reference import horde_model_reference_settings
-
-    if not manager.backend.supports_writes():
+    if new_model_record.name != model_name:
         raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance is in REPLICA mode and does not support write operations. "
-            "Only PRIMARY instances can update models.",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Model name in the path must match the payload when queuing updates.",
         )
 
-    if horde_model_reference_settings.canonical_format != "v2":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance uses legacy format as canonical. "
-            "Write operations are only available via v1 API when canonical_format='legacy'. "
-            "To use v2 CRUD, set canonical_format='v2'.",
-        )
-
-    if not _check_model_exists(manager, model_category_name, model_name):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Model '{model_name}' not found in category '{model_category_name}'. "
-            "Use POST to create new models.",
-        )
-
-    _create_or_update_v2_model(manager, model_category_name, model_name, new_model_record, Operation.update)
-    return manager.get_model(model_category_name, model_name)
+    return await _queue_model_record_request(
+        manager=manager,
+        category=model_category_name,
+        model_record=new_model_record,
+        apikey=apikey,
+        operation=AuditOperation.UPDATE,
+        route_name="update_v2_model",
+    )
 
 
 delete_model_route_subpath = f"/{{{PathVariables.model_category_name}}}/{{{PathVariables.model_name}}}"
@@ -767,10 +1056,11 @@ route_registry.register_route(
 
 @router.delete(
     delete_model_route_subpath,
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=PendingChangeRecord,
+    status_code=status.HTTP_202_ACCEPTED,
     responses={
-        204: {
-            "description": "Model deleted successfully",
+        202: {
+            "description": "Model change queued for approval",
             "links": {
                 "GetRemainingModels": {
                     "operationId": "read_v2_reference",
@@ -798,51 +1088,13 @@ async def delete_v2_model(
     model_category_name: MODEL_REFERENCE_CATEGORY,
     model_name: str,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
-) -> Response:
-    """Delete a model from a v2 model reference category.
-
-    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
-
-    Permanently removes the specified model from the category.
-    """
-    from horde_model_reference import horde_model_reference_settings
-
-    if not manager.backend.supports_writes():
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance is in REPLICA mode and does not support write operations. "
-            "Only PRIMARY instances can delete models.",
-        )
-
-    if horde_model_reference_settings.canonical_format != "v2":
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="This instance uses legacy format as canonical. "
-            "Write operations are only available via v1 API when canonical_format='legacy'. "
-            "To use v2 CRUD, set canonical_format='v2'.",
-        )
-
-    existing_models = manager.get_raw_model_reference_json(model_category_name)
-    if existing_models is None or model_name not in existing_models:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Model '{model_name}' not found in category '{model_category_name}'",
-        )
-
-    try:
-        manager.backend.delete_model(model_category_name, model_name)
-        logger.info(f"Deleted model '{model_name}' from category '{model_category_name}'")
-    except KeyError as e:
-        logger.warning(f"Model '{model_name}' not found during deletion: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Model '{model_name}' not found in category '{model_category_name}'",
-        ) from e
-    except Exception as e:
-        logger.exception(f"Error deleting model '{model_name}': {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to delete model: {e!s}",
-        ) from e
-
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    apikey: Annotated[str, Depends(header_auth_scheme)],
+) -> JSONResponse:
+    """Queue deletion of a model from a v2 model reference category."""
+    return await _queue_delete_request(
+        manager=manager,
+        category=model_category_name,
+        model_name=model_name,
+        apikey=apikey,
+        route_name="delete_v2_model",
+    )

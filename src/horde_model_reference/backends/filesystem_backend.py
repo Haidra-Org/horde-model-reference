@@ -7,6 +7,7 @@ It is the source of truth for PRIMARY mode instances and never interacts with Gi
 from __future__ import annotations
 
 import contextlib
+import copy
 import csv
 import json
 import re
@@ -21,6 +22,7 @@ from pydantic import BaseModel, Field
 from typing_extensions import override
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
+from horde_model_reference.audit import AuditDomain, AuditOperation, AuditPayload, AuditTrailWriter
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
 from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
@@ -67,6 +69,7 @@ class FileSystemBackend(ReplicaBackendBase):
         cache_ttl_seconds: int = 60,
         replicate_mode: ReplicateMode = ReplicateMode.PRIMARY,
         skip_startup_metadata_population: bool = False,
+        audit_writer: AuditTrailWriter | None = None,
     ) -> None:
         """Initialize the FileSystem backend.
 
@@ -89,14 +92,15 @@ class FileSystemBackend(ReplicaBackendBase):
 
         self.base_path = Path(base_path)
         self._metadata_manager = MetadataManager(self.base_path)
+        self._audit_writer = audit_writer
 
         logger.debug(f"FileSystemBackend initialized with base_path={self.base_path}")
 
         # Create empty files for categories that have no legacy format available
         # This ensures consistent behavior between CI (fresh environment) and local (may have existing files)
-        from horde_model_reference.meta_consts import no_legacy_format_available_categories
+        from horde_model_reference.meta_consts import get_no_legacy_format_categories
 
-        for category in no_legacy_format_available_categories:
+        for category in get_no_legacy_format_categories():
             file_path = horde_model_reference_paths.get_model_reference_file_path(
                 category,
                 base_path=self.base_path,
@@ -252,6 +256,58 @@ class FileSystemBackend(ReplicaBackendBase):
         logger.debug(f"Read {len(data)} models from legacy CSV (grouped, no backend prefixes) from {file_path}")
         return data
 
+    def _append_legacy_audit_event(
+        self,
+        *,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        operation: AuditOperation,
+        payload: AuditPayload,
+        logical_user_id: str | None,
+        request_id: str | None,
+    ) -> None:
+        if self._audit_writer is None or logical_user_id is None:
+            return
+
+        try:
+            self._audit_writer.append_event(
+                domain=AuditDomain.LEGACY,
+                category=category.value,
+                model_name=model_name,
+                operation=operation,
+                logical_user_id=logical_user_id,
+                payload=payload,
+                request_id=request_id,
+            )
+        except Exception as exc:  # pragma: no cover - audit writes must not break CRUD
+            logger.warning(f"Failed to append audit event for {category}/{model_name}: {exc}")
+
+    def _append_v2_audit_event(
+        self,
+        *,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        operation: AuditOperation,
+        payload: AuditPayload,
+        logical_user_id: str | None,
+        request_id: str | None,
+    ) -> None:
+        if self._audit_writer is None or logical_user_id is None:
+            return
+
+        try:
+            self._audit_writer.append_event(
+                domain=AuditDomain.V2,
+                category=category.value,
+                model_name=model_name,
+                operation=operation,
+                logical_user_id=logical_user_id,
+                payload=payload,
+                request_id=request_id,
+            )
+        except Exception as exc:  # pragma: no cover - audit writes must not break CRUD
+            logger.warning(f"Failed to append v2 audit event for {category}/{model_name}: {exc}")
+
     def _read_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
         """Read CSV file and convert to dict format (grouped by base name, no backend prefixes).
 
@@ -320,7 +376,7 @@ class FileSystemBackend(ReplicaBackendBase):
         Raises:
             Exception: If CSV writing fails.
         """
-        from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
+        from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 
         # Filter out backend-prefixed entries
         base_models: dict[str, Any] = {}
@@ -715,6 +771,9 @@ class FileSystemBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         record_dict: dict[str, Any],
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Update or create a model reference.
 
@@ -729,7 +788,7 @@ class FileSystemBackend(ReplicaBackendBase):
         Raises:
             FileNotFoundError: If the category file path is not configured.
         """
-        from horde_model_reference.meta_consts import has_legacy_text_backend_prefix
+        from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 
         with self._lock:
             file_path = horde_model_reference_paths.get_model_reference_file_path(
@@ -769,9 +828,17 @@ class FileSystemBackend(ReplicaBackendBase):
                 # Don't raise an error, just skip the update
                 return
 
+            # For text_generation, validate/transform the record
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                from horde_model_reference.text_model_write_processor import TextModelWriteProcessor
+
+                processor = TextModelWriteProcessor()
+                record_dict = processor.validate_and_transform(model_name, record_dict)
+
             # Determine if this is a create or update operation
             is_update = model_name in existing_data
             operation_type = OperationType.UPDATE if is_update else OperationType.CREATE
+            previous_record = copy.deepcopy(existing_data[model_name]) if is_update else None
 
             # Handle per-model metadata
             if is_update:
@@ -784,7 +851,8 @@ class FileSystemBackend(ReplicaBackendBase):
                 # For new models, ensure timestamps are populated (without overwriting existing values)
                 self._metadata_manager.model_metadata.ensure_metadata_populated(record_dict)
 
-            existing_data[model_name] = record_dict
+            record_snapshot = copy.deepcopy(record_dict)
+            existing_data[model_name] = record_snapshot
 
             temp_path = file_path.with_suffix(f".tmp.{time.time()}")
             try:
@@ -820,6 +888,26 @@ class FileSystemBackend(ReplicaBackendBase):
                     backend_type=self.__class__.__name__,
                 )
 
+                if logical_user_id is not None and self._audit_writer is not None:
+                    if is_update and previous_record is not None:
+                        payload = AuditPayload.from_update(previous_record, record_snapshot)
+                        audit_operation = AuditOperation.UPDATE
+                    elif is_update:
+                        payload = AuditPayload.from_create(record_snapshot)
+                        audit_operation = AuditOperation.UPDATE
+                    else:
+                        payload = AuditPayload.from_create(record_snapshot)
+                        audit_operation = AuditOperation.CREATE
+
+                    self._append_v2_audit_event(
+                        category=category,
+                        model_name=model_name,
+                        operation=audit_operation,
+                        payload=payload,
+                        logical_user_id=logical_user_id,
+                        request_id=request_id,
+                    )
+
                 self._mark_category_modified(category, file_path)
 
             except Exception as e:
@@ -836,6 +924,9 @@ class FileSystemBackend(ReplicaBackendBase):
         self,
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Delete a model reference.
 
@@ -878,6 +969,7 @@ class FileSystemBackend(ReplicaBackendBase):
             if model_name not in existing_data:
                 raise KeyError(f"Model {model_name} not found in category {category}")
 
+            deleted_snapshot = copy.deepcopy(existing_data[model_name])
             del existing_data[model_name]
 
             temp_path = file_path.with_suffix(f".tmp.{time.time()}")
@@ -911,6 +1003,17 @@ class FileSystemBackend(ReplicaBackendBase):
                     backend_type=self.__class__.__name__,
                 )
 
+                if logical_user_id is not None and self._audit_writer is not None:
+                    payload = AuditPayload.from_delete(deleted_snapshot)
+                    self._append_v2_audit_event(
+                        category=category,
+                        model_name=model_name,
+                        operation=AuditOperation.DELETE,
+                        payload=payload,
+                        logical_user_id=logical_user_id,
+                        request_id=request_id,
+                    )
+
                 self._mark_category_modified(category, file_path)
 
             except Exception as e:
@@ -941,6 +1044,9 @@ class FileSystemBackend(ReplicaBackendBase):
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         record_dict: dict[str, Any],
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Update or create a model reference in legacy format.
 
@@ -998,11 +1104,28 @@ class FileSystemBackend(ReplicaBackendBase):
                 existing_data = {}
                 target_write_path.parent.mkdir(parents=True, exist_ok=True)
 
+            # For text_generation, validate/transform and generate backend duplicates
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                from horde_model_reference.text_model_duplicates import TextModelDuplicateManager
+                from horde_model_reference.text_model_write_processor import TextModelWriteProcessor
+
+                processor = TextModelWriteProcessor()
+                record_dict = processor.validate_and_transform(model_name, record_dict)
+                duplicates = TextModelDuplicateManager.generate_duplicates(model_name, record_dict)
+            else:
+                duplicates = {}
+
             # Determine if this is a create or update operation
             is_update = model_name in existing_data
             operation_type = OperationType.UPDATE if is_update else OperationType.CREATE
+            previous_record = copy.deepcopy(existing_data.get(model_name)) if is_update else None
+            record_snapshot = copy.deepcopy(record_dict)
 
-            existing_data[model_name] = record_dict
+            existing_data[model_name] = record_snapshot
+
+            # Write backend duplicates atomically alongside the base model
+            for dup_name, dup_record in duplicates.items():
+                existing_data[dup_name] = copy.deepcopy(dup_record)
 
             temp_path = target_write_path.with_suffix(f".tmp.{time.time()}")
             try:
@@ -1026,6 +1149,10 @@ class FileSystemBackend(ReplicaBackendBase):
                     temp_path.replace(target_write_path)
 
                 logger.info(f"Updated legacy model {model_name} in category {category} at {target_write_path}")
+                if duplicates:
+                    logger.info(
+                        f"Auto-generated {len(duplicates)} backend duplicates: {sorted(duplicates.keys())}"
+                    )
 
                 # Record metadata for observability (centralized hook point)
                 self._metadata_manager.record_legacy_operation(
@@ -1035,6 +1162,22 @@ class FileSystemBackend(ReplicaBackendBase):
                     success=True,
                     backend_type=self.__class__.__name__,
                 )
+
+                if logical_user_id is not None and self._audit_writer is not None:
+                    if is_update and previous_record is not None:
+                        payload = AuditPayload.from_update(previous_record, record_snapshot)
+                        audit_operation = AuditOperation.UPDATE
+                    else:
+                        payload = AuditPayload.from_create(record_snapshot)
+                        audit_operation = AuditOperation.CREATE
+                    self._append_legacy_audit_event(
+                        category=category,
+                        model_name=model_name,
+                        operation=audit_operation,
+                        payload=payload,
+                        logical_user_id=logical_user_id,
+                        request_id=request_id,
+                    )
 
                 self._mark_legacy_category_modified(category, target_write_path)
 
@@ -1056,6 +1199,9 @@ class FileSystemBackend(ReplicaBackendBase):
         self,
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         """Delete a model reference from legacy format files.
 
@@ -1110,7 +1256,18 @@ class FileSystemBackend(ReplicaBackendBase):
             if model_name not in existing_data:
                 raise KeyError(f"Model {model_name} not found in legacy category {category}")
 
+            deleted_snapshot = copy.deepcopy(existing_data[model_name])
             del existing_data[model_name]
+
+            # For text_generation, cascade-delete backend-prefixed duplicates
+            deleted_variants: list[str] = []
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                from horde_model_reference.text_model_duplicates import TextModelDuplicateManager
+
+                for variant_name in TextModelDuplicateManager.get_variant_names(model_name):
+                    if variant_name in existing_data:
+                        del existing_data[variant_name]
+                        deleted_variants.append(variant_name)
 
             temp_path = target_write_path.with_suffix(f".tmp.{time.time()}")
             try:
@@ -1134,6 +1291,10 @@ class FileSystemBackend(ReplicaBackendBase):
                     temp_path.replace(target_write_path)
 
                 logger.info(f"Deleted legacy model {model_name} from category {category} at {target_write_path}")
+                if deleted_variants:
+                    logger.info(
+                        f"Cascade-deleted {len(deleted_variants)} backend duplicates: {deleted_variants}"
+                    )
 
                 # Record metadata for observability (centralized hook point)
                 self._metadata_manager.record_legacy_operation(
@@ -1143,6 +1304,17 @@ class FileSystemBackend(ReplicaBackendBase):
                     success=True,
                     backend_type=self.__class__.__name__,
                 )
+
+                if logical_user_id is not None and self._audit_writer is not None:
+                    payload = AuditPayload.from_delete(deleted_snapshot)
+                    self._append_legacy_audit_event(
+                        category=category,
+                        model_name=model_name,
+                        operation=AuditOperation.DELETE,
+                        payload=payload,
+                        logical_user_id=logical_user_id,
+                        request_id=request_id,
+                    )
 
                 self._mark_legacy_category_modified(category, target_write_path)
 
