@@ -69,7 +69,7 @@ def get_model_name_variants(canonical_name: str) -> list[str]:
     Example:
         >>> get_model_name_variants("ReadyArt/Broken-Tutu-24B")
         ['ReadyArt/Broken-Tutu-24B', 'aphrodite/ReadyArt/Broken-Tutu-24B', 'koboldcpp/Broken-Tutu-24B', 'koboldcpp/ReadyArt_Broken-Tutu-24B']
-    """
+    """  # noqa: E501
     variants = [canonical_name]
 
     model_name_only = canonical_name.split("/", 1)[1] if "/" in canonical_name else canonical_name

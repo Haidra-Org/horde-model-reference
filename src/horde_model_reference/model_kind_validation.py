@@ -29,14 +29,32 @@ class KindPolicyRegistry:
     """Registry for category-specific validation policies."""
 
     def __init__(self) -> None:
+        """Initialize an empty KindPolicyRegistry."""
         self._policies: dict[str, KindPolicy] = {}
 
     def register(self, category: str, policy: KindPolicy) -> None:
+        """Register a KindPolicy for a specific category.
+
+        Args:
+            category: The model reference category to associate with the policy.
+            policy: The KindPolicy instance containing field validation rules.
+
+        Raises:
+            ValueError: If a policy is already registered for the given category.
+        """
         if category in self._policies:
             raise ValueError(f"Policy already registered for {category!r}")
         self._policies[category] = policy
 
     def get(self, category: str) -> KindPolicy | None:
+        """Retrieve the KindPolicy for a given category, or None if no policy is registered.
+
+        Args:
+            category: The model reference category to look up.
+
+        Returns:
+            The KindPolicy associated with the category, or None if not found.
+        """
         return self._policies.get(category)
 
 

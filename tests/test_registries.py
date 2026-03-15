@@ -341,6 +341,7 @@ class TestTextBackendRegistry:
             assert is_known_text_backend(backend.value), f"{backend} not recognized"
 
     def test_register_new_backend_makes_it_discoverable(self) -> None:
+        """Registering a new text backend should make it known to the registry."""
         register_text_backend("vllm_test")
         assert is_known_text_backend("vllm_test")
 
@@ -350,6 +351,7 @@ class TestTextBackendRegistry:
         assert is_known_text_backend("aphrodite")
 
     def test_unknown_backend_is_not_discoverable(self) -> None:
+        """A string that was never registered should not be recognized as a known backend."""
         assert not is_known_text_backend("nonexistent_backend_xyz")
 
 
@@ -357,12 +359,15 @@ class TestTextBackendPrefixFunctions:
     """Text backend prefix detection, stripping, and variant generation."""
 
     def test_recognizes_aphrodite_prefix(self) -> None:
+        """Names starting with 'aphrodite/' should be recognized as having the legacy Aphrodite prefix."""
         assert has_legacy_text_backend_prefix("aphrodite/SomeOrg/SomeModel")
 
     def test_recognizes_koboldcpp_prefix(self) -> None:
+        """Names starting with 'koboldcpp/' should be recognized as having the legacy KoboldCPP prefix."""
         assert has_legacy_text_backend_prefix("koboldcpp/SomeModel")
 
     def test_rejects_unprefixed_name(self) -> None:
+        """Names without a known prefix should not be recognized as having a legacy text backend prefix."""
         assert not has_legacy_text_backend_prefix("SomeOrg/SomeModel")
 
     def test_rejects_partial_prefix_match(self) -> None:
@@ -370,12 +375,15 @@ class TestTextBackendPrefixFunctions:
         assert not has_legacy_text_backend_prefix("not_aphrodite_model")
 
     def test_strip_removes_aphrodite_prefix(self) -> None:
+        """strip_backend_prefix should remove 'aphrodite/' from the start of a name."""
         assert strip_backend_prefix("aphrodite/Org/Model") == "Org/Model"
 
     def test_strip_removes_koboldcpp_prefix(self) -> None:
+        """strip_backend_prefix should remove 'koboldcpp/' from the start of a name."""
         assert strip_backend_prefix("koboldcpp/Model") == "Model"
 
     def test_strip_leaves_unprefixed_name_intact(self) -> None:
+        """strip_backend_prefix should not modify a name that lacks a known prefix."""
         assert strip_backend_prefix("Org/Model") == "Org/Model"
 
     def test_strip_is_idempotent(self) -> None:
@@ -389,6 +397,7 @@ class TestTextBackendPrefixFunctions:
         assert strip_backend_prefix("ReadyArt/Broken-Tutu-24B") == "ReadyArt/Broken-Tutu-24B"
 
     def test_variants_canonical_name_is_always_first(self) -> None:
+        """The first variant returned should always be the canonical name, even if it has a legacy prefix."""
         canonical = "SomeOrg/SomeModel-7B"
         variants = get_model_name_variants(canonical)
         assert variants[0] == canonical
@@ -416,15 +425,18 @@ class TestCategoryDescriptorAccessors:
     """Category descriptor lookup functions should return correct data and enforce contracts."""
 
     def test_known_category_returns_descriptor(self) -> None:
+        """Looking up a known category should return a descriptor with expected fields."""
         desc = get_category_descriptor(MODEL_REFERENCE_CATEGORY.image_generation)
         assert desc.domain == MODEL_DOMAIN.image
         assert desc.purpose == MODEL_PURPOSE.generation
 
     def test_text_generation_category_is_text_domain(self) -> None:
+        """The text_generation category should have MODEL_DOMAIN.text, not image or other domains."""
         desc = get_category_descriptor(MODEL_REFERENCE_CATEGORY.text_generation)
         assert desc.domain == MODEL_DOMAIN.text
 
     def test_unknown_category_raises_key_error(self) -> None:
+        """Looking up a nonexistent category should raise KeyError to signal missing data."""
         with pytest.raises(KeyError):
             get_category_descriptor("nonexistent_category_xyz")
 
@@ -432,7 +444,7 @@ class TestCategoryDescriptorAccessors:
         """Mutating the returned dict should not affect the registry."""
         all_cats = get_all_registered_categories()
         original_len = len(all_cats)
-        all_cats["fake_category"] = get_category_descriptor(MODEL_REFERENCE_CATEGORY.clip)  # type: ignore[index]
+        all_cats["fake_category"] = get_category_descriptor(MODEL_REFERENCE_CATEGORY.clip)
         assert len(get_all_registered_categories()) == original_len
 
     def test_get_all_contains_every_enum_member(self) -> None:
@@ -496,10 +508,12 @@ class TestBaselineDescriptorAccessors:
     """Baseline descriptor lookup functions should return correct data and enforce contracts."""
 
     def test_known_baseline_returns_descriptor(self) -> None:
+        """Looking up a known baseline should return a descriptor with expected fields."""
         desc = get_baseline_descriptor(KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1)
         assert desc.native_resolution == 512
 
     def test_unknown_baseline_raises_key_error(self) -> None:
+        """Looking up a nonexistent baseline should raise KeyError to signal missing data."""
         with pytest.raises(KeyError):
             get_baseline_descriptor("nonexistent_baseline_xyz")
 
@@ -507,7 +521,7 @@ class TestBaselineDescriptorAccessors:
         """Mutating the returned dict should not affect the registry."""
         all_bl = get_all_registered_baselines()
         original_len = len(all_bl)
-        all_bl["fake_baseline"] = get_baseline_descriptor(KNOWN_IMAGE_GENERATION_BASELINE.flux_1)  # type: ignore[index]
+        all_bl["fake_baseline"] = get_baseline_descriptor(KNOWN_IMAGE_GENERATION_BASELINE.flux_1)
         assert len(get_all_registered_baselines()) == original_len
 
     def test_get_all_contains_every_enum_member(self) -> None:
@@ -517,9 +531,11 @@ class TestBaselineDescriptorAccessors:
             assert bl in all_bl, f"{bl} missing from get_all_registered_baselines()"
 
     def test_native_resolution_sd1_is_512(self) -> None:
+        """The stable_diffusion_1 baseline should have a native resolution of 512."""
         assert get_baseline_native_resolution(KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1) == 512
 
     def test_native_resolution_sdxl_is_1024(self) -> None:
+        """The stable_diffusion_xl baseline should have a native resolution of 1024."""
         assert get_baseline_native_resolution(KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl) == 1024
 
     def test_native_resolution_infer_raises_key_error(self) -> None:
@@ -534,10 +550,12 @@ class TestBaselineDescriptorAccessors:
         assert KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_2_512 in baselines_512
 
     def test_baselines_by_resolution_1024_includes_sdxl(self) -> None:
+        """Resolution 1024 should include SDXL."""
         baselines_1024 = get_baselines_by_resolution(1024)
         assert KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl in baselines_1024
 
     def test_baselines_by_resolution_nonexistent_returns_empty(self) -> None:
+        """A resolution with no baselines should return an empty list, not raise."""
         assert get_baselines_by_resolution(99999) == []
 
     def test_runtime_baseline_registration_updates_derived_state(self) -> None:
@@ -566,9 +584,11 @@ class TestMatchingImageBaseline:
     """Alternative name matching should correctly map human-friendly names to baselines."""
 
     def test_sdxl_alternative_matches(self) -> None:
+        """Alternative names like 'SDXL' should match the stable_diffusion_xl baseline."""
         assert _matching_image_baseline_exists("SDXL", KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl)
 
     def test_sd15_alternative_matches_sd1(self) -> None:
+        """Alternative names like 'SD1.5' should match the stable_diffusion_1 baseline."""
         assert _matching_image_baseline_exists("SD1.5", KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1)
 
     def test_canonical_name_matches_when_no_alternatives(self) -> None:
@@ -576,6 +596,7 @@ class TestMatchingImageBaseline:
         assert _matching_image_baseline_exists("flux_1", KNOWN_IMAGE_GENERATION_BASELINE.flux_1)
 
     def test_wrong_alternative_does_not_match(self) -> None:
+        """Alternative names should not match the wrong baseline."""
         assert not _matching_image_baseline_exists("SDXL", KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1)
 
     def test_alternative_name_is_known_baseline(self) -> None:
@@ -585,6 +606,7 @@ class TestMatchingImageBaseline:
         assert is_known_image_baseline("flux schnell")
 
     def test_unknown_string_is_not_known_baseline(self) -> None:
+        """Random strings that were never registered should not be recognized as known baselines."""
         assert not is_known_image_baseline("totally_unknown_baseline_xyz")
 
 
@@ -632,16 +654,19 @@ class TestCategoryAccessorFunctions:
     """Phase 5: Accessor functions for category-derived globals."""
 
     def test_get_github_image_categories_returns_list(self) -> None:
+        """get_github_image_categories should return a list containing the image_generation category."""
         result = get_github_image_categories()
         assert isinstance(result, list)
         assert MODEL_REFERENCE_CATEGORY.image_generation in result
 
     def test_get_github_text_categories_returns_list(self) -> None:
+        """get_github_text_categories should return a list containing the text_generation category."""
         result = get_github_text_categories()
         assert isinstance(result, list)
         assert MODEL_REFERENCE_CATEGORY.text_generation in result
 
     def test_get_no_legacy_format_categories_returns_list(self) -> None:
+        """get_no_legacy_format_categories should return a list containing the lora category."""
         result = get_no_legacy_format_categories()
         assert isinstance(result, list)
         assert MODEL_REFERENCE_CATEGORY.lora in result

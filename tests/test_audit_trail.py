@@ -178,6 +178,7 @@ def test_filesystem_backend_emits_v2_audit_events(primary_base: Path, tmp_path: 
 
 
 def test_audit_path_uses_relative_subdir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Audit path should be constructed using base_path and relative_subdir when no override is set."""
     monkeypatch.setattr(horde_model_reference_paths, "base_path", tmp_path)
     monkeypatch.setattr(
         horde_model_reference_settings,
@@ -190,6 +191,7 @@ def test_audit_path_uses_relative_subdir(tmp_path: Path, monkeypatch: pytest.Mon
 
 
 def test_audit_path_honors_override(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Audit path should use the override path when specified, ignoring base_path and relative_subdir."""
     override_path = tmp_path / "outside" / "logs"
     monkeypatch.setattr(
         horde_model_reference_settings,

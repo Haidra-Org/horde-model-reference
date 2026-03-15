@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Awaitable, Generator, Iterable
-from enum import Enum
 from pathlib import Path
 from threading import RLock
 from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import httpx
 from loguru import logger
+from strenum import StrEnum
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
 from horde_model_reference.audit import AuditTrailWriter
@@ -50,7 +50,7 @@ if TYPE_CHECKING:
     from horde_model_reference.pending_queue import PendingQueueService
 
 
-class PrefetchStrategy(str, Enum):
+class PrefetchStrategy(StrEnum):
     """Controls when and how the manager fetches model references."""
 
     LAZY = "lazy"
@@ -1231,7 +1231,8 @@ class ModelReferenceManager:
     def query(self, category: MODEL_REFERENCE_CATEGORY | str) -> ModelQuery[GenericModelRecord]: ...
 
     def query(
-        self, category: MODEL_REFERENCE_CATEGORY | str,
+        self,
+        category: MODEL_REFERENCE_CATEGORY | str,
     ) -> ImageGenerationQuery | TextModelQuery | ModelQuery[GenericModelRecord]:
         """Return a query builder for a single category.
 

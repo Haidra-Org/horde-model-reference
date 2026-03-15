@@ -554,6 +554,8 @@ class ModelReferenceBackend(ABC):
             category: The category to update.
             model_name: The name of the model to update or create.
             record_model: The model record data as a pydantic BaseModel.
+            logical_user_id: Immutable Horde user id for auditing contexts (optional).
+            request_id: Optional tracing/idempotency identifier for audit correlation.
 
         Raises:
             NotImplementedError: If the backend does not support write operations.
@@ -637,6 +639,8 @@ class ModelReferenceBackend(ABC):
             category: The category to update.
             model_name: The name of the model to update or create.
             record_dict: The model record data in legacy format as a dictionary.
+            logical_user_id: Immutable Horde user id for auditing contexts (optional).
+            request_id: Optional tracing/idempotency identifier for audit correlation.
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.
@@ -661,6 +665,8 @@ class ModelReferenceBackend(ABC):
             category: The category to update.
             model_name: The name of the model to update or create.
             record_model: The model record data as a pydantic BaseModel.
+            logical_user_id: Immutable Horde user id for auditing contexts (optional).
+            request_id: Optional tracing/idempotency identifier for audit correlation.
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.
@@ -693,6 +699,8 @@ class ModelReferenceBackend(ABC):
         Args:
             category: The category containing the model.
             model_name: The name of the model to delete.
+            logical_user_id: Immutable Horde user id for auditing contexts (optional).
+            request_id: Optional tracing/idempotency identifier for audit correlation.
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.

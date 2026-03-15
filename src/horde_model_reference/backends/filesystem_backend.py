@@ -78,6 +78,7 @@ class FileSystemBackend(ReplicaBackendBase):
             replicate_mode: Must be PRIMARY.
             skip_startup_metadata_population: If True, skip automatic metadata population on startup.
                 This is used when GitHub seeding will handle metadata population instead.
+            audit_writer: Optional AuditTrailWriter for emitting audit events on CRUD operations.
 
         Raises:
             ValueError: If replicate_mode is not PRIMARY.
@@ -783,6 +784,8 @@ class FileSystemBackend(ReplicaBackendBase):
             category: The category to update.
             model_name: The name of the model to update or create.
             record_dict: The model record data as a dictionary.
+            logical_user_id: Optional logical user ID for audit logging.
+            request_id: Optional request ID for audit logging.
 
         Raises:
             FileNotFoundError: If the category file path is not configured.
@@ -935,6 +938,8 @@ class FileSystemBackend(ReplicaBackendBase):
         Args:
             category: The category containing the model.
             model_name: The name of the model to delete.
+            logical_user_id: Optional logical user ID for audit logging.
+            request_id: Optional request ID for audit logging.
 
         Raises:
             FileNotFoundError: If the category file doesn't exist.
@@ -1055,6 +1060,8 @@ class FileSystemBackend(ReplicaBackendBase):
             category: The category to update.
             model_name: The name of the model to update or create.
             record_dict: The model record data in legacy format as a dictionary.
+            logical_user_id: Optional logical user ID for audit logging.
+            request_id: Optional request ID for audit logging.
 
         Raises:
             FileNotFoundError: If the legacy category file path is not configured.
@@ -1207,6 +1214,8 @@ class FileSystemBackend(ReplicaBackendBase):
         Args:
             category: The category containing the model.
             model_name: The name of the model to delete.
+            logical_user_id: Optional logical user ID for audit logging.
+            request_id: Optional request ID for audit logging.
 
         Raises:
             FileNotFoundError: If the legacy category file doesn't exist.

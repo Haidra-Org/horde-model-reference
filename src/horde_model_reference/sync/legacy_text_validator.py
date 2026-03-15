@@ -10,8 +10,6 @@ stripping incoming duplicates, validating base records, and re-generating duplic
 
 from __future__ import annotations
 
-from typing import TypeAlias
-
 from loguru import logger
 
 from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
@@ -19,12 +17,12 @@ from horde_model_reference.text_model_duplicates import TextModelDuplicateManage
 from horde_model_reference.text_model_write_processor import TextModelWriteProcessor
 
 # Re-export type aliases for backwards compatibility with callers
-SettingsValue: TypeAlias = int | float | str | list[int] | list[float] | list[str] | bool
-SettingsDict: TypeAlias = dict[str, SettingsValue]
-LegacyRecordValue: TypeAlias = str | int | float | bool | list[int] | list[float] | list[str] | SettingsDict | None
-LegacyRecordDict: TypeAlias = dict[str, LegacyRecordValue]
-GenerationParamsDict: TypeAlias = dict[str, int | float | str | bool | list[int]]
-GenerationDefaultsDict: TypeAlias = dict[str, LegacyRecordValue]
+type SettingsValue = int | float | str | list[int] | list[float] | list[str] | bool
+type SettingsDict = dict[str, SettingsValue]
+type LegacyRecordValue = str | int | float | bool | list[int] | list[float] | list[str] | SettingsDict | None
+type LegacyRecordDict = dict[str, LegacyRecordValue]
+type GenerationParamsDict = dict[str, int | float | str | bool | list[int]]
+type GenerationDefaultsDict = dict[str, LegacyRecordValue]
 
 
 class LegacyTextValidator:
