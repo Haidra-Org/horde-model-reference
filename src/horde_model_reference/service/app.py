@@ -20,16 +20,6 @@ import horde_model_reference.service.v2.routers.user as v2_user
 from horde_model_reference import BackendInfo, CanonicalFormat, ReplicateMode, horde_model_reference_settings
 from horde_model_reference.service.shared import statistics_prefix, v1_prefix, v2_prefix
 
-origins = [
-    "http://localhost:51457",
-    "http://localhost:53941",
-    "http://localhost:54822",
-    "http://localhost:4200",
-    "http://localhost:4205",
-    "http://localhost:4400",
-    "http://localhost:9877",
-]
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
@@ -60,7 +50,7 @@ app = FastAPI(root_path="/api", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=horde_model_reference_settings.cors_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
