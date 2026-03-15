@@ -22,7 +22,7 @@ from horde_model_reference.service.shared import statistics_prefix, v1_prefix, v
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """Manage application lifespan events.
 
     Starts background cache hydration on startup and stops it on shutdown.

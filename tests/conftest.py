@@ -96,7 +96,7 @@ def ensure_test_environment(env_var_checks: None) -> None:
 
 
 @pytest.fixture
-def caplog(caplog: LogCaptureFixture) -> Generator[LogCaptureFixture, None, None]:
+def caplog(caplog: LogCaptureFixture) -> Generator[LogCaptureFixture]:
     """Fixture to capture log messages during tests.
 
     See https://loguru.readthedocs.io/en/stable/resources/migration.html#migration-caplog for more information.
@@ -188,7 +188,7 @@ def primary_manager_override_factory(
 
 
 @pytest.fixture
-def legacy_canonical_mode(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+def legacy_canonical_mode(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
     """Temporarily switch canonical_format to legacy for the duration of a test.
 
     This fixture uses monkeypatch to ensure proper cleanup and isolation.
@@ -198,7 +198,7 @@ def legacy_canonical_mode(monkeypatch: pytest.MonkeyPatch) -> Generator[None, No
 
 
 @pytest.fixture
-def v2_canonical_mode(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+def v2_canonical_mode(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
     """Temporarily switch canonical_format to v2 for the duration of a test.
 
     This fixture uses monkeypatch to ensure proper cleanup and isolation.
@@ -634,7 +634,7 @@ def mock_auth_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 @pytest.fixture
-def restore_manager_singleton() -> Generator[None, None, None]:
+def restore_manager_singleton() -> Generator[None]:
     """Reset the ModelReferenceManager singleton around a test."""
     previous = ModelReferenceManager._instance
     ModelReferenceManager._instance = None

@@ -11,14 +11,13 @@ import asyncio
 import re
 import time
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, cast, override
 
 import aiofiles
 import httpx
 import requests
 import ujson
 from loguru import logger
-from typing_extensions import override
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase

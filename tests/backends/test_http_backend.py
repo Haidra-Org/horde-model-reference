@@ -1,10 +1,9 @@
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, cast, override
 
 import httpx
 import pytest
 from pytest_httpx import HTTPXMock
-from typing_extensions import override
 
 from horde_model_reference import ReplicateMode
 from horde_model_reference.backends.github_backend import GitHubBackend

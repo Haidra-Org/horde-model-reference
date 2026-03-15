@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -30,7 +30,7 @@ class PendingChangeRecord(BaseModel):
     payload: dict[str, Any] | None = Field(default=None, description="Serialized model payload for apply job")
     requested_by: str
     requested_username: str
-    requested_at: int = Field(default_factory=lambda: int(datetime.now(tz=timezone.utc).timestamp()))
+    requested_at: int = Field(default_factory=lambda: int(datetime.now(tz=UTC).timestamp()))
     status: PendingChangeStatus = PendingChangeStatus.PENDING
     notes: str | None = None
 
@@ -51,7 +51,7 @@ class PendingChangeRecord(BaseModel):
     applied_username: str | None = None
     applied_job_id: str | None = None
 
-    updated_at: int = Field(default_factory=lambda: int(datetime.now(tz=timezone.utc).timestamp()))
+    updated_at: int = Field(default_factory=lambda: int(datetime.now(tz=UTC).timestamp()))
 
     request_metadata: dict[str, Any] | None = None
     """Additional metadata for downstream jobs (e.g., original request body)."""
@@ -179,7 +179,7 @@ class PendingChangeDiffPage(BaseModel):
 
 def now_ts() -> int:
     """Return the current UTC timestamp as an integer."""
-    return int(datetime.now(tz=timezone.utc).timestamp())
+    return int(datetime.now(tz=UTC).timestamp())
 
 
 def ensure_seq(items: Collection[int] | None) -> list[int]:
