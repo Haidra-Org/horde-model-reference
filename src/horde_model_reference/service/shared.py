@@ -201,8 +201,7 @@ def _fallback_allowed_users(context: Literal["requestor", "approver"]) -> set[st
     fallback = _normalize_ids(allowed_users)
     if not fallback:
         logger.warning(
-            "Pending queue %s allowlist is empty and no fallback IDs are defined; rejecting access",
-            context,
+            f"Pending queue {context} allowlist is empty and no fallback IDs are defined; rejecting access",
         )
         return set()
 
@@ -210,8 +209,7 @@ def _fallback_allowed_users(context: Literal["requestor", "approver"]) -> set[st
     already_logged = _requestor_fallback_logged if context == "requestor" else _approver_fallback_logged
     if not already_logged:
         logger.warning(
-            "Pending queue %s allowlist is not configured; falling back to built-in IDs for development use",
-            context,
+            f"Pending queue {context} allowlist is not configured; falling back to built-in IDs for development use"
         )
         if context == "requestor":
             _requestor_fallback_logged = True

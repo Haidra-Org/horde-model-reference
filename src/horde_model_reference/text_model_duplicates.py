@@ -120,9 +120,7 @@ class TextModelDuplicateManager:
             prefixed_record["name"] = prefixed_name
             result[prefixed_name] = prefixed_record
 
-        logger.trace(
-            f"Generated {len(result)} backend duplicates for '{base_name}': {sorted(result.keys())}"
-        )
+        logger.trace(f"Generated {len(result)} backend duplicates for '{base_name}': {sorted(result.keys())}")
         return result
 
     @staticmethod
@@ -135,11 +133,7 @@ class TextModelDuplicateManager:
         Returns:
             New dictionary with only base (non-prefixed) model entries.
         """
-        return {
-            name: record
-            for name, record in data.items()
-            if not has_legacy_text_backend_prefix(name)
-        }
+        return {name: record for name, record in data.items() if not has_legacy_text_backend_prefix(name)}
 
     @staticmethod
     def find_existing_variants(

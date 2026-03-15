@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import urllib.parse
 from enum import auto
-from typing import Literal
+from typing import Literal, Any
 
 from haidra_core.ai_horde.meta import AIHordeCISettings
 from haidra_core.ai_horde.settings import AIHordeWorkerSettings
 from loguru import logger
-from pydantic import BaseModel, Field, PrivateAttr, model_validator
+from pydantic import BaseModel, Field, PrivateAttr, model_validator, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from strenum import StrEnum
 
@@ -25,6 +25,8 @@ GITHUB_REPO_OWNER = "Haidra-Org"
 GITHUB_IMAGE_REPO_NAME = "AI-Horde-image-model-reference"
 GITHUB_TEXT_REPO_NAME = "AI-Horde-text-model-reference"
 GITHUB_REPO_BRANCH = "main"
+DEFAULT_AUDIT_MAX_SEGMENT_BYTES = 5 * 1024 * 1024
+DEFAULT_PENDING_QUEUE_SEGMENT_BYTES = 5 * 1024 * 1024
 
 
 class GithubProxySettings(BaseSettings):
@@ -65,7 +67,9 @@ class GithubRepoSettings(BaseModel):
     )
     """Settings for the GitHub proxy, if any."""
 
-    _url_format_string: str = PrivateAttr(default="https://raw.githubusercontent.com/{owner}/{name}/{branch}/")
+    _url_format_string: str = PrivateAttr(
+        default="https://raw.githubusercontent.com/{owner}/{name}/refs/heads/{branch}/"
+    )
 
     @model_validator(mode="after")
     def check_resulting_url_valid(self) -> GithubRepoSettings:
@@ -84,9 +88,9 @@ class GithubRepoSettings(BaseModel):
     def compose_full_file_url(self, filename: str) -> str:
         """Compose the full URL to a file in the repository.
 
-        For example, if the base URL is `https://raw.githubusercontent.com/owner/name/branch/` and the filename is
-        `models/model1.json`, the resulting URL will be
-        `https://raw.githubusercontent.com/owner/name/branch/models/model1.json`.
+        For example, if the base URL is `https://raw.githubusercontent.com/owner/name/refs/heads/branch/` and the
+        filename is `models/model1.json`, the resulting URL will be
+        `https://raw.githubusercontent.com/owner/name/refs/heads/branch/models/model1.json`.
 
         Args:
             filename (str): The filename to compose the URL for.
@@ -142,6 +146,46 @@ class ReplicateMode(StrEnum):
     """The model references are replicas (non-canonical copies). Changes are not tracked and may be lost."""
 
 
+class CanonicalFormat(StrEnum):
+    """Which format is the canonical source of truth for model data.
+
+    This controls which API version has write access:
+    - 'legacy': v1 API has CRUD operations, v2 API is read-only
+    - 'v2': v2 API has CRUD operations, v1 API is read-only
+    """
+
+    LEGACY = auto()
+    """Legacy format is canonical. V1 API has write access."""
+    V2 = auto()
+    """V2 format is canonical. V2 API has write access."""
+
+
+class BackendInfo(BaseModel):
+    """Information about the backend configuration and capabilities.
+
+    This is returned by the /replicate_mode endpoint to provide clients
+    with the information they need to correctly interact with the API.
+    """
+
+    replicate_mode: ReplicateMode
+    """The current replication mode (PRIMARY or REPLICA)."""
+
+    canonical_format: CanonicalFormat
+    """Which format is the canonical source of truth (LEGACY or V2).
+
+    Clients should use the corresponding API version for write operations:
+    - LEGACY: Use v1 API endpoints for create/update/delete
+    - V2: Use v2 API endpoints for create/update/delete
+    """
+
+    writable: bool
+    """Whether write operations are supported.
+
+    True only when replicate_mode is PRIMARY. Clients should check this
+    before attempting any create, update, or delete operations.
+    """
+
+
 class RedisSettings(BaseModel):
     """Settings for Redis distributed caching in PRIMARY mode."""
 
@@ -178,6 +222,48 @@ class RedisSettings(BaseModel):
 
     use_pubsub: bool = True
     """Enable pub/sub for cache invalidation across multiple PRIMARY workers."""
+
+
+class AuditSettings(BaseModel):
+    """Settings for audit trail persistence."""
+
+    model_config = SettingsConfigDict(use_attribute_docstrings=True)
+
+    enabled: bool = True
+    """Whether audit trail writes are enabled in PRIMARY deployments."""
+
+    max_segment_bytes: int = DEFAULT_AUDIT_MAX_SEGMENT_BYTES
+    """Maximum size in bytes for each JSONL segment before rolling over to a new file."""
+
+    relative_subdir: str = "audit"
+    """Subdirectory name (relative to cache home) for storing audit logs when no override is provided."""
+
+    root_path_override: str | None = None
+    """Absolute path override for audit log storage. When set, relative_subdir is ignored."""
+
+
+class PendingQueueSettings(BaseModel):
+    """Settings for the pending change queue."""
+
+    model_config = SettingsConfigDict(use_attribute_docstrings=True)
+
+    enabled: bool = True
+    """Whether the pending queue workflow is enabled (PRIMARY deployments only)."""
+
+    relative_subdir: str = "pending_queue"
+    """Relative folder under cache home used for queue persistence when no override is set."""
+
+    root_path_override: str | None = None
+    """Absolute path override for queue persistence. When set, relative_subdir is ignored."""
+
+    requestor_ids: list[str] = Field(default_factory=list)
+    """Horde user IDs allowed to submit pending changes."""
+
+    approver_ids: list[str] = Field(default_factory=list)
+    """Horde user IDs allowed to approve/reject pending batches (superset of requestors)."""
+
+    max_segment_bytes: int = DEFAULT_PENDING_QUEUE_SEGMENT_BYTES
+    """Reserved for future rotation support (matches audit defaults)."""
 
 
 class HordeModelReferenceSettings(BaseSettings):
@@ -281,6 +367,12 @@ Set lower (e.g., 0.005%) to flag fewer models or higher (e.g., 0.01%) to flag mo
     text_gen_critical_worker_threshold: int = 1
     """Minimum worker count for text_generation to be flagged as critical (allows some workers)."""
 
+    audit: AuditSettings = AuditSettings()
+    """Settings controlling audit trail behavior (enablement, storage location, rotation)."""
+
+    pending_queue: PendingQueueSettings = PendingQueueSettings()
+    """Settings controlling the pending change queue (auth lists, storage)."""
+
     cache_hydration_enabled: bool = False
     """Enable background cache hydration to keep audit/statistics caches warm. \
 When enabled, caches are proactively refreshed before TTL expiry so clients always get fast cached responses."""
@@ -296,6 +388,22 @@ clients receive stale data instead of waiting for fresh data. Default 1 hour."""
     cache_hydration_startup_delay_seconds: int = 5
     """Delay in seconds before first hydration run after service startup. \
 Allows service to fully initialize before background tasks begin."""
+
+    cors_allowed_origins: list[str] = Field(default_factory=list)
+    """List of allowed origins for CORS. Warns if unset or empty, as it falls back to the FastAPI default behavior. \
+        See https://fastapi.tiangolo.com/tutorial/cors/#use-corsmiddleware for details."""
+
+    @field_validator("cors_allowed_origins", mode="before")
+    def validate_cors_origins(cls, v: Any) -> list[str]:  # noqa: ANN401
+        if not isinstance(v, list):
+            raise ValueError("CORS allowed origins must be a list of strings.")
+        if not v:
+            logger.warning(
+                "CORS allowed origins is not set or empty. This may lead to security issues in production. "
+                "Please set HORDE_MODEL_REFERENCE_CORS_ALLOWED_ORIGINS to a list of allowed origins."
+            )
+        logger.debug(f"CORS allowed origins: {v}")
+        return v
 
     @model_validator(mode="after")
     def validate_mode_configuration(self) -> HordeModelReferenceSettings:
@@ -392,6 +500,8 @@ from .path_consts import (  # noqa: E402
 )
 
 from .model_reference_manager import ModelReferenceManager, PrefetchStrategy  # noqa: E402
+from .model_reference_records import get_record_type_for_category, register_record_type  # noqa: E402
+from .query import ModelQuery, TextModelQuery, build_text_query  # noqa: E402
 
 __all__ = [
     "DEFAULT_SHOWCASE_FOLDER_NAME",
@@ -405,8 +515,11 @@ __all__ = [
     "BaselineDescriptor",
     "CategoryDescriptor",
     "ModelClassification",
+    "ModelQuery",
     "ModelReferenceManager",
     "PrefetchStrategy",
+    "TextModelQuery",
+    "build_text_query",
     "get_all_registered_baselines",
     "get_all_registered_categories",
     "get_baseline_descriptor",
