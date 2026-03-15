@@ -9,7 +9,7 @@ from horde_model_reference.service.shared import HordeUserContext
 
 
 @pytest.fixture(autouse=True)
-def restore_pending_queue_settings() -> Generator[None, None, None]:
+def restore_pending_queue_settings() -> Generator[None]:
     """Reset pending queue allowlists after each test."""
     settings = horde_model_reference_settings.pending_queue
     original_requestors = list(settings.requestor_ids)

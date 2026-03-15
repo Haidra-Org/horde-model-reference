@@ -73,7 +73,7 @@ _defaults: GenerationDefaultsDict | None = None
 
 def _get_generation_params() -> GenerationParamsDict:
     """Get the generation_params.json data, loading on first access."""
-    global _generation_params  # noqa: PLW0603
+    global _generation_params
     if _generation_params is None:
         _generation_params = _load_bundled_json("generation_params.json")
         logger.debug(f"Loaded generation_params.json with {len(_generation_params)} valid setting keys")
@@ -82,7 +82,7 @@ def _get_generation_params() -> GenerationParamsDict:
 
 def _get_defaults() -> GenerationDefaultsDict:
     """Get the defaults.json data, loading on first access."""
-    global _defaults  # noqa: PLW0603
+    global _defaults
     if _defaults is None:
         _defaults = _load_bundled_json("defaults.json")
         logger.debug(f"Loaded defaults.json with {len(_defaults)} default fields")

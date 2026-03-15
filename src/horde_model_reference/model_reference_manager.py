@@ -1324,6 +1324,6 @@ class DeferredPrefetchHandle(Awaitable[None]):
             httpx_client=httpx_client,
         )
 
-    def __await__(self) -> Generator[Any, None, None]:
+    def __await__(self) -> Generator[Any]:
         """Allow awaiting the handle directly as sugar for run_async()."""
         return self.run_async().__await__()

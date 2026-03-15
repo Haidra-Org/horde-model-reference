@@ -139,7 +139,7 @@ class GitHubSyncClient:
         self._original_branch = None
 
     @contextmanager
-    def _branch_operation(self) -> Generator[None, None, None]:
+    def _branch_operation(self) -> Generator[None]:
         """Context manager to ensure repository is returned to original branch.
 
         Captures the current branch before operations and restores it afterwards,

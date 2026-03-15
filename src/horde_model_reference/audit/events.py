@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -85,7 +85,7 @@ class AuditEvent(BaseModel):
         """Create an audit event while filling defaults such as timestamp."""
         return AuditEvent(
             event_id=event_id,
-            timestamp=timestamp or int(datetime.now(tz=timezone.utc).timestamp()),
+            timestamp=timestamp or int(datetime.now(tz=UTC).timestamp()),
             domain=domain,
             category=category,
             model_name=model_name,

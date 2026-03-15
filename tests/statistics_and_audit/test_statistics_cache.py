@@ -18,7 +18,7 @@ class TestStatisticsCache:
     """Tests for StatisticsCache singleton and caching behavior."""
 
     @pytest.fixture(autouse=True)
-    def setup_and_teardown(self) -> Generator[None, None, None]:
+    def setup_and_teardown(self) -> Generator[None]:
         """Reset singleton between tests.
 
         This matches the project's existing pattern of restoring singletons after

@@ -77,7 +77,7 @@ class TestCacheHydratorSingleton:
     """Tests for CacheHydrator singleton pattern."""
 
     @pytest.fixture(autouse=True)
-    def reset_singleton(self) -> Generator[None, None, None]:
+    def reset_singleton(self) -> Generator[None]:
         """Reset CacheHydrator singleton between tests."""
         previous = CacheHydrator._instance
         CacheHydrator._instance = None
@@ -119,7 +119,7 @@ class TestCacheHydratorStartStop:
     """Tests for CacheHydrator start/stop lifecycle."""
 
     @pytest.fixture(autouse=True)
-    def reset_singleton(self) -> Generator[None, None, None]:
+    def reset_singleton(self) -> Generator[None]:
         """Reset CacheHydrator singleton between tests."""
         previous = CacheHydrator._instance
         CacheHydrator._instance = None
@@ -221,7 +221,7 @@ class TestCacheHydratorHydrationLoop:
     """Tests for the hydration loop behavior."""
 
     @pytest.fixture(autouse=True)
-    def reset_singleton(self) -> Generator[None, None, None]:
+    def reset_singleton(self) -> Generator[None]:
         """Reset CacheHydrator singleton between tests."""
         previous = CacheHydrator._instance
         CacheHydrator._instance = None
@@ -339,7 +339,7 @@ class TestCacheHydratorHydration:
     """Tests for actual cache hydration behavior."""
 
     @pytest.fixture(autouse=True)
-    def reset_singletons(self) -> Generator[None, None, None]:
+    def reset_singletons(self) -> Generator[None]:
         """Reset relevant singletons between tests."""
         # Reset CacheHydrator
         prev_hydrator = CacheHydrator._instance
@@ -498,7 +498,7 @@ class TestStaleWhileRevalidate:
     """Tests for stale-while-revalidate behavior in RedisCache."""
 
     @pytest.fixture(autouse=True)
-    def reset_audit_cache(self) -> Generator[None, None, None]:
+    def reset_audit_cache(self) -> Generator[None]:
         """Reset AuditCache singleton between tests."""
         previous = AuditCache._instance  # type: ignore[misc]
         AuditCache._instance = None  # type: ignore[misc]
@@ -683,7 +683,7 @@ class TestCacheHydrationIntegration:
     """Integration tests for cache hydration with mocked Horde API."""
 
     @pytest.fixture(autouse=True)
-    def reset_singletons(self) -> Generator[None, None, None]:
+    def reset_singletons(self) -> Generator[None]:
         """Reset relevant singletons between tests."""
         prev_hydrator = CacheHydrator._instance
         CacheHydrator._instance = None

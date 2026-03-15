@@ -94,7 +94,7 @@ class CacheHydrator:
             try:
                 # Give the task a moment to notice the shutdown event
                 await asyncio.wait_for(self._task, timeout=5.0)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning("Cache hydration task did not stop gracefully, cancelling...")
                 self._task.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
@@ -113,7 +113,7 @@ class CacheHydrator:
             await asyncio.wait_for(self._shutdown_event.wait(), timeout=startup_delay)
             # If we get here, shutdown was requested during startup delay
             return
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Normal case - startup delay completed
             pass
 
@@ -130,7 +130,7 @@ class CacheHydrator:
                 await asyncio.wait_for(self._shutdown_event.wait(), timeout=interval)
                 # Shutdown requested
                 break
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 # Normal case - interval completed, continue loop
                 continue
 

@@ -7,11 +7,10 @@ at module import time and cannot be easily changed during test runs.
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, override
 
 import httpx
 import pytest
-from typing_extensions import override
 
 from horde_model_reference import HordeModelReferenceSettings, PrefetchStrategy, ReplicateMode
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend

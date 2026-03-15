@@ -115,7 +115,7 @@ def api_base_url() -> str:
 
 
 @pytest.fixture(autouse=True)
-def reset_singleton() -> Generator[None, None, None]:
+def reset_singleton() -> Generator[None]:
     """Reset the HordeAPIIntegration singleton before each test.
 
     This matches the project's existing pattern of restoring singletons after
