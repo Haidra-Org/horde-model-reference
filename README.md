@@ -62,7 +62,7 @@ For more context on AI-Horde concepts (workers, kudos, jobs, etc.), see the [AI-
 - 🗃️ **Multiple Categories**: Image generation, text generation, CLIP, ControlNet, ESRGAN, GFPGAN, and more
 - 🌐 **REST API**: FastAPI service with OpenAPI documentation
 - 📦 **Legacy Compatibility**: Automatic conversion from legacy GitHub format to new standardized format
-- 🔒 **Type-Safe**: Strict mypy type checking with Pydantic models
+- 🔒 **Type-Safe**: `ty` type checking with Pydantic models
 - 🐳 **Docker Ready**: Pre-built Docker images and docker-compose configurations
 
 ## Quick Start
