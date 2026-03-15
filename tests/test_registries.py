@@ -56,7 +56,7 @@ from horde_model_reference.text_backend_names import (
 
 
 @pytest.fixture(autouse=True)
-def reset_registries() -> Generator[None, None, None]:
+def reset_registries() -> Generator[None]:
     """Snapshot registry state and restore after each test to avoid cross-test coupling."""
     import copy
 

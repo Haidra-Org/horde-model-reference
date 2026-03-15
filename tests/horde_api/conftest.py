@@ -12,7 +12,7 @@ from horde_model_reference.model_reference_manager import ModelReferenceManager
 
 
 @pytest.fixture(scope="module", autouse=True)
-def setup_model_reference_files(tmp_path_factory: pytest.TempPathFactory) -> Generator[Path, None, None]:
+def setup_model_reference_files(tmp_path_factory: pytest.TempPathFactory) -> Generator[Path]:
     """Set up model reference files for audit tests using GitHub seeding.
 
     This fixture creates a temporary directory and enables GitHub seeding to
