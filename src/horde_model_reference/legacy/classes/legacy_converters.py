@@ -620,7 +620,7 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
         IMPORTANT: This is the ONLY converter that reads CSV format. All other categories
         use JSON for legacy files. The CSV has these columns:
         - name, parameters_bn (billions), description, version, style, nsfw, baseline,
-          url, tags (comma-separated), settings (JSON string), display_name
+          url, tags (comma-separated), instruct_format, settings (JSON string), display_name
 
         The converter transforms CSV → internal dict → Pydantic validation → v2 JSON output.
         Output is ALWAYS JSON format (text_generation.json), never CSV.
@@ -654,6 +654,7 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
                 "baseline": csv_row.baseline,
                 "url": csv_row.url,
                 "tags": csv_row.tags,
+                "instruct_format": csv_row.instruct_format or None,
                 "settings": csv_row.settings,
                 "display_name": csv_row.display_name,
                 "parameters": csv_row.parameters,
@@ -719,6 +720,7 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             display_name=legacy_record.display_name,
             url=legacy_record.url,
             tags=legacy_record.tags or [],
+            instruct_format=legacy_record.instruct_format,
             settings=legacy_record.settings,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
