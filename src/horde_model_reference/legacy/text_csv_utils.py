@@ -29,6 +29,7 @@ class TextCSVRow:
     baseline: str
     url: str
     tags: list[str]
+    instruct_format: str
     settings: SettingsMapping | None
     display_name: str
 
@@ -104,6 +105,7 @@ def parse_legacy_text_csv(csv_path: Path) -> tuple[list[TextCSVRow], list[TextCS
                 baseline=(raw_row.get("baseline") or ""),
                 url=(raw_row.get("url") or ""),
                 tags=tags,
+                instruct_format=(raw_row.get("instruct_format") or ""),
                 settings=settings,
                 display_name=(raw_row.get("display_name") or ""),
             )
