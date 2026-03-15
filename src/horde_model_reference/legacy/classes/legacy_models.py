@@ -298,6 +298,7 @@ class LegacyTextGenerationRecord(LegacyGenericRecord):
     display_name: str | None = None
     url: str | None = None
     tags: list[str] | None = None
+    instruct_format: str | None = None
     settings: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
 
     @model_validator(mode="after")

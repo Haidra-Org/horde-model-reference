@@ -351,7 +351,15 @@
             "title": "Inpainting"
         },
         "baseline": {
-            "$ref": "#/$defs/KNOWN_IMAGE_GENERATION_BASELINE"
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/KNOWN_IMAGE_GENERATION_BASELINE"
+                },
+                {
+                    "type": "string"
+                }
+            ],
+            "title": "Baseline"
         },
         "optimization": {
             "anyOf": [
@@ -441,13 +449,17 @@
         "style": {
             "anyOf": [
                 {
+                    "type": "string"
+                },
+                {
                     "$ref": "#/$defs/MODEL_STYLE"
                 },
                 {
                     "type": "null"
                 }
             ],
-            "default": null
+            "default": null,
+            "title": "Style"
         },
         "requirements": {
             "anyOf": [

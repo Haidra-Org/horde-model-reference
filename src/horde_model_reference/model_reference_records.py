@@ -302,7 +302,7 @@ class ControlNetModelRecord(GenericModelRecord):
         default_factory=lambda: _classification_for(MODEL_REFERENCE_CATEGORY.controlnet),
     )
 
-    controlnet_style: CONTROLNET_STYLE | str
+    controlnet_style: CONTROLNET_STYLE | str | None = None
     """The 'style' (purpose) of the controlnet. See `CONTROLNET_STYLE` for all possible values and more info."""
 
     @model_validator(mode="after")
@@ -338,6 +338,8 @@ class TextGenerationModelRecord(GenericModelRecord):
     display_name: str | None = None
     url: str | None = None
     tags: list[NormalizedTag] | None = None
+    instruct_format: str | None = None
+    """The instruction template format used by this model (e.g., ChatML, Mistral, Alpaca)."""
     settings: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
     text_model_group: str | None = None
     """The base model group name for grouping model variants together."""
