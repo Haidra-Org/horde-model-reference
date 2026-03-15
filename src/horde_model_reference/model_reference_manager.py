@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Generator, Iterable
 from enum import Enum
 from pathlib import Path
 from threading import RLock
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
 
 import httpx
 from loguru import logger
@@ -37,9 +37,11 @@ from horde_model_reference.model_reference_records import (
     VideoGenerationModelRecord,
 )
 from horde_model_reference.query import (
+    ImageGenerationQuery,
     ModelQuery,
     TextModelQuery,
     build_cross_category_query,
+    build_image_query,
     build_query,
     build_text_query,
 )
@@ -335,7 +337,7 @@ class ModelReferenceManager:
         self._async_prefetch_task = None
 
         if strategy in (PrefetchStrategy.LAZY, PrefetchStrategy.NONE):
-            logger.debug("prefetch skipped because strategy=%s", strategy.value)
+            logger.debug(f"prefetch skipped because strategy={strategy.value}")
             return
 
         if strategy is PrefetchStrategy.SYNC:
@@ -1214,6 +1216,79 @@ class ModelReferenceManager:
             MODEL_REFERENCE_CATEGORY.miscellaneous,
             record_type=MiscellaneousModelRecord,
         )
+
+    # ------------------------------------------------------------------
+    # Query API
+    # ------------------------------------------------------------------
+
+    @overload
+    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery: ...
+
+    @overload
+    def query(self, category: Literal["text_generation"]) -> TextModelQuery: ...
+
+    @overload
+    def query(self, category: MODEL_REFERENCE_CATEGORY | str) -> ModelQuery[GenericModelRecord]: ...
+
+    def query(
+        self, category: MODEL_REFERENCE_CATEGORY | str,
+    ) -> ImageGenerationQuery | TextModelQuery | ModelQuery[GenericModelRecord]:
+        """Return a query builder for a single category.
+
+        When called with a literal category string, the return type is
+        narrowed to the corresponding typed query builder (e.g.
+        ``ImageGenerationQuery`` for ``"image_generation"``).
+
+        Args:
+            category: The model reference category to query.
+
+        Returns:
+            A ``ModelQuery`` (or typed subclass) ready for chaining filters.
+        """
+        if isinstance(category, str):
+            category = MODEL_REFERENCE_CATEGORY(category)
+
+        if category == MODEL_REFERENCE_CATEGORY.image_generation:
+            return self.query_image_generation()
+        if category == MODEL_REFERENCE_CATEGORY.text_generation:
+            return self.query_text_generation()
+
+        records = self.get_model_reference(category)
+        record_type = MODEL_RECORD_TYPE_LOOKUP.get(category, GenericModelRecord)
+        return build_query(records, record_type)
+
+    def query_all(self) -> ModelQuery[GenericModelRecord]:
+        """Return a query builder spanning all categories.
+
+        Returns:
+            A ``ModelQuery[GenericModelRecord]`` over every cached record.
+        """
+        all_refs = self.get_all_model_references()
+        return build_cross_category_query(all_refs)
+
+    def query_image_generation(self) -> ImageGenerationQuery:
+        """Return a typed query builder for image generation models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.image_generation,
+            record_type=ImageGenerationModelRecord,
+        )
+        return build_image_query(records)
+
+    def query_text_generation(self) -> TextModelQuery:
+        """Return a typed query builder for text generation models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.text_generation,
+            record_type=TextGenerationModelRecord,
+        )
+        return build_text_query(records)
+
+    def query_controlnet(self) -> ModelQuery[ControlNetModelRecord]:
+        """Return a typed query builder for ControlNet models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.controlnet,
+            record_type=ControlNetModelRecord,
+        )
+        return build_query(records, ControlNetModelRecord)
 
 
 class DeferredPrefetchHandle(Awaitable[None]):
