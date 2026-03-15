@@ -63,7 +63,18 @@ def _enqueue_pending_change(
     operation: AuditOperation = AuditOperation.CREATE,
     payload: dict[str, Any] | None = None,
 ) -> int:
-    """Helper to enqueue a pending change directly via the service."""
+    """Enqueue a pending change directly through the manager's queue service for testing.
+
+    Args:
+        manager: ModelReferenceManager instance with pending queue enabled
+        model_name: Name of the model to change
+        category: Model category for the change
+        operation: Type of operation (create/update/delete)
+        payload: Optional payload for the change (required for create/update)
+
+    Returns:
+        ID of the enqueued change record
+    """
     queue_service = manager.pending_queue_service
     assert queue_service is not None, "Pending queue must be enabled for tests"
 
@@ -1488,7 +1499,7 @@ class TestBatchEnforcement:
             operation=AuditOperation.CREATE,
             payload=_create_minimal_model_dict("mixed_batch_3", category),
         )
-        result_z = queue_service.process_batch(
+        queue_service.process_batch(
             approver_id=_TEST_USER_ID,
             approver_username=_TEST_USERNAME,
             batch_title="batch-z",
@@ -1496,7 +1507,6 @@ class TestBatchEnforcement:
             rejected_ids=None,
             reject_reason=None,
         )
-        batch_z_id = result_z.batch_id
 
         # change_2 is in batch_y_id (from split), change_3 is in batch_z_id
         # These are truly different batches since batch_y was created by split

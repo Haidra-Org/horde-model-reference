@@ -170,10 +170,12 @@ def test_apply_pending_changes_applies_all_records() -> None:
     """Applies every change when all records are approved and valid."""
     backend = _DummyBackend()
     manager_stub = _DummyManager(backend=backend)
-    queue_service_stub = _DummyQueueService([
-        _approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "one"}),
-        _approved_record(2, operation=AuditOperation.DELETE, payload=None),
-    ])
+    queue_service_stub = _DummyQueueService(
+        [
+            _approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "one"}),
+            _approved_record(2, operation=AuditOperation.DELETE, payload=None),
+        ]
+    )
 
     result = apply_pending_changes(
         manager=cast(ModelReferenceManager, manager_stub),
@@ -230,9 +232,9 @@ def test_apply_pending_changes_handles_missing_change() -> None:
     """Returns failure metadata when a change cannot be found."""
     backend = _DummyBackend()
     manager_stub = _DummyManager(backend=backend)
-    queue_service_stub = _DummyQueueService([
-        _approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "exists"})
-    ])
+    queue_service_stub = _DummyQueueService(
+        [_approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "exists"})]
+    )
 
     result = apply_pending_changes(
         manager=cast(ModelReferenceManager, manager_stub),
@@ -253,10 +255,12 @@ def test_apply_pending_changes_reports_backend_failure() -> None:
     """Surfaces backend errors without applying subsequent changes."""
     backend = _DummyBackend(fail_on_models={"model_2"})
     manager_stub = _DummyManager(backend=backend)
-    queue_service_stub = _DummyQueueService([
-        _approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "one"}),
-        _approved_record(2, operation=AuditOperation.UPDATE, payload={"name": "fails"}),
-    ])
+    queue_service_stub = _DummyQueueService(
+        [
+            _approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "one"}),
+            _approved_record(2, operation=AuditOperation.UPDATE, payload={"name": "fails"}),
+        ]
+    )
 
     result = apply_pending_changes(
         manager=cast(ModelReferenceManager, manager_stub),
@@ -284,10 +288,12 @@ def test_apply_pending_changes_reports_delete_failure() -> None:
     """Propagates backend delete errors as PendingChangeBackendError."""
     backend = _DummyBackend(fail_on_models={"model_2"})
     manager_stub = _DummyManager(backend=backend)
-    queue_service_stub = _DummyQueueService([
-        _approved_record(1, operation=AuditOperation.DELETE, payload=None),
-        _approved_record(2, operation=AuditOperation.DELETE, payload=None),
-    ])
+    queue_service_stub = _DummyQueueService(
+        [
+            _approved_record(1, operation=AuditOperation.DELETE, payload=None),
+            _approved_record(2, operation=AuditOperation.DELETE, payload=None),
+        ]
+    )
 
     result = apply_pending_changes(
         manager=cast(ModelReferenceManager, manager_stub),
@@ -369,9 +375,9 @@ def test_apply_pending_changes_duplicate_ids_trigger_state_error() -> None:
     """Handles duplicate IDs by applying once then failing on second occurrence."""
     backend = _DummyBackend()
     manager_stub = _DummyManager(backend=backend)
-    queue_service_stub = _DummyQueueService([
-        _approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "dupe"})
-    ])
+    queue_service_stub = _DummyQueueService(
+        [_approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "dupe"})]
+    )
 
     result = apply_pending_changes(
         manager=cast(ModelReferenceManager, manager_stub),
@@ -392,9 +398,9 @@ def test_apply_pending_changes_invalid_operation_raises_backend_error() -> None:
     """Surfaces unsupported audit operations as backend errors (QA-crafted records)."""
     backend = _DummyBackend()
     manager_stub = _DummyManager(backend=backend)
-    queue_service_stub = _DummyQueueService([
-        _approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "ok"})
-    ])
+    queue_service_stub = _DummyQueueService(
+        [_approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "ok"})]
+    )
     bad_operation = cast(AuditOperation, "bogus_op")
     queue_service_stub.records[1].__dict__["operation"] = bad_operation
 

@@ -6,13 +6,13 @@ import csv
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeAlias, cast
+from typing import cast
 
 _ALLOWED_PRIMITIVE_TYPES = (int, float, str, bool)
 
-SettingsPrimitive: TypeAlias = int | float | str | bool
-SettingsValue: TypeAlias = SettingsPrimitive | list[SettingsPrimitive]
-SettingsMapping: TypeAlias = dict[str, SettingsValue]
+type SettingsPrimitive = int | float | str | bool
+type SettingsValue = SettingsPrimitive | list[SettingsPrimitive]
+type SettingsMapping = dict[str, SettingsValue]
 
 
 @dataclass(frozen=True)

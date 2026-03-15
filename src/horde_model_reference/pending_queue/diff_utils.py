@@ -7,15 +7,15 @@ batch net-change analysis.
 
 from __future__ import annotations
 
-from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel
+from strenum import StrEnum
 
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
-class NetChangeType(str, Enum):
+class NetChangeType(StrEnum):
     """Type of net change for a model across a batch or pending change."""
 
     ADDED = "added"
@@ -24,7 +24,7 @@ class NetChangeType(str, Enum):
     UNCHANGED = "unchanged"
 
 
-class FieldChangeType(str, Enum):
+class FieldChangeType(StrEnum):
     """Type of field-level change."""
 
     ADDED = "added"

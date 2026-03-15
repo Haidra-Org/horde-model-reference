@@ -202,8 +202,8 @@ class PurgePendingChangesRequest(BaseModel):
 
     @model_validator(mode="after")
     def _validate_payload(self) -> PurgePendingChangesRequest:
-        statuses = {status for status in self.statuses or []}
-        categories = {category for category in self.categories or []}
+        statuses = set(self.statuses or [])
+        categories = set(self.categories or [])
         requested_by = {user_id.strip() for user_id in self.requested_by or [] if user_id and user_id.strip()}
         model_name = self.model_name.strip() if self.model_name else None
 

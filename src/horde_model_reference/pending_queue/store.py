@@ -136,7 +136,7 @@ class PendingQueueStore:
             return self._last_batch_id
 
     def _get_current_pending_batch_id_locked(self) -> int | None:
-        """Internal: find existing APPROVED batch ID without acquiring lock."""
+        """Find existing APPROVED batch ID without acquiring lock."""
         for record in self._changes.values():
             if record.status == PendingChangeStatus.APPROVED and record.batch_id is not None:
                 return record.batch_id

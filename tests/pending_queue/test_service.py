@@ -35,16 +35,18 @@ class _StubAuditWriter:
         request_id: str | None = None,
         timestamp: int | None = None,
     ) -> None:  # type: ignore[override]
-        self.events.append({
-            "domain": domain,
-            "category": category,
-            "model_name": model_name,
-            "operation": operation,
-            "logical_user_id": logical_user_id,
-            "payload": payload,
-            "request_id": request_id,
-            "timestamp": timestamp,
-        })
+        self.events.append(
+            {
+                "domain": domain,
+                "category": category,
+                "model_name": model_name,
+                "operation": operation,
+                "logical_user_id": logical_user_id,
+                "payload": payload,
+                "request_id": request_id,
+                "timestamp": timestamp,
+            }
+        )
 
 
 @pytest.fixture()
