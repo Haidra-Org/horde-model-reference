@@ -1150,9 +1150,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 logger.info(f"Updated legacy model {model_name} in category {category} at {target_write_path}")
                 if duplicates:
-                    logger.info(
-                        f"Auto-generated {len(duplicates)} backend duplicates: {sorted(duplicates.keys())}"
-                    )
+                    logger.info(f"Auto-generated {len(duplicates)} backend duplicates: {sorted(duplicates.keys())}")
 
                 # Record metadata for observability (centralized hook point)
                 self._metadata_manager.record_legacy_operation(
@@ -1292,9 +1290,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 logger.info(f"Deleted legacy model {model_name} from category {category} at {target_write_path}")
                 if deleted_variants:
-                    logger.info(
-                        f"Cascade-deleted {len(deleted_variants)} backend duplicates: {deleted_variants}"
-                    )
+                    logger.info(f"Cascade-deleted {len(deleted_variants)} backend duplicates: {deleted_variants}")
 
                 # Record metadata for observability (centralized hook point)
                 self._metadata_manager.record_legacy_operation(

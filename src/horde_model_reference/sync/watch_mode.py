@@ -2,10 +2,8 @@
 
 from __future__ import annotations
 
-import signal
 import time
 from collections.abc import Callable
-from typing import Any
 
 import httpx
 from loguru import logger
@@ -50,21 +48,6 @@ class WatchModeManager:
         self.running = False
         self.consecutive_errors = 0
         self.max_consecutive_errors = 10
-
-        # Setup signal handlers for graceful shutdown
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
-
-    def _signal_handler(self, signum: int, frame: Any) -> None:  # noqa: ANN401
-        """Handle shutdown signals gracefully.
-
-        Args:
-            signum: Signal number.
-            frame: Current stack frame.
-        """
-        signal_name = "SIGINT" if signum == signal.SIGINT else "SIGTERM"
-        logger.info(f"\n{signal_name} received. Shutting down watch mode gracefully...")
-        self.running = False
 
     def fetch_last_updated_timestamp(self) -> int | None:
         """Fetch the last_updated timestamp from PRIMARY metadata endpoint.

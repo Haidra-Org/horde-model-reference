@@ -97,9 +97,7 @@ class LegacyTextValidator:
             try:
                 validated_record = self._processor.validate_and_transform(model_name, record)
                 result[model_name] = validated_record
-                backend_duplicates.update(
-                    TextModelDuplicateManager.generate_duplicates(model_name, validated_record)
-                )
+                backend_duplicates.update(TextModelDuplicateManager.generate_duplicates(model_name, validated_record))
             except ValueError as e:
                 logger.error(f"Validation failed for {model_name}: {e}")
                 raise
