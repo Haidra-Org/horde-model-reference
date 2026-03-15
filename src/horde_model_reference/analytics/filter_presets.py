@@ -7,15 +7,15 @@ Provides predefined filter presets to quickly identify models of interest
 from __future__ import annotations
 
 from collections.abc import Callable
-from enum import Enum
 
 from loguru import logger
+from strenum import StrEnum
 
 from horde_model_reference.analytics.audit_analysis import ModelAuditInfo
 from horde_model_reference.analytics.constants import LOW_USAGE_THRESHOLD
 
 
-class AuditFilterPreset(str, Enum):
+class AuditFilterPreset(StrEnum):
     """Predefined filter presets for audit analysis."""
 
     DELETION_CANDIDATES = "deletion_candidates"

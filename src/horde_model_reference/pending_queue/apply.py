@@ -16,6 +16,8 @@ from .service import PendingQueueService
 
 
 class BackendUpdateCallable(Protocol):
+    """Protocol for backend update operations, supporting both legacy and canonical formats."""
+
     def __call__(
         self,
         category: MODEL_REFERENCE_CATEGORY,
@@ -24,10 +26,29 @@ class BackendUpdateCallable(Protocol):
         *,
         logical_user_id: str | None = None,
         request_id: str | None = None,
-    ) -> None: ...
+    ) -> None:
+        """Protocol for backend update operations, supporting both legacy and canonical formats.
+
+        The callable should perform the necessary update or create operation for the given category and model name,
+        using the provided record dictionary as the source of truth for the model's fields. The callable must also
+        accept optional parameters for logical user ID and request ID to support auditing and traceability of changes
+        through the pending change application process.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category of the model being updated (e.g., image
+                generation, text generation, etc.).
+            model_name (str): The unique name of the model to update.
+            record_dict (dict[str, Any]): A dictionary representing the model's fields and their new values.
+            logical_user_id (str | None): An optional immutable user ID for auditing purposes, representing
+                the user on whose behalf the change is being applied.
+            request_id (str | None): An optional identifier for the request or job performing the update
+                (e.g., a batch apply job ID or CLI invocation ID) to support traceability in logs and audits.
+        """
 
 
 class BackendDeleteCallable(Protocol):
+    """Protocol for backend delete operations, supporting both legacy and canonical formats."""
+
     def __call__(
         self,
         category: MODEL_REFERENCE_CATEGORY,
@@ -35,7 +56,22 @@ class BackendDeleteCallable(Protocol):
         *,
         logical_user_id: str | None = None,
         request_id: str | None = None,
-    ) -> None: ...
+    ) -> None:
+        """Protocol for backend delete operations, supporting both legacy and canonical formats.
+
+        The callable should perform the necessary delete operation for the given category and model name. The callable
+        must also accept optional parameters for logical user ID and request ID to support auditing and traceability
+        of changes through the pending change application process.
+
+        Args:
+            category (MODEL_REFERENCE_CATEGORY): The category of the model being deleted (e.g., image
+                generation, text generation, etc.).
+            model_name (str): The unique name of the model to delete.
+            logical_user_id (str | None): An optional immutable user ID for auditing purposes, representing
+                the user on whose behalf the change is being applied.
+            request_id (str | None): An optional identifier for the request or job performing the delete
+                (e.g., a batch apply job ID or CLI invocation ID) to support traceability in logs and audits.
+        """
 
 
 class PendingChangeApplyError(RuntimeError):

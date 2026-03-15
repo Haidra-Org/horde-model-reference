@@ -166,10 +166,18 @@ def _get_batch_net_changes_cached(
     domain: AuditDomain,
     batch_id: int,
 ) -> BatchNetChangeResponse | None:
-    """Cached wrapper for batch net change computation.
+    """Wrap the batch net change computation.
 
     Cache expires implicitly when process restarts. For production deployments,
     consider time-based cache invalidation matching the 5-minute TTL pattern.
+
+    Args:
+        root_path_str: String path to the audit dataset root (used for caching key).
+        domain: Audit domain to compute net changes for.
+        batch_id: ID of the batch to compute net changes for.
+
+    Returns:
+        BatchNetChangeResponse if batch is found, None if batch_id does not exist.
     """
     from pathlib import Path
 

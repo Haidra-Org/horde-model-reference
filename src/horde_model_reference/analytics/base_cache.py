@@ -11,7 +11,7 @@ import json
 import time
 from abc import ABC, abstractmethod
 from threading import RLock
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, TypeVar
 
 from loguru import logger
 from pydantic import BaseModel
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 T = TypeVar("T", bound=BaseModel)
 
 
-class RedisCache(ABC, Generic[T]):
+class RedisCache[T](ABC):
     """Generic base class for Redis-backed singleton caches.
 
     Provides common caching infrastructure with Redis distributed caching
