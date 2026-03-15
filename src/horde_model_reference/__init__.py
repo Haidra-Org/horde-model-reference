@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import urllib.parse
 from enum import auto
-from typing import Literal, Any
+from typing import Any, Literal
 
 from haidra_core.ai_horde.meta import AIHordeCISettings
 from haidra_core.ai_horde.settings import AIHordeWorkerSettings
 from loguru import logger
-from pydantic import BaseModel, Field, PrivateAttr, model_validator, field_validator
+from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from strenum import StrEnum
 
@@ -501,7 +501,27 @@ from .path_consts import (  # noqa: E402
 
 from .model_reference_manager import ModelReferenceManager, PrefetchStrategy  # noqa: E402
 from .model_reference_records import get_record_type_for_category, register_record_type  # noqa: E402
-from .query import ModelQuery, TextModelQuery, build_text_query  # noqa: E402
+from .query import ImageGenerationQuery, ModelQuery, TextModelQuery, build_image_query, build_text_query  # noqa: E402
+from .query_fields import (  # noqa: E402
+    AudioF,
+    BlipF,
+    ClipF,
+    CodeformerF,
+    ControlNetF,
+    EsrganF,
+    FieldRef,
+    GenericF,
+    GfpganF,
+    ImageF,
+    MiscellaneousF,
+    OrderSpec,
+    Predicate,
+    SafetyCheckerF,
+    TextF,
+    VideoF,
+    false,
+    true,
+)
 
 __all__ = [
     "DEFAULT_SHOWCASE_FOLDER_NAME",
@@ -512,14 +532,33 @@ __all__ = [
     "MODEL_PURPOSE",
     "MODEL_REFERENCE_CATEGORY",
     "MODEL_STYLE",
+    "AudioF",
     "BaselineDescriptor",
+    "BlipF",
     "CategoryDescriptor",
+    "ClipF",
+    "CodeformerF",
+    "ControlNetF",
+    "EsrganF",
+    "FieldRef",
+    "GenericF",
+    "GfpganF",
+    "ImageF",
+    "ImageGenerationQuery",
+    "MiscellaneousF",
     "ModelClassification",
     "ModelQuery",
     "ModelReferenceManager",
+    "OrderSpec",
+    "Predicate",
     "PrefetchStrategy",
+    "SafetyCheckerF",
+    "TextF",
     "TextModelQuery",
+    "VideoF",
+    "build_image_query",
     "build_text_query",
+    "false",
     "get_all_registered_baselines",
     "get_all_registered_categories",
     "get_baseline_descriptor",
@@ -533,4 +572,5 @@ __all__ = [
     "register_image_baseline",
     "register_record_type",
     "strip_backend_prefix",
+    "true",
 ]
