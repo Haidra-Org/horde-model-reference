@@ -101,6 +101,8 @@ class FileSystemBackend(ReplicaBackendBase):
         from horde_model_reference.meta_consts import get_no_legacy_format_categories
 
         for category in get_no_legacy_format_categories():
+            if not isinstance(category, MODEL_REFERENCE_CATEGORY):
+                continue
             file_path = horde_model_reference_paths.get_model_reference_file_path(
                 category,
                 base_path=self.base_path,

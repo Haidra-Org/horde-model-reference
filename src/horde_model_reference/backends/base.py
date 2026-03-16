@@ -265,7 +265,7 @@ class ModelReferenceBackend(ABC):
             callback: Function to call with the invalidated category.
         """
         self._invalidation_callbacks.append(callback)
-        logger.debug(f"Registered invalidation callback: {callback.__name__}")
+        logger.debug(f"Registered invalidation callback: {getattr(callback, '__name__', repr(callback))}")
 
     def _notify_invalidation(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         """Notify all registered callbacks that a category has been invalidated.
@@ -277,7 +277,8 @@ class ModelReferenceBackend(ABC):
             try:
                 callback(category)
             except Exception as e:
-                logger.error(f"Invalidation callback {callback.__name__} failed for {category}: {e}")
+                cb_name = getattr(callback, "__name__", repr(callback))
+                logger.error(f"Invalidation callback {cb_name} failed for {category}: {e}")
 
     @abstractmethod
     def _mark_stale_impl(self, category: MODEL_REFERENCE_CATEGORY) -> None:

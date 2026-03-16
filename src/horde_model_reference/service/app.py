@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
 app = FastAPI(root_path="/api", lifespan=lifespan)
 
 app.add_middleware(
-    CORSMiddleware,
+    CORSMiddleware,  # ty:ignore[invalid-argument-type] - This is idiomatic usage of CORSMiddleware in FastAPI, which expects these arguments.
     allow_origins=horde_model_reference_settings.cors_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],

@@ -346,8 +346,8 @@ class TestCacheHydratorHydration:
         CacheHydrator._instance = None
 
         # Reset AuditCache
-        prev_audit = AuditCache._instance  # type: ignore[misc]
-        AuditCache._instance = None  # type: ignore[misc]
+        prev_audit = AuditCache._instance
+        AuditCache._instance = None
 
         try:
             yield
@@ -357,10 +357,10 @@ class TestCacheHydratorHydration:
                 CacheHydrator._instance._shutdown_event.set()
             CacheHydrator._instance = prev_hydrator
 
-            if AuditCache._instance is not None:  # type: ignore[misc]
+            if AuditCache._instance is not None:
                 with contextlib.suppress(Exception):
-                    AuditCache._instance.clear_all()  # type: ignore[misc]
-            AuditCache._instance = prev_audit  # type: ignore[misc]
+                    AuditCache._instance.clear_all()
+            AuditCache._instance = prev_audit
 
     @pytest.mark.asyncio
     async def test_hydrate_audit_cache_stores_response(self) -> None:
@@ -500,15 +500,15 @@ class TestStaleWhileRevalidate:
     @pytest.fixture(autouse=True)
     def reset_audit_cache(self) -> Generator[None]:
         """Reset AuditCache singleton between tests."""
-        previous = AuditCache._instance  # type: ignore[misc]
-        AuditCache._instance = None  # type: ignore[misc]
+        previous = AuditCache._instance
+        AuditCache._instance = None
         try:
             yield
         finally:
-            if AuditCache._instance is not None:  # type: ignore[misc]
+            if AuditCache._instance is not None:
                 with contextlib.suppress(Exception):
-                    AuditCache._instance.clear_all()  # type: ignore[misc]
-            AuditCache._instance = previous  # type: ignore[misc]
+                    AuditCache._instance.clear_all()
+            AuditCache._instance = previous
 
     def test_get_returns_stale_data_when_hydration_enabled(self) -> None:
         """Test that get() returns stale data when hydration is enabled."""
@@ -688,8 +688,8 @@ class TestCacheHydrationIntegration:
         prev_hydrator = CacheHydrator._instance
         CacheHydrator._instance = None
 
-        prev_audit = AuditCache._instance  # type: ignore[misc]
-        AuditCache._instance = None  # type: ignore[misc]
+        prev_audit = AuditCache._instance
+        AuditCache._instance = None
 
         try:
             yield
@@ -699,10 +699,10 @@ class TestCacheHydrationIntegration:
                 CacheHydrator._instance._shutdown_event.set()
             CacheHydrator._instance = prev_hydrator
 
-            if AuditCache._instance is not None:  # type: ignore[misc]
+            if AuditCache._instance is not None:
                 with contextlib.suppress(Exception):
-                    AuditCache._instance.clear_all()  # type: ignore[misc]
-            AuditCache._instance = prev_audit  # type: ignore[misc]
+                    AuditCache._instance.clear_all()
+            AuditCache._instance = prev_audit
 
     @pytest.mark.asyncio
     async def test_compute_audit_response_with_mocked_dependencies(self) -> None:

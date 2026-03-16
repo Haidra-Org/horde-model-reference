@@ -119,6 +119,9 @@ class StubFileSystemBackend(ModelReferenceBackend):
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         record_dict: dict[str, Any],
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         self.update_calls.append((category, model_name, record_dict))
 
@@ -127,6 +130,9 @@ class StubFileSystemBackend(ModelReferenceBackend):
         self,
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
     ) -> None:
         self.delete_calls.append((category, model_name))
 

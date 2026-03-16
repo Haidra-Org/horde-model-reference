@@ -438,7 +438,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             min_bridge_version=legacy_record.min_bridge_version,
             trigger=legacy_record.trigger or [],
             homepage=legacy_record.homepage,
-            nsfw=legacy_record.nsfw,
+            nsfw=legacy_record.nsfw if legacy_record.nsfw is not None else False,
             style=legacy_record.style,
             requirements=legacy_record.requirements,
             size_on_disk_bytes=legacy_record.size_on_disk_bytes,
@@ -660,7 +660,7 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             }
 
             validation_issues: list[str] = []
-            validation_context = {
+            validation_context: dict[str, object] = {
                 "issues": validation_issues,
                 "model_key": csv_row.name,
                 "debug_mode": self.debug_mode,
