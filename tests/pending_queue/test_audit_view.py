@@ -9,7 +9,7 @@ from horde_model_reference.pending_queue.models import PendingChangeStatus
 def _event(
     *, event_id: int, action: str, change_id: int | None, payload_extra: dict[str, object] | None = None
 ) -> AuditEvent:
-    payload = {"action": action}
+    payload: dict[str, object] = {"action": action}
     if change_id is not None:
         payload["change_id"] = change_id
     if payload_extra:

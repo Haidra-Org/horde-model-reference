@@ -317,6 +317,7 @@ class TestTextGenerationCSVConversion:
         assert model is not None, f"Could not find complex-model. Records: {list(converted_records.keys())}"
         assert isinstance(model, TextGenerationModelRecord)
         assert model.settings == complex_settings
+        assert model.settings is not None
         assert model.settings["temperature"] == 0.7
         assert model.settings["stop_sequences"] == ["</s>", "[DONE]"]
         assert model.settings["enabled"] is True

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 T = TypeVar("T", bound=BaseModel)
 
 
-class RedisCache[T](ABC):
+class RedisCache[T: BaseModel](ABC):
     """Generic base class for Redis-backed singleton caches.
 
     Provides common caching infrastructure with Redis distributed caching

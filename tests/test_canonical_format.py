@@ -676,7 +676,7 @@ class TestCanonicalFormatEdgeCases:
     def test_invalid_canonical_format_value(self) -> None:
         """Test that invalid canonical_format values are rejected."""
         with pytest.raises(ValueError):
-            HordeModelReferenceSettings(canonical_format="invalid")
+            HordeModelReferenceSettings.model_validate({"canonical_format": "invalid"})
 
     def test_legacy_writes_with_multiple_models(
         self,
@@ -881,7 +881,7 @@ class TestSettingsValidation:
     def test_invalid_replicate_mode_string(self) -> None:
         """Test that invalid replicate_mode strings are rejected."""
         with pytest.raises(ValueError):
-            HordeModelReferenceSettings(replicate_mode="invalid_mode")
+            HordeModelReferenceSettings.model_validate({"replicate_mode": "invalid_mode"})
 
 
 class TestManagerSingletonBehavior:

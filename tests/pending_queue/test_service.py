@@ -34,7 +34,7 @@ class _StubAuditWriter:
         payload: AuditPayload | None = None,
         request_id: str | None = None,
         timestamp: int | None = None,
-    ) -> None:  # type: ignore[override]
+    ) -> None:
         self.events.append(
             {
                 "domain": domain,

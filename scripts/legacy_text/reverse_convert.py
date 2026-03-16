@@ -270,13 +270,14 @@ csv_rows: list[dict[str, str]] = []
 
 for base_name, record in base_models.items():
     # Extract and convert parameters
-    parameters_int = record.get("parameters")
-    if parameters_int is None:
+    parameters_raw = record.get("parameters")
+    if parameters_raw is None:
         print(f"Error: {base_name} has no parameters count")
         sys.exit(1)
 
+    assert parameters_raw is not None
     try:
-        params_bn = float(parameters_int) / 1_000_000_000
+        params_bn = float(parameters_raw) / 1_000_000_000
     except (ValueError, TypeError) as e:
         print(f"Error: Failed to convert parameters for {base_name}: {e}")
         sys.exit(1)

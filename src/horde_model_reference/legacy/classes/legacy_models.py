@@ -107,11 +107,12 @@ class LegacyConfig(BaseModel):
             return {}
         if not isinstance(value, dict):
             raise TypeError("config entries must be provided as a mapping")
-        if len(value) > 2:
+        raw_dict: dict[str, object] = {str(k): v for k, v in value.items()}
+        if len(raw_dict) > 2:
             _record_issue(info, "has more than 2 config entries.")
         coerced: dict[str, Any] = {}
         for key in ("files", "download"):
-            entries = value.get(key) or []
+            entries = raw_dict.get(key) or []
             if not isinstance(entries, Iterable):
                 raise TypeError(f"config[{key!s}] must be iterable")
             coerced[key] = list(entries)

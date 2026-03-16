@@ -10,6 +10,7 @@ from horde_model_reference.meta_consts import (
 )
 from horde_model_reference.model_reference_records import (
     DownloadRecord,
+    GenericModelRecordConfig,
     ImageGenerationModelRecord,
 )
 
@@ -29,11 +30,11 @@ def test_image_generation_model_record() -> None:
         baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1,
         tags=["test_tag"],
         nsfw=False,
-        config={
-            "download": [
+        config=GenericModelRecordConfig(
+            download=[
                 DownloadRecord(file_name="test_file_name", file_url="test_file_url", sha256sum="test_sha256sum"),
             ],
-        },
+        ),
     )
 
 
@@ -53,11 +54,11 @@ def test_image_generation_model_record_unknown_baseline() -> None:
             baseline="unknown_baseline",
             tags=["test_tag"],
             nsfw=False,
-            config={
-                "download": [
+            config=GenericModelRecordConfig(
+                download=[
                     DownloadRecord(file_name="test_file_name", file_url="test_file_url", sha256sum="test_sha256sum"),
                 ],
-            },
+            ),
         )
 
 
@@ -77,9 +78,9 @@ def test_image_generation_model_record_unknown_style() -> None:
             baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1,
             tags=["test_tag"],
             nsfw=False,
-            config={
-                "download": [
+            config=GenericModelRecordConfig(
+                download=[
                     DownloadRecord(file_name="test_file_name", file_url="test_file_url", sha256sum="test_sha256sum"),
                 ],
-            },
+            ),
         )

@@ -74,7 +74,15 @@ def _get_generation_params() -> GenerationParamsDict:
     """Get the generation_params.json data, loading on first access."""
     global _generation_params
     if _generation_params is None:
-        _generation_params = _load_bundled_json("generation_params.json")
+        raw = _load_bundled_json("generation_params.json")
+        # generation_params.json values are int | float | str | bool | list[int]
+        validated: GenerationParamsDict = {}
+        for k, v in raw.items():
+            if isinstance(v, (int, float, str)):
+                validated[k] = v
+            elif isinstance(v, list):
+                validated[k] = [x for x in v if isinstance(x, int)]
+        _generation_params = validated
         logger.debug(f"Loaded generation_params.json with {len(_generation_params)} valid setting keys")
     return _generation_params
 
@@ -172,7 +180,7 @@ class TextModelWriteProcessor:
         result["model_name"] = self.extract_model_name(entry_key)
 
         # Remove empty values (matching convert.py semantics)
-        result = {key: value for key, value in result.items() if value}
+        result: LegacyRecordDict = {key: value for key, value in result.items() if value}
 
         # Apply defaults for missing fields
         if apply_defaults:

@@ -269,7 +269,7 @@ class PendingQueueAuditDataset:
         original_batch_id = _coerce_int(payload.get("original_batch_id"))
         new_batch_id = _coerce_int(payload.get("new_batch_id"))
         raw_reassigned = payload.get("reassigned_change_ids", [])
-        reassigned_ids = [_coerce_int(value) for value in raw_reassigned if _coerce_int(value) is not None]
+        reassigned_ids = [coerced for value in raw_reassigned if (coerced := _coerce_int(value)) is not None]
 
         if original_batch_id is None or new_batch_id is None:
             return
@@ -413,12 +413,14 @@ def _coerce_category(value: object) -> MODEL_REFERENCE_CATEGORY | None:
 
 
 def _coerce_int(value: object) -> int | None:
-    try:
-        if value is None:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value)
+        except ValueError:
             return None
-        return int(value)
-    except (TypeError, ValueError):
-        return None
+    return None
 
 
 def load_pending_queue_audit_dataset(*, root_path: Path, domain: AuditDomain) -> PendingQueueAuditDataset:

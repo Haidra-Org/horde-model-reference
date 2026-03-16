@@ -24,15 +24,15 @@ class TestStatisticsCache:
         This matches the project's existing pattern of restoring singletons after
         tests to avoid cross-test pollution (see `restore_manager_singleton` in conftest).
         """
-        previous = StatisticsCache._instance  # type: ignore[misc]
-        StatisticsCache._instance = None  # type: ignore[misc]
+        previous = StatisticsCache._instance
+        StatisticsCache._instance = None
         try:
             yield
         finally:
-            if StatisticsCache._instance is not None:  # type: ignore[misc]
+            if StatisticsCache._instance is not None:
                 with contextlib.suppress(Exception):
                     StatisticsCache._instance.clear_all()
-            StatisticsCache._instance = previous  # type: ignore[misc]
+            StatisticsCache._instance = previous
 
     def test_singleton_pattern(self) -> None:
         """Test that StatisticsCache is a singleton."""
@@ -60,7 +60,6 @@ class TestStatisticsCache:
             offset=0,
             limit=None,
             nsfw_count=2,
-            sfw_count=8,
             computed_at=int(time.time()),
         )
 
@@ -84,7 +83,6 @@ class TestStatisticsCache:
             offset=0,
             limit=None,
             nsfw_count=2,
-            sfw_count=8,
             computed_at=int(time.time()),
         )
 
@@ -111,7 +109,6 @@ class TestStatisticsCache:
                 offset=0,
                 limit=None,
                 nsfw_count=2,
-                sfw_count=8,
                 computed_at=int(time.time()),
             )
 
@@ -133,7 +130,6 @@ class TestStatisticsCache:
             offset=0,
             limit=None,
             nsfw_count=2,
-            sfw_count=8,
             computed_at=int(time.time()),
         )
 
@@ -144,7 +140,6 @@ class TestStatisticsCache:
             offset=0,
             limit=None,
             nsfw_count=0,
-            sfw_count=20,
             computed_at=int(time.time()),
         )
 
@@ -209,7 +204,6 @@ class TestStatisticsCache:
             offset=0,
             limit=None,
             nsfw_count=2,
-            sfw_count=8,
             computed_at=int(time.time()),
         )
 
@@ -231,7 +225,6 @@ class TestStatisticsCache:
             offset=0,
             limit=None,
             nsfw_count=2,
-            sfw_count=8,
             computed_at=int(time.time()),
         )
 
@@ -242,7 +235,6 @@ class TestStatisticsCache:
             offset=0,
             limit=None,
             nsfw_count=0,
-            sfw_count=20,
             computed_at=int(time.time()),
         )
 

@@ -458,7 +458,7 @@ class ModelAuditInfo(BaseModel):
         """
         return self.deletion_risk_flags.flag_count()
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def is_critical(self) -> bool:
         """Determine if model is in critical state.
@@ -475,7 +475,7 @@ class ModelAuditInfo(BaseModel):
             return self.usage_month < usage_threshold and self.worker_count < worker_threshold
         return self.deletion_risk_flags.zero_usage_month and self.deletion_risk_flags.no_active_workers
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def has_warning(self) -> bool:
         """Determine if model has warning-level issues.
