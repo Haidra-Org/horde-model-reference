@@ -9,6 +9,7 @@ from horde_model_reference import (
 )
 from horde_model_reference.model_reference_records import (
     DownloadRecord,
+    GenericModelRecordConfig,
     ImageGenerationModelRecord,
 )
 
@@ -36,7 +37,7 @@ def create_example_json_schema() -> None:
         version="1.0",
         inpainting=False,
         style=MODEL_STYLE.generalist,
-        config={"download": [example_download_record]},
+        config=GenericModelRecordConfig(download=[example_download_record]),
         model_classification=ModelClassification(
             domain=MODEL_DOMAIN.image,
             purpose=MODEL_PURPOSE.generation,
@@ -65,7 +66,7 @@ def create_example_json_schema() -> None:
         version="2.5",
         inpainting=False,
         style=MODEL_STYLE.anime,
-        config={"download": [example_download_record_2]},
+        config=GenericModelRecordConfig(download=[example_download_record_2]),
         model_classification=ModelClassification(
             domain=MODEL_DOMAIN.image,
             purpose=MODEL_PURPOSE.generation,

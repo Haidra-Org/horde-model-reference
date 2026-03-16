@@ -143,7 +143,7 @@ class RedisBackend(ModelReferenceBackend):
         """Listen for cache invalidation events from other workers."""
         logger.debug("Redis pub/sub listener started")
         try:
-            messages = self._pubsub.listen()  # type: ignore[no-untyped-call]
+            messages = self._pubsub.listen()
             if not isinstance(messages, Iterable):
                 raise ValueError("Expected iterable from pubsub.listen()")
             for message in messages:

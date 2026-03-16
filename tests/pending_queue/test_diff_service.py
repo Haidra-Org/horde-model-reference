@@ -27,7 +27,7 @@ class _ManagerStub:
     state_by_model: dict[str, dict[str, Any] | None]
     backend: _BackendStub
 
-    def get_raw_model_json(self, *, category: MODEL_REFERENCE_CATEGORY, model_name: str) -> dict[str, Any] | None:  # type: ignore[override]
+    def get_raw_model_json(self, *, category: MODEL_REFERENCE_CATEGORY, model_name: str) -> dict[str, Any] | None:
         return self.state_by_model.get(model_name)
 
 

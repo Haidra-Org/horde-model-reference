@@ -475,8 +475,6 @@ class TestCreateLegacyModel:
         route_name = _get_create_route_for_category(category)
         if route_name is None:
             pytest.skip(f"Category {category} does not have a v1 create endpoint")
-            assert route_name is not None
-            route_name = cast(RouteNames, route_name)
 
         model_name = "new_legacy_model"
         payload = _create_legacy_model_payload(model_name, category, description="Created via POST")
@@ -518,7 +516,6 @@ class TestCreateLegacyModel:
         route_name = _get_create_route_for_category(category)
         if route_name is None:
             pytest.skip(f"Category {category} does not have a v1 create endpoint")
-        route_name = cast(RouteNames, route_name)
 
         model_name = "existing_model"
         existing_payload = _create_legacy_model_payload(model_name, category)
@@ -583,7 +580,6 @@ class TestUpdateLegacyModel:
         route_name = _get_create_route_for_category(category)
         if route_name is None:
             pytest.skip(f"Category {category} does not have a v1 update endpoint")
-        route_name = cast(RouteNames, route_name)
 
         model_name = "update_me"
         original_payload = _create_legacy_model_payload(model_name, category, description="Original")
@@ -1016,7 +1012,6 @@ class TestRouteConditionalImport:
 
         if route_name is None:
             pytest.skip(f"Category {category} does not have a v1 create endpoint")
-        route_name = cast(RouteNames, route_name)
 
         model_name = "test_model"
         payload = _create_legacy_model_payload(model_name, category)
