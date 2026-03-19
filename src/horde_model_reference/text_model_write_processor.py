@@ -48,7 +48,8 @@ def _load_bundled_json(filename: str) -> dict[str, LegacyRecordValue]:
         data_files = resources.files("horde_model_reference") / "data"
         data_path = data_files / filename
         content = data_path.read_text(encoding="utf-8")
-        return json.loads(content)
+        data_return_value: dict[str, LegacyRecordValue] = json.loads(content)
+        return data_return_value
     except (FileNotFoundError, TypeError, ModuleNotFoundError):
         pass
 
@@ -57,7 +58,8 @@ def _load_bundled_json(filename: str) -> dict[str, LegacyRecordValue]:
     scripts_path = repo_root / "scripts" / "legacy_text" / filename
     if scripts_path.exists():
         with open(scripts_path, encoding="utf-8") as f:
-            return json.load(f)
+            repo_data_return_value: dict[str, LegacyRecordValue] = json.load(f)
+            return repo_data_return_value
 
     raise FileNotFoundError(
         f"Cannot find {filename} in package data or scripts/legacy_text/. "
@@ -180,15 +182,15 @@ class TextModelWriteProcessor:
         result["model_name"] = self.extract_model_name(entry_key)
 
         # Remove empty values (matching convert.py semantics)
-        result: LegacyRecordDict = {key: value for key, value in result.items() if value}
+        final_result: LegacyRecordDict = {key: value for key, value in result.items() if value}
 
         # Apply defaults for missing fields
         if apply_defaults:
             for key, value in self.defaults.items():
-                if key not in result:
-                    result[key] = value
+                if key not in final_result:
+                    final_result[key] = value
 
-        return result
+        return final_result
 
     def normalize_parameters(self, entry_key: str, value: LegacyRecordValue) -> int:
         """Ensure the parameters field is present and a positive integer.

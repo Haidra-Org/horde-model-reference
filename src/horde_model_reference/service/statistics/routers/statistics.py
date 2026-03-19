@@ -261,9 +261,8 @@ async def read_models_with_stats(
         )
 
     # 2. Get Horde data (from HordeAPIIntegration cache)
+    model_type: Literal["image", "text"] | None = None
     try:
-        model_type: Literal["image", "text"]
-
         if model_category_name == MODEL_REFERENCE_CATEGORY.image_generation:
             model_type = "image"
         elif model_category_name == MODEL_REFERENCE_CATEGORY.text_generation:

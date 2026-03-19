@@ -99,21 +99,19 @@ class DeletionRiskFlags(BaseModel):
         Returns:
             True if at least one flag is set, False otherwise.
         """
-        return any(
-            [
-                self.zero_usage_day,
-                self.zero_usage_month,
-                self.zero_usage_total,
-                self.no_active_workers,
-                self.has_multiple_hosts,
-                self.has_non_preferred_host,
-                self.has_unknown_host,
-                self.no_download_urls,
-                self.missing_description,
-                self.missing_baseline,
-                self.low_usage,
-            ]
-        )
+        return any([
+            self.zero_usage_day,
+            self.zero_usage_month,
+            self.zero_usage_total,
+            self.no_active_workers,
+            self.has_multiple_hosts,
+            self.has_non_preferred_host,
+            self.has_unknown_host,
+            self.no_download_urls,
+            self.missing_description,
+            self.missing_baseline,
+            self.low_usage,
+        ])
 
     def flag_count(self) -> int:
         """Count the number of flags set.
@@ -121,21 +119,19 @@ class DeletionRiskFlags(BaseModel):
         Returns:
             Number of deletion risk flags that are True.
         """
-        return sum(
-            [
-                self.zero_usage_day,
-                self.zero_usage_month,
-                self.zero_usage_total,
-                self.no_active_workers,
-                self.has_multiple_hosts,
-                self.has_non_preferred_host,
-                self.has_unknown_host,
-                self.no_download_urls,
-                self.missing_description,
-                self.missing_baseline,
-                self.low_usage,
-            ]
-        )
+        return sum([
+            self.zero_usage_day,
+            self.zero_usage_month,
+            self.zero_usage_total,
+            self.no_active_workers,
+            self.has_multiple_hosts,
+            self.has_non_preferred_host,
+            self.has_unknown_host,
+            self.no_download_urls,
+            self.missing_description,
+            self.missing_baseline,
+            self.low_usage,
+        ])
 
 
 class FlagValidatorService:
@@ -458,8 +454,8 @@ class ModelAuditInfo(BaseModel):
         """
         return self.deletion_risk_flags.flag_count()
 
-    @computed_field
     @property
+    @computed_field
     def is_critical(self) -> bool:
         """Determine if model is in critical state.
 
@@ -475,8 +471,8 @@ class ModelAuditInfo(BaseModel):
             return self.usage_month < usage_threshold and self.worker_count < worker_threshold
         return self.deletion_risk_flags.zero_usage_month and self.deletion_risk_flags.no_active_workers
 
-    @computed_field
     @property
+    @computed_field
     def has_warning(self) -> bool:
         """Determine if model has warning-level issues.
 

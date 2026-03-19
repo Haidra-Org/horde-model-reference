@@ -83,13 +83,11 @@ class PendingChangeDiffService:
             try:
                 record = self._queue_service.get_change(change_id)
                 if record is None:
-                    errors.append(
-                        {
-                            "change_id": change_id,
-                            "error": "Change not found",
-                            "error_type": "NotFound",
-                        }
-                    )
+                    errors.append({
+                        "change_id": change_id,
+                        "error": "Change not found",
+                        "error_type": "NotFound",
+                    })
                     continue
 
                 diff = self._compute_diff_for_record(record)
@@ -97,13 +95,11 @@ class PendingChangeDiffService:
 
             except Exception as exc:
                 logger.warning(f"Failed to compute diff for change {change_id}: {exc}")
-                errors.append(
-                    {
-                        "change_id": change_id,
-                        "error": str(exc),
-                        "error_type": type(exc).__name__,
-                    }
-                )
+                errors.append({
+                    "change_id": change_id,
+                    "error": str(exc),
+                    "error_type": type(exc).__name__,
+                })
 
         return PendingChangeDiffPage(
             diffs=diffs,
