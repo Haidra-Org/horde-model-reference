@@ -14,7 +14,7 @@ from horde_model_reference.analytics.statistics import CategoryStatistics
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
-class StatisticsCache(RedisCache["CategoryStatistics"]):
+class StatisticsCache(RedisCache[CategoryStatistics]):
     """Singleton cache for category statistics.
 
     Integrates with existing backend invalidation system to automatically
@@ -23,6 +23,8 @@ class StatisticsCache(RedisCache["CategoryStatistics"]):
 
     Inherits from RedisCache[CategoryStatistics] for common caching infrastructure.
     """
+
+    _instance: StatisticsCache | None = None
 
     def _get_cache_key_prefix(self) -> str:
         """Get the Redis key prefix for statistics cache.
