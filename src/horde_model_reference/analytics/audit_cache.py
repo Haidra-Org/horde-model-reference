@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from loguru import logger
 
-from horde_model_reference.analytics import base_cache as base_cache_module
+import horde_model_reference
 from horde_model_reference.analytics.audit_analysis import CategoryAuditResponse
 from horde_model_reference.analytics.base_cache import RedisCache
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
@@ -24,7 +24,7 @@ class AuditCache(RedisCache[CategoryAuditResponse]):
     Inherits from RedisCache[CategoryAuditResponse] for common caching infrastructure.
     """
 
-    _instance: AuditCache[CategoryAuditResponse] | None = None
+    _instance: AuditCache | None = None
 
     def _get_cache_key_prefix(self) -> str:
         """Get the Redis key prefix for audit cache.
@@ -32,7 +32,7 @@ class AuditCache(RedisCache[CategoryAuditResponse]):
         Returns:
             Redis key prefix string.
         """
-        settings = base_cache_module.horde_model_reference_settings
+        settings = horde_model_reference.horde_model_reference_settings
         return f"{settings.redis.key_prefix}:audit"
 
     def _get_ttl(self) -> int:
@@ -41,7 +41,8 @@ class AuditCache(RedisCache[CategoryAuditResponse]):
         Returns:
             TTL in seconds from settings.
         """
-        return base_cache_module.horde_model_reference_settings.audit_cache_ttl
+        settings = horde_model_reference.horde_model_reference_settings
+        return settings.audit_cache_ttl
 
     def _get_model_class(self) -> type[CategoryAuditResponse]:
         """Get the Pydantic model class for deserialization.

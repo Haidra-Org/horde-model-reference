@@ -17,6 +17,12 @@ _AUDIT_FILENAME_PATTERN = re.compile(r"audit-(\d{6})\.jsonl")
 class AuditTrailWriter:
     """Append-only audit writer with size-based log rotation."""
 
+    _root_path: Path
+    _max_file_size_bytes: int
+    _lock: RLock
+    _state_path: Path
+    _last_event_id: int
+
     def __init__(self, *, root_path: Path, max_file_size_bytes: int = DEFAULT_MAX_FILE_SIZE_BYTES) -> None:
         """Initialize the writer with a root directory and rotation threshold."""
         self._root_path = root_path
@@ -72,7 +78,7 @@ class AuditTrailWriter:
         return int(data.get("last_event_id", 0))
 
     def _resolve_segment_path(self, *, domain: AuditDomain, category: str) -> Path:
-        category_dir = self._root_path / domain.value / category
+        category_dir: Path = self._root_path / domain.value / category
         category_dir.mkdir(parents=True, exist_ok=True)
         segments = sorted(category_dir.glob("audit-*.jsonl"))
         if not segments:

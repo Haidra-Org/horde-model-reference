@@ -350,7 +350,7 @@ class LegacySafetyCheckerRecord(LegacyGenericRecord):
 class LegacyMiscellaneousRecord(LegacyGenericRecord):
     """Miscellaneous legacy record with category-specific normalization."""
 
-    type: Literal["layer_diffuse",]
+    type: Literal["layer_diffuse"]
 
 
 class LegacyControlnetRecord(LegacyGenericRecord):

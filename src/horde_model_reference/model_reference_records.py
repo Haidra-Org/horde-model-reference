@@ -121,7 +121,7 @@ class GenericModelRecord(BaseModel):
 
     model_config = get_default_config()
 
-    record_type: MODEL_REFERENCE_CATEGORY | str
+    record_type: str | MODEL_REFERENCE_CATEGORY
     """Discriminator field for polymorphic deserialization. Identifies the specific record type."""
 
     name: str
