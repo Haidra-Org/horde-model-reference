@@ -179,98 +179,98 @@ false: bool = False
 # ---------------------------------------------------------------------------
 
 
-class GenericF:
+class GenericFields:
     """Field references for ``GenericModelRecord``."""
 
-    record_type = FieldRef("record_type")
-    name = FieldRef("name")
-    description = FieldRef("description")
-    version = FieldRef("version")
-    finetune_series = FieldRef("finetune_series")
-    metadata = FieldRef("metadata")
-    config = FieldRef("config")
-    model_classification = FieldRef("model_classification")
+    record_type: FieldRef = FieldRef("record_type")
+    name: FieldRef = FieldRef("name")
+    description: FieldRef = FieldRef("description")
+    version: FieldRef = FieldRef("version")
+    finetune_series: FieldRef = FieldRef("finetune_series")
+    metadata: FieldRef = FieldRef("metadata")
+    config: FieldRef = FieldRef("config")
+    model_classification: FieldRef = FieldRef("model_classification")
 
 
-class ImageF(GenericF):
+class ImageFields(GenericFields):
     """Field references for ``ImageGenerationModelRecord``."""
 
-    inpainting = FieldRef("inpainting")
-    baseline = FieldRef("baseline")
-    optimization = FieldRef("optimization")
-    tags = FieldRef("tags")
-    showcases = FieldRef("showcases")
-    min_bridge_version = FieldRef("min_bridge_version")
-    trigger = FieldRef("trigger")
-    homepage = FieldRef("homepage")
-    nsfw = FieldRef("nsfw")
-    style = FieldRef("style")
-    requirements = FieldRef("requirements")
-    size_on_disk_bytes = FieldRef("size_on_disk_bytes")
+    inpainting: FieldRef = FieldRef("inpainting")
+    baseline: FieldRef = FieldRef("baseline")
+    optimization: FieldRef = FieldRef("optimization")
+    tags: FieldRef = FieldRef("tags")
+    showcases: FieldRef = FieldRef("showcases")
+    min_bridge_version: FieldRef = FieldRef("min_bridge_version")
+    trigger: FieldRef = FieldRef("trigger")
+    homepage: FieldRef = FieldRef("homepage")
+    nsfw: FieldRef = FieldRef("nsfw")
+    style: FieldRef = FieldRef("style")
+    requirements: FieldRef = FieldRef("requirements")
+    size_on_disk_bytes: FieldRef = FieldRef("size_on_disk_bytes")
 
 
-class TextF(GenericF):
+class TextFields(GenericFields):
     """Field references for ``TextGenerationModelRecord``."""
 
-    baseline = FieldRef("baseline")
-    parameters_count = FieldRef("parameters_count")
-    nsfw = FieldRef("nsfw")
-    style = FieldRef("style")
-    display_name = FieldRef("display_name")
-    url = FieldRef("url")
-    tags = FieldRef("tags")
-    instruct_format = FieldRef("instruct_format")
-    settings = FieldRef("settings")
-    text_model_group = FieldRef("text_model_group")
+    baseline: FieldRef = FieldRef("baseline")
+    parameters_count: FieldRef = FieldRef("parameters_count")
+    nsfw: FieldRef = FieldRef("nsfw")
+    style: FieldRef = FieldRef("style")
+    display_name: FieldRef = FieldRef("display_name")
+    url: FieldRef = FieldRef("url")
+    tags: FieldRef = FieldRef("tags")
+    instruct_format: FieldRef = FieldRef("instruct_format")
+    settings: FieldRef = FieldRef("settings")
+    text_model_group: FieldRef = FieldRef("text_model_group")
 
 
-class ControlNetF(GenericF):
+class ControlNetFields(GenericFields):
     """Field references for ``ControlNetModelRecord``."""
 
-    controlnet_style = FieldRef("controlnet_style")
+    controlnet_style: FieldRef = FieldRef("controlnet_style")
 
 
-class ClipF(GenericF):
+class ClipFields(GenericFields):
     """Field references for ``ClipModelRecord``."""
 
-    pretrained_name = FieldRef("pretrained_name")
+    pretrained_name: FieldRef = FieldRef("pretrained_name")
 
 
-class BlipF(GenericF):
+class BlipFields(GenericFields):
     """Field references for ``BlipModelRecord``."""
 
 
-class CodeformerF(GenericF):
+class CodeformerFields(GenericFields):
     """Field references for ``CodeformerModelRecord``."""
 
 
-class EsrganF(GenericF):
+class EsrganFields(GenericFields):
     """Field references for ``EsrganModelRecord``."""
 
 
-class GfpganF(GenericF):
+class GfpganFields(GenericFields):
     """Field references for ``GfpganModelRecord``."""
 
 
-class SafetyCheckerF(GenericF):
+class SafetyCheckerFields(GenericFields):
     """Field references for ``SafetyCheckerModelRecord``."""
 
 
-class VideoF(GenericF):
+class VideoFields(GenericFields):
     """Field references for ``VideoGenerationModelRecord``."""
 
-    baseline = FieldRef("baseline")
-    nsfw = FieldRef("nsfw")
-    tags = FieldRef("tags")
+    baseline: FieldRef = FieldRef("baseline")
+    nsfw: FieldRef = FieldRef("nsfw")
+    tags: FieldRef = FieldRef("tags")
 
 
-class AudioF(GenericF):
+class AudioFields(GenericFields):
     """Field references for ``AudioGenerationModelRecord``."""
 
-    baseline = FieldRef("baseline")
-    nsfw = FieldRef("nsfw")
-    tags = FieldRef("tags")
+    baseline: FieldRef = FieldRef("baseline")
+    nsfw: FieldRef = FieldRef("nsfw")
+    tags: FieldRef = FieldRef("tags")
 
 
-class MiscellaneousF(GenericF):
+class MiscellaneousFields(GenericFields):
     """Field references for ``MiscellaneousModelRecord``."""

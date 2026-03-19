@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import operator
 from collections.abc import Callable, Hashable, Iterable, Sequence
-from typing import Any, Literal, Protocol, Self, overload, override, runtime_checkable
+from typing import Any, Literal, Protocol, Self, overload, runtime_checkable
 
 from horde_model_reference.meta_consts import (
     KNOWN_IMAGE_GENERATION_BASELINE,
@@ -33,6 +33,7 @@ from horde_model_reference.meta_consts import (
     TEXT_BACKENDS,
 )
 from horde_model_reference.model_reference_records import (
+    ControlNetModelRecord,
     GenericModelRecord,
     ImageGenerationModelRecord,
     TextGenerationModelRecord,
@@ -44,7 +45,7 @@ from horde_model_reference.text_backend_names import (
 )
 
 # ---------------------------------------------------------------------------
-# Field name type aliases (Python 3.12+ ``type`` statement)
+# Field name type aliases
 # ---------------------------------------------------------------------------
 
 type GenericFieldName = Literal[
@@ -214,7 +215,7 @@ def _to_hashable(field: str, value: object) -> Hashable:
 # ---------------------------------------------------------------------------
 
 
-class ModelQuery[T: GenericModelRecord]:
+class ModelQuery[T: GenericModelRecord, F: str]:
     """Lazy, immutable query builder over a sequence of model records.
 
     Every fluent method returns a **new** instance (via ``Self``) so that
@@ -225,7 +226,7 @@ class ModelQuery[T: GenericModelRecord]:
 
     _records: Sequence[T]
     _record_type: type[T]
-    _predicates: list[Callable[[T], bool]]
+    _predicates: Sequence[Callable[[T], bool]]
     _sort_key: str | None
     _sort_descending: bool
     _offset_value: int
@@ -236,7 +237,7 @@ class ModelQuery[T: GenericModelRecord]:
         records: Sequence[T],
         record_type: type[T],
         *,
-        predicates: list[Callable[[T], bool]] | None = None,
+        predicates: Sequence[Callable[[T], bool]] | None = None,
         sort_key: str | None = None,
         sort_descending: bool = False,
         offset_value: int = 0,
@@ -250,24 +251,31 @@ class ModelQuery[T: GenericModelRecord]:
         self._offset_value = offset_value
         self._limit_value = limit_value
 
-    def _clone(self, **overrides: object) -> Self:
+    def _clone(
+        self,
+        records: Sequence[T] | None = None,
+        record_type: type[T] | None = None,
+        predicates: Sequence[Callable[[T], bool]] | None = None,
+        sort_key: str | None = None,
+        sort_descending: bool | None = None,
+        offset_value: int | None = None,
+        limit_value: int | None = None,
+    ) -> Self:
         """Create a shallow copy with optional overrides.
 
         Uses ``type(self)`` so that subclasses (``TextModelQuery``,
         ``ImageGenerationQuery``, etc.) automatically get back their own
         concrete type without needing to override this method.
         """
-        kwargs: dict[str, object] = {
-            "records": self._records,
-            "record_type": self._record_type,
-            "predicates": list(self._predicates),
-            "sort_key": self._sort_key,
-            "sort_descending": self._sort_descending,
-            "offset_value": self._offset_value,
-            "limit_value": self._limit_value,
-        }
-        kwargs.update(overrides)
-        return type(self)(**kwargs)  # type: ignore[return-value]
+        return type(self)(
+            records=records if records is not None else self._records,
+            record_type=record_type if record_type is not None else self._record_type,
+            predicates=predicates if predicates is not None else list(self._predicates),
+            sort_key=sort_key if sort_key is not None else self._sort_key,
+            sort_descending=sort_descending if sort_descending is not None else self._sort_descending,
+            offset_value=offset_value if offset_value is not None else self._offset_value,
+            limit_value=limit_value if limit_value is not None else self._limit_value,
+        )
 
     # ------------------------------------------------------------------
     # Equality / comparison filters
@@ -394,9 +402,9 @@ class ModelQuery[T: GenericModelRecord]:
     def order_by(self, field: OrderSpec) -> Self: ...
 
     @overload
-    def order_by(self, field: str, *, descending: bool = False) -> Self: ...
+    def order_by(self, field: F, *, descending: bool = False) -> Self: ...
 
-    def order_by(self, field: str | OrderSpec, *, descending: bool = False) -> Self:
+    def order_by(self, field: F | OrderSpec, *, descending: bool = False) -> Self:
         """Sort results by *field*; raises ``ValueError`` if values are not comparable.
 
         Accepts either a field name string or an ``OrderSpec`` from the field
@@ -462,7 +470,7 @@ class ModelQuery[T: GenericModelRecord]:
         """Execute the query and return the number of matching records."""
         return len(self._execute())
 
-    def distinct(self, field: str) -> list[object]:
+    def distinct(self, field: F) -> list[object]:
         """Return unique values of *field* across matching records (raises on unhashable values)."""
         _validate_field_exists(self._record_type, field)
         seen: set[Hashable] = set()
@@ -475,7 +483,7 @@ class ModelQuery[T: GenericModelRecord]:
                 result.append(val)
         return result
 
-    def group_by(self, field: str) -> dict[Hashable, list[T]]:
+    def group_by(self, field: F) -> dict[Hashable, list[T]]:
         """Group matching records by *field* value.
 
         Returns:
@@ -545,55 +553,13 @@ class ModelQuery[T: GenericModelRecord]:
 # ---------------------------------------------------------------------------
 
 
-class ImageGenerationQuery(ModelQuery[ImageGenerationModelRecord]):
+class ImageGenerationQuery(ModelQuery[ImageGenerationModelRecord, ImageGenFieldName]):
     """Query builder with image-generation-specific helpers.
 
     Adds typed convenience methods for common image model filters
     (baseline, NSFW, inpainting) and overloaded field-name parameters
     that give IDE autocomplete for ``ImageGenerationModelRecord`` fields.
     """
-
-    # ------------------------------------------------------------------
-    # Typed field-name overloads
-    # ------------------------------------------------------------------
-
-    @overload
-    def order_by(self, field: ImageGenFieldName, *, descending: bool = False) -> Self: ...
-
-    @overload
-    def order_by(self, field: OrderSpec) -> Self: ...
-
-    @overload
-    def order_by(self, field: str, *, descending: bool = False) -> Self: ...
-
-    @override
-    def order_by(self, field: str | OrderSpec, *, descending: bool = False) -> Self:
-        """Sort results by *field* with autocomplete for image generation fields."""
-        if isinstance(field, OrderSpec):
-            return super().order_by(field)
-        return super().order_by(field, descending=descending)
-
-    @overload
-    def distinct(self, field: ImageGenFieldName) -> list[object]: ...
-
-    @overload
-    def distinct(self, field: str) -> list[object]: ...
-
-    @override
-    def distinct(self, field: str) -> list[object]:
-        """Return unique values with autocomplete for image generation fields."""
-        return super().distinct(field)
-
-    @overload
-    def group_by(self, field: ImageGenFieldName) -> dict[Hashable, list[ImageGenerationModelRecord]]: ...
-
-    @overload
-    def group_by(self, field: str) -> dict[Hashable, list[ImageGenerationModelRecord]]: ...
-
-    @override
-    def group_by(self, field: str) -> dict[Hashable, list[ImageGenerationModelRecord]]:
-        """Group records with autocomplete for image generation fields."""
-        return super().group_by(field)
 
     # ------------------------------------------------------------------
     # Baseline filters
@@ -649,55 +615,13 @@ class ImageGenerationQuery(ModelQuery[ImageGenerationModelRecord]):
 # ---------------------------------------------------------------------------
 
 
-class TextModelQuery(ModelQuery[TextGenerationModelRecord]):
+class TextModelQuery(ModelQuery[TextGenerationModelRecord, TextGenFieldName]):
     """Query builder with text-generation-specific helpers.
 
     Adds filtering by backend prefix, quantization status, and grouping
     by base model name.  Every fluent method returns ``Self`` so the full
     chain stays type-safe.
     """
-
-    # ------------------------------------------------------------------
-    # Typed field-name overloads
-    # ------------------------------------------------------------------
-
-    @overload
-    def order_by(self, field: TextGenFieldName, *, descending: bool = False) -> Self: ...
-
-    @overload
-    def order_by(self, field: OrderSpec) -> Self: ...
-
-    @overload
-    def order_by(self, field: str, *, descending: bool = False) -> Self: ...
-
-    @override
-    def order_by(self, field: str | OrderSpec, *, descending: bool = False) -> Self:
-        """Sort results by *field* with autocomplete for text generation fields."""
-        if isinstance(field, OrderSpec):
-            return super().order_by(field)
-        return super().order_by(field, descending=descending)
-
-    @overload
-    def distinct(self, field: TextGenFieldName) -> list[object]: ...
-
-    @overload
-    def distinct(self, field: str) -> list[object]: ...
-
-    @override
-    def distinct(self, field: str) -> list[object]:
-        """Return unique values with autocomplete for text generation fields."""
-        return super().distinct(field)
-
-    @overload
-    def group_by(self, field: TextGenFieldName) -> dict[Hashable, list[TextGenerationModelRecord]]: ...
-
-    @overload
-    def group_by(self, field: str) -> dict[Hashable, list[TextGenerationModelRecord]]: ...
-
-    @override
-    def group_by(self, field: str) -> dict[Hashable, list[TextGenerationModelRecord]]:
-        """Group records with autocomplete for text generation fields."""
-        return super().group_by(field)
 
     # ------------------------------------------------------------------
     # Backend prefix filters
@@ -762,6 +686,40 @@ class TextModelQuery(ModelQuery[TextGenerationModelRecord]):
 
 
 # ---------------------------------------------------------------------------
+# ControlNet query builder
+# ---------------------------------------------------------------------------
+
+
+class ControlNetQuery(ModelQuery[GenericModelRecord, ControlNetFieldName]):
+    """Query builder for ControlNet models.
+
+    Adds typed convenience methods for filtering by ControlNet style and grouping by
+    it.  Every fluent method returns ``Self`` so the full chain stays type-safe.
+    """
+
+    def for_style(self, style: str) -> Self:
+        """Keep only ControlNet models with the given *style*."""
+
+        def _pred(record: GenericModelRecord) -> bool:
+            return getattr(record, "controlnet_style", None) == style
+
+        return self._clone(predicates=[*self._predicates, _pred])
+
+    def group_by_style(self) -> dict[str, list[GenericModelRecord]]:
+        """Group matching records by their ControlNet style.
+
+        Returns:
+            A dict mapping each style to the list of matching records.
+        """
+        groups: dict[str, list[GenericModelRecord]] = {}
+        for record in self._execute():
+            style = getattr(record, "controlnet_style", None)
+            if style is not None:
+                groups.setdefault(style, []).append(record)
+        return groups
+
+
+# ---------------------------------------------------------------------------
 # Factory functions
 # ---------------------------------------------------------------------------
 
@@ -769,7 +727,7 @@ class TextModelQuery(ModelQuery[TextGenerationModelRecord]):
 def build_query[T: GenericModelRecord](
     records: dict[str, T],
     record_type: type[T],
-) -> ModelQuery[T]:
+) -> ModelQuery[T, str]:
     """Create a ``ModelQuery`` from a name-to-record mapping.
 
     Args:
@@ -821,9 +779,27 @@ def build_text_query(
     )
 
 
+def build_controlnet_query(
+    records: dict[str, ControlNetModelRecord],
+) -> ControlNetQuery:
+    """Create a ``ControlNetQuery`` from a name-to-record mapping.
+
+    Args:
+        records: The mapping returned by ``ModelReferenceManager.get_model_reference()``
+            for the ``controlnet`` category.
+
+    Returns:
+        A fresh ``ControlNetQuery`` ready for chaining.
+    """
+    return ControlNetQuery(
+        records=list(records.values()),
+        record_type=ControlNetModelRecord,
+    )
+
+
 def build_cross_category_query(
     all_references: dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]],
-) -> ModelQuery[GenericModelRecord]:
+) -> ModelQuery[GenericModelRecord, str]:
     """Create a ``ModelQuery`` spanning all categories.
 
     Args:

@@ -37,9 +37,15 @@ from horde_model_reference.model_reference_records import (
     VideoGenerationModelRecord,
 )
 from horde_model_reference.query import (
+    ControlNetFieldName,
+    ControlNetQuery,
+    GenericFieldName,
     ImageGenerationQuery,
+    ImageGenFieldName,
     ModelQuery,
+    TextGenFieldName,
     TextModelQuery,
+    build_controlnet_query,
     build_cross_category_query,
     build_image_query,
     build_query,
@@ -419,7 +425,8 @@ class ModelReferenceManager:
         if not horde_model_reference_settings.pending_queue.enabled:
             return None
 
-        from horde_model_reference.pending_queue.service import PendingQueueService, PendingQueueStore
+        from horde_model_reference.pending_queue.service import PendingQueueService
+        from horde_model_reference.pending_queue.store import PendingQueueStore
 
         store = PendingQueueStore(root_path=horde_model_reference_paths.pending_queue_path)
         return PendingQueueService(store=store, audit_writer=audit_writer)
@@ -1228,12 +1235,17 @@ class ModelReferenceManager:
     def query(self, category: Literal["text_generation"]) -> TextModelQuery: ...
 
     @overload
-    def query(self, category: MODEL_REFERENCE_CATEGORY | str) -> ModelQuery[GenericModelRecord]: ...
+    def query(self, category: Literal["controlnet"]) -> ControlNetQuery: ...
 
     def query(
         self,
         category: MODEL_REFERENCE_CATEGORY | str,
-    ) -> ImageGenerationQuery | TextModelQuery | ModelQuery[GenericModelRecord]:
+    ) -> (
+        ImageGenerationQuery
+        | TextModelQuery
+        | ControlNetQuery
+        | ModelQuery[GenericModelRecord, GenericFieldName | ImageGenFieldName | TextGenFieldName | ControlNetFieldName]
+    ):
         """Return a query builder for a single category.
 
         When called with a literal category string, the return type is
@@ -1253,12 +1265,16 @@ class ModelReferenceManager:
             return self.query_image_generation()
         if category == MODEL_REFERENCE_CATEGORY.text_generation:
             return self.query_text_generation()
+        if category == MODEL_REFERENCE_CATEGORY.controlnet:
+            return self.query_controlnet()
 
         records = self.get_model_reference(category)
         record_type = MODEL_RECORD_TYPE_LOOKUP.get(category, GenericModelRecord)
         return build_query(records, record_type)
 
-    def query_all(self) -> ModelQuery[GenericModelRecord]:
+    def query_all(
+        self,
+    ) -> ModelQuery[GenericModelRecord, GenericFieldName | ImageGenFieldName | TextGenFieldName | ControlNetFieldName]:
         """Return a query builder spanning all categories.
 
         Returns:
@@ -1283,13 +1299,85 @@ class ModelReferenceManager:
         )
         return build_text_query(records)
 
-    def query_controlnet(self) -> ModelQuery[ControlNetModelRecord]:
+    def query_controlnet(self) -> ControlNetQuery:
         """Return a typed query builder for ControlNet models."""
         records = self._get_typed_models(
             MODEL_REFERENCE_CATEGORY.controlnet,
             record_type=ControlNetModelRecord,
         )
-        return build_query(records, ControlNetModelRecord)
+        return build_controlnet_query(records)
+
+    def query_blip(self) -> ModelQuery[BlipModelRecord, GenericFieldName]:
+        """Return a typed query builder for BLIP models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.blip,
+            record_type=BlipModelRecord,
+        )
+        return build_query(records, BlipModelRecord)
+
+    def query_clip(self) -> ModelQuery[ClipModelRecord, GenericFieldName]:
+        """Return a typed query builder for CLIP models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.clip,
+            record_type=ClipModelRecord,
+        )
+        return build_query(records, ClipModelRecord)
+
+    def query_codeformer(self) -> ModelQuery[CodeformerModelRecord, GenericFieldName]:
+        """Return a typed query builder for CodeFormer models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.codeformer,
+            record_type=CodeformerModelRecord,
+        )
+        return build_query(records, CodeformerModelRecord)
+
+    def query_esrgan(self) -> ModelQuery[EsrganModelRecord, GenericFieldName]:
+        """Return a typed query builder for ESRGAN models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.esrgan,
+            record_type=EsrganModelRecord,
+        )
+        return build_query(records, EsrganModelRecord)
+
+    def query_gfpgan(self) -> ModelQuery[GfpganModelRecord, GenericFieldName]:
+        """Return a typed query builder for GFPGAN models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.gfpgan,
+            record_type=GfpganModelRecord,
+        )
+        return build_query(records, GfpganModelRecord)
+
+    def query_safety_checker(self) -> ModelQuery[SafetyCheckerModelRecord, GenericFieldName]:
+        """Return a typed query builder for safety checker models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.safety_checker,
+            record_type=SafetyCheckerModelRecord,
+        )
+        return build_query(records, SafetyCheckerModelRecord)
+
+    def query_audio_generation(self) -> ModelQuery[AudioGenerationModelRecord, GenericFieldName]:
+        """Return a typed query builder for audio generation models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.audio_generation,
+            record_type=AudioGenerationModelRecord,
+        )
+        return build_query(records, AudioGenerationModelRecord)
+
+    def query_video_generation(self) -> ModelQuery[VideoGenerationModelRecord, GenericFieldName]:
+        """Return a typed query builder for video generation models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.video_generation,
+            record_type=VideoGenerationModelRecord,
+        )
+        return build_query(records, VideoGenerationModelRecord)
+
+    def query_miscellaneous(self) -> ModelQuery[MiscellaneousModelRecord, GenericFieldName]:
+        """Return a typed query builder for miscellaneous models."""
+        records = self._get_typed_models(
+            MODEL_REFERENCE_CATEGORY.miscellaneous,
+            record_type=MiscellaneousModelRecord,
+        )
+        return build_query(records, MiscellaneousModelRecord)
 
 
 class DeferredPrefetchHandle(Awaitable[None]):
