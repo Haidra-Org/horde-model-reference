@@ -28,8 +28,8 @@ from horde_model_reference.query import (
     build_text_query,
 )
 from horde_model_reference.query_fields import (
-    ImageF,
-    TextF,
+    ImageFields,
+    TextFields,
     false,
     true,
 )
@@ -1072,72 +1072,72 @@ class TestFieldRefPredicates:
     def test_eq_predicate(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test FieldRef == value produces a working Predicate."""
         q = build_image_query(image_models)
-        results = q.where(ImageF.nsfw == false).to_list()
+        results = q.where(ImageFields.nsfw == false).to_list()
         assert len(results) == 4
         assert all(not m.nsfw for m in results)
 
     def test_ne_predicate(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
         """Test FieldRef != value."""
         q = build_text_query(text_models)
-        results = q.where(TextF.nsfw != true).to_list()
+        results = q.where(TextFields.nsfw != true).to_list()
         assert len(results) == 3
 
     def test_lt_predicate(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
         """Test FieldRef < value."""
         q = build_text_query(text_models)
-        results = q.where(TextF.parameters_count < 10_000_000_000).to_list()
+        results = q.where(TextFields.parameters_count < 10_000_000_000).to_list()
         names = {m.name for m in results}
         assert names == {"SmallModel", "MediumModel"}
 
     def test_gt_predicate(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
         """Test FieldRef > value."""
         q = build_text_query(text_models)
-        results = q.where(TextF.parameters_count > 13_000_000_000).to_list()
+        results = q.where(TextFields.parameters_count > 13_000_000_000).to_list()
         assert len(results) == 1
         assert results[0].name == "HugeModel"
 
     def test_le_predicate(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
         """Test FieldRef <= value."""
         q = build_text_query(text_models)
-        results = q.where(TextF.parameters_count <= 7_000_000_000).to_list()
+        results = q.where(TextFields.parameters_count <= 7_000_000_000).to_list()
         assert len(results) == 2
 
     def test_ge_predicate(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
         """Test FieldRef >= value."""
         q = build_text_query(text_models)
-        results = q.where(TextF.parameters_count >= 13_000_000_000).to_list()
+        results = q.where(TextFields.parameters_count >= 13_000_000_000).to_list()
         assert len(results) == 2
 
     def test_is_in_predicate(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test FieldRef.is_in()."""
         q = build_image_query(image_models)
-        results = q.where(ImageF.name.is_in(["ModelA", "ModelC"])).to_list()
+        results = q.where(ImageFields.name.is_in(["ModelA", "ModelC"])).to_list()
         assert len(results) == 2
 
     def test_contains_predicate(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test FieldRef.contains() on a list field."""
         q = build_image_query(image_models)
-        results = q.where(ImageF.tags.contains("anime")).to_list()
+        results = q.where(ImageFields.tags.contains("anime")).to_list()
         names = {m.name for m in results}
         assert names == {"ModelB", "ModelD"}
 
     def test_is_none_predicate(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test FieldRef.is_none()."""
         q = build_image_query(image_models)
-        results = q.where(ImageF.size_on_disk_bytes.is_none()).to_list()
+        results = q.where(ImageFields.size_on_disk_bytes.is_none()).to_list()
         assert len(results) == 1
         assert results[0].name == "ModelE"
 
     def test_is_not_none_predicate(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test FieldRef.is_not_none()."""
         q = build_image_query(image_models)
-        results = q.where(ImageF.size_on_disk_bytes.is_not_none()).to_list()
+        results = q.where(ImageFields.size_on_disk_bytes.is_not_none()).to_list()
         assert len(results) == 4
 
     def test_none_skipped_in_lt(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test that None values are excluded from < comparisons."""
         q = build_image_query(image_models)
-        results = q.where(ImageF.size_on_disk_bytes < 5_000_000_000).to_list()
+        results = q.where(ImageFields.size_on_disk_bytes < 5_000_000_000).to_list()
         assert "ModelE" not in {m.name for m in results}
 
 
@@ -1147,7 +1147,7 @@ class TestPredicateComposition:
     def test_and_composition(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test (pred1 & pred2) filters by both conditions."""
         q = build_image_query(image_models)
-        pred = (ImageF.nsfw == false) & (ImageF.inpainting == true)
+        pred = (ImageFields.nsfw == false) & (ImageFields.inpainting == true)
         results = q.where(pred).to_list()
         assert len(results) == 1
         assert results[0].name == "ModelD"
@@ -1155,7 +1155,7 @@ class TestPredicateComposition:
     def test_or_composition(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test (pred1 | pred2) filters by either condition."""
         q = build_image_query(image_models)
-        pred = (ImageF.nsfw == true) | (ImageF.inpainting == true)
+        pred = (ImageFields.nsfw == true) | (ImageFields.inpainting == true)
         results = q.where(pred).to_list()
         names = {m.name for m in results}
         assert names == {"ModelB", "ModelD"}
@@ -1163,14 +1163,14 @@ class TestPredicateComposition:
     def test_invert_composition(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test ~pred inverts the condition."""
         q = build_image_query(image_models)
-        pred = ~(ImageF.nsfw == true)
+        pred = ~(ImageFields.nsfw == true)
         results = q.where(pred).to_list()
         assert len(results) == 4
 
     def test_mixed_predicate_and_kwargs(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test mixing Predicate positional args with keyword args in where()."""
         q = build_image_query(image_models)
-        results = q.where(ImageF.nsfw == false, inpainting=True).to_list()
+        results = q.where(ImageFields.nsfw == false, inpainting=True).to_list()
         assert len(results) == 1
         assert results[0].name == "ModelD"
 
@@ -1181,21 +1181,25 @@ class TestOrderSpec:
     def test_asc_order_spec(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
         """Test FieldRef.asc() with order_by()."""
         q = build_text_query(text_models)
-        results = q.order_by(TextF.parameters_count.asc()).to_list()
+        results = q.order_by(TextFields.parameters_count.asc()).to_list()
         params = [m.parameters_count for m in results]
         assert params == sorted(params)
 
     def test_desc_order_spec(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
         """Test FieldRef.desc() with order_by()."""
         q = build_text_query(text_models)
-        results = q.order_by(TextF.parameters_count.desc()).to_list()
+        results = q.order_by(TextFields.parameters_count.desc()).to_list()
         params = [m.parameters_count for m in results]
         assert params == sorted(params, reverse=True)
 
     def test_order_spec_on_image_query(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test OrderSpec on ImageGenerationQuery."""
         q = build_image_query(image_models)
-        results = q.where(ImageF.size_on_disk_bytes.is_not_none()).order_by(ImageF.size_on_disk_bytes.asc()).to_list()
+        results = (
+            q.where(ImageFields.size_on_disk_bytes.is_not_none())
+            .order_by(ImageFields.size_on_disk_bytes.asc())
+            .to_list()
+        )
         sizes = [m.size_on_disk_bytes for m in results]
         assert sizes == sorted(s for s in sizes if s is not None)
 
@@ -1208,11 +1212,11 @@ class TestFieldDSLComplexQueries:
         results = (
             build_image_query(image_models)
             .where(
-                ImageF.baseline == KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl,
-                ImageF.nsfw == false,
-                ImageF.size_on_disk_bytes < 5_000_000_000,
+                ImageFields.baseline == KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl,
+                ImageFields.nsfw == false,
+                ImageFields.size_on_disk_bytes < 5_000_000_000,
             )
-            .order_by(ImageF.size_on_disk_bytes.asc())
+            .order_by(ImageFields.size_on_disk_bytes.asc())
             .to_list()
         )
         assert len(results) == 1
@@ -1223,9 +1227,9 @@ class TestFieldDSLComplexQueries:
         results = (
             build_text_query(text_models)
             .where(
-                TextF.parameters_count >= 7_000_000_000,
-                TextF.parameters_count <= 13_000_000_000,
-                TextF.nsfw == false,
+                TextFields.parameters_count >= 7_000_000_000,
+                TextFields.parameters_count <= 13_000_000_000,
+                TextFields.nsfw == false,
             )
             .tags_any(["instruct"])
             .to_list()
