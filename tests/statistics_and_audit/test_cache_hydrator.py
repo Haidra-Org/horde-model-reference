@@ -300,7 +300,7 @@ class TestCacheHydratorHydrationLoop:
                 if call_count == 1:
                     raise RuntimeError("Test error")
 
-            hydrator._hydrate_all_caches = failing_hydrate  # type: ignore[method-assign]
+            hydrator._hydrate_all_caches = failing_hydrate  # type: ignore
 
             await hydrator.start()
 
