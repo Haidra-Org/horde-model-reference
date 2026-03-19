@@ -384,7 +384,7 @@ class TestCacheAndStaleness:
             fetch_called["count"] += 1
             return original_fetch(force_refresh=force_refresh)
 
-        backend.fetch_all_categories = tracking_fetch  # type: ignore[method-assign]
+        backend.fetch_all_categories = tracking_fetch  # type: ignore
 
         _manager = ModelReferenceManager(
             backend=backend,
@@ -410,7 +410,7 @@ class TestCacheAndStaleness:
             fetch_called["count"] += 1
             return original_fetch(force_refresh=force_refresh)
 
-        backend.fetch_all_categories = tracking_fetch  # type: ignore[method-assign]
+        backend.fetch_all_categories = tracking_fetch  # type: ignore
 
         manager = ModelReferenceManager(
             backend=backend,
@@ -495,7 +495,7 @@ class TestTypedModelAccessors:
             fetch_called["count"] += 1
             return original_fetch(force_refresh=force_refresh)
 
-        backend.fetch_all_categories = tracking_fetch  # type: ignore[method-assign]
+        backend.fetch_all_categories = tracking_fetch  # type: ignore
 
         manager = ModelReferenceManager(
             backend=backend,
@@ -542,7 +542,7 @@ class TestTypedModelAccessors:
             fetch_called["count"] += 1
             return original_fetch(force_refresh=force_refresh)
 
-        backend.fetch_all_categories = tracking_fetch  # type: ignore[method-assign]
+        backend.fetch_all_categories = tracking_fetch  # type: ignore
 
         manager = ModelReferenceManager(
             backend=backend,
@@ -625,7 +625,7 @@ class TestAsyncErgonomics:
             fetch_called["count"] += 1
             return original_fetch(force_refresh=force_refresh)
 
-        backend.fetch_all_categories = tracking_fetch  # type: ignore[method-assign]
+        backend.fetch_all_categories = tracking_fetch  # type: ignore
 
         manager = ModelReferenceManager(
             backend=backend,

@@ -51,7 +51,7 @@ def setup_model_reference_files(tmp_path_factory: pytest.TempPathFactory) -> Gen
 
         # Override the dependency to use our test manager
         from horde_model_reference.service.app import app
-        from horde_model_reference.service.statistics.routers.audit import get_model_reference_manager
+        from horde_model_reference.service.shared import get_model_reference_manager
 
         app.dependency_overrides[get_model_reference_manager] = lambda: manager
 
@@ -60,7 +60,7 @@ def setup_model_reference_files(tmp_path_factory: pytest.TempPathFactory) -> Gen
     finally:
         # Cleanup: remove the override
         from horde_model_reference.service.app import app
-        from horde_model_reference.service.statistics.routers.audit import get_model_reference_manager
+        from horde_model_reference.service.shared import get_model_reference_manager
 
         app.dependency_overrides.pop(get_model_reference_manager, None)
 

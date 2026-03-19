@@ -19,11 +19,9 @@ from horde_model_reference.pending_queue.models import PendingChangeStatus
 from horde_model_reference.service.shared import (
     PathVariables,
     RouteNames,
+    get_model_reference_manager,
     route_registry,
     v2_prefix,
-)
-from horde_model_reference.service.v2.routers.references import (
-    get_model_reference_manager,
 )
 from tests.helpers import ALL_MODEL_CATEGORIES
 
@@ -407,6 +405,7 @@ class TestUpdateModel:
         model_name = "invalid_update"
         model_data = {
             "name": model_name,
+            "random_field": "invalid_value",
         }
 
         response = api_client.put(

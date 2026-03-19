@@ -14,7 +14,7 @@ from horde_model_reference.analytics.base_cache import RedisCache
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
-class AuditCache(RedisCache["CategoryAuditResponse"]):
+class AuditCache(RedisCache[CategoryAuditResponse]):
     """Singleton cache for category audit results.
 
     Integrates with existing backend invalidation system to automatically
@@ -23,6 +23,8 @@ class AuditCache(RedisCache["CategoryAuditResponse"]):
 
     Inherits from RedisCache[CategoryAuditResponse] for common caching infrastructure.
     """
+
+    _instance: AuditCache[CategoryAuditResponse] | None = None
 
     def _get_cache_key_prefix(self) -> str:
         """Get the Redis key prefix for audit cache.

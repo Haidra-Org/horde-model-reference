@@ -987,7 +987,7 @@ class TestMetadataFileIO:
         metadata_manager = MetadataManager(primary_base)
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
 
-        fsync_called = []
+        fsync_called: list[int] = []
 
         original_fsync = os.fsync
 
