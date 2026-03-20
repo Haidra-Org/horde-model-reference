@@ -62,8 +62,9 @@ For more context on AI-Horde concepts (workers, kudos, jobs, etc.), see the [AI-
 - 🗃️ **Multiple Categories**: Image generation, text generation, CLIP, ControlNet, ESRGAN, GFPGAN, and more
 - 🌐 **REST API**: FastAPI service with OpenAPI documentation
 - 📦 **Legacy Compatibility**: Automatic conversion from legacy GitHub format to new standardized format
-- 🔒 **Type-Safe**: `ty` type checking with Pydantic models
-- 🐳 **Docker Ready**: Pre-built Docker images and docker-compose configurations
+- 🔒 **Type-Safe**: Strict type checking with Pydantic models
+- 🔍 **Fluent Query API**: Filter, sort, and aggregate models with a chainable, type-safe query builder
+- 🐳 **Docker Ready**: Docker and docker-compose configurations for deployment
 
 ## Quick Start
 
@@ -94,7 +95,19 @@ if "stable_diffusion_xl" in image_models:
     model = image_models["stable_diffusion_xl"]
     print(f"Baseline: {model.baseline}")
     print(f"NSFW: {model.nsfw}")
+
+# Query API: filter and sort with a fluent builder
+from horde_model_reference import ImageFields, false
+sfw_xl = (
+    manager.query_image_generation()
+    .where(ImageFields.nsfw == false, ImageFields.baseline == "stable_diffusion_xl")
+    .order_by("name")
+    .to_list()
+)
+print(f"Found {len(sfw_xl)} SFW SDXL models")
 ```
+
+See [Querying Models](docs/tutorials/querying_models.md) for the full query API reference.
 
 ### Use Case 2: Direct JSON Access
 
@@ -248,6 +261,45 @@ worker_models = {
 print(f"Worker can serve {len(worker_models)} models")
 ```
 
+### Querying Models
+
+The fluent query API lets you filter, sort, and aggregate models without manual dict comprehensions:
+
+```python
+from horde_model_reference import ModelReferenceManager, ImageFields, TextFields, false
+
+manager = ModelReferenceManager()
+
+# Find SFW SDXL models sorted by name
+sfw_sdxl = (
+    manager.query_image_generation()
+    .exclude_nsfw()
+    .for_baseline("stable_diffusion_xl")
+    .order_by("name")
+    .to_list()
+)
+
+# Text models with 7B+ parameters
+big_llms = (
+    manager.query_text_generation()
+    .where(TextFields.parameters_count > 7_000_000_000)
+    .to_list()
+)
+
+# Group text models by base model
+groups = manager.query_text_generation().group_by_base_model()
+for base, variants in groups.items():
+    print(f"{base}: {len(variants)} variants")
+
+# Cross-category search
+total = manager.query_all().count()
+print(f"Total models across all categories: {total}")
+```
+
+Field references (`ImageFields`, `TextFields`, etc.) provide IDE autocomplete and support comparison operators (`==`, `!=`, `<`, `>`, etc.), boolean composition (`&`, `|`, `~`), and ordering (`.asc()`, `.desc()`).
+
+For the full query API, see the [Querying Models tutorial](docs/tutorials/querying_models.md).
+
 ### Accessing via REST API
 
 If you're running the FastAPI service:
@@ -270,18 +322,37 @@ print(f"Description: {model['description']}")
 
 ## Documentation
 
-- **📖 Full Documentation**: [MkDocs Site](https://horde-model-reference.readthedocs.io/en/latest/)
-- **🚀 Deployment Guide**: [DEPLOYMENT.md](DEPLOYMENT.md)
-- **🔄 GitHub Sync (Docker)**: [DOCKER_SYNC.md](DOCKER_SYNC.md) - Optional automated sync to legacy repos
-- **📝 Legacy CSV Conversion**: [docs/legacy_csv_conversion.md](docs/legacy_csv_conversion.md) - Text generation CSV format details
-- **🔧 API Reference**: Run service and visit `http://localhost:19800/docs` for interactive Swagger UI
-- **🤝 Contributing**: [.CONTRIBUTING.md](.CONTRIBUTING.md)
-- **🗂️ Project Structure**:
-    - `src/horde_model_reference/` - Core library
-    - `src/horde_model_reference/service/` - FastAPI service
-    - `src/horde_model_reference/backends/` - Backend implementations
-    - `src/horde_model_reference/legacy/` - Legacy conversion tools
-    - `tests/` - Test suite
+### Getting Started
+
+- [Getting Started](docs/tutorials/getting_started.md) -- Installation, first query, singleton pattern, prefetch strategies
+- [Querying Models](docs/tutorials/querying_models.md) -- Fluent query API, filtering, sorting, aggregation
+- [Working with Records](docs/tutorials/working_with_records.md) -- Record types, fields, serialization
+- [Configuration & Troubleshooting](docs/tutorials/configuration_and_troubleshooting.md) -- Env vars, debugging, common issues
+
+### Deployment & Operations
+
+- [Deployment Guide](DEPLOYMENT.md) -- Docker and non-Docker deployment
+- [GitHub Sync (Docker)](DOCKER_SYNC.md) -- Optional automated sync to legacy repos
+- [Primary Deployments](docs/primary_deployments.md) -- Backend selection, Redis, multi-worker setup
+- [Canonical Format](docs/canonical_format.md) -- API versioning and format settings
+
+### Architecture Reference
+
+- [Model Reference Backend](docs/model_reference_backend.md) -- Backend ABC and implementations
+- [Model Reference Records](docs/model_reference_records.md) -- Record hierarchy and validation
+- [Replica Backend Base](docs/replica_backend_base.md) -- TTL caching and staleness tracking
+- [Design Decisions](docs/design_decisions.md) -- Trade-offs and known limitations
+
+### Operations
+
+- [Pending Queue](docs/pending_queue.md) -- Write approval workflow
+- [Audit Trail](docs/audit_trail.md) -- Operation logging and replay
+
+### Other
+
+- [API Reference](http://localhost:19800/docs) -- Run service and visit for interactive Swagger UI
+- [Legacy CSV Conversion](docs/legacy_csv_conversion.md) -- Text generation CSV format details
+- [Contributing](.CONTRIBUTING.md) -- Development setup and guidelines
 
 ## Contributing
 

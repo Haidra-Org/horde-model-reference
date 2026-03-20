@@ -1,0 +1,6 @@
+nav:
+  - index.md
+  - Getting Started: tutorials
+  - Concepts: concepts
+  - Reference: reference
+  - Code Reference: horde_model_reference

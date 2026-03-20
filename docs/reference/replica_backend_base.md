@@ -28,6 +28,40 @@
 
 The caching infrastructure helps you implement these methods efficiently.
 
+### Audit Trail Responsibilities
+
+`ReplicaBackendBase` focuses on read caching and does **not** store an `AuditTrailWriter` or implement write helpers. The guidance below applies to PRIMARY-mode backends that override the write methods defined in `ModelReferenceBackend` (for example, `FileSystemBackend`). When such a backend is instantiated, the `ModelReferenceManager` supplies an `AuditTrailWriter`, and the abstract methods `update_model()` and `delete_model()` expose keyword-only `logical_user_id` and `request_id` parameters so callers (e.g., the pending queue apply helpers) can propagate immutable user identity and per-apply job identifiers. Custom PRIMARY backends must:
+
+- Accept these keyword arguments and forward them through any wrappers (for example, `RedisBackend` delegates to `FileSystemBackend` while preserving the context).
+- Emit audit events via `AuditTrailWriter.append_event()` whenever a V2 or legacy write succeeds. Use the correct `AuditDomain` (`AuditDomain.V2` for canonical writes, `AuditDomain.LEGACY` for legacy format), and build payloads using `AuditPayload.from_create`, `AuditPayload.from_update`, or `AuditPayload.from_delete` depending on the operation.
+- Treat audit emission as best-effort logging: wrap calls in `try/except` so an audit failure cannot break the CRUD operation. See `FileSystemBackend._append_v2_audit_event()` and `_append_legacy_audit_event()` for reference implementations.
+
+```python
+def update_model(
+    self,
+    category: MODEL_REFERENCE_CATEGORY,
+    model_name: str,
+    record_dict: dict[str, Any],
+    *,
+    logical_user_id: str | None = None,
+    request_id: str | None = None,
+) -> None:
+    # ...persist record_dict...
+    if logical_user_id:
+        payload = AuditPayload.from_create(record_dict)
+        self._audit_writer.append_event(
+            domain=AuditDomain.V2,
+            category=category.value,
+            model_name=model_name,
+            operation=AuditOperation.CREATE,
+            logical_user_id=logical_user_id,
+            request_id=request_id,
+            payload=payload,
+        )
+```
+
+Following this pattern keeps audit parity between legacy CRUD APIs and the V2 pending-queue apply path while acknowledging that `ReplicaBackendBase` will not emit audit events automatically.
+
 ## Implementation Patterns for Abstract Methods
 
 These patterns show how to implement the required abstract methods from `ModelReferenceBackend` using the caching infrastructure provided by `ReplicaBackendBase`.
@@ -90,6 +124,8 @@ def fetch_category(
             file_path = self._get_file_path(category)
 
             if not file_path or not file_path.exists():
+                # Storing None records "checked but missing"; ReplicaBackendBase keeps this
+                # as a cache miss so follow-up calls still attempt to load the file.
                 self._store_in_cache(category, None)
                 return None
 
@@ -288,6 +324,34 @@ Automatically handles:
 - Clearing staleness flags
 - Updating file mtime tracking (via `_get_file_path_for_validation()` hook)
 
+⚠️ **Important:** Passing `None` intentionally keeps the category in a "cache miss" state. This records that
+the backend already checked the source but no data exists yet, prompting `should_fetch_data()` to continue
+returning `True` so future calls keep retrying. Use this when a missing file or empty dataset should trigger
+retries without manual stale markers.
+
+### `_fetch_with_cache(category, fetch_fn, *, force_refresh=False)` ⭐ **Fetch Helper**
+
+Use `_fetch_with_cache()` when your backend follows the simple pattern of "return cache unless force refresh,
+otherwise fetch and store". Provide a callable that contains the backend-specific fetch logic; the helper will
+run it on cache miss, store the result (even when `None`), and return the value.
+
+```python
+def fetch_category(
+    self,
+    category: MODEL_REFERENCE_CATEGORY,
+    *,
+    force_refresh: bool = False,
+) -> dict[str, Any] | None:
+    return self._fetch_with_cache(
+        category,
+        lambda: self._fetch_from_primary(category),
+        force_refresh=force_refresh,
+    )
+```
+
+Prefer the explicit patterns earlier in the document when you need additional coordination (locks, downloads,
+error handling) around the fetch process; otherwise `_fetch_with_cache()` keeps implementations concise.
+
 ### `mark_stale(category)` - Concrete Implementation
 
 Public API provided by `ReplicaBackendBase` that implements the abstract method from `ModelReferenceBackend`. Invalidates cached data and can be called externally.
@@ -405,6 +469,8 @@ backend = GitHubBackend(cache_ttl_seconds=None)
 3. If expired, `should_fetch_data()` returns True
 4. Re-fetching updates the timestamp, resetting the TTL
 
+Need to tweak TTLs dynamically (for example, during tests)? Call the protected helper `_set_cache_ttl_seconds(new_value)` on your backend instance.
+
 ## File Mtime Validation
 
 The base class automatically tracks file modification times when you override the validation hooks. This enables cache invalidation when files change externally.
@@ -460,7 +526,7 @@ self._store_legacy_in_cache(category, data, content_str)
 
 Checks if legacy cache is valid, using the same validation logic as the primary cache (TTL, mtime, staleness).
 
-These methods operate independently from the primary cache system, allowing backends to maintain both legacy and converted formats simultaneously.
+These methods operate independently from the primary cache system, allowing backends to maintain both legacy and converted formats simultaneously. Custom validation hooks currently exist only for the converted cache (`_additional_cache_validation`), so legacy cache validation is limited to TTL, mtime, and explicit staleness markers.
 
 ## Thread Safety
 
