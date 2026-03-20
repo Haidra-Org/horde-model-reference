@@ -52,7 +52,6 @@ class RedisCache[T: BaseModel](ABC):
     _timestamps: dict[str, float]
     _redis_client: redis.Redis[bytes] | None
     _redis_key_prefix: str
-    _ttl: int
 
     def __new__(cls) -> RedisCache[T]:
         """Singleton pattern matching ModelReferenceManager."""
@@ -68,9 +67,8 @@ class RedisCache[T: BaseModel](ABC):
         self._timestamps = {}
         self._redis_client = None
         self._redis_key_prefix = self._get_cache_key_prefix()
-        self._ttl = self._get_ttl()
 
-        logger.debug(f"Initializing {self.__class__.__name__} with TTL={self._ttl}s")
+        logger.debug(f"Initializing {self.__class__.__name__} with TTL={self._get_ttl()}s")
 
         # Try to connect to Redis if configured
         if horde_model_reference_settings.redis.use_redis:
@@ -214,8 +212,10 @@ class RedisCache[T: BaseModel](ABC):
             if cache_key in self._cache:
                 age = time.time() - self._timestamps.get(cache_key, 0)
 
+                ttl = self._get_ttl()
+
                 # Fresh data - always return
-                if age < self._ttl:
+                if age < ttl:
                     logger.debug(f"{self.__class__.__name__} cache hit (memory): {cache_key}")
                     return self._cache[cache_key]
 
@@ -223,7 +223,7 @@ class RedisCache[T: BaseModel](ABC):
                 if effective_allow_stale and age < stale_ttl:
                     logger.debug(
                         f"{self.__class__.__name__} returning stale data (memory): {cache_key}, "
-                        f"age={age:.1f}s (TTL={self._ttl}s, stale_ttl={stale_ttl}s)"
+                        f"age={age:.1f}s (TTL={ttl}s, stale_ttl={stale_ttl}s)"
                     )
                     return self._cache[cache_key]
 
@@ -272,7 +272,7 @@ class RedisCache[T: BaseModel](ABC):
         with self._lock:
             if cache_key in self._cache:
                 age = time.time() - self._timestamps.get(cache_key, 0)
-                return age < self._ttl
+                return age < self._get_ttl()
 
         return False
 
@@ -300,7 +300,7 @@ class RedisCache[T: BaseModel](ABC):
             try:
                 redis_key = self._get_redis_key(cache_key)
                 serialized = result.model_dump_json()
-                self._redis_client.setex(redis_key, self._ttl, serialized)
+                self._redis_client.setex(redis_key, self._get_ttl(), serialized)
                 logger.debug(f"Stored in Redis: {cache_key}")
             except Exception as e:
                 logger.warning(f"Failed to store in Redis for {cache_key}: {e}")
@@ -390,6 +390,6 @@ class RedisCache[T: BaseModel](ABC):
             return {
                 "cache_size": len(self._cache),
                 "redis_enabled": self._redis_client is not None,
-                "ttl_seconds": self._ttl,
+                "ttl_seconds": self._get_ttl(),
                 "keys_cached": list(self._cache.keys()),
             }
