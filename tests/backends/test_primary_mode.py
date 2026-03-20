@@ -183,7 +183,7 @@ def test_manager_detects_external_file_update(
 
     monkeypatch.setattr(manager.backend, "mark_stale", tracking_mark_stale)
 
-    first_refs = manager.get_all_model_references_unsafe()
+    first_refs = manager.get_all_model_references_or_none()
     assert category in first_refs and first_refs[category] is not None
     first_category_refs = first_refs[category]
     assert first_category_refs is not None
@@ -195,7 +195,7 @@ def test_manager_detects_external_file_update(
     stat_before = file_path.stat()
     os.utime(file_path, (stat_before.st_atime, stat_before.st_mtime + 5))
 
-    refreshed_refs = manager.get_all_model_references_unsafe()
+    refreshed_refs = manager.get_all_model_references_or_none()
 
     assert category in marks
     assert refreshed_refs[category] is not None
@@ -331,7 +331,7 @@ def test_manager_cache_invalidated_on_update(
         replicate_mode=ReplicateMode.PRIMARY,
     )
 
-    initial_refs = manager.get_all_model_references_unsafe()
+    initial_refs = manager.get_all_model_references_or_none()
     assert category in initial_refs
     initial_refs_record = initial_refs[category]
     assert initial_refs_record is not None
@@ -350,7 +350,7 @@ def test_manager_cache_invalidated_on_update(
 
     manager.backend.update_model_from_base_model(category, "test_model", updated_record)
 
-    refreshed_refs = manager.get_all_model_references_unsafe()
+    refreshed_refs = manager.get_all_model_references_or_none()
     refreshed_refs_record = refreshed_refs[category]
     assert refreshed_refs_record is not None
     assert "test_model" in refreshed_refs_record
@@ -380,7 +380,7 @@ def test_manager_cache_invalidated_on_delete(
         replicate_mode=ReplicateMode.PRIMARY,
     )
 
-    initial_refs = manager.get_all_model_references_unsafe()
+    initial_refs = manager.get_all_model_references_or_none()
     assert category in initial_refs
 
     initial_refs_record = initial_refs[category]
@@ -391,7 +391,7 @@ def test_manager_cache_invalidated_on_delete(
 
     manager.backend.delete_model(category, "model1")
 
-    refreshed_refs = manager.get_all_model_references_unsafe()
+    refreshed_refs = manager.get_all_model_references_or_none()
 
     refreshed_refs_record = refreshed_refs[category]
     assert refreshed_refs_record is not None
@@ -420,7 +420,7 @@ def test_manager_detects_backend_invalidation(
         replicate_mode=ReplicateMode.PRIMARY,
     )
 
-    initial_refs = manager.get_all_model_references_unsafe()
+    initial_refs = manager.get_all_model_references_or_none()
     assert category in initial_refs
     assert initial_refs[category] is not None
 
@@ -430,7 +430,7 @@ def test_manager_detects_backend_invalidation(
 
     backend.mark_stale(category)
 
-    refreshed_refs = manager.get_all_model_references_unsafe()
+    refreshed_refs = manager.get_all_model_references_or_none()
     assert category in refreshed_refs
     refreshed_refs_record = refreshed_refs[category]
     assert refreshed_refs_record is not None

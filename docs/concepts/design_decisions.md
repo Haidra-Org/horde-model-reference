@@ -10,14 +10,14 @@ This page explains user-visible design trade-offs so you know what to expect whe
 
 **What to do:** Initialize once at application startup. Retrieve the instance elsewhere with `ModelReferenceManager()` (no args) or `ModelReferenceManager.get_instance()`.
 
-## Safe vs. Unsafe Methods
+## or_none Methods
 
-Methods named `*_unsafe` return `None` on failure instead of raising. The name does not imply memory unsafety -- it means "the return type includes `None`, so you must handle that case."
+Methods named `*_or_none` return `None` on failure instead of raising it. The name means "the return type includes `None`, so you must handle that case."
 
 | Method | Returns | On failure |
-|--------|---------|------------|
+| ------ | ------- | ---------- |
 | `get_model_reference(cat)` | `dict[str, GenericModelRecord]` | Raises `RuntimeError` |
-| `get_model_reference_unsafe(cat)` | `dict[str, GenericModelRecord] \| None` | Returns `None` |
+| `get_model_reference_or_none(cat)` | `dict[str, GenericModelRecord] \| None` | Returns `None` |
 
 **Why:** Some consumers (workers) want guaranteed data and prefer exceptions. Others (dashboards) want graceful degradation. Both patterns are supported.
 

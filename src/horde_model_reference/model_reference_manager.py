@@ -89,7 +89,7 @@ class ModelReferenceManager:
         Settings on initialization (base_path, backend, prefetch_strategy, etc) are only set on the first instantiation
     (e.g. `ModelReferenceManager(base_path=...)`). Subsequent instantiations will return the same instance.
 
-    Retrieve all model references with `get_all_model_references_unsafe()`.
+    Retrieve all model references with `get_all_model_references_or_none()`.
     """
 
     backend: ModelReferenceBackend
@@ -501,7 +501,7 @@ class ModelReferenceManager:
             force_refresh: Whether to bypass backend caches while warming.
             httpx_client: Optional shared async client for HTTP backends.
         """
-        await self.get_all_model_references_unsafe_async(
+        await self.get_all_model_references_or_none_async(
             overwrite_existing=force_refresh,
             httpx_client=httpx_client,
         )
@@ -702,7 +702,7 @@ class ModelReferenceManager:
                 )
                 self._cached_records[category] = model_reference
 
-    def get_all_model_references_unsafe(
+    def get_all_model_references_or_none(
         self,
         overwrite_existing: bool = False,
         *,
@@ -779,7 +779,7 @@ class ModelReferenceManager:
         """Return a mapping of all model reference categories to their corresponding model reference objects.
 
         If a model reference file could not be found or parsed, an exception is raised. If you want to allow
-        missing model references, use `get_all_model_references_unsafe()` instead.
+        missing model references, use `get_all_model_references_or_none()` instead.
 
         Args:
             overwrite_existing: Whether to force a redownload of all model reference files.
@@ -789,10 +789,10 @@ class ModelReferenceManager:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]: A mapping of model reference
                 categories to their corresponding model reference objects.
         """
-        all_references = self.get_all_model_references_unsafe(overwrite_existing=overwrite_existing)
+        all_references = self.get_all_model_references_or_none(overwrite_existing=overwrite_existing)
         return self._build_safe_reference_view(all_references)
 
-    async def get_all_model_references_unsafe_async(
+    async def get_all_model_references_or_none_async(
         self,
         overwrite_existing: bool = False,
         *,
@@ -851,13 +851,13 @@ class ModelReferenceManager:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]: Mapping with
             empty dicts substituted for missing categories.
         """
-        all_references = await self.get_all_model_references_unsafe_async(
+        all_references = await self.get_all_model_references_or_none_async(
             overwrite_existing=overwrite_existing,
             httpx_client=httpx_client,
         )
         return self._build_safe_reference_view(all_references)
 
-    def get_model_reference_unsafe(
+    def get_model_reference_or_none(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         overwrite_existing: bool = False,
@@ -872,10 +872,10 @@ class ModelReferenceManager:
             dict[str, GenericModelRecord] | None: The model reference object for the category,
                 or None if not found.
         """
-        all_references = self.get_all_model_references_unsafe(overwrite_existing=overwrite_existing)
+        all_references = self.get_all_model_references_or_none(overwrite_existing=overwrite_existing)
         return all_references.get(category)
 
-    async def get_model_reference_unsafe_async(
+    async def get_model_reference_or_none_async(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         overwrite_existing: bool = False,
@@ -892,7 +892,7 @@ class ModelReferenceManager:
         Returns:
             dict[str, GenericModelRecord] | None: Mapping of model names or None.
         """
-        all_references = await self.get_all_model_references_unsafe_async(
+        all_references = await self.get_all_model_references_or_none_async(
             overwrite_existing=overwrite_existing,
             httpx_client=httpx_client,
         )
@@ -906,7 +906,7 @@ class ModelReferenceManager:
         """Return the model reference object for a specific category.
 
         Raises an exception if the model reference could not be found or parsed.
-        If you want to allow missing model references, use `get_model_reference_unsafe()` instead.
+        If you want to allow missing model references, use `get_model_reference_or_none()` instead.
 
         Args:
             category: The category to retrieve.
@@ -916,7 +916,7 @@ class ModelReferenceManager:
             dict[str, GenericModelRecord]: The model reference object for the category.
 
         """
-        model_reference = self.get_model_reference_unsafe(
+        model_reference = self.get_model_reference_or_none(
             category,
             overwrite_existing=overwrite_existing,
         )
@@ -945,7 +945,7 @@ class ModelReferenceManager:
         Raises:
             RuntimeError: If the category is missing or could not be parsed.
         """
-        model_reference = await self.get_model_reference_unsafe_async(
+        model_reference = await self.get_model_reference_or_none_async(
             category,
             overwrite_existing=overwrite_existing,
             httpx_client=httpx_client,
@@ -955,7 +955,7 @@ class ModelReferenceManager:
 
         return model_reference
 
-    def get_model_names_unsafe(
+    def get_model_names_or_none(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         overwrite_existing: bool = False,
@@ -969,7 +969,7 @@ class ModelReferenceManager:
         Returns:
             list[str] | None: The list of model names for the category, or None if not found.
         """
-        model_reference = self.get_model_reference_unsafe(
+        model_reference = self.get_model_reference_or_none(
             category,
             overwrite_existing=overwrite_existing,
         )
@@ -986,7 +986,7 @@ class ModelReferenceManager:
         """Return a list of model names for a specific category.
 
         Raises an exception if the model reference could not be found or parsed.
-        If you want to allow missing model references, use `get_model_names_unsafe()` instead.
+        If you want to allow missing model references, use `get_model_names_or_none()` instead.
 
         Args:
             category: The category to retrieve.
@@ -1004,7 +1004,7 @@ class ModelReferenceManager:
 
         return list(model_reference.keys())
 
-    def get_model_unsafe(
+    def get_model_or_none(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
@@ -1020,7 +1020,7 @@ class ModelReferenceManager:
         Returns:
             GenericModelRecord | None: The model record, or None if not found.
         """
-        model_reference = self.get_model_reference_unsafe(
+        model_reference = self.get_model_reference_or_none(
             category,
             overwrite_existing=overwrite_existing,
         )
@@ -1038,7 +1038,7 @@ class ModelReferenceManager:
         """Return a specific model from a category.
 
         Raises an exception if the model could not be found or parsed.
-        If you want to allow missing models, use `get_model_unsafe()` instead.
+        If you want to allow missing models, use `get_model_or_none()` instead.
 
         Args:
             category: The category to retrieve.

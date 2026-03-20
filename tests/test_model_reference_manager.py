@@ -67,12 +67,10 @@ class _InMemoryReplicaBackend(ModelReferenceBackend):
         httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
     ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
-        self.async_calls.append(
-            {
-                "httpx_client": httpx_client,
-                "force_refresh": force_refresh,
-            }
-        )
+        self.async_calls.append({
+            "httpx_client": httpx_client,
+            "force_refresh": force_refresh,
+        })
         return self.fetch_all_categories(force_refresh=force_refresh)
 
     def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
@@ -144,7 +142,7 @@ def test_manager(
 
     verify_model_references_structure(all_references)
 
-    cached_references = model_reference_manager.get_all_model_references_unsafe(overwrite_existing=False)
+    cached_references = model_reference_manager.get_all_model_references_or_none(overwrite_existing=False)
     assert len(cached_references) == len(all_references)
 
 
@@ -185,7 +183,7 @@ async def test_manager_async(
 
     verify_model_references_structure(all_references)
 
-    cached_references = model_reference_manager.get_all_model_references_unsafe(overwrite_existing=False)
+    cached_references = model_reference_manager.get_all_model_references_or_none(overwrite_existing=False)
     assert len(cached_references) == len(all_references)
 
 
@@ -202,7 +200,7 @@ def test_manager_new_format(
         overwrite_existing: bool,
     ) -> None:
         """Assert that all model references exist."""
-        all_model_references = model_reference_manager.get_all_model_references_unsafe(
+        all_model_references = model_reference_manager.get_all_model_references_or_none(
             overwrite_existing=overwrite_existing
         )
         for model_reference_category in MODEL_REFERENCE_CATEGORY:
@@ -301,7 +299,7 @@ class TestCacheAndStaleness:
         """Test that the cache invalidation works."""
         manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.LAZY)
 
-        manager.get_all_model_references_unsafe(overwrite_existing=False)
+        manager.get_all_model_references_or_none(overwrite_existing=False)
         assert manager._cached_records
         manager._invalidate_cache()
         assert manager._cached_records == {}
@@ -310,7 +308,7 @@ class TestCacheAndStaleness:
         """Test that cache can be selectively invalidated by category."""
         manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.LAZY)
 
-        manager.get_all_model_references_unsafe(overwrite_existing=False)
+        manager.get_all_model_references_or_none(overwrite_existing=False)
         initial_cache_size = len(manager._cached_records)
         assert initial_cache_size > 0, "Cache should be populated for this test"
 
@@ -358,7 +356,7 @@ class TestCacheAndStaleness:
         file_path.write_text(json.dumps(test_data))
 
         # Load data into manager cache
-        _ = manager.get_all_model_references_unsafe()
+        _ = manager.get_all_model_references_or_none()
         assert category in manager._cached_records
 
         # Mark backend as stale - this should trigger callback and clear manager cache
@@ -420,7 +418,7 @@ class TestCacheAndStaleness:
 
         assert fetch_called["count"] == 0
 
-        manager.get_all_model_references_unsafe()
+        manager.get_all_model_references_or_none()
         assert fetch_called["count"] == 1
 
 
@@ -864,7 +862,7 @@ class TestCRUDOperations:
 
         manager.backend.update_model_from_base_model(category, record.name, record)
 
-        _ = manager.get_all_model_references_unsafe()
+        _ = manager.get_all_model_references_or_none()
 
         updated_record = GenericModelRecord(
             name="test_model",
@@ -877,7 +875,7 @@ class TestCRUDOperations:
         )
         manager.backend.update_model_from_base_model(category, updated_record.name, updated_record)
 
-        refs_after = manager.get_all_model_references_unsafe()
+        refs_after = manager.get_all_model_references_or_none()
         assert refs_after[category] is not None
         category_refs = refs_after[category]
         assert category_refs is not None
@@ -906,14 +904,14 @@ class TestCRUDOperations:
         )
 
         manager.backend.update_model_from_base_model(category, record.name, record)
-        _ = manager.get_all_model_references_unsafe()
+        _ = manager.get_all_model_references_or_none()
         assert category in manager._cached_records
 
         manager.backend.delete_model(category, record.name)
 
         assert category not in manager._cached_records
 
-        refs_after = manager.get_all_model_references_unsafe()
+        refs_after = manager.get_all_model_references_or_none()
         assert refs_after[category] == {}
 
 
@@ -1041,7 +1039,7 @@ class TestFileJsonIO:
         tmp_path: Path,
         caplog: LogCaptureFixture,
     ) -> None:
-        """Test that get_all_model_references_unsafe handles corrupted JSON files."""
+        """Test that get_all_model_references_or_none handles corrupted JSON files."""
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
 
         backend = FileSystemBackend(base_path=tmp_path, replicate_mode=ReplicateMode.PRIMARY)
@@ -1057,7 +1055,7 @@ class TestFileJsonIO:
             replicate_mode=ReplicateMode.PRIMARY,
         )
 
-        all_refs = manager.get_all_model_references_unsafe()
+        all_refs = manager.get_all_model_references_or_none()
 
         assert all_refs[category] is None
 
