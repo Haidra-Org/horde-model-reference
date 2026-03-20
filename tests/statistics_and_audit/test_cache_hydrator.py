@@ -512,7 +512,10 @@ class TestStaleWhileRevalidate:
 
     def test_get_returns_stale_data_when_hydration_enabled(self) -> None:
         """Test that get() returns stale data when hydration is enabled."""
-        with patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings:
+        with (
+            patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
+            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+        ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
@@ -535,7 +538,10 @@ class TestStaleWhileRevalidate:
 
     def test_get_returns_none_when_stale_ttl_exceeded(self) -> None:
         """Test that get() returns None when stale TTL is exceeded."""
-        with patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings:
+        with (
+            patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
+            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+        ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
@@ -557,7 +563,10 @@ class TestStaleWhileRevalidate:
 
     def test_get_with_allow_stale_false_respects_ttl(self) -> None:
         """Test that get(allow_stale=False) respects normal TTL even with hydration enabled."""
-        with patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings:
+        with (
+            patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
+            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+        ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
@@ -579,7 +588,10 @@ class TestStaleWhileRevalidate:
 
     def test_get_defaults_to_no_stale_when_hydration_disabled(self) -> None:
         """Test that get() defaults to normal TTL behavior when hydration is disabled."""
-        with patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings:
+        with (
+            patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
+            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+        ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
@@ -601,7 +613,10 @@ class TestStaleWhileRevalidate:
 
     def test_is_fresh_returns_true_within_ttl(self) -> None:
         """Test that is_fresh() returns True within TTL."""
-        with patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings:
+        with (
+            patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
+            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+        ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
@@ -617,7 +632,10 @@ class TestStaleWhileRevalidate:
 
     def test_is_fresh_returns_false_after_ttl(self) -> None:
         """Test that is_fresh() returns False after TTL expires."""
-        with patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings:
+        with (
+            patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
+            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+        ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
@@ -636,7 +654,10 @@ class TestStaleWhileRevalidate:
 
     def test_is_fresh_returns_false_for_missing_entry(self) -> None:
         """Test that is_fresh() returns False for missing entries."""
-        with patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings:
+        with (
+            patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
+            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+        ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
