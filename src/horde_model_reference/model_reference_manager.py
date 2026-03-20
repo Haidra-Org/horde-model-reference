@@ -53,6 +53,7 @@ from horde_model_reference.query import (
 
 if TYPE_CHECKING:
     from horde_model_reference.integrations.data_merger import PopularModelResult
+    from horde_model_reference.integrations.horde_api_models import HordeModelType
     from horde_model_reference.pending_queue import PendingQueueService
 
 
@@ -1252,16 +1253,13 @@ class ModelReferenceManager:
     # ------------------------------------------------------------------
 
     @overload
-    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery:
-        ...
+    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery: ...
 
     @overload
-    def query(self, category: Literal["text_generation"]) -> TextModelQuery:
-        ...
+    def query(self, category: Literal["text_generation"]) -> TextModelQuery: ...
 
     @overload
-    def query(self, category: Literal["controlnet"]) -> ControlNetQuery:
-        ...
+    def query(self, category: Literal["controlnet"]) -> ControlNetQuery: ...
 
     def query(
         self,
