@@ -18,8 +18,14 @@ from threading import RLock
 from typing import Any, override
 
 import httpx
-import redis.asyncio
 from loguru import logger
+
+try:
+    import redis.asyncio
+except ImportError as _redis_err:
+    raise ImportError(
+        "Redis support requires the 'redis' extra. Install it with: " "pip install horde-model-reference[redis]"
+    ) from _redis_err
 
 from horde_model_reference import RedisSettings, ReplicateMode
 from horde_model_reference.backends.base import ModelReferenceBackend
