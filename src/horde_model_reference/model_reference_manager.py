@@ -1409,7 +1409,7 @@ class ModelReferenceManager:
     # Popularity / usage data
     # ------------------------------------------------------------------
 
-    _CATEGORY_TO_HORDE_TYPE: ClassVar[dict[MODEL_REFERENCE_CATEGORY, str]] = {
+    _CATEGORY_TO_HORDE_TYPE: ClassVar[dict[MODEL_REFERENCE_CATEGORY, HordeModelType]] = {
         MODEL_REFERENCE_CATEGORY.image_generation: "image",
         MODEL_REFERENCE_CATEGORY.text_generation: "text",
     }
@@ -1438,11 +1438,11 @@ class ModelReferenceManager:
             A list of ``PopularModelResult`` sorted by the chosen metric.
         """
         from horde_model_reference.integrations.data_merger import (
+            CombinedModelStatistics,
             PopularModelResult,
             merge_category_with_horde_data,
         )
         from horde_model_reference.integrations.horde_api_integration import HordeAPIIntegration
-        from horde_model_reference.integrations.horde_api_models import HordeModelType
 
         horde_type: HordeModelType | None = self._CATEGORY_TO_HORDE_TYPE.get(category)
         if horde_type is None:
@@ -1467,8 +1467,6 @@ class ModelReferenceManager:
 
         def _sort_key(item: tuple[str, object]) -> float:
             _name, stats = item
-            from horde_model_reference.integrations.data_merger import CombinedModelStatistics
-
             if not isinstance(stats, CombinedModelStatistics):
                 return 0.0
             if sort_by == "worker_count":
