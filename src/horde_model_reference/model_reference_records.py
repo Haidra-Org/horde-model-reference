@@ -147,6 +147,27 @@ class GenericModelRecord(BaseModel):
     model_classification: ModelClassification
     """The classification of the model."""
 
+    @property
+    def primary_download_url(self) -> str | None:
+        """Return the URL of the first download entry, or None if there are no downloads."""
+        if self.config and self.config.download:
+            return self.config.download[0].file_url
+        return None
+
+    @property
+    def all_download_urls(self) -> list[str]:
+        """Return all download URLs for this model."""
+        if self.config and self.config.download:
+            return [d.file_url for d in self.config.download]
+        return []
+
+    @property
+    def download_count(self) -> int:
+        """Return the number of download entries for this model."""
+        if self.config and self.config.download:
+            return len(self.config.download)
+        return 0
+
 
 MODEL_RECORD_TYPE_LOOKUP: dict[MODEL_REFERENCE_CATEGORY | str, type[GenericModelRecord]] = {}
 
