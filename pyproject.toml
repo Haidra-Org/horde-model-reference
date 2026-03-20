@@ -24,10 +24,8 @@ dependencies = [
     "haidra-core>=0.0.5",
     "httpx>=0.28.1",
     "loguru>=0.7.3",
-    "mkdocs>=1.6.1",
     "pydantic>=2.12.3",
     "python-dotenv>=1.1.1",
-    "redis[hiredis]>=7.0.0",
     "requests>=2.32.5",
     "strenum>=0.4.15",
     "typing-extensions>=4.15.0",
@@ -42,6 +40,9 @@ validate-sd-models = "horde_model_reference.legacy.validate_sd:main"
 download-sd-models = "horde_model_reference.legacy.download_live_legacy_dbs:main"
 
 [project.optional-dependencies]
+redis = [
+    "redis[hiredis]>=7.0.0",
+]
 service = [
     "fastapi[standard]>=0.116.1",
 ]
