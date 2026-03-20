@@ -4,7 +4,7 @@ import asyncio
 from collections.abc import Awaitable, Generator, Iterable
 from pathlib import Path
 from threading import RLock
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, overload
+from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, overload
 
 import httpx
 from loguru import logger
@@ -17,7 +17,6 @@ from horde_model_reference.backends import (
     GitHubBackend,
     HTTPBackend,
     ModelReferenceBackend,
-    RedisBackend,
 )
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, categories_managed_elsewhere
 from horde_model_reference.model_reference_records import (
@@ -53,6 +52,7 @@ from horde_model_reference.query import (
 )
 
 if TYPE_CHECKING:
+    from horde_model_reference.integrations.data_merger import PopularModelResult
     from horde_model_reference.pending_queue import PendingQueueService
 
 
@@ -132,6 +132,27 @@ class ModelReferenceManager:
         with cls._lock:
             return cls._instance is not None
 
+    @classmethod
+    def reset(cls) -> None:
+        """Destroy the singleton instance so a fresh one can be created.
+
+        Intended for testing and development only. Production code should not
+        call this — the singleton is designed to live for the process lifetime.
+        """
+        with cls._lock:
+            instance = cls._instance
+            if instance is None:
+                return
+
+            if instance._deferred_prefetch_handle is not None:
+                instance._deferred_prefetch_handle = None
+
+            if instance._async_prefetch_task is not None and not instance._async_prefetch_task.done():
+                instance._async_prefetch_task.cancel()
+                instance._async_prefetch_task = None
+
+            cls._instance = None
+
     @staticmethod
     def _create_backend(
         base_path: str | Path,
@@ -194,6 +215,8 @@ class ModelReferenceManager:
                     filesystem_backend.ensure_all_metadata_populated()
 
             if horde_model_reference_settings.redis.use_redis:
+                from horde_model_reference.backends.redis_backend import RedisBackend
+
                 logger.info("Wrapping FileSystemBackend with RedisBackend for distributed caching")
                 return RedisBackend(
                     file_backend=filesystem_backend,
@@ -1229,13 +1252,16 @@ class ModelReferenceManager:
     # ------------------------------------------------------------------
 
     @overload
-    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery: ...
+    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery:
+        ...
 
     @overload
-    def query(self, category: Literal["text_generation"]) -> TextModelQuery: ...
+    def query(self, category: Literal["text_generation"]) -> TextModelQuery:
+        ...
 
     @overload
-    def query(self, category: Literal["controlnet"]) -> ControlNetQuery: ...
+    def query(self, category: Literal["controlnet"]) -> ControlNetQuery:
+        ...
 
     def query(
         self,
@@ -1378,6 +1404,99 @@ class ModelReferenceManager:
             record_type=MiscellaneousModelRecord,
         )
         return build_query(records, MiscellaneousModelRecord)
+
+    # ------------------------------------------------------------------
+    # Popularity / usage data
+    # ------------------------------------------------------------------
+
+    _CATEGORY_TO_HORDE_TYPE: ClassVar[dict[MODEL_REFERENCE_CATEGORY, str]] = {
+        MODEL_REFERENCE_CATEGORY.image_generation: "image",
+        MODEL_REFERENCE_CATEGORY.text_generation: "text",
+    }
+
+    async def get_popular_models(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        *,
+        limit: int = 10,
+        sort_by: Literal["worker_count", "usage_day", "usage_month", "usage_total"] = "worker_count",
+        include_workers: bool = False,
+    ) -> list[PopularModelResult]:
+        """Return models ranked by live Horde popularity metrics.
+
+        Requires the Horde public API to be reachable. Only ``image_generation``
+        and ``text_generation`` categories have Horde API data; other categories
+        return an empty list.
+
+        Args:
+            category: Model category to rank.
+            limit: Maximum number of results.
+            sort_by: Metric to rank by.
+            include_workers: Whether to fetch per-worker details (slower).
+
+        Returns:
+            A list of ``PopularModelResult`` sorted by the chosen metric.
+        """
+        from horde_model_reference.integrations.data_merger import (
+            PopularModelResult,
+            merge_category_with_horde_data,
+        )
+        from horde_model_reference.integrations.horde_api_integration import HordeAPIIntegration
+        from horde_model_reference.integrations.horde_api_models import HordeModelType
+
+        horde_type: HordeModelType | None = self._CATEGORY_TO_HORDE_TYPE.get(category)
+        if horde_type is None:
+            return []
+
+        model_reference = self.get_model_reference_or_none(category)
+        if model_reference is None:
+            return []
+
+        horde_api = HordeAPIIntegration()
+        indexed_status, indexed_stats, indexed_workers = await horde_api.get_combined_data_indexed(
+            model_type=horde_type,
+            include_workers=include_workers,
+        )
+
+        merged = merge_category_with_horde_data(
+            model_names=model_reference.keys(),
+            horde_status=indexed_status,
+            horde_stats=indexed_stats,
+            workers=indexed_workers,
+        )
+
+        def _sort_key(item: tuple[str, object]) -> float:
+            _name, stats = item
+            from horde_model_reference.integrations.data_merger import CombinedModelStatistics
+
+            if not isinstance(stats, CombinedModelStatistics):
+                return 0.0
+            if sort_by == "worker_count":
+                return float(stats.worker_count)
+            if stats.usage_stats is None:
+                return 0.0
+            if sort_by == "usage_day":
+                return float(stats.usage_stats.day)
+            if sort_by == "usage_month":
+                return float(stats.usage_stats.month)
+            return float(stats.usage_stats.total)
+
+        ranked = sorted(merged.items(), key=_sort_key, reverse=True)[:limit]
+
+        results: list[PopularModelResult] = []
+        for name, stats in ranked:
+            record = model_reference.get(name)
+            if record is None:
+                continue
+            results.append(
+                PopularModelResult(
+                    name=name,
+                    record=record.model_dump(mode="json", exclude_none=True),
+                    stats=stats,
+                )
+            )
+
+        return results
 
 
 class DeferredPrefetchHandle(Awaitable[None]):

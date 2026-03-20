@@ -253,3 +253,11 @@ def merge_category_with_horde_data(
         all_merged_data[model_name] = merged_data
 
     return all_merged_data
+
+
+class PopularModelResult(BaseModel):
+    """A model paired with its live Horde usage/popularity stats."""
+
+    name: str = Field(description="Model name")
+    record: dict[str, object] = Field(description="Serialized model record")
+    stats: CombinedModelStatistics = Field(description="Live Horde statistics")

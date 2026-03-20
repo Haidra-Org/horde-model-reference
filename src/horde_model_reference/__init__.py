@@ -499,6 +499,7 @@ from .path_consts import (  # noqa: E402
     horde_model_reference_paths,
 )
 
+from .integrations.data_merger import PopularModelResult  # noqa: E402
 from .model_reference_manager import ModelReferenceManager, PrefetchStrategy  # noqa: E402
 from .model_reference_records import get_record_type_for_category, register_record_type  # noqa: E402
 from .query import ImageGenerationQuery, ModelQuery, TextModelQuery, build_image_query, build_text_query  # noqa: E402
@@ -550,6 +551,7 @@ __all__ = [
     "ModelQuery",
     "ModelReferenceManager",
     "OrderSpec",
+    "PopularModelResult",
     "Predicate",
     "PrefetchStrategy",
     "SafetyCheckerFields",
