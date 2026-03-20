@@ -33,12 +33,14 @@ When creating a new backend implementation:
 - `fetch_all_categories()` - Sync batch fetching
 - `fetch_category_async()` - Async data fetching
 - `fetch_all_categories_async()` - Async batch fetching
-- `needs_refresh()` - Staleness detection
-- `_mark_stale_impl()` - Backend-specific staleness marking
+- `needs_refresh()` - Staleness detection *(auto-provided by `ReplicaBackendBase`)*
+- `_mark_stale_impl()` - Backend-specific staleness marking *(auto-provided by `ReplicaBackendBase`)*
 - `get_category_file_path()` - Return file path or None
 - `get_all_category_file_paths()` - Return all file paths
 - `get_legacy_json()` - Legacy format retrieval
 - `get_legacy_json_string()` - Legacy format string retrieval
+
+> **Note:** `ModelReferenceBackend` declares `needs_refresh()` and `_mark_stale_impl()` as abstract, but `ReplicaBackendBase` supplies both implementations. If you subclass `ReplicaBackendBase` (the recommended model), you only need to implement the fetching and file-path/legacy retrieval methods listed above.
 
 ### Optional Implementations
 
@@ -60,24 +62,29 @@ Don't implement `ModelReferenceBackend` directly. Use [`ReplicaBackendBase`][hor
 - File mtime validation
 - Thread-safe locks
 - Cache helper methods
+- `_fetch_with_cache()` to remove boilerplate around cache lookups
 
 The notable exception would be backends that are themselves caching layers (e.g. RedisBackend).
 
 See the [ReplicaBackendBase documentation](replica_backend_base.md) for details.
 
-### 2. Honor force_refresh Parameter
+### 2. Use `_fetch_with_cache()` When Possible
+
+If your backend simply needs to "return cached data unless forced to refetch, otherwise fetch and store", call `_fetch_with_cache(category, fetch_fn, force_refresh=...)`. Provide a callable that performs the actual fetch and returns the parsed payload (or `None`). The helper checks `_get_from_cache()`, executes the callable on cache miss, stores the result via `_store_in_cache()`, and returns it. Use the more explicit patterns (locks, download + load, etc.) only when you need additional coordination around the fetch flow.
+
+### 3. Honor force_refresh Parameter
 
 Always respect the `force_refresh` parameter to bypass caches. See the [`fetch_category()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_category] documentation for requirements.
 
-### 3. Handle Errors Gracefully
+### 4. Handle Errors Gracefully
 
 Return `None` on errors, don't raise exceptions from fetch methods. This allows callers to handle missing data gracefully.
 
-### 4. Use Async Properly
+### 5. Use Async Properly
 
 In async methods, use async I/O and concurrent operations with `asyncio.gather()`. See [`fetch_all_categories_async()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_all_categories_async] for implementation examples.
 
-### 5. Implement Feature Detection
+### 6. Implement Feature Detection
 
 Always implement `supports_*()` methods before feature methods:
 
@@ -87,7 +94,7 @@ Always implement `supports_*()` methods before feature methods:
 - [`supports_health_checks()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_health_checks] before health checks
 - [`supports_statistics()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_statistics] before statistics
 
-### 6. Document Your Backend
+### 7. Document Your Backend
 
 Include clear docstrings explaining:
 
@@ -123,6 +130,59 @@ The [`needs_refresh()`][horde_model_reference.backends.base.ModelReferenceBacken
 ### 6. Statistics Tracking (Optional)
 
 If implementing [`supports_statistics()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_statistics], track meaningful metrics like fetch counts, cache hits, fallback usage, error counts, and response times.
+
+## Audit Trail and Replay
+
+The PRIMARY filesystem backend emits append-only JSONL audit events whenever a legacy record is created, updated, or deleted. Logs are written under `horde_model_reference_paths.audit_path` using the structure `audit/<domain>/<category>/audit-000001.jsonl`. Each line is a serialized [`AuditEvent`][horde_model_reference.audit.events.AuditEvent] that includes the operation, model name, logical Horde user id, and payload snapshot or delta.
+
+### Inspecting Events
+
+Use the new `scripts/audit_replay.py` helper to stream events without writing ad-hoc parsers:
+
+```bash
+python scripts/audit_replay.py image_generation --domain legacy --start-event-id 10 --end-event-id 20 --pretty
+```
+
+Flags allow filtering by domain, category, specific model names, event id ranges, or timestamp ranges. The default output mode prints JSON lines for each matching event; pass `--output state` to reconstruct the final state of the selected category using the embedded [`AuditTrailReader`][horde_model_reference.audit.reader.AuditTrailReader] and [`AuditReplayer`][horde_model_reference.audit.replay.AuditReplayer].
+
+Example to rebuild the current state for a subset of models:
+
+```bash
+python scripts/audit_replay.py image_generation --output state -m my_model -m other_model --pretty
+```
+
+These utilities operate entirely on the JSONL segments and do not require the service to be running, making them suitable for offline investigations or recovery workflows. Configure audit behavior via the `HORDE_MODEL_REFERENCE_AUDIT_*` environment variables (e.g. `AUDIT_MAX_SEGMENT_BYTES`, `AUDIT_ROOT_PATH_OVERRIDE`), and see [Audit Trail Best Practices](audit_trail.md) for operational tips.
+
+## Pending Queue Apply Workflow
+
+PRIMARY deployments can gate all v2 writes through the pending queue to ensure multi-person review before model metadata is promoted. The queue keeps staged edits out of read APIs until an approver applies the change, and all audit trail writes continue to flow through `PendingQueueService` rather than the HTTP routers.
+
+For an operator-focused playbook (storage layout, canonical format behavior, router entry points, and troubleshooting) see [Pending Queue Architecture](pending_queue.md).
+
+### Deployment Constraints and Storage Isolation
+
+- Enable the workflow by setting `HORDE_MODEL_REFERENCE_PENDING_QUEUE_ENABLED=true` while `HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY`. REPLICA nodes ignore the queue entirely and always treat v2 APIs as read-only.
+- Queue persistence defaults to `<cache_home>/pending_queue`, but production deployments should configure `HORDE_MODEL_REFERENCE_PENDING_QUEUE_ROOT_PATH_OVERRIDE` (or adjust `...RELATIVE_SUBDIR`) so each deployment, environment, or test run has a dedicated directory. This mirrors the test fixture override that prevents cross-talk between suites.
+- Pending queue files are distinct from audit trail logs. Never co-locate `pending_queue` data under the audit path; the audit JSONL stream remains the only canonical record of applied operations.
+
+### Auth Lists and Workflow Roles
+
+- Requestors submit batches via the write APIs once their Horde user id appears in `HORDE_MODEL_REFERENCE_PENDING_QUEUE_REQUESTOR_IDS`. Approvers must include the requestor IDs and are configured with `...APPROVER_IDS` so approval permissions are a superset of submission permissions.
+- Provide these list settings as JSON arrays (e.g. `['user_a','user_b']`) or comma-delimited strings when using environment variables, matching Pydantic's parsing rules for nested settings.
+- Because PRIMARY mode is the authoritative source, always double-check that queue approvers can reach the deployment that owns the filesystem backend; REPLICA nodes cannot apply or approve changes.
+
+### HTTP Apply Workflow
+
+- The `pending_queue` router registers before category routes and exposes `GET /pending_queue/changes`, `GET /pending_queue/changes/{id}`, `POST /pending_queue/batches`, `POST /pending_queue/changes/{id}/apply`, and `POST /pending_queue/apply`.
+- Every endpoint enforces `authenticate_queue_approver`, `assert_v2_write_enabled`, and `require_pending_queue_service`, ensuring only PRIMARY deployments with pending-queue enabled and authorized users can mutate state.
+- `POST /pending_queue/changes/{id}/apply` performs a single apply by delegating to `apply_pending_change()`, which validates approval status, writes through the filesystem backend, marks the record as applied, and allows the backend to call `mark_stale()` so caches refresh on the next read.
+- `POST /pending_queue/apply` accepts `{ "change_ids": [...], "job_id": "..." }`, processes IDs sequentially via `apply_pending_changes()`, and stops on the first backend failure. The response reports `applied_change_ids`, `failed_change_ids`, and serialized records so operators can retry without guessing intermediate state.
+- Router responses rely on `.model_dump(..., exclude_none=True)` to prevent accidental audit duplication. All audit log writes remain in `PendingQueueService`, which already emits JSONL events alongside standard backend operations.
+
+### Operational Guardrails
+
+- Pending queue data never feeds read APIs until a change transitions to `applied`. If you observe pending data leaking, verify that cache directories differ per deployment and that only PRIMARY mode has writes enabled.
+- The pending queue is operated via HTTP endpoints only. On-call engineers should use the frontend UI or directly call the HTTP endpoints with the same payload the UI would send. Always include `job_id` so audit investigations can pair queue actions with user intent.
 
 ## Testing Your Backend
 
@@ -205,6 +265,8 @@ All backends must implement these methods from [`ModelReferenceBackend`][horde_m
 | [`get_all_category_file_paths()`][horde_model_reference.backends.base.ModelReferenceBackend.get_all_category_file_paths] | Get all file paths |
 | [`get_legacy_json()`][horde_model_reference.backends.base.ModelReferenceBackend.get_legacy_json] | Get legacy format dict |
 | [`get_legacy_json_string()`][horde_model_reference.backends.base.ModelReferenceBackend.get_legacy_json_string] | Get legacy format string |
+
+> Inheriting from `ReplicaBackendBase` satisfies `needs_refresh()` and `_mark_stale_impl()` automatically, leaving only the fetch/file-path methods for you to implement.
 
 ### Optional Methods (Override If Needed)
 
