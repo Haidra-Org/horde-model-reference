@@ -88,6 +88,8 @@ export HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy
 
 **Both formats can be read by both API versions** - this enables gradual migration.
 
+When PRIMARY mode is configured with a canonical format that allows writes, enable the pending queue for multi-stage approvals. See [Pending Queue Architecture](pending_queue.md) for the router endpoints, auth lists, and storage requirements that keep staged changes isolated until they are applied.
+
 ### Model Categories
 
 The package manages multiple model categories:
