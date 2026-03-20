@@ -24,7 +24,7 @@ try:
     import redis.asyncio
 except ImportError as _redis_err:
     raise ImportError(
-        "Redis support requires the 'redis' extra. Install it with: " "pip install horde-model-reference[redis]"
+        "Redis support requires the 'redis' extra. Install it with: pip install horde-model-reference[redis]"
     ) from _redis_err
 
 from horde_model_reference import RedisSettings, ReplicateMode
