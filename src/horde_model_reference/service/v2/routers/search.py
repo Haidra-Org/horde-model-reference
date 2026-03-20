@@ -68,23 +68,26 @@ def _apply_generic_filters(
     """Build a query from parameters, execute, and return a SearchResponse."""
     q = manager.query(category)
 
-    if nsfw is not None:
-        q = q.where(nsfw=nsfw)
+    try:
+        if nsfw is not None:
+            q = q.where(nsfw=nsfw)
 
-    if baseline is not None:
-        q = q.where(baseline=baseline)
+        if baseline is not None:
+            q = q.where(baseline=baseline)
 
-    if inpainting is not None:
-        q = q.where(inpainting=inpainting)
+        if inpainting is not None:
+            q = q.where(inpainting=inpainting)
 
-    if tags_any is not None:
-        q = q.tags_any(tags_any)
+        if tags_any is not None:
+            q = q.tags_any(tags_any)
 
-    if tags_all is not None:
-        q = q.tags_all(tags_all)
+        if tags_all is not None:
+            q = q.tags_all(tags_all)
 
-    if tags_none is not None:
-        q = q.tags_none(tags_none)
+        if tags_none is not None:
+            q = q.tags_none(tags_none)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Filter not supported for this category: {exc}") from None
 
     if name_contains is not None:
         lower_q = name_contains.lower()
@@ -193,20 +196,25 @@ def search_all(
     q = manager.query_all()
 
     if nsfw is not None:
-        q = q.where(nsfw=nsfw)
+        q = q.filter(lambda r, _v=nsfw: getattr(r, "nsfw", None) == _v)
 
     if name_contains is not None:
         lower_q = name_contains.lower()
         q = q.filter(lambda r: lower_q in r.name.lower())
 
     if tags_any is not None:
-        q = q.tags_any(tags_any)
+        _tag_set = set(tags_any)
+        q = q.filter(lambda r, _ts=_tag_set: bool(_ts & set(getattr(r, "tags", None) or [])))
 
     if tags_all is not None:
-        q = q.tags_all(tags_all)
+        _tag_set_all = set(tags_all)
+        q = q.filter(lambda r, _ts=_tag_set_all: _ts <= set(getattr(r, "tags", None) or []))
 
     if tags_none is not None:
-        q = q.tags_none(tags_none)
+        _tag_set_none = set(tags_none)
+        q = q.filter(
+            lambda r, _ts=_tag_set_none: not bool(_ts & set(getattr(r, "tags", None) or [])),
+        )
 
     if sort_by is not None:
         try:

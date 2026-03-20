@@ -8,6 +8,7 @@ import pytest
 
 from horde_model_reference.integrations.data_merger import (
     CombinedModelStatistics,
+    PopularModelResult,
     UsageStats,
     WorkerSummary,
     merge_category_with_horde_data,
@@ -453,3 +454,39 @@ def test_merge_model_with_none_workers_explicitly(
     # Workers should be None, falls back to status count
     assert result.worker_summaries is None
     assert result.worker_count == 5  # Falls back to worker_count_from_status
+
+
+def test_popular_model_result_construction() -> None:
+    """Test that PopularModelResult fields are accessible after construction."""
+    stats = CombinedModelStatistics(
+        worker_count_from_status=3,
+        usage_stats=UsageStats(day=10, month=300, total=5000),
+    )
+    result = PopularModelResult(
+        name="my_model",
+        record={"name": "my_model", "baseline": "stable_diffusion_xl"},
+        stats=stats,
+    )
+    assert result.name == "my_model"
+    assert result.record["baseline"] == "stable_diffusion_xl"
+    assert result.stats.worker_count == 3
+    assert result.stats.usage_stats is not None
+    assert result.stats.usage_stats.day == 10
+
+
+def test_popular_model_result_serialization() -> None:
+    """Test that PopularModelResult serializes correctly via model_dump."""
+    stats = CombinedModelStatistics(
+        worker_count_from_status=5,
+        usage_stats=UsageStats(day=1, month=2, total=3),
+    )
+    result = PopularModelResult(
+        name="ser_model",
+        record={"name": "ser_model"},
+        stats=stats,
+    )
+    data = result.model_dump(mode="json")
+    assert data["name"] == "ser_model"
+    assert "stats" in data
+    assert data["stats"]["worker_count"] == 5
+    assert data["stats"]["usage_stats"]["day"] == 1

@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Any
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -1123,3 +1124,156 @@ class TestFileJsonIO:
 
         assert with_invalid_entry[valid_category] is not None
         assert with_invalid_entry[corrupted_category] is None
+
+
+@pytest.mark.usefixtures("restore_manager_singleton")
+class TestReset:
+    """Test ModelReferenceManager.reset() behavior."""
+
+    def test_reset_clears_instance(self) -> None:
+        """Verify reset() removes the existing singleton instance."""
+        backend = _InMemoryReplicaBackend()
+        ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+        assert ModelReferenceManager.has_instance()
+        ModelReferenceManager.reset()
+        assert not ModelReferenceManager.has_instance()
+
+    def test_reset_no_instance_no_error(self) -> None:
+        """Verify reset() is a no-op when no singleton exists."""
+        assert not ModelReferenceManager.has_instance()
+        ModelReferenceManager.reset()
+        assert not ModelReferenceManager.has_instance()
+
+    def test_reset_allows_new_instance(self) -> None:
+        """Verify a new singleton can be created after reset()."""
+        backend1 = _InMemoryReplicaBackend()
+        m1 = ModelReferenceManager(
+            backend=backend1,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+        ModelReferenceManager.reset()
+
+        backend2 = _InMemoryReplicaBackend()
+        m2 = ModelReferenceManager(
+            backend=backend2,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+        assert m1 is not m2
+
+    @pytest.mark.asyncio
+    async def test_reset_cancels_async_prefetch(self) -> None:
+        """Verify reset() cancels an in-flight async prefetch task."""
+        backend = _InMemoryReplicaBackend()
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+        mock_task = MagicMock()
+        mock_task.done.return_value = False
+        manager._async_prefetch_task = mock_task
+
+        ModelReferenceManager.reset()
+
+        mock_task.cancel.assert_called_once()
+
+
+@pytest.mark.usefixtures("restore_manager_singleton")
+class TestGetPopularModels:
+    """Test ModelReferenceManager.get_popular_models() behavior."""
+
+    @pytest.mark.asyncio
+    async def test_get_popular_models_unsupported_category(self) -> None:
+        """Verify unsupported categories return an empty list."""
+        backend = _InMemoryReplicaBackend()
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+        result = await manager.get_popular_models(MODEL_REFERENCE_CATEGORY.clip)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_get_popular_models_no_reference(self) -> None:
+        """Verify a missing reference for the category returns an empty list."""
+        backend = _InMemoryReplicaBackend()
+        backend._data[MODEL_REFERENCE_CATEGORY.image_generation] = None
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+        result = await manager.get_popular_models(MODEL_REFERENCE_CATEGORY.image_generation)
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_get_popular_models_sorts_and_limits(self) -> None:
+        """Verify results are sorted by worker count descending and limited to top_n."""
+        from horde_model_reference.integrations.horde_api_models import (
+            HordeModelStatsResponse,
+            HordeModelStatus,
+            IndexedHordeModelStats,
+            IndexedHordeModelStatus,
+            IndexedHordeWorkers,
+        )
+
+        backend = _InMemoryReplicaBackend()
+        backend._data[MODEL_REFERENCE_CATEGORY.image_generation] = {
+            "model_a": {
+                "name": "model_a",
+                "baseline": "stable_diffusion_1",
+                "nsfw": False,
+                "model_classification": {"domain": "image", "purpose": "generation"},
+            },
+            "model_b": {
+                "name": "model_b",
+                "baseline": "stable_diffusion_xl",
+                "nsfw": False,
+                "model_classification": {"domain": "image", "purpose": "generation"},
+            },
+            "model_c": {
+                "name": "model_c",
+                "baseline": "stable_diffusion_1",
+                "nsfw": True,
+                "model_classification": {"domain": "image", "purpose": "generation"},
+            },
+        }
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+
+        mock_status = IndexedHordeModelStatus([
+            HordeModelStatus(name="model_a", count=2, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            HordeModelStatus(name="model_b", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            HordeModelStatus(name="model_c", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+        ])
+        mock_stats = IndexedHordeModelStats(HordeModelStatsResponse(day={}, month={}, total={}))
+        mock_workers = IndexedHordeWorkers([])
+
+        mock_integration = AsyncMock()
+        mock_integration.get_combined_data_indexed = AsyncMock(
+            return_value=(mock_status, mock_stats, mock_workers),
+        )
+
+        with patch(
+            "horde_model_reference.integrations.horde_api_integration.HordeAPIIntegration",
+            return_value=mock_integration,
+        ):
+            results = await manager.get_popular_models(
+                MODEL_REFERENCE_CATEGORY.image_generation,
+                limit=2,
+                sort_by="worker_count",
+            )
+
+        assert len(results) == 2
+        assert results[0].name == "model_b"
+        assert results[1].name == "model_c"
