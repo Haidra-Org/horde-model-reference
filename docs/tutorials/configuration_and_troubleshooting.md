@@ -69,7 +69,7 @@ with different settings.
 
 ### Empty Results or None
 
-**Symptom:** `get_model_reference_unsafe()` returns `None`, or `get_model_reference()` raises `RuntimeError`.
+**Symptom:** `get_model_reference_or_none()` returns `None`, or `get_model_reference()` raises `RuntimeError`.
 
 **Cause:** The backend couldn't fetch data for that category (network issue, invalid category, etc.).
 
@@ -78,9 +78,9 @@ with different settings.
 | Method | Returns | On failure |
 |--------|---------|------------|
 | `get_model_reference(cat)` | `dict[str, GenericModelRecord]` | Raises `RuntimeError` |
-| `get_model_reference_unsafe(cat)` | `dict[str, GenericModelRecord] \| None` | Returns `None` |
+| `get_model_reference_or_none(cat)` | `dict[str, GenericModelRecord] \| None` | Returns `None` |
 | `get_model(cat, name)` | `GenericModelRecord` | Raises `RuntimeError` |
-| `get_model_unsafe(cat, name)` | `GenericModelRecord \| None` | Returns `None` |
+| `get_model_or_none(cat, name)` | `GenericModelRecord \| None` | Returns `None` |
 
 Use the non-`unsafe` variants when you need guaranteed data. Use `unsafe` variants when you want to handle missing data gracefully.
 
