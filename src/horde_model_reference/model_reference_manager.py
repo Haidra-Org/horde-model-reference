@@ -1257,6 +1257,14 @@ class ModelReferenceManager:
     @overload
     def query(self, category: Literal["controlnet"]) -> ControlNetQuery: ...
 
+    @overload
+    def query(
+        self,
+        category: str,
+    ) -> ModelQuery[
+        GenericModelRecord, GenericFieldName | ImageGenFieldName | TextGenFieldName | ControlNetFieldName
+    ]: ...
+
     def query(
         self,
         category: MODEL_REFERENCE_CATEGORY | str,
@@ -1398,10 +1406,6 @@ class ModelReferenceManager:
             record_type=MiscellaneousModelRecord,
         )
         return build_query(records, MiscellaneousModelRecord)
-
-    # ------------------------------------------------------------------
-    # Popularity / usage data
-    # ------------------------------------------------------------------
 
     _CATEGORY_TO_HORDE_TYPE: ClassVar[dict[MODEL_REFERENCE_CATEGORY, HordeModelType]] = {
         MODEL_REFERENCE_CATEGORY.image_generation: "image",

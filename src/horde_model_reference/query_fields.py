@@ -149,17 +149,28 @@ class FieldRef:
         return f"FieldRef({self._field_name!r})"
 
 
+def true() -> bool:
+    """Return true.
 
-true: bool = True
-"""Boolean sentinel for use in ``FieldRef`` comparisons: ``ImageF.nsfw == true``."""
+    This redundant-seeming function allows predicates like ``ImageFields.nsfw == false()`` without
+    triggering linters or type checkers that might incorrectly suggest simplifying clauses such as
+    ``ImageFields.nsfw == True`` to ``ImageFields.nsfw``.
 
-false: bool = False
-"""Boolean sentinel for use in ``FieldRef`` comparisons: ``ImageF.nsfw == false``."""
+    This is inspired by SQLAlchemy. See https://docs.sqlalchemy.org/en/21/core/sqlelement.html#sqlalchemy.sql.expression.true
+    """
+    return True
 
 
-# ---------------------------------------------------------------------------
-# Per-category field namespaces
-# ---------------------------------------------------------------------------
+def false() -> bool:
+    """Return false.
+
+    This redundant-seeming function allows predicates like ``ImageFields.nsfw == true()`` without
+    triggering linters or type checkers that might incorrectly suggest simplifying clauses such as
+    ``ImageFields.nsfw == False`` to ``ImageFields.nsfw``.
+
+    This is inspired by SQLAlchemy. See https://docs.sqlalchemy.org/en/21/core/sqlelement.html#sqlalchemy.sql.expression.false
+    """
+    return False
 
 
 class GenericFields:
