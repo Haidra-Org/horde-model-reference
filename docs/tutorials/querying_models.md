@@ -124,8 +124,8 @@ Combine predicates with `&` (and), `|` (or), `~` (not):
 from horde_model_reference import ImageFields, false, true
 
 # SFW models on SDXL OR any inpainting model
-pred = (ImageFields.nsfw == false) & (ImageFields.baseline == "stable_diffusion_xl")
-pred_alt = ImageFields.inpainting == true
+pred = (ImageFields.nsfw == false()) & (ImageFields.baseline == "stable_diffusion_xl")
+pred_alt = ImageFields.inpainting == true()
 
 results = (
     manager.query_image_generation()
@@ -278,9 +278,9 @@ manager = ModelReferenceManager()
 results = (
     manager.query_image_generation()
     .where(
-        ImageFields.nsfw == false,
+        ImageFields.nsfw == false(),
         ImageFields.baseline == "stable_diffusion_xl",
-        ImageFields.inpainting == true,
+        ImageFields.inpainting == true(),
     )
     .order_by(ImageFields.size_on_disk_bytes.desc())
     .limit(5)

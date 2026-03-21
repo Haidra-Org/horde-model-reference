@@ -18,8 +18,6 @@ from horde_model_reference.meta_consts import (
     TEXT_BACKENDS,
     BaselineDescriptor,
     CategoryDescriptor,
-    _matching_image_baseline_exists,
-    alternative_sdxl_baseline_names,
     get_all_registered_baselines,
     get_all_registered_categories,
     get_baseline_descriptor,
@@ -47,6 +45,7 @@ from horde_model_reference.meta_consts import (
     register_tag,
     register_text_backend,
 )
+from horde_model_reference.model_consts.image import _matching_image_baseline_exists, alternative_sdxl_baseline_names
 from horde_model_reference.registries import DescriptorRegistry, EnumRegistry
 from horde_model_reference.text_backend_names import (
     get_model_name_variants,
@@ -61,16 +60,19 @@ def reset_registries() -> Generator[None]:
     import copy
 
     import horde_model_reference.meta_consts as mc
+    import horde_model_reference.model_consts.image as image_consts
+    import horde_model_reference.model_consts.shared as shared_consts
+    import horde_model_reference.model_consts.text as text_consts
 
     category_snapshot = mc._CATEGORY_REGISTRY.all()
-    baseline_snapshot = mc._IMAGE_BASELINE_REGISTRY.all()
+    baseline_snapshot = image_consts._IMAGE_BASELINE_REGISTRY.all()
 
-    tag_snapshot = set(mc._TAG_REGISTRY._known)
+    tag_snapshot = set(shared_consts._TAG_REGISTRY._known)
     domain_snapshot = set(mc._MODEL_DOMAIN_REGISTRY._known)
     purpose_snapshot = set(mc._MODEL_PURPOSE_REGISTRY._known)
-    style_snapshot = set(mc._MODEL_STYLE_REGISTRY._known)
-    controlnet_snapshot = set(mc._CONTROLNET_STYLE_REGISTRY._known)
-    text_backend_snapshot = set(mc._TEXT_BACKEND_REGISTRY._known)
+    style_snapshot = set(shared_consts._MODEL_STYLE_REGISTRY._known)
+    controlnet_snapshot = set(image_consts._CONTROLNET_STYLE_REGISTRY._known)
+    text_backend_snapshot = set(text_consts._TEXT_BACKEND_REGISTRY._known)
 
     derived_category_lists = (
         list(mc.github_image_model_reference_categories),
@@ -81,9 +83,9 @@ def reset_registries() -> Generator[None]:
     )
 
     derived_baseline = (
-        dict(mc.IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP),
-        dict(mc._ALTERNATIVE_NAME_TO_BASELINE),
-        list(mc.alternative_sdxl_baseline_names),
+        dict(image_consts.IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP),
+        dict(image_consts._ALTERNATIVE_NAME_TO_BASELINE),
+        list(image_consts.alternative_sdxl_baseline_names),
     )
 
     yield
@@ -92,25 +94,27 @@ def reset_registries() -> Generator[None]:
     mc._CATEGORY_REGISTRY._init_complete = True
     mc._rebuild_category_derived_data(mc._CATEGORY_REGISTRY._data)
 
-    mc._IMAGE_BASELINE_REGISTRY._data = copy.deepcopy(baseline_snapshot)
-    mc._IMAGE_BASELINE_REGISTRY._init_complete = True
-    mc._rebuild_baseline_derived_data(mc._IMAGE_BASELINE_REGISTRY._data)
-    mc.alternative_sdxl_baseline_names = list(
-        mc._IMAGE_BASELINE_REGISTRY.get(mc.KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl).alternative_names
+    image_consts._IMAGE_BASELINE_REGISTRY._data = copy.deepcopy(baseline_snapshot)
+    image_consts._IMAGE_BASELINE_REGISTRY._init_complete = True
+    image_consts._rebuild_baseline_derived_data(image_consts._IMAGE_BASELINE_REGISTRY._data)
+    image_consts.alternative_sdxl_baseline_names = list(
+        image_consts._IMAGE_BASELINE_REGISTRY.get(
+            image_consts.KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl
+        ).alternative_names
     )
 
-    mc._TAG_REGISTRY._known.clear()
-    mc._TAG_REGISTRY._known.update(tag_snapshot)
+    shared_consts._TAG_REGISTRY._known.clear()
+    shared_consts._TAG_REGISTRY._known.update(tag_snapshot)
     mc._MODEL_DOMAIN_REGISTRY._known.clear()
     mc._MODEL_DOMAIN_REGISTRY._known.update(domain_snapshot)
     mc._MODEL_PURPOSE_REGISTRY._known.clear()
     mc._MODEL_PURPOSE_REGISTRY._known.update(purpose_snapshot)
-    mc._MODEL_STYLE_REGISTRY._known.clear()
-    mc._MODEL_STYLE_REGISTRY._known.update(style_snapshot)
-    mc._CONTROLNET_STYLE_REGISTRY._known.clear()
-    mc._CONTROLNET_STYLE_REGISTRY._known.update(controlnet_snapshot)
-    mc._TEXT_BACKEND_REGISTRY._known.clear()
-    mc._TEXT_BACKEND_REGISTRY._known.update(text_backend_snapshot)
+    shared_consts._MODEL_STYLE_REGISTRY._known.clear()
+    shared_consts._MODEL_STYLE_REGISTRY._known.update(style_snapshot)
+    image_consts._CONTROLNET_STYLE_REGISTRY._known.clear()
+    image_consts._CONTROLNET_STYLE_REGISTRY._known.update(controlnet_snapshot)
+    text_consts._TEXT_BACKEND_REGISTRY._known.clear()
+    text_consts._TEXT_BACKEND_REGISTRY._known.update(text_backend_snapshot)
 
     (
         mc.github_image_model_reference_categories,
@@ -121,9 +125,9 @@ def reset_registries() -> Generator[None]:
     ) = derived_category_lists
 
     (
-        mc.IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP,
-        mc._ALTERNATIVE_NAME_TO_BASELINE,
-        mc.alternative_sdxl_baseline_names,
+        image_consts.IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP,
+        image_consts._ALTERNATIVE_NAME_TO_BASELINE,
+        image_consts.alternative_sdxl_baseline_names,
     ) = derived_baseline
 
 
@@ -560,7 +564,7 @@ class TestBaselineDescriptorAccessors:
 
     def test_runtime_baseline_registration_updates_derived_state(self) -> None:
         """Registering a new baseline should refresh resolution and alias lookups."""
-        import horde_model_reference.meta_consts as mc
+        import horde_model_reference.model_consts.image as image_consts
 
         register_image_baseline(
             "runtime_baseline",
@@ -570,7 +574,7 @@ class TestBaselineDescriptorAccessors:
         assert get_baseline_native_resolution("runtime_baseline") == 2048
         assert is_known_image_baseline("rb_test")
         assert "runtime_baseline" in get_baselines_by_resolution(2048)
-        assert mc._ALTERNATIVE_NAME_TO_BASELINE["rb_test"] == "runtime_baseline"
+        assert image_consts._ALTERNATIVE_NAME_TO_BASELINE["rb_test"] == "runtime_baseline"
 
     def test_duplicate_baseline_registration_raises(self) -> None:
         """Registering the same baseline twice should surface a ValueError to callers."""
