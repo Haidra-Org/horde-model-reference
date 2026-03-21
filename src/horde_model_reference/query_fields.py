@@ -22,10 +22,6 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Any
 
-# ---------------------------------------------------------------------------
-# Core primitives
-# ---------------------------------------------------------------------------
-
 
 class Predicate:
     """A composable predicate for use with ``ModelQuery.where()`` and ``filter()``."""
@@ -87,8 +83,6 @@ class FieldRef:
         """The underlying field name string."""
         return self._field_name
 
-    # -- Comparison operators → Predicate --
-
     def __eq__(self, other: object) -> Predicate:  # type: ignore[override]
         field = self._field_name
         if isinstance(other, FieldRef):
@@ -119,8 +113,6 @@ class FieldRef:
         field = self._field_name
         return Predicate(lambda r: (v := getattr(r, field, None)) is not None and v >= other)
 
-    # -- Collection operators → Predicate --
-
     def contains(self, item: object) -> Predicate:
         """Check whether the field value (an iterable) contains *item*."""
         field = self._field_name
@@ -132,8 +124,6 @@ class FieldRef:
         field = self._field_name
         return Predicate(lambda r: getattr(r, field, None) in choice_set)
 
-    # -- Nullability operators → Predicate --
-
     def is_none(self) -> Predicate:
         """Check whether the field value is ``None``."""
         field = self._field_name
@@ -144,8 +134,6 @@ class FieldRef:
         field = self._field_name
         return Predicate(lambda r: getattr(r, field, None) is not None)
 
-    # -- Ordering → OrderSpec --
-
     def asc(self) -> OrderSpec:
         """Return an ascending ``OrderSpec`` for this field."""
         return OrderSpec(self._field_name, descending=False)
@@ -154,8 +142,6 @@ class FieldRef:
         """Return a descending ``OrderSpec`` for this field."""
         return OrderSpec(self._field_name, descending=True)
 
-    # -- Identity --
-
     def __hash__(self) -> int:
         return hash(self._field_name)
 
@@ -163,9 +149,6 @@ class FieldRef:
         return f"FieldRef({self._field_name!r})"
 
 
-# ---------------------------------------------------------------------------
-# Boolean sentinels (avoid linter warnings when comparing FieldRef to bool)
-# ---------------------------------------------------------------------------
 
 true: bool = True
 """Boolean sentinel for use in ``FieldRef`` comparisons: ``ImageF.nsfw == true``."""

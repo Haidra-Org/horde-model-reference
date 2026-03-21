@@ -63,7 +63,7 @@ manager = ModelReferenceManager.get_instance()  # raises RuntimeError if not yet
 The `prefetch_strategy` parameter controls when model data is fetched from the backend:
 
 | Strategy | Behavior | Best For |
-|----------|----------|----------|
+| -------- | -------- | -------- |
 | `LAZY` (default) | Defers fetching until you first access data | Scripts, CLIs, most consumers |
 | `SYNC` | Fetches all categories immediately during init | Latency-sensitive services that can block on startup |
 | `ASYNC` | Schedules a background async fetch if an event loop is running | FastAPI / async services |

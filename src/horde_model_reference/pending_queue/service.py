@@ -39,7 +39,6 @@ class PendingQueueService:
         self._store = store
         self._audit_writer = audit_writer
 
-    # --------------------------- enqueue & lookup ---------------------------
     def enqueue_change(
         self,
         *,
@@ -121,7 +120,6 @@ class PendingQueueService:
 
         return removed
 
-    # ------------------------------ approvals ------------------------------
     def process_batch(
         self,
         *,
@@ -224,7 +222,6 @@ class PendingQueueService:
             rejected=rejected_records,
         )
 
-    # ----------------------------- application -----------------------------
     def mark_applied(
         self,
         *,
@@ -347,14 +344,12 @@ class PendingQueueService:
             reassigned_change_ids=reassigned_change_ids,
         )
 
-    # ------------------------------ utilities -----------------------------
     def _require_pending(self, change_id: int) -> PendingChangeRecord:
         record = self._store.get_change(change_id)
         if record is None:
             raise ValueError(f"Change {change_id} does not exist.")
         return assert_pending(record)
 
-    # ---------------------------- apply locking ----------------------------
     def reserve_for_apply(self, *, change_id: int, reservation_id: str) -> PendingChangeRecord:
         """Reserve an approved change for application using a reservation id."""
         return self._store.reserve_for_apply(change_id=change_id, reservation_id=reservation_id)
