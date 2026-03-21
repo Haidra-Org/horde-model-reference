@@ -597,7 +597,8 @@ class TestComplexQueries:
         """Story 1: Find SFW SDXL models under 5GB, ordered by size."""
         q = build_query(image_models, ImageGenerationModelRecord)
         results = (
-            q.where(baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl)
+            q
+            .where(baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl)
             .where(nsfw=False)
             .where(size_on_disk_bytes__lt=5_000_000_000)
             .order_by("size_on_disk_bytes")
@@ -610,7 +611,8 @@ class TestComplexQueries:
         """Story 2: Find 7B-13B SFW instruct models."""
         q = build_query(text_models, TextGenerationModelRecord)
         results = (
-            q.where(parameters_count__gte=7_000_000_000)
+            q
+            .where(parameters_count__gte=7_000_000_000)
             .where(parameters_count__lte=13_000_000_000)
             .where(nsfw=False)
             .tags_any(["instruct"])
@@ -977,14 +979,14 @@ class TestFieldRefPredicates:
     def test_eq_predicate(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test FieldRef == value produces a working Predicate."""
         q = build_image_query(image_models)
-        results = q.where(ImageFields.nsfw == false).to_list()
+        results = q.where(ImageFields.nsfw == false()).to_list()
         assert len(results) == 4
         assert all(not m.nsfw for m in results)
 
     def test_ne_predicate(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
         """Test FieldRef != value."""
         q = build_text_query(text_models)
-        results = q.where(TextFields.nsfw != true).to_list()
+        results = q.where(TextFields.nsfw != true()).to_list()
         assert len(results) == 3
 
     def test_lt_predicate(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
@@ -1052,7 +1054,7 @@ class TestPredicateComposition:
     def test_and_composition(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test (pred1 & pred2) filters by both conditions."""
         q = build_image_query(image_models)
-        pred = (ImageFields.nsfw == false) & (ImageFields.inpainting == true)
+        pred = (ImageFields.nsfw == false()) & (ImageFields.inpainting == true())
         results = q.where(pred).to_list()
         assert len(results) == 1
         assert results[0].name == "ModelD"
@@ -1060,7 +1062,7 @@ class TestPredicateComposition:
     def test_or_composition(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test (pred1 | pred2) filters by either condition."""
         q = build_image_query(image_models)
-        pred = (ImageFields.nsfw == true) | (ImageFields.inpainting == true)
+        pred = (ImageFields.nsfw == true()) | (ImageFields.inpainting == true())
         results = q.where(pred).to_list()
         names = {m.name for m in results}
         assert names == {"ModelB", "ModelD"}
@@ -1068,14 +1070,14 @@ class TestPredicateComposition:
     def test_invert_composition(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test ~pred inverts the condition."""
         q = build_image_query(image_models)
-        pred = ~(ImageFields.nsfw == true)
+        pred = ~(ImageFields.nsfw == true())
         results = q.where(pred).to_list()
         assert len(results) == 4
 
     def test_mixed_predicate_and_kwargs(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test mixing Predicate positional args with keyword args in where()."""
         q = build_image_query(image_models)
-        results = q.where(ImageFields.nsfw == false, inpainting=True).to_list()
+        results = q.where(ImageFields.nsfw == false(), inpainting=True).to_list()
         assert len(results) == 1
         assert results[0].name == "ModelD"
 
@@ -1101,7 +1103,8 @@ class TestOrderSpec:
         """Test OrderSpec on ImageGenerationQuery."""
         q = build_image_query(image_models)
         results = (
-            q.where(ImageFields.size_on_disk_bytes.is_not_none())
+            q
+            .where(ImageFields.size_on_disk_bytes.is_not_none())
             .order_by(ImageFields.size_on_disk_bytes.asc())
             .to_list()
         )
@@ -1118,7 +1121,7 @@ class TestFieldDSLComplexQueries:
             build_image_query(image_models)
             .where(
                 ImageFields.baseline == KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl,
-                ImageFields.nsfw == false,
+                ImageFields.nsfw == false(),
                 ImageFields.size_on_disk_bytes < 5_000_000_000,
             )
             .order_by(ImageFields.size_on_disk_bytes.asc())
@@ -1134,7 +1137,7 @@ class TestFieldDSLComplexQueries:
             .where(
                 TextFields.parameters_count >= 7_000_000_000,
                 TextFields.parameters_count <= 13_000_000_000,
-                TextFields.nsfw == false,
+                TextFields.nsfw == false(),
             )
             .tags_any(["instruct"])
             .to_list()

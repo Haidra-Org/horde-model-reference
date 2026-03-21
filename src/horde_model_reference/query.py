@@ -38,7 +38,7 @@ from horde_model_reference.model_reference_records import (
     ImageGenerationModelRecord,
     TextGenerationModelRecord,
 )
-from horde_model_reference.query_fields import OrderSpec, Predicate
+from horde_model_reference.query_fields import OrderSpec, Predicate, true, false
 from horde_model_reference.text_backend_names import (
     TEXT_LEGACY_BACKEND_PREFIXES,
     has_legacy_text_backend_prefix,
@@ -371,7 +371,10 @@ class ModelQuery[T: GenericModelRecord, F: str]:
     @overload
     def order_by(self, field: F, *, descending: bool = False) -> Self: ...
 
-    def order_by(self, field: F | OrderSpec, *, descending: bool = False) -> Self:
+    @overload
+    def order_by(self, field: str, *, descending: bool = False) -> Self: ...
+
+    def order_by(self, field: F | OrderSpec | str, *, descending: bool = False) -> Self:
         """Sort results by *field*; raises ``ValueError`` if values are not comparable.
 
         Accepts either a field name string or an ``OrderSpec`` from the field
@@ -394,6 +397,9 @@ class ModelQuery[T: GenericModelRecord, F: str]:
     def _execute(self) -> list[T]:
         """Apply all predicates, sorting, and pagination."""
         result: list[T] = [r for r in self._records if all(p(r) for p in self._predicates)]
+
+        if not result:
+            return []
 
         if self._sort_key is not None:
             key_field = self._sort_key
@@ -556,7 +562,6 @@ class ImageGenerationQuery(ModelQuery[ImageGenerationModelRecord, ImageGenFieldN
         return self._clone(predicates=[*self._predicates, _pred])
 
 
-# ---------------------------------------------------------------------------
 class TextModelQuery(ModelQuery[TextGenerationModelRecord, TextGenFieldName]):
     """Query builder with text-generation-specific helpers.
 
@@ -565,8 +570,13 @@ class TextModelQuery(ModelQuery[TextGenerationModelRecord, TextGenFieldName]):
     chain stays type-safe.
     """
 
-    def for_backend(self, backend: TEXT_BACKENDS) -> Self:
+    def for_backend(self, backend: TEXT_BACKENDS | str) -> Self:
         """Keep only models whose name starts with the legacy prefix for *backend*."""
+        if backend not in TEXT_LEGACY_BACKEND_PREFIXES:
+            valid = sorted(TEXT_LEGACY_BACKEND_PREFIXES.keys())
+            raise ValueError(f"Unknown backend '{backend}'. Valid backends: {valid}")
+
+        backend = TEXT_BACKENDS(backend)
         prefix = TEXT_LEGACY_BACKEND_PREFIXES[backend]
 
         def _pred(record: TextGenerationModelRecord) -> bool:
