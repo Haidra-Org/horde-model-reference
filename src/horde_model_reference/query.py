@@ -44,10 +44,6 @@ from horde_model_reference.text_backend_names import (
     has_legacy_text_backend_prefix,
 )
 
-# ---------------------------------------------------------------------------
-# Field name type aliases
-# ---------------------------------------------------------------------------
-
 type GenericFieldName = Literal[
     "record_type",
     "name",
@@ -115,10 +111,6 @@ type ControlNetFieldName = Literal[
     "controlnet_style",
 ]
 
-# ---------------------------------------------------------------------------
-# Protocols for record capabilities
-# ---------------------------------------------------------------------------
-
 
 @runtime_checkable
 class HasTags(Protocol):
@@ -141,10 +133,6 @@ class HasBaseline(Protocol):
 
     baseline: str | None
 
-
-# ---------------------------------------------------------------------------
-# Comparison operators
-# ---------------------------------------------------------------------------
 
 _COMPARISON_OPS: dict[str, Callable[[Any, Any], bool]] = {
     "lt": operator.lt,
@@ -210,11 +198,6 @@ def _to_hashable(field: str, value: object) -> Hashable:
     return candidate
 
 
-# ---------------------------------------------------------------------------
-# Base query builder
-# ---------------------------------------------------------------------------
-
-
 class ModelQuery[T: GenericModelRecord, F: str]:
     """Lazy, immutable query builder over a sequence of model records.
 
@@ -276,10 +259,6 @@ class ModelQuery[T: GenericModelRecord, F: str]:
             offset_value=offset_value if offset_value is not None else self._offset_value,
             limit_value=limit_value if limit_value is not None else self._limit_value,
         )
-
-    # ------------------------------------------------------------------
-    # Equality / comparison filters
-    # ------------------------------------------------------------------
 
     def where(self, *predicates: Predicate, **kwargs: object) -> Self:
         """Filter records by field equality, comparison operators, or ``Predicate`` objects.
@@ -343,10 +322,6 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         new_preds.append(_classification_pred)
         return self._clone(predicates=new_preds)
 
-    # ------------------------------------------------------------------
-    # Tag helpers
-    # ------------------------------------------------------------------
-
     def tags_any(self, tags: Iterable[str]) -> Self:
         """Keep records whose ``tags`` field contains **any** of *tags*."""
         tag_set = set(tags)
@@ -386,17 +361,9 @@ class ModelQuery[T: GenericModelRecord, F: str]:
 
         return self._clone(predicates=[*self._predicates, _pred])
 
-    # ------------------------------------------------------------------
-    # Arbitrary predicate
-    # ------------------------------------------------------------------
-
     def filter(self, predicate: Callable[[T], bool]) -> Self:
         """Apply an arbitrary predicate function."""
         return self._clone(predicates=[*self._predicates, predicate])
-
-    # ------------------------------------------------------------------
-    # Ordering & pagination
-    # ------------------------------------------------------------------
 
     @overload
     def order_by(self, field: OrderSpec) -> Self: ...
@@ -423,10 +390,6 @@ class ModelQuery[T: GenericModelRecord, F: str]:
     def offset(self, n: int) -> Self:
         """Skip the first *n* results."""
         return self._clone(offset_value=n)
-
-    # ------------------------------------------------------------------
-    # Terminal operations
-    # ------------------------------------------------------------------
 
     def _execute(self) -> list[T]:
         """Apply all predicates, sorting, and pagination."""
@@ -497,10 +460,6 @@ class ModelQuery[T: GenericModelRecord, F: str]:
             groups.setdefault(key, []).append(record)
         return groups
 
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _parse_key(raw_key: str) -> tuple[str, str | None]:
         """Split ``field__op`` into ``(field, op)`` or ``(field, None)``."""
@@ -548,11 +507,6 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         return _pred
 
 
-# ---------------------------------------------------------------------------
-# Image generation query builder
-# ---------------------------------------------------------------------------
-
-
 class ImageGenerationQuery(ModelQuery[ImageGenerationModelRecord, ImageGenFieldName]):
     """Query builder with image-generation-specific helpers.
 
@@ -561,10 +515,6 @@ class ImageGenerationQuery(ModelQuery[ImageGenerationModelRecord, ImageGenFieldN
     that give IDE autocomplete for ``ImageGenerationModelRecord`` fields.
     """
 
-    # ------------------------------------------------------------------
-    # Baseline filters
-    # ------------------------------------------------------------------
-
     def for_baseline(self, baseline: KNOWN_IMAGE_GENERATION_BASELINE | str) -> Self:
         """Keep only models with the given *baseline*."""
 
@@ -572,10 +522,6 @@ class ImageGenerationQuery(ModelQuery[ImageGenerationModelRecord, ImageGenFieldN
             return record.baseline == baseline
 
         return self._clone(predicates=[*self._predicates, _pred])
-
-    # ------------------------------------------------------------------
-    # NSFW / inpainting convenience filters
-    # ------------------------------------------------------------------
 
     def only_nsfw(self) -> Self:
         """Keep only NSFW models."""
@@ -611,10 +557,6 @@ class ImageGenerationQuery(ModelQuery[ImageGenerationModelRecord, ImageGenFieldN
 
 
 # ---------------------------------------------------------------------------
-# Text generation query builder
-# ---------------------------------------------------------------------------
-
-
 class TextModelQuery(ModelQuery[TextGenerationModelRecord, TextGenFieldName]):
     """Query builder with text-generation-specific helpers.
 
@@ -622,10 +564,6 @@ class TextModelQuery(ModelQuery[TextGenerationModelRecord, TextGenFieldName]):
     by base model name.  Every fluent method returns ``Self`` so the full
     chain stays type-safe.
     """
-
-    # ------------------------------------------------------------------
-    # Backend prefix filters
-    # ------------------------------------------------------------------
 
     def for_backend(self, backend: TEXT_BACKENDS) -> Self:
         """Keep only models whose name starts with the legacy prefix for *backend*."""
@@ -643,10 +581,6 @@ class TextModelQuery(ModelQuery[TextGenerationModelRecord, TextGenFieldName]):
             return not has_legacy_text_backend_prefix(record.name)
 
         return self._clone(predicates=[*self._predicates, _pred])
-
-    # ------------------------------------------------------------------
-    # Quantization filters
-    # ------------------------------------------------------------------
 
     def only_quantized(self) -> Self:
         """Keep only quantized model variants."""
@@ -666,10 +600,6 @@ class TextModelQuery(ModelQuery[TextGenerationModelRecord, TextGenFieldName]):
 
         return self._clone(predicates=[*self._predicates, _pred])
 
-    # ------------------------------------------------------------------
-    # Terminal: group by base model
-    # ------------------------------------------------------------------
-
     def group_by_base_model(self) -> dict[str, list[TextGenerationModelRecord]]:
         """Group matching records by their parsed base model name.
 
@@ -683,11 +613,6 @@ class TextModelQuery(ModelQuery[TextGenerationModelRecord, TextGenFieldName]):
             base = get_base_model_name(record.name)
             groups.setdefault(base, []).append(record)
         return groups
-
-
-# ---------------------------------------------------------------------------
-# ControlNet query builder
-# ---------------------------------------------------------------------------
 
 
 class ControlNetQuery(ModelQuery[GenericModelRecord, ControlNetFieldName]):
@@ -717,11 +642,6 @@ class ControlNetQuery(ModelQuery[GenericModelRecord, ControlNetFieldName]):
             if style is not None:
                 groups.setdefault(style, []).append(record)
         return groups
-
-
-# ---------------------------------------------------------------------------
-# Factory functions
-# ---------------------------------------------------------------------------
 
 
 def build_query[T: GenericModelRecord](

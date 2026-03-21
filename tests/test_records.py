@@ -88,11 +88,6 @@ def test_image_generation_model_record_unknown_style() -> None:
         )
 
 
-# ---------------------------------------------------------------------------
-# GenericModelRecord convenience properties
-# ---------------------------------------------------------------------------
-
-
 def _make_generic_record(downloads: list[DownloadRecord] | None = None) -> GenericModelRecord:
     config = GenericModelRecordConfig(download=downloads or [])
     return GenericModelRecord(

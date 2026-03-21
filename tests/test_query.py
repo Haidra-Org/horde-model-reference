@@ -100,11 +100,6 @@ def _make_controlnet_model(
     )
 
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-
 @pytest.fixture()
 def image_models() -> dict[str, ImageGenerationModelRecord]:
     """Return a set of test image generation models."""
@@ -142,11 +137,6 @@ def text_models() -> dict[str, TextGenerationModelRecord]:
     return {m.name: m for m in models}
 
 
-# ---------------------------------------------------------------------------
-# Tests: where() equality
-# ---------------------------------------------------------------------------
-
-
 class TestWhereEquality:
     """Tests for equality-based .where() filters."""
 
@@ -177,11 +167,6 @@ class TestWhereEquality:
         results = q.where(nsfw=False, inpainting=True).to_list()
         assert len(results) == 1
         assert results[0].name == "ModelD"
-
-
-# ---------------------------------------------------------------------------
-# Tests: where() comparison operators
-# ---------------------------------------------------------------------------
 
 
 class TestWhereComparison:
@@ -261,11 +246,6 @@ class TestWhereComparison:
         assert names == {"MediumModel", "LargeModel"}
 
 
-# ---------------------------------------------------------------------------
-# Tests: tag operations
-# ---------------------------------------------------------------------------
-
-
 class TestTagFilters:
     """Tests for tag-based filtering."""
 
@@ -311,11 +291,6 @@ class TestTagFilters:
         assert "ModelE" not in {m.name for m in results}
 
 
-# ---------------------------------------------------------------------------
-# Tests: filter()
-# ---------------------------------------------------------------------------
-
-
 class TestFilter:
     """Tests for arbitrary lambda predicate filtering."""
 
@@ -325,11 +300,6 @@ class TestFilter:
         results = q.filter(lambda m: m.name.startswith("Model") and m.name.endswith("A")).to_list()
         assert len(results) == 1
         assert results[0].name == "ModelA"
-
-
-# ---------------------------------------------------------------------------
-# Tests: ordering
-# ---------------------------------------------------------------------------
 
 
 class TestOrdering:
@@ -383,11 +353,6 @@ class TestOrdering:
             q.order_by("sortable").to_list()
 
 
-# ---------------------------------------------------------------------------
-# Tests: pagination
-# ---------------------------------------------------------------------------
-
-
 class TestPagination:
     """Tests for limit and offset."""
 
@@ -415,11 +380,6 @@ class TestPagination:
         q = build_query(text_models, TextGenerationModelRecord)
         results = q.limit(100).to_list()
         assert len(results) == 4
-
-
-# ---------------------------------------------------------------------------
-# Tests: terminal operations
-# ---------------------------------------------------------------------------
 
 
 class TestTerminals:
@@ -460,11 +420,6 @@ class TestTerminals:
         assert True in groups
         assert len(groups[False]) == 4
         assert len(groups[True]) == 1
-
-
-# ---------------------------------------------------------------------------
-# Tests: where_classification
-# ---------------------------------------------------------------------------
 
 
 class TestWhereClassification:
@@ -515,11 +470,6 @@ class TestWhereClassification:
         assert results[0].name == "ImgModel"
 
 
-# ---------------------------------------------------------------------------
-# Tests: nested field access
-# ---------------------------------------------------------------------------
-
-
 class TestNestedFields:
     """Tests for nested field access via __ separator."""
 
@@ -536,11 +486,6 @@ class TestNestedFields:
             q.where(metadata__nonexistent_field="value").to_list()
 
 
-# ---------------------------------------------------------------------------
-# Tests: immutability
-# ---------------------------------------------------------------------------
-
-
 class TestImmutability:
     """Tests that query chaining does not mutate previous instances."""
 
@@ -553,11 +498,6 @@ class TestImmutability:
         assert q1.count() == 5
         assert q2.count() == 4
         assert q3.count() == 1
-
-
-# ---------------------------------------------------------------------------
-# Tests: validation
-# ---------------------------------------------------------------------------
 
 
 class TestValidation:
@@ -620,11 +560,6 @@ class TestValidation:
             q.tags_any(["tag"])
 
 
-# ---------------------------------------------------------------------------
-# Tests: cross-category query
-# ---------------------------------------------------------------------------
-
-
 class TestCrossCategory:
     """Tests for cross-category query building."""
 
@@ -653,11 +588,6 @@ class TestCrossCategory:
         results = q.where_classification(domain=MODEL_DOMAIN.image).to_list()
         assert len(results) == 1
         assert results[0].name == "ImgModel"
-
-
-# ---------------------------------------------------------------------------
-# Tests: combined complex queries (user story style)
-# ---------------------------------------------------------------------------
 
 
 class TestComplexQueries:
@@ -761,11 +691,6 @@ class TestComplexQueries:
         assert results == []
 
 
-# ---------------------------------------------------------------------------
-# Fixtures: text models with backend prefixes
-# ---------------------------------------------------------------------------
-
-
 @pytest.fixture()
 def text_models_with_backends() -> dict[str, TextGenerationModelRecord]:
     """Return text models including backend-prefixed variants."""
@@ -778,11 +703,6 @@ def text_models_with_backends() -> dict[str, TextGenerationModelRecord]:
         _make_text_model("koboldcpp/Mistral-7B-v0.1", parameters=7_000_000_000),
     ]
     return {m.name: m for m in models}
-
-
-# ---------------------------------------------------------------------------
-# Tests: TextModelQuery
-# ---------------------------------------------------------------------------
 
 
 class TestTextModelQuery:
@@ -918,11 +838,6 @@ class TestTextModelQuery:
         assert len(results) == 0
 
 
-# ---------------------------------------------------------------------------
-# Tests: ImageGenerationQuery
-# ---------------------------------------------------------------------------
-
-
 class TestImageGenerationQuery:
     """Tests for the ImageGenerationQuery subclass."""
 
@@ -1004,11 +919,6 @@ class TestImageGenerationQuery:
         assert results[0].name == "ModelA"
 
 
-# ---------------------------------------------------------------------------
-# Tests: Self return type preservation
-# ---------------------------------------------------------------------------
-
-
 class TestSelfReturnType:
     """Tests that fluent methods preserve concrete subclass types via Self."""
 
@@ -1059,11 +969,6 @@ class TestSelfReturnType:
         q = build_image_query(image_models)
         q2 = q.tags_any(["realistic"])
         assert isinstance(q2, ImageGenerationQuery)
-
-
-# ---------------------------------------------------------------------------
-# Tests: Field reference DSL (query_fields)
-# ---------------------------------------------------------------------------
 
 
 class TestFieldRefPredicates:

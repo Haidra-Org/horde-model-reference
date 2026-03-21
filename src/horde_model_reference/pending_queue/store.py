@@ -32,7 +32,6 @@ class PendingQueueStore:
         self._load_state()
         self._load_changes()
 
-    # ---------------------------- public API ----------------------------
     def enqueue_change(self, record: PendingChangeRecord) -> PendingChangeRecord:
         """Persist a new pending change and allocate an id if needed."""
         with self._lock:
@@ -187,7 +186,6 @@ class PendingQueueStore:
             self._persist_state_locked()
             return self._last_batch_id
 
-    # ----------------------------- internals ----------------------------
     def _matches_filter(self, record: PendingChangeRecord, queue_filter: PendingQueueFilter) -> bool:
         if queue_filter.statuses and record.status not in queue_filter.statuses:
             return False
@@ -249,7 +247,6 @@ class PendingQueueStore:
         self._persist_state_locked()
         return self._last_change_id
 
-    # ----------------------------- apply locks -----------------------------
     def reserve_for_apply(self, *, change_id: int, reservation_id: str) -> PendingChangeRecord:
         """Mark a change as reserved for application if it is still approved.
 
