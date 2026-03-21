@@ -1248,10 +1248,6 @@ class ModelReferenceManager:
             record_type=MiscellaneousModelRecord,
         )
 
-    # ------------------------------------------------------------------
-    # Query API
-    # ------------------------------------------------------------------
-
     @overload
     def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery: ...
 
