@@ -32,9 +32,9 @@ class TestTextGenerationFilePaths:
         )
 
         assert v2_file_path is not None
-        assert v2_file_path.name == "text_generation.json", (
-            f"V2 file should be text_generation.json, not {v2_file_path.name}"
-        )
+        assert (
+            v2_file_path.name == "text_generation.json"
+        ), f"V2 file should be text_generation.json, not {v2_file_path.name}"
 
         # Create a sample JSON file
         sample_data = {
@@ -200,9 +200,9 @@ class TestTextGenerationFilePaths:
         v2_filename = horde_model_reference_paths.model_reference_filenames.get(
             MODEL_REFERENCE_CATEGORY.text_generation
         )
-        assert v2_filename == "text_generation.json", (
-            f"V2 filename should be 'text_generation.json', got '{v2_filename}'"
-        )
+        assert (
+            v2_filename == "text_generation.json"
+        ), f"V2 filename should be 'text_generation.json', got '{v2_filename}'"
 
         # Legacy format should use models.csv (this is what gets downloaded from GitHub)
         # The legacy filename is built by get_legacy_model_reference_file_path

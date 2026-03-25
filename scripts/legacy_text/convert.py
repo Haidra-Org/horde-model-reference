@@ -65,9 +65,9 @@ with open(input_file, newline="", encoding="utf-8") as csvfile:
         try:
             row["settings"] = json.loads(row["settings"]) if row["settings"] else {}
             assert isinstance(row["settings"], dict), f"{name}: settings must be a JSON dictionary"
-            assert all(k in params for k in row["settings"]), (
-                f"{name}: settings must be a subset of generation_params.json"
-            )
+            assert all(
+                k in params for k in row["settings"]
+            ), f"{name}: settings must be a subset of generation_params.json"
         except json.JSONDecodeError as e:
             print(e)
             print(f"Error decoding settings for {name}")

@@ -334,7 +334,15 @@ class TextModelWriteProcessor:
 
         Returns:
             The model name portion (after the first "/" if present).
+
+        Raises:
+            ValueError: If ``entry_key`` looks like a URL (contains ``://``).
         """
+        if "://" in entry_key:
+            raise ValueError(
+                f"Cannot extract model_name from URL-shaped key: {entry_key!r}. "
+                "Model names should use 'Author/ModelName' format, not full URLs."
+            )
         if "/" in entry_key:
             return entry_key.split("/")[1]
         return entry_key

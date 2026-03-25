@@ -597,8 +597,7 @@ class TestComplexQueries:
         """Story 1: Find SFW SDXL models under 5GB, ordered by size."""
         q = build_query(image_models, ImageGenerationModelRecord)
         results = (
-            q
-            .where(baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl)
+            q.where(baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_xl)
             .where(nsfw=False)
             .where(size_on_disk_bytes__lt=5_000_000_000)
             .order_by("size_on_disk_bytes")
@@ -611,8 +610,7 @@ class TestComplexQueries:
         """Story 2: Find 7B-13B SFW instruct models."""
         q = build_query(text_models, TextGenerationModelRecord)
         results = (
-            q
-            .where(parameters_count__gte=7_000_000_000)
+            q.where(parameters_count__gte=7_000_000_000)
             .where(parameters_count__lte=13_000_000_000)
             .where(nsfw=False)
             .tags_any(["instruct"])
@@ -1103,8 +1101,7 @@ class TestOrderSpec:
         """Test OrderSpec on ImageGenerationQuery."""
         q = build_image_query(image_models)
         results = (
-            q
-            .where(ImageFields.size_on_disk_bytes.is_not_none())
+            q.where(ImageFields.size_on_disk_bytes.is_not_none())
             .order_by(ImageFields.size_on_disk_bytes.asc())
             .to_list()
         )

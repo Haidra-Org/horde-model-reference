@@ -25,7 +25,7 @@ from horde_model_reference import (
 )
 from horde_model_reference.sync.comparator import ModelReferenceDiff
 from horde_model_reference.sync.config import github_app_settings
-from horde_model_reference.sync.legacy_text_validator import LegacyTextValidator
+from horde_model_reference.sync.text_generation_serializer import TextGenerationSyncArtifacts
 
 
 class GitHubSyncClient:
@@ -179,6 +179,7 @@ class GitHubSyncClient:
         category: MODEL_REFERENCE_CATEGORY,
         diff: ModelReferenceDiff,
         primary_data: dict[str, dict[str, Any]],
+        text_generation_artifacts: TextGenerationSyncArtifacts | None = None,
     ) -> str | None:
         """Sync a category's model references to GitHub by creating a PR.
 
@@ -186,6 +187,9 @@ class GitHubSyncClient:
             category (MODEL_REFERENCE_CATEGORY): The category to sync.
             diff: The detected differences for this category.
             primary_data: The complete PRIMARY data for this category (legacy format).
+            text_generation_artifacts: Pre-computed serialization artifacts for
+                text_generation.  When provided, ``_update_text_generation_files``
+                writes these directly instead of re-running the serializer.
 
         Returns:
             The PR URL if created, None if no PR was needed or dry run.
@@ -215,7 +219,11 @@ class GitHubSyncClient:
 
             with self._branch_operation():
                 branch_name = self._create_sync_branch(category)
-                self._update_category_file(category, primary_data)
+                self._update_category_file(
+                    category,
+                    primary_data,
+                    text_generation_artifacts=text_generation_artifacts,
+                )
                 self._commit_changes(category, diff)
                 self._push_branch(branch_name)
                 pr_url = self._create_pull_request(
@@ -235,18 +243,21 @@ class GitHubSyncClient:
         self,
         *,
         repo_name: str,
-        categories_data: dict[MODEL_REFERENCE_CATEGORY, tuple[ModelReferenceDiff, dict[str, dict[str, Any]]]],
+        categories_data: dict[
+            MODEL_REFERENCE_CATEGORY,
+            tuple[ModelReferenceDiff, dict[str, dict[str, Any]], TextGenerationSyncArtifacts | None],
+        ],
     ) -> str | None:
         """Sync multiple categories to GitHub in a single PR.
 
         Args:
             repo_name: Repository in 'owner/repo' format.
-            categories_data: Dict mapping categories to (diff, primary_data) tuples.
+            categories_data: Dict mapping categories to (diff, primary_data, artifacts) tuples.
 
         Returns:
             The PR URL if created, None if no PR was needed or dry run.
         """
-        total_changes = sum(diff.total_changes() for diff, _ in categories_data.values())
+        total_changes = sum(diff.total_changes() for diff, _, _ in categories_data.values())
 
         if total_changes < self.settings.min_changes_threshold:
             logger.info(
@@ -259,14 +270,13 @@ class GitHubSyncClient:
             logger.info(
                 f"[DRY RUN] Would create PR for {len(categories_data)} categories with {total_changes} changes"
             )
-            for category, (diff, _) in categories_data.items():
+            for category, (diff, _, _) in categories_data.items():
                 logger.info(f"[DRY RUN] {category}:\n{diff.summary()}")
             return None
 
         try:
             logger.info(f"Starting multi-category sync to {repo_name}")
 
-            # Get the GitHub settings from the first category (all categories in this batch use same repo)
             first_category = next(iter(categories_data.keys()))
             github_repo_settings = horde_model_reference_settings.get_repo_by_category(first_category)
 
@@ -275,9 +285,13 @@ class GitHubSyncClient:
             with self._branch_operation():
                 branch_name = self._create_multi_category_sync_branch(list(categories_data.keys()))
 
-                for category, (diff, primary_data) in categories_data.items():
+                for category, (diff, primary_data, artifacts) in categories_data.items():
                     logger.info(f"Updating {category} with {diff.total_changes()} changes")
-                    self._update_category_file(category, primary_data)
+                    self._update_category_file(
+                        category,
+                        primary_data,
+                        text_generation_artifacts=artifacts,
+                    )
 
                 self._commit_multi_category_changes(categories_data)
                 self._push_branch(branch_name)
@@ -655,56 +669,83 @@ class GitHubSyncClient:
         self,
         category: MODEL_REFERENCE_CATEGORY,
         primary_data: dict[str, dict[str, Any]],
+        *,
+        text_generation_artifacts: TextGenerationSyncArtifacts | None = None,
     ) -> None:
-        """Update the category file with PRIMARY data.
+        """Update the category file(s) with PRIMARY data.
 
-        SIGNIFICANCE:
-        - For text_generation category, GitHub repos use 'db.json', not 'text_generation.json'
-        - We must write to the filename that exists in the GitHub repository
-        - This follows the legacy naming convention used by the GitHub repos
-        - For text_generation, applies LegacyTextValidator and generates backend prefixes for GitHub
+        For text_generation, produces both models.csv and db.json via the
+        CSV-mediated serialization pipeline (matching upstream convert.py output).
+        For other categories, writes a single JSON file.
 
         Args:
             category (MODEL_REFERENCE_CATEGORY): The category to update.
             primary_data: The complete PRIMARY data in legacy format (grouped, no backend prefixes).
+            text_generation_artifacts: Pre-computed serialization artifacts for
+                text_generation. When provided, files are written directly without
+                re-running the serializer.
         """
         if not self._current_repo or not self._temp_dir:
             raise RuntimeError("No repository cloned")
 
-        # Use GitHub legacy filename for text_generation category
-        filename: str
         if category == MODEL_REFERENCE_CATEGORY.text_generation:
-            filename = "db.json"
-            logger.debug(f"Using legacy GitHub filename 'db.json' for {category}")
-        else:
-            filename = str(horde_model_reference_paths.get_model_reference_filename(category))
+            self._update_text_generation_files(primary_data, artifacts=text_generation_artifacts)
+            return
 
+        filename = str(horde_model_reference_paths.get_model_reference_filename(category))
         file_path = self._temp_dir / filename
 
         logger.debug(f"Updating {file_path} with PRIMARY data")
-
-        # Apply legacy text validation and backend prefix generation for text_generation category
-        # This ensures the data matches the legacy GitHub format expectations
-        if category == MODEL_REFERENCE_CATEGORY.text_generation:
-            logger.debug("Applying LegacyTextValidator for text_generation category")
-            try:
-                validator = LegacyTextValidator()
-                primary_data = validator.validate_and_transform(primary_data)
-                logger.debug(f"LegacyTextValidator applied: {len(primary_data)} base records after validation")
-
-                # Generate backend prefix duplicates for GitHub (backward compatibility)
-                logger.debug("Generating backend prefix duplicates for GitHub sync")
-                primary_data = self._generate_backend_prefixes_for_github(primary_data)
-                logger.debug(f"Backend prefixes generated: {len(primary_data)} total records for GitHub")
-            except Exception as e:
-                logger.error(f"LegacyTextValidator or backend prefix generation failed: {e}")
-                raise
 
         serialized_data = json.dumps(primary_data, indent=4, sort_keys=False)
         serialized_data = serialized_data + "\n"
 
         file_path.write_text(serialized_data, encoding="utf-8")
         logger.debug(f"Wrote {len(primary_data)} models to {file_path}")
+
+    def _update_text_generation_files(
+        self,
+        primary_data: dict[str, dict[str, Any]],
+        *,
+        artifacts: TextGenerationSyncArtifacts | None = None,
+    ) -> None:
+        """Update text_generation by producing both models.csv and db.json.
+
+        Uses the CSV-mediated serialization pipeline to guarantee db.json
+        output is byte-compatible with the upstream convert.py.
+
+        Args:
+            primary_data: The complete PRIMARY data (may include backend-prefixed entries).
+            artifacts: Pre-computed serialization artifacts. When provided, these
+                are written directly instead of re-running the serializer.
+        """
+        assert self._temp_dir is not None
+
+        if artifacts is None:
+            from horde_model_reference.sync.text_generation_serializer import TextGenerationSerializer
+            from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
+
+            base_records = {
+                name: record for name, record in primary_data.items() if not has_legacy_text_backend_prefix(name)
+            }
+
+            logger.debug(f"Serializing {len(base_records)} base text generation records via CSV pipeline")
+
+            serializer = TextGenerationSerializer()
+            existing_csv_path = self._temp_dir / "models.csv"
+            artifacts = serializer.serialize(
+                primary_base_records=base_records,
+                existing_csv_path=existing_csv_path,
+            )
+        else:
+            logger.debug("Using pre-computed text generation serialization artifacts")
+
+        csv_path = self._temp_dir / "models.csv"
+        csv_path.write_text(artifacts.csv_content, encoding="utf-8")
+        db_json_path = self._temp_dir / "db.json"
+        db_json_path.write_text(artifacts.json_content, encoding="utf-8")
+
+        logger.debug(f"Wrote models.csv and db.json for text_generation to {self._temp_dir}")
 
     def _commit_changes(
         self,
@@ -1060,7 +1101,10 @@ class GitHubSyncClient:
 
     def _commit_multi_category_changes(
         self,
-        categories_data: dict[MODEL_REFERENCE_CATEGORY, tuple[ModelReferenceDiff, dict[str, dict[str, Any]]]],
+        categories_data: dict[
+            MODEL_REFERENCE_CATEGORY,
+            tuple[ModelReferenceDiff, dict[str, dict[str, Any]], TextGenerationSyncArtifacts | None],
+        ],
     ) -> None:
         """Commit changes for multiple categories.
 
@@ -1068,7 +1112,7 @@ class GitHubSyncClient:
         This prevents issues when running in environments without GPG configured.
 
         Args:
-            categories_data: Dict mapping categories to (diff, primary_data) tuples.
+            categories_data: Dict mapping categories to (diff, primary_data, artifacts) tuples.
         """
         if not self._current_repo:
             raise RuntimeError("No repository cloned")
@@ -1087,18 +1131,21 @@ class GitHubSyncClient:
 
     def _generate_multi_category_commit_message(
         self,
-        categories_data: dict[MODEL_REFERENCE_CATEGORY, tuple[ModelReferenceDiff, dict[str, dict[str, Any]]]],
+        categories_data: dict[
+            MODEL_REFERENCE_CATEGORY,
+            tuple[ModelReferenceDiff, dict[str, dict[str, Any]], TextGenerationSyncArtifacts | None],
+        ],
     ) -> str:
         """Generate a commit message for multi-category sync.
 
         Args:
-            categories_data: Dict mapping categories to (diff, primary_data) tuples.
+            categories_data: Dict mapping categories to (diff, primary_data, artifacts) tuples.
 
         Returns:
             The commit message.
         """
         category_names = ", ".join(str(cat) for cat in sorted(categories_data.keys()))
-        total_changes = sum(diff.total_changes() for diff, _ in categories_data.values())
+        total_changes = sum(diff.total_changes() for diff, _, _ in categories_data.values())
 
         lines = ["Sync multiple categories from PRIMARY instance"]
         lines.append("")
@@ -1107,7 +1154,7 @@ class GitHubSyncClient:
         lines.append("")
 
         for category in sorted(categories_data.keys()):
-            diff, _ = categories_data[category]
+            diff, _, _ = categories_data[category]
             lines.append(f"## {category}")
 
             if diff.added_models:
@@ -1139,7 +1186,10 @@ class GitHubSyncClient:
 
     def _create_multi_category_pull_request(
         self,
-        categories_data: dict[MODEL_REFERENCE_CATEGORY, tuple[ModelReferenceDiff, dict[str, dict[str, Any]]]],
+        categories_data: dict[
+            MODEL_REFERENCE_CATEGORY,
+            tuple[ModelReferenceDiff, dict[str, dict[str, Any]], TextGenerationSyncArtifacts | None],
+        ],
         repo_name: str,
         branch_name: str,
         github_settings: GithubRepoSettings,
@@ -1212,19 +1262,22 @@ class GitHubSyncClient:
 
     def _generate_multi_category_pr_body(
         self,
-        categories_data: dict[MODEL_REFERENCE_CATEGORY, tuple[ModelReferenceDiff, dict[str, dict[str, Any]]]],
+        categories_data: dict[
+            MODEL_REFERENCE_CATEGORY,
+            tuple[ModelReferenceDiff, dict[str, dict[str, Any]], TextGenerationSyncArtifacts | None],
+        ],
     ) -> str:
         """Generate a PR description for multi-category sync.
 
         Args:
-            categories_data: Dict mapping categories to (diff, primary_data) tuples.
+            categories_data: Dict mapping categories to (diff, primary_data, artifacts) tuples.
 
         Returns:
             The PR body in Markdown format.
         """
-        total_added = sum(len(diff.added_models) for diff, _ in categories_data.values())
-        total_removed = sum(len(diff.removed_models) for diff, _ in categories_data.values())
-        total_modified = sum(len(diff.modified_models) for diff, _ in categories_data.values())
+        total_added = sum(len(diff.added_models) for diff, _, _ in categories_data.values())
+        total_removed = sum(len(diff.removed_models) for diff, _, _ in categories_data.values())
+        total_modified = sum(len(diff.modified_models) for diff, _, _ in categories_data.values())
         total_changes = total_added + total_removed + total_modified
 
         lines = [
@@ -1249,7 +1302,7 @@ class GitHubSyncClient:
         lines.append("")
 
         for category in sorted(categories_data.keys()):
-            diff, _ = categories_data[category]
+            diff, _, _ = categories_data[category]
             lines.append(f"### {category}")
             lines.append("")
             lines.append(f"- **Added:** {len(diff.added_models)} models")
