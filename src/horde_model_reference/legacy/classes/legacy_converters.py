@@ -20,7 +20,7 @@ from horde_model_reference.legacy.classes.legacy_models import (
     LegacyStableDiffusionRecord,
     LegacyTextGenerationRecord,
 )
-from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv
+from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv_file
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
     ClipModelRecord,
@@ -636,7 +636,7 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             logger.debug(f"Legacy database file {self.legacy_database_path} is empty, skipping conversion")
             return
 
-        parsed_rows, parse_issues = parse_legacy_text_csv(self.legacy_database_path)
+        parsed_rows, parse_issues = parse_legacy_text_csv_file(self.legacy_database_path)
         for issue in parse_issues:
             self.add_validation_error_to_log(model_record_key=issue.row_identifier, error=issue.message)
 

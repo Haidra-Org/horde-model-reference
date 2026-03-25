@@ -38,7 +38,7 @@ from horde_model_reference.model_reference_records import (
     ImageGenerationModelRecord,
     TextGenerationModelRecord,
 )
-from horde_model_reference.query_fields import OrderSpec, Predicate, true, false
+from horde_model_reference.query_fields import OrderSpec, Predicate
 from horde_model_reference.text_backend_names import (
     TEXT_LEGACY_BACKEND_PREFIXES,
     has_legacy_text_backend_prefix,

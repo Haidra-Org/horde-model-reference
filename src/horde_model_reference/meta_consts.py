@@ -192,9 +192,9 @@ def _rebuild_category_derived_data(
     categories_managed_elsewhere = [c for c, d in data.items() if d.managed_elsewhere]
 
     MODEL_CLASSIFICATION_LOOKUP.clear()
-    MODEL_CLASSIFICATION_LOOKUP.update({
-        c: ModelClassification(domain=d.domain, purpose=d.purpose) for c, d in data.items()
-    })
+    MODEL_CLASSIFICATION_LOOKUP.update(
+        {c: ModelClassification(domain=d.domain, purpose=d.purpose) for c, d in data.items()}
+    )
 
 
 _CATEGORY_REGISTRY = DescriptorRegistry[MODEL_REFERENCE_CATEGORY | str, CategoryDescriptor](
