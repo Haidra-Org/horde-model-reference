@@ -61,6 +61,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from typing import Any
 
@@ -80,6 +81,7 @@ from horde_model_reference.sync import (  # noqa: E402
     GitHubSyncClient,
     ModelReferenceComparator,
     ModelReferenceDiff,
+    TextGenerationSyncArtifacts,
     WatchModeManager,
     github_sync_settings,
 )
@@ -169,6 +171,63 @@ class GithubSynchronizer:
         except Exception as e:
             logger.error(f"Failed to fetch GitHub data for {category}: {e}")
             raise
+
+    def fetch_github_db_json(self, *, timeout: int = 30) -> dict[str, dict[str, Any]]:
+        """Download the raw db.json from the text model reference GitHub repo.
+
+        Unlike ``fetch_github_data`` (which parses the CSV and regenerates the
+        dict), this fetches the committed db.json file directly.  The comparator
+        should compare serialized output against this file, since db.json is what
+        the PR actually modifies.
+
+        Args:
+            timeout: HTTP request timeout in seconds.
+
+        Returns:
+            The parsed db.json dict.
+
+        Raises:
+            httpx.HTTPError: If the request fails.
+            ValueError: If the response cannot be parsed.
+        """
+        repo = horde_model_reference_settings.text_github_repo
+        db_json_url = repo.compose_full_file_url("db.json")
+        logger.debug(f"Fetching GitHub db.json from {db_json_url}")
+
+        with httpx.Client(timeout=timeout) as client:
+            response = client.get(db_json_url)
+            response.raise_for_status()
+            data: dict[str, dict[str, Any]] = response.json()
+
+        logger.debug(f"Fetched {len(data)} models from GitHub db.json")
+        return data
+
+    def serialize_text_generation(
+        self,
+        primary_data: dict[str, dict[str, Any]],
+    ) -> tuple[dict[str, dict[str, Any]], TextGenerationSyncArtifacts]:
+        """Run PRIMARY text_generation data through the serializer.
+
+        Produces the db.json dict that would actually be committed, so the
+        comparator can diff against GitHub's existing db.json accurately.
+
+        Args:
+            primary_data: Raw PRIMARY v1 API data (may include backend prefixes).
+
+        Returns:
+            Tuple of (serialized db.json dict, serialization artifacts).
+        """
+        from horde_model_reference.sync.text_generation_serializer import (
+            TextGenerationSerializer,
+        )
+
+        serializer = TextGenerationSerializer()
+        artifacts: TextGenerationSyncArtifacts = serializer.serialize(
+            primary_base_records=primary_data,
+        )
+        serialized_dict: dict[str, dict[str, Any]] = json.loads(artifacts.json_content)
+        logger.debug(f"Serialized {len(primary_data)} PRIMARY records → {len(serialized_dict)} db.json entries")
+        return serialized_dict, artifacts
 
 
 def main() -> int:
@@ -310,7 +369,12 @@ def run_sync_once() -> int:
     logger.info("Phase 1: Scanning all categories for changes...")
     logger.info("-" * 80)
 
-    category_changes: dict[MODEL_REFERENCE_CATEGORY, tuple[ModelReferenceDiff, dict[str, dict[str, Any]]]] = {}
+    from horde_model_reference.sync.text_generation_serializer import TextGenerationSyncArtifacts
+
+    category_changes: dict[
+        MODEL_REFERENCE_CATEGORY,
+        tuple[ModelReferenceDiff, dict[str, dict[str, Any]], TextGenerationSyncArtifacts | None],
+    ] = {}
 
     for category in MODEL_REFERENCE_CATEGORY:
         if not github_sync_settings.should_sync_category(category):
@@ -324,16 +388,30 @@ def run_sync_once() -> int:
                 timeout=30,
             )
 
-            github_data = github_synchronizer.fetch_github_data(category=category)
+            if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                # For text_generation, compare the serialized output (what actually
+                # gets committed) against GitHub's existing db.json. This avoids
+                # false positives from intermediate representation differences.
+                serialized_dict, artifacts = github_synchronizer.serialize_text_generation(primary_data)
+                github_db_json = github_synchronizer.fetch_github_db_json()
 
-            diff = comparator.compare_categories(
-                category=category,
-                primary_data=primary_data,
-                github_data=github_data,
-            )
+                diff = comparator.compare_categories(
+                    category=category,
+                    primary_data=serialized_dict,
+                    github_data=github_db_json,
+                )
+            else:
+                github_data = github_synchronizer.fetch_github_data(category=category)
+                artifacts = None
+
+                diff = comparator.compare_categories(
+                    category=category,
+                    primary_data=primary_data,
+                    github_data=github_data,
+                )
 
             if diff.has_changes():
-                category_changes[category] = (diff, primary_data)
+                category_changes[category] = (diff, primary_data, artifacts)
                 logger.info(f"✓ {category}: {diff.total_changes()} changes detected")
             else:
                 logger.info(f"✓ {category}: No changes needed")
@@ -349,19 +427,20 @@ def run_sync_once() -> int:
     logger.info(f"Phase 2: Grouping {len(category_changes)} categories by repository...")
     logger.info("-" * 80)
 
-    repo_groups: dict[str, dict[MODEL_REFERENCE_CATEGORY, tuple[ModelReferenceDiff, dict[str, dict[str, Any]]]]] = {}
+    _RepoGroupValue = tuple[ModelReferenceDiff, dict[str, dict[str, Any]], TextGenerationSyncArtifacts | None]
+    repo_groups: dict[str, dict[MODEL_REFERENCE_CATEGORY, _RepoGroupValue]] = {}
 
-    for category, (diff, primary_data) in category_changes.items():
+    for category, (diff, primary_data, artifacts) in category_changes.items():
         try:
             repo_owner_and_name = horde_model_reference_settings.get_repo_by_category(category).repo_owner_and_name
             if repo_owner_and_name not in repo_groups:
                 repo_groups[repo_owner_and_name] = {}
-            repo_groups[repo_owner_and_name][category] = (diff, primary_data)
+            repo_groups[repo_owner_and_name][category] = (diff, primary_data, artifacts)
         except ValueError as e:
             logger.warning(f"Skipping {category}: {e}")
 
     for repo_owner_and_name, categories in repo_groups.items():
-        total_changes = sum(diff.total_changes() for diff, _ in categories.values())
+        total_changes = sum(diff.total_changes() for diff, _, _ in categories.values())
         category_list = ", ".join(str(cat) for cat in categories)
         logger.info(f"Repository: {repo_owner_and_name}")
         logger.info(f"  Categories: {category_list}")
@@ -378,7 +457,7 @@ def run_sync_once() -> int:
             try:
                 if len(categories_data) == 1:
                     category = next(iter(categories_data))
-                    diff, primary_data = categories_data[category]
+                    diff, primary_data, artifacts = categories_data[category]
 
                     logger.info(f"Creating single-category PR for {category} in {repo_owner_and_name}")
 
@@ -386,6 +465,7 @@ def run_sync_once() -> int:
                         category=category,
                         diff=diff,
                         primary_data=primary_data,
+                        text_generation_artifacts=artifacts,
                     )
 
                     results[str(category)] = (True, pr_url)

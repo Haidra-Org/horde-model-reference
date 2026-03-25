@@ -1249,21 +1249,23 @@ class ModelReferenceManager:
         )
 
     @overload
-    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery: ...
+    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery:
+        ...
 
     @overload
-    def query(self, category: Literal["text_generation"]) -> TextModelQuery: ...
+    def query(self, category: Literal["text_generation"]) -> TextModelQuery:
+        ...
 
     @overload
-    def query(self, category: Literal["controlnet"]) -> ControlNetQuery: ...
+    def query(self, category: Literal["controlnet"]) -> ControlNetQuery:
+        ...
 
     @overload
     def query(
         self,
         category: str,
-    ) -> ModelQuery[
-        GenericModelRecord, GenericFieldName | ImageGenFieldName | TextGenFieldName | ControlNetFieldName
-    ]: ...
+    ) -> ModelQuery[GenericModelRecord, GenericFieldName | ImageGenFieldName | TextGenFieldName | ControlNetFieldName]:
+        ...
 
     def query(
         self,

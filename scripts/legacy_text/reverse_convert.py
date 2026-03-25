@@ -287,6 +287,14 @@ for base_name, record in base_models.items():
     model_name = record.get("model_name", base_name)
     display_name = record.get("display_name")
 
+    # Detect default-only style: convert.py adds explicit styles to tags
+    # before applying defaults.json, so a style present on the record but
+    # absent from tags was only injected by the defaults system.
+    record_tags: list[str] = record.get("tags", []) or []
+    default_style = defaults.get("style")
+    if style and style == default_style and style not in record_tags:
+        style = None
+
     # Skip display_name if it matches auto-generated
     auto_display = auto_generate_display_name(model_name)
     if display_name == auto_display:

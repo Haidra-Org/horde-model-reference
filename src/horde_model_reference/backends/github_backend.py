@@ -8,7 +8,6 @@ when the PRIMARY API is unavailable.
 from __future__ import annotations
 
 import asyncio
-import re
 import time
 from pathlib import Path
 from typing import Any, cast, override
@@ -25,7 +24,7 @@ from horde_model_reference.legacy.convert_all_legacy_dbs import (
     convert_all_legacy_model_references,
     convert_legacy_database_by_category,
 )
-from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv
+from horde_model_reference.legacy.text_csv_utils import csv_rows_to_legacy_dict, parse_legacy_text_csv_file
 from horde_model_reference.meta_consts import (
     MODEL_REFERENCE_CATEGORY,
     get_github_image_categories,
@@ -384,130 +383,40 @@ class GitHubBackend(ReplicaBackendBase):
     def _read_legacy_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
         """Read legacy CSV file (models.csv format) and convert to dict format.
 
-        This reads the legacy models.csv format from GitHub and converts it to the
-        grouped dict format with backend prefix duplicates (3 entries per CSV row).
-        Follows the same logic as scripts/legacy_text/convert.py.
-
-        Each CSV row generates 3 entries:
-        1. Base name (e.g., ReadyArt/Broken-Tutu-24B)
-        2. Aphrodite prefixed (e.g., aphrodite/ReadyArt/Broken-Tutu-24B)
-        3. KoboldCPP prefixed (e.g., koboldcpp/Broken-Tutu-24B) - uses model_name only
+        Uses the shared ``csv_rows_to_legacy_dict`` to replicate convert.py exactly,
+        including defaults.json merging, instruct_format, correct field ordering,
+        and backend prefix generation (3 entries per model).
 
         Args:
             file_path: Path to the legacy CSV file.
 
         Returns:
-            dict[str, Any]: Model data with 3 entries per CSV row (base + 2 backend prefixes).
-
-        Raises:
-            Exception: If CSV parsing fails.
+            dict[str, Any]: Model data with 3 entries per CSV row (matching db.json format).
         """
-        data: dict[str, Any] = {}
-        parsed_rows, parse_issues = parse_legacy_text_csv(file_path)
+        parsed_rows, parse_issues = parse_legacy_text_csv_file(file_path)
         for issue in parse_issues:
             logger.warning(f"Legacy CSV issue for {issue.row_identifier}: {issue.message}")
 
-        for csv_row in parsed_rows:
-            name = csv_row.name
-            model_name = name.split("/")[1] if "/" in name else name
-            tags = set(csv_row.tags)
-            if csv_row.style:
-                tags.add(csv_row.style)
-            tags.add(f"{round(csv_row.parameters_bn, 0):.0f}B")
-
-            settings_dict = dict(csv_row.settings) if csv_row.settings is not None else {}
-
-            display_name = csv_row.display_name
-            if not display_name:
-                display_name = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
-
-            record: dict[str, Any] = {
-                "name": name,
-                "model_name": model_name,
-                "parameters": csv_row.parameters,
-                "description": csv_row.description,
-                "version": csv_row.version,
-                "style": csv_row.style,
-                "nsfw": csv_row.nsfw,
-                "baseline": csv_row.baseline,
-                "url": csv_row.url,
-                "tags": sorted(tags),
-                "settings": settings_dict,
-                "display_name": display_name,
-            }
-
-            record = {k: v for k, v in record.items() if v or v is False}
-
-            # Generate 3 entries per CSV row following convert.py logic
-            # 1. Base entry
-            data[name] = record.copy()
-            data[name]["name"] = name
-
-            # 2. Aphrodite prefixed entry (uses full name)
-            aphrodite_key = f"aphrodite/{name}"
-            data[aphrodite_key] = record.copy()
-            data[aphrodite_key]["name"] = aphrodite_key
-
-            # 3. KoboldCPP prefixed entry (uses model_name only, not full name)
-            koboldcpp_key = f"koboldcpp/{model_name}"
-            data[koboldcpp_key] = record.copy()
-            data[koboldcpp_key]["name"] = koboldcpp_key
-
+        data = csv_rows_to_legacy_dict(parsed_rows, with_backend_prefixes=True)
         logger.debug(f"Read {len(data)} models from legacy CSV (includes backend prefix duplicates)")
         return data
 
     def _read_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
-        """Read v2 CSV file and convert to dict format (grouped by base name, no backend prefixes).
+        """Read CSV file and convert to dict format (one entry per base model).
 
-        This reads the v2 CSV format and returns a dict with one entry per base model.
-        No backend prefix duplicates are generated here - that only happens during GitHub sync.
+        Uses the shared ``csv_rows_to_legacy_dict`` without backend prefixes.
 
         Args:
             file_path: Path to the CSV file.
 
         Returns:
             dict[str, Any]: Model data with one entry per base model.
-
-        Raises:
-            Exception: If CSV parsing fails.
         """
-        data: dict[str, Any] = {}
-        parsed_rows, parse_issues = parse_legacy_text_csv(file_path)
+        parsed_rows, parse_issues = parse_legacy_text_csv_file(file_path)
         for issue in parse_issues:
             logger.warning(f"CSV issue for {issue.row_identifier}: {issue.message}")
 
-        for csv_row in parsed_rows:
-            name = csv_row.name
-            model_name = name.split("/")[1] if "/" in name else name
-            tags = set(csv_row.tags)
-            if csv_row.style:
-                tags.add(csv_row.style)
-            tags.add(f"{round(csv_row.parameters_bn, 0):.0f}B")
-
-            settings_dict = dict(csv_row.settings) if csv_row.settings is not None else {}
-
-            display_name = csv_row.display_name
-            if not display_name:
-                display_name = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
-
-            record: dict[str, Any] = {
-                "name": name,
-                "model_name": model_name,
-                "parameters": csv_row.parameters,
-                "description": csv_row.description,
-                "version": csv_row.version,
-                "style": csv_row.style,
-                "nsfw": csv_row.nsfw,
-                "baseline": csv_row.baseline,
-                "url": csv_row.url,
-                "tags": sorted(tags),
-                "settings": settings_dict,
-                "display_name": display_name,
-            }
-
-            record = {k: v for k, v in record.items() if v or v is False}
-            data[name] = record
-
+        data = csv_rows_to_legacy_dict(parsed_rows, with_backend_prefixes=False)
         logger.debug(f"Read {len(data)} models from CSV (grouped, no backend prefixes)")
         return data
 

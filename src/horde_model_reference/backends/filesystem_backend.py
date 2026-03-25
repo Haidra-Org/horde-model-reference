@@ -23,7 +23,13 @@ from pydantic import BaseModel, Field
 from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
 from horde_model_reference.audit import AuditDomain, AuditOperation, AuditPayload, AuditTrailWriter
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
-from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv
+from horde_model_reference.legacy.text_csv_utils import (
+    TextCSVRow,
+    csv_rows_to_legacy_dict,
+    legacy_record_to_csv_row,
+    parse_legacy_text_csv_file,
+    write_legacy_text_csv,
+)
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_metadata import CategoryMetadata, MetadataManager, OperationType
 
@@ -205,57 +211,22 @@ class FileSystemBackend(ReplicaBackendBase):
     def _read_legacy_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
         """Read legacy CSV file (models.csv format) and convert to dict format.
 
-        This reads the legacy models.csv format and converts it to the
-        grouped dict format (one entry per base model, no backend prefixes).
-        Follows the same logic as scripts/legacy_text/convert.py.
+        Uses the shared ``csv_rows_to_legacy_dict`` to replicate convert.py exactly,
+        including defaults.json merging, instruct_format, correct field ordering,
+        and backend prefix generation (3 entries per model).
 
         Args:
             file_path: Path to the legacy CSV file.
 
         Returns:
-            dict[str, Any]: Model data with one entry per base model.
-
-        Raises:
-            Exception: If CSV parsing fails.
+            dict[str, Any]: Model data with 3 entries per CSV row (matching db.json format).
         """
-        data: dict[str, Any] = {}
-        parsed_rows, parse_issues = parse_legacy_text_csv(file_path)
+        parsed_rows, parse_issues = parse_legacy_text_csv_file(file_path)
         for issue in parse_issues:
             logger.warning(f"Legacy CSV issue for {issue.row_identifier}: {issue.message}")
 
-        for csv_row in parsed_rows:
-            name = csv_row.name
-            model_name = name.split("/")[1] if "/" in name else name
-            tags = set(csv_row.tags)
-            if csv_row.style:
-                tags.add(csv_row.style)
-            tags.add(f"{round(csv_row.parameters_bn, 0):.0f}B")
-
-            settings_dict = dict(csv_row.settings) if csv_row.settings is not None else {}
-
-            display_name = csv_row.display_name
-            if not display_name:
-                display_name = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
-
-            record: dict[str, Any] = {
-                "name": name,
-                "model_name": model_name,
-                "parameters": csv_row.parameters,
-                "description": csv_row.description,
-                "version": csv_row.version,
-                "style": csv_row.style,
-                "nsfw": csv_row.nsfw,
-                "baseline": csv_row.baseline,
-                "url": csv_row.url,
-                "tags": sorted(tags),
-                "settings": settings_dict,
-                "display_name": display_name,
-            }
-
-            record = {k: v for k, v in record.items() if v or v is False}
-            data[name] = record
-
-        logger.debug(f"Read {len(data)} models from legacy CSV (grouped, no backend prefixes) from {file_path}")
+        data = csv_rows_to_legacy_dict(parsed_rows, with_backend_prefixes=True)
+        logger.debug(f"Read {len(data)} models from legacy CSV (with backend prefixes) from {file_path}")
         return data
 
     def _append_legacy_audit_event(
@@ -326,7 +297,7 @@ class FileSystemBackend(ReplicaBackendBase):
             Exception: If CSV parsing fails.
         """
         data: dict[str, Any] = {}
-        parsed_rows, parse_issues = parse_legacy_text_csv(file_path)
+        parsed_rows, parse_issues = parse_legacy_text_csv_file(file_path)
         for issue in parse_issues:
             logger.warning(f"CSV issue for {issue.row_identifier}: {issue.message}")
 
@@ -1078,19 +1049,21 @@ class FileSystemBackend(ReplicaBackendBase):
             )
 
         with self._lock:
+            # text_generation uses CSV as source of truth — route to dedicated handler
             if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                legacy_file_path, is_csv = self._resolve_legacy_text_generation_path()
-                target_write_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
-                    category,
-                    base_path=self.base_path,
+                self._update_text_generation_csv(
+                    model_name,
+                    record_dict,
+                    logical_user_id=logical_user_id,
+                    request_id=request_id,
                 )
-            else:
-                legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
-                    category,
-                    base_path=self.base_path,
-                )
-                target_write_path = legacy_file_path
-                is_csv = False
+                return
+
+            legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
+            target_write_path = legacy_file_path
 
             if not legacy_file_path:
                 raise FileNotFoundError(f"No legacy file path configured for category {category}")
@@ -1098,30 +1071,14 @@ class FileSystemBackend(ReplicaBackendBase):
             existing_data: dict[str, Any]
             if legacy_file_path.exists():
                 try:
-                    if category == MODEL_REFERENCE_CATEGORY.text_generation and is_csv:
-                        # When canonical format was previously v2, the CSV may still exist.
-                        # Promote it to JSON structure for legacy CRUD operations.
-                        existing_data = self._read_legacy_csv_to_dict(legacy_file_path)
-                    else:
-                        with open(legacy_file_path, encoding="utf-8") as f:
-                            existing_data = json.load(f)
+                    with open(legacy_file_path, encoding="utf-8") as f:
+                        existing_data = json.load(f)
                 except Exception as e:
                     logger.error(f"Failed to read {legacy_file_path}: {e}")
                     raise
             else:
                 existing_data = {}
                 target_write_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # For text_generation, validate/transform and generate backend duplicates
-            if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                from horde_model_reference.text_model_duplicates import TextModelDuplicateManager
-                from horde_model_reference.text_model_write_processor import TextModelWriteProcessor
-
-                processor = TextModelWriteProcessor()
-                record_dict = processor.validate_and_transform(model_name, record_dict)
-                duplicates = TextModelDuplicateManager.generate_duplicates(model_name, record_dict)
-            else:
-                duplicates = {}
 
             # Determine if this is a create or update operation
             is_update = model_name in existing_data
@@ -1130,10 +1087,6 @@ class FileSystemBackend(ReplicaBackendBase):
             record_snapshot = copy.deepcopy(record_dict)
 
             existing_data[model_name] = record_snapshot
-
-            # Write backend duplicates atomically alongside the base model
-            for dup_name, dup_record in duplicates.items():
-                existing_data[dup_name] = copy.deepcopy(dup_record)
 
             temp_path = target_write_path.with_suffix(f".tmp.{time.time()}")
             try:
@@ -1157,10 +1110,7 @@ class FileSystemBackend(ReplicaBackendBase):
                     temp_path.replace(target_write_path)
 
                 logger.info(f"Updated legacy model {model_name} in category {category} at {target_write_path}")
-                if duplicates:
-                    logger.info(f"Auto-generated {len(duplicates)} backend duplicates: {sorted(duplicates.keys())}")
 
-                # Record metadata for observability (centralized hook point)
                 self._metadata_manager.record_legacy_operation(
                     category=category,
                     operation=operation_type,
@@ -1187,10 +1137,6 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 self._mark_legacy_category_modified(category, target_write_path)
 
-                if legacy_file_path != target_write_path and legacy_file_path.exists():
-                    with contextlib.suppress(Exception):
-                        legacy_file_path.unlink()
-
             except Exception as e:
                 try:
                     if temp_path.exists():
@@ -1199,6 +1145,181 @@ class FileSystemBackend(ReplicaBackendBase):
                     pass
                 logger.error(f"Failed to update legacy model {model_name} in {category}: {e}")
                 raise
+
+    def _update_text_generation_csv(
+        self,
+        model_name: str,
+        record_dict: dict[str, Any],
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
+    ) -> None:
+        """Update a text_generation model by writing CSV (not JSON) to models.csv.
+
+        Reads the existing CSV, validates/transforms the record, updates the row list,
+        writes CSV back, and regenerates the cached dict representation.
+
+        Args:
+            model_name: The base model name (no backend prefix).
+            record_dict: The model record data.
+            logical_user_id: Optional logical user ID for audit logging.
+            request_id: Optional request ID for audit logging.
+        """
+        from horde_model_reference.text_model_write_processor import TextModelWriteProcessor
+
+        category = MODEL_REFERENCE_CATEGORY.text_generation
+        csv_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+            category,
+            base_path=self.base_path,
+        )
+
+        # Read existing CSV rows
+        existing_rows: list[TextCSVRow] = []
+        if csv_path.exists():
+            existing_rows, parse_issues = parse_legacy_text_csv_file(csv_path)
+            for issue in parse_issues:
+                logger.warning(f"Legacy CSV parse issue for {issue.row_identifier}: {issue.message}")
+
+        # Validate and transform the incoming record
+        processor = TextModelWriteProcessor()
+        record_dict = processor.validate_and_transform(model_name, record_dict)
+
+        # Convert the validated record to a CSV row
+        new_row = legacy_record_to_csv_row(model_name, record_dict)
+
+        # Find and replace existing row, or append
+        row_index: int | None = None
+        previous_record: dict[str, Any] | None = None
+        for i, row in enumerate(existing_rows):
+            if row.name == model_name:
+                row_index = i
+                break
+
+        if row_index is not None:
+            # Capture previous record for audit before replacing
+            old_dict = csv_rows_to_legacy_dict([existing_rows[row_index]], with_backend_prefixes=False)
+            previous_record = old_dict.get(model_name)
+            existing_rows[row_index] = new_row
+            operation_type = OperationType.UPDATE
+        else:
+            existing_rows.append(new_row)
+            operation_type = OperationType.CREATE
+
+        # Write CSV back
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
+        write_legacy_text_csv(existing_rows, csv_path)
+
+        # Regenerate the full dict for cache
+        full_data = csv_rows_to_legacy_dict(existing_rows, with_backend_prefixes=True)
+        content = json.dumps(full_data, indent=2, ensure_ascii=False)
+        self._store_legacy_in_cache(category, full_data, content)
+
+        record_snapshot = copy.deepcopy(record_dict)
+        logger.info(f"Updated legacy text_generation model {model_name} in CSV at {csv_path}")
+
+        self._metadata_manager.record_legacy_operation(
+            category=category,
+            operation=operation_type,
+            model_name=model_name,
+            success=True,
+            backend_type=self.__class__.__name__,
+        )
+
+        if logical_user_id is not None and self._audit_writer is not None:
+            if operation_type == OperationType.UPDATE and previous_record is not None:
+                payload = AuditPayload.from_update(previous_record, record_snapshot)
+                audit_operation = AuditOperation.UPDATE
+            else:
+                payload = AuditPayload.from_create(record_snapshot)
+                audit_operation = AuditOperation.CREATE
+            self._append_legacy_audit_event(
+                category=category,
+                model_name=model_name,
+                operation=audit_operation,
+                payload=payload,
+                logical_user_id=logical_user_id,
+                request_id=request_id,
+            )
+
+        self._mark_legacy_category_modified(category, csv_path)
+
+    def _delete_text_generation_csv(
+        self,
+        model_name: str,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
+    ) -> None:
+        """Delete a text_generation model from CSV, preserving CSV format.
+
+        Args:
+            model_name: The base model name (no backend prefix).
+            logical_user_id: Optional logical user ID for audit logging.
+            request_id: Optional request ID for audit logging.
+
+        Raises:
+            FileNotFoundError: If the CSV file doesn't exist.
+            KeyError: If the model doesn't exist.
+        """
+        category = MODEL_REFERENCE_CATEGORY.text_generation
+        csv_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+            category,
+            base_path=self.base_path,
+        )
+
+        if not csv_path.exists():
+            raise FileNotFoundError(f"Legacy CSV file not found: {csv_path}")
+
+        existing_rows, parse_issues = parse_legacy_text_csv_file(csv_path)
+        for issue in parse_issues:
+            logger.warning(f"Legacy CSV parse issue for {issue.row_identifier}: {issue.message}")
+
+        # Find and remove the row
+        row_index: int | None = None
+        for i, row in enumerate(existing_rows):
+            if row.name == model_name:
+                row_index = i
+                break
+
+        if row_index is None:
+            raise KeyError(f"Model {model_name} not found in legacy text_generation CSV")
+
+        deleted_row = existing_rows.pop(row_index)
+
+        # Write CSV back
+        write_legacy_text_csv(existing_rows, csv_path)
+
+        # Regenerate the full dict for cache
+        full_data = csv_rows_to_legacy_dict(existing_rows, with_backend_prefixes=True)
+        content = json.dumps(full_data, indent=2, ensure_ascii=False)
+        self._store_legacy_in_cache(category, full_data, content)
+
+        # Capture the deleted record for audit
+        deleted_dict = csv_rows_to_legacy_dict([deleted_row], with_backend_prefixes=False)
+        deleted_snapshot = deleted_dict.get(model_name, {})
+
+        logger.info(f"Deleted legacy text_generation model {model_name} from CSV at {csv_path}")
+
+        self._metadata_manager.record_legacy_operation(
+            category=category,
+            operation=OperationType.DELETE,
+            model_name=model_name,
+            success=True,
+            backend_type=self.__class__.__name__,
+        )
+
+        if logical_user_id is not None and self._audit_writer is not None:
+            payload = AuditPayload.from_delete(deleted_snapshot)
+            self._append_legacy_audit_event(
+                category=category,
+                model_name=model_name,
+                operation=AuditOperation.DELETE,
+                payload=payload,
+                logical_user_id=logical_user_id,
+                request_id=request_id,
+            )
+
+        self._mark_legacy_category_modified(category, csv_path)
 
     @override
     def delete_model_legacy(
@@ -1233,30 +1354,28 @@ class FileSystemBackend(ReplicaBackendBase):
             )
 
         with self._lock:
+            # text_generation uses CSV as source of truth — route to dedicated handler
             if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                legacy_file_path, is_csv = self._resolve_legacy_text_generation_path()
-                target_write_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
-                    category,
-                    base_path=self.base_path,
+                self._delete_text_generation_csv(
+                    model_name,
+                    logical_user_id=logical_user_id,
+                    request_id=request_id,
                 )
-            else:
-                legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
-                    category,
-                    base_path=self.base_path,
-                )
-                target_write_path = legacy_file_path
-                is_csv = False
+                return
+
+            legacy_file_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
+            target_write_path = legacy_file_path
 
             existing_data: dict[str, Any]
             if not legacy_file_path or not legacy_file_path.exists():
                 raise FileNotFoundError(f"Legacy category file not found: {legacy_file_path}")
 
             try:
-                if category == MODEL_REFERENCE_CATEGORY.text_generation and is_csv:
-                    existing_data = self._read_legacy_csv_to_dict(legacy_file_path)
-                else:
-                    with open(legacy_file_path, encoding="utf-8") as f:
-                        existing_data = json.load(f)
+                with open(legacy_file_path, encoding="utf-8") as f:
+                    existing_data = json.load(f)
             except Exception as e:
                 logger.error(f"Failed to read {legacy_file_path}: {e}")
                 raise
@@ -1266,16 +1385,6 @@ class FileSystemBackend(ReplicaBackendBase):
 
             deleted_snapshot = copy.deepcopy(existing_data[model_name])
             del existing_data[model_name]
-
-            # For text_generation, cascade-delete backend-prefixed duplicates
-            deleted_variants: list[str] = []
-            if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                from horde_model_reference.text_model_duplicates import TextModelDuplicateManager
-
-                for variant_name in TextModelDuplicateManager.get_variant_names(model_name):
-                    if variant_name in existing_data:
-                        del existing_data[variant_name]
-                        deleted_variants.append(variant_name)
 
             temp_path = target_write_path.with_suffix(f".tmp.{time.time()}")
             try:
@@ -1299,10 +1408,7 @@ class FileSystemBackend(ReplicaBackendBase):
                     temp_path.replace(target_write_path)
 
                 logger.info(f"Deleted legacy model {model_name} from category {category} at {target_write_path}")
-                if deleted_variants:
-                    logger.info(f"Cascade-deleted {len(deleted_variants)} backend duplicates: {deleted_variants}")
 
-                # Record metadata for observability (centralized hook point)
                 self._metadata_manager.record_legacy_operation(
                     category=category,
                     operation=OperationType.DELETE,
@@ -1323,10 +1429,6 @@ class FileSystemBackend(ReplicaBackendBase):
                     )
 
                 self._mark_legacy_category_modified(category, target_write_path)
-
-                if legacy_file_path != target_write_path and legacy_file_path.exists():
-                    with contextlib.suppress(Exception):
-                        legacy_file_path.unlink()
 
             except Exception as e:
                 try:

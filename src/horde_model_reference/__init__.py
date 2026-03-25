@@ -120,6 +120,12 @@ class GithubRepoSettings(BaseModel):
         """
         return f"https://github.com/{self.owner}/{self.name}.git"
 
+    def __str__(self) -> str:
+        return self.git_clone_url
+
+    def __repr__(self) -> str:
+        return f"GithubRepoSettings(owner='{self.owner}', name='{self.name}', branch='{self.branch}')"
+
 
 # These `GithubRepoSettings` child classes exist so the generated `.env.example` files are filled in as intended
 # They have no practical purpose beyond that.

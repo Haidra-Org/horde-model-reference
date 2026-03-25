@@ -7,6 +7,7 @@ from horde_model_reference.sync.comparator import (
 from horde_model_reference.sync.config import HordeGitHubSyncSettings, github_sync_settings
 from horde_model_reference.sync.github_client import GitHubSyncClient
 from horde_model_reference.sync.legacy_text_validator import LegacyTextValidator
+from horde_model_reference.sync.text_generation_serializer import TextGenerationSerializer, TextGenerationSyncArtifacts
 from horde_model_reference.sync.watch_mode import WatchModeManager
 
 __all__ = [
@@ -15,6 +16,8 @@ __all__ = [
     "LegacyTextValidator",
     "ModelReferenceComparator",
     "ModelReferenceDiff",
+    "TextGenerationSerializer",
+    "TextGenerationSyncArtifacts",
     "WatchModeManager",
     "github_sync_settings",
 ]
