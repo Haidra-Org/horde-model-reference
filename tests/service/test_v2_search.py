@@ -245,6 +245,7 @@ class TestCategorySearch:
         assert len(data["results"]) == 1
         assert data["offset"] == 0
         assert data["limit"] == 1
+        assert data["has_more"] is True
         first_name = data["results"][0]["name"]
 
         resp2 = api_client.get(
@@ -254,6 +255,7 @@ class TestCategorySearch:
         data2 = resp2.json()
         assert data2["total"] == 3
         assert len(data2["results"]) == 1
+        assert data2["has_more"] is True
         assert data2["results"][0]["name"] != first_name
 
     def test_search_invalid_category(
@@ -261,9 +263,9 @@ class TestCategorySearch:
         api_client: TestClient,
         primary_manager_for_search: ModelReferenceManager,
     ) -> None:
-        """Validate search on a nonexistent category returns 404."""
+        """Validate search on a nonexistent category returns 422."""
         resp = api_client.get(f"{_V2}/bogus_category/search")
-        assert resp.status_code == 404
+        assert resp.status_code == 422
 
     def test_search_unsupported_filter_returns_400(
         self,
@@ -349,9 +351,9 @@ class TestPopularModels:
         api_client: TestClient,
         primary_manager_for_search: ModelReferenceManager,
     ) -> None:
-        """Validate popular endpoint returns 404 for a nonexistent category."""
+        """Validate popular endpoint returns 422 for a nonexistent category."""
         resp = api_client.get(f"{_V2}/bogus_category/popular")
-        assert resp.status_code == 404
+        assert resp.status_code == 422
 
     def test_popular_mocked(
         self,

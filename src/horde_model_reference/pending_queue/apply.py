@@ -1,3 +1,5 @@
+"""Applies approved pending changes to the live model reference dataset via the backend."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -7,7 +9,7 @@ from uuid import uuid4
 
 from loguru import logger
 
-from horde_model_reference import ModelReferenceManager, horde_model_reference_settings
+from horde_model_reference import CanonicalFormat, ModelReferenceManager, horde_model_reference_settings
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
@@ -43,6 +45,7 @@ class BackendUpdateCallable(Protocol):
                 the user on whose behalf the change is being applied.
             request_id (str | None): An optional identifier for the request or job performing the update
                 (e.g., a batch apply job ID or CLI invocation ID) to support traceability in logs and audits.
+
         """
 
 
@@ -71,6 +74,7 @@ class BackendDeleteCallable(Protocol):
                 the user on whose behalf the change is being applied.
             request_id (str | None): An optional identifier for the request or job performing the delete
                 (e.g., a batch apply job ID or CLI invocation ID) to support traceability in logs and audits.
+
         """
 
 
@@ -144,6 +148,7 @@ def apply_pending_change(
         PendingChangeStateError: If the change is not approved yet.
         PendingChangePayloadError: When the change operation requires a payload but none exists.
         PendingChangeBackendError: If the backend rejects or fails to persist the write.
+
     """
     reservation_id = job_id or f"apply-{change_id}-{uuid4().hex}"
 
@@ -160,7 +165,7 @@ def apply_pending_change(
 
     backend = manager.backend
     canonical_format = horde_model_reference_settings.canonical_format
-    if canonical_format == "legacy":
+    if canonical_format == CanonicalFormat.LEGACY:
         if not backend.supports_legacy_writes():
             raise PendingChangeBackendError(
                 "Backend does not support legacy write operations in this deployment.",
@@ -191,6 +196,11 @@ def apply_pending_change(
         queue_service.clear_apply_reservation(change_id=change_id, reservation_id=reservation_id)
         raise PendingChangeBackendError(str(exc)) from exc
 
+    # The backend's mark_stale() may have already fired during the write, but
+    # this ensures stale data is never served even if the callback chain is
+    # delayed or skipped.
+    manager.invalidate_category_cache(record.category)
+
     try:
         mark_result = queue_service.mark_applied(
             change_id=change_id,
@@ -219,6 +229,7 @@ def validate_batch_cohesion(
     Raises:
         ValueError: If changes belong to different batches or have no batch_id
         PendingChangeNotFoundError: If any change_id is not found
+
     """
     if not change_ids:
         return
@@ -267,6 +278,7 @@ def apply_pending_changes(
     Raises:
         ValueError: If enforce_batch_cohesion=True and changes belong to different batches
         PendingChangeNotFoundError: If any change_id is not found
+
     """
     if not change_ids:
         raise ValueError("change_ids must contain at least one id")

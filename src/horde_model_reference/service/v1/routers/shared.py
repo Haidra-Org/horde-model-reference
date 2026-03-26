@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Response, status
 from fastapi.responses import JSONResponse
 from loguru import logger
 
@@ -21,11 +21,30 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.service.shared import (
     APIKeyInvalidException,
     Operation,
-    allowed_users,
+    PathVariables,
+    RouteNames,
     auth_against_horde,
     authenticate_queue_requestor,
     httpx_client,
+    route_registry,
+    v1_prefix,
+    validate_model_name,
 )
+
+
+def _direct_write_allowlist() -> set[str]:
+    """Get the allowlist for direct (non-queue) write operations.
+
+    Uses the approver allowlist since direct writes bypass the review workflow.
+    """
+    from horde_model_reference import horde_model_reference_settings
+    from horde_model_reference.service.shared import _normalize_ids
+
+    settings = horde_model_reference_settings.pending_queue
+    allowlist = _normalize_ids(settings.approver_ids)
+    if not allowlist:
+        logger.warning("No approver IDs configured; direct writes will be rejected")
+    return allowlist
 
 
 def _check_legacy_model_exists(
@@ -79,6 +98,8 @@ async def _create_or_update_legacy_model(
     Raises:
         HTTPException: On validation failure or backend error.
     """
+    validate_model_name(model_name)
+
     # Reject backend-prefixed names for text_generation: server auto-generates duplicates
     if category == MODEL_REFERENCE_CATEGORY.text_generation:
         from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
@@ -147,7 +168,7 @@ async def _create_or_update_legacy_model(
     auth_context = await auth_against_horde(
         apikey,
         httpx_client,
-        allowed_user_ids=allowed_users,
+        allowed_user_ids=_direct_write_allowlist(),
     )
 
     if auth_context is None:
@@ -169,8 +190,18 @@ async def _create_or_update_legacy_model(
         ) from e
 
     # Return appropriate success status
-    response_status = status.HTTP_201_CREATED if operation == Operation.create else status.HTTP_200_OK
-    return JSONResponse(status_code=response_status, content=model_record.model_dump())
+    if operation == Operation.create:
+        location = route_registry.url_for(
+            RouteNames.delete_model,
+            {PathVariables.model_category_name: category.value, PathVariables.model_name: model_name},
+            prefix=v1_prefix,
+        )
+        return JSONResponse(
+            status_code=status.HTTP_201_CREATED,
+            content=model_record.model_dump(),
+            headers={"Location": location},
+        )
+    return JSONResponse(status_code=status.HTTP_200_OK, content=model_record.model_dump())
 
 
 async def _delete_legacy_model(
@@ -183,7 +214,7 @@ async def _delete_legacy_model(
     """Delete a legacy model record.
 
     When pending queue is enabled, this enqueues the deletion and returns HTTP 202.
-    When pending queue is disabled, this deletes directly from backend and returns HTTP 200.
+    When pending queue is disabled, this deletes directly from backend and returns HTTP 204.
 
     Args:
         manager: The model reference manager.
@@ -193,11 +224,13 @@ async def _delete_legacy_model(
         route_name: The route name for audit metadata.
 
     Returns:
-        JSONResponse with either PendingChangeRecord (202) or empty response (200).
+        JSONResponse with either PendingChangeRecord (202) or empty response (204).
 
     Raises:
         HTTPException: On validation failure or backend error.
     """
+    validate_model_name(model_name)
+
     # Reject backend-prefixed names for text_generation: server auto-generates duplicates
     if category == MODEL_REFERENCE_CATEGORY.text_generation:
         from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
@@ -257,7 +290,7 @@ async def _delete_legacy_model(
     auth_context = await auth_against_horde(
         apikey,
         httpx_client,
-        allowed_user_ids=allowed_users,
+        allowed_user_ids=_direct_write_allowlist(),
     )
 
     if auth_context is None:
@@ -283,4 +316,4 @@ async def _delete_legacy_model(
             detail=f"Failed to delete model: {e!s}",
         ) from e
 
-    return JSONResponse(status_code=status.HTTP_200_OK, content={})
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

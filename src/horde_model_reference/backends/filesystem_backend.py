@@ -20,7 +20,12 @@ import httpx
 from loguru import logger
 from pydantic import BaseModel, Field
 
-from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
+from horde_model_reference import (
+    CanonicalFormat,
+    ReplicateMode,
+    horde_model_reference_paths,
+    horde_model_reference_settings,
+)
 from horde_model_reference.audit import AuditDomain, AuditOperation, AuditPayload, AuditTrailWriter
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
 from horde_model_reference.legacy.text_csv_utils import (
@@ -88,6 +93,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Raises:
             ValueError: If replicate_mode is not PRIMARY.
+
         """
         if replicate_mode != ReplicateMode.PRIMARY:
             raise ValueError(
@@ -134,7 +140,7 @@ class FileSystemBackend(ReplicaBackendBase):
         json_path = csv_path.with_name("text_generation.json")
 
         # If canonical_format is legacy, prefer CSV if it exists, otherwise JSON if it exists
-        if horde_model_reference_settings.canonical_format == "legacy":
+        if horde_model_reference_settings.canonical_format == CanonicalFormat.LEGACY:
             if csv_path.exists():
                 return csv_path, True
             if json_path.exists():
@@ -161,6 +167,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             Path | None: Path to file for mtime validation.
+
         """
         return horde_model_reference_paths.get_model_reference_file_path(
             category,
@@ -176,6 +183,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             Path | None: Path to legacy file for mtime validation.
+
         """
         return horde_model_reference_paths.get_legacy_model_reference_file_path(
             category,
@@ -190,6 +198,7 @@ class FileSystemBackend(ReplicaBackendBase):
         Args:
             category: Category that was modified.
             file_path: Path to the file that was modified.
+
         """
         # Use mark_stale() to trigger callbacks, not _invalidate_cache()
         self.mark_stale(category)
@@ -203,6 +212,7 @@ class FileSystemBackend(ReplicaBackendBase):
         Args:
             category: Category that was modified.
             legacy_file_path: Path to the legacy file that was modified.
+
         """
         # Use mark_stale() to trigger callbacks
         self.mark_stale(category)
@@ -220,6 +230,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any]: Model data with 3 entries per CSV row (matching db.json format).
+
         """
         parsed_rows, parse_issues = parse_legacy_text_csv_file(file_path)
         for issue in parse_issues:
@@ -252,7 +263,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 payload=payload,
                 request_id=request_id,
             )
-        except Exception as exc:  # pragma: no cover - audit writes must not break CRUD
+        except OSError as exc:  # pragma: no cover - audit writes must not break CRUD
             logger.warning(f"Failed to append audit event for {category}/{model_name}: {exc}")
 
     def _append_v2_audit_event(
@@ -278,7 +289,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 payload=payload,
                 request_id=request_id,
             )
-        except Exception as exc:  # pragma: no cover - audit writes must not break CRUD
+        except OSError as exc:  # pragma: no cover - audit writes must not break CRUD
             logger.warning(f"Failed to append v2 audit event for {category}/{model_name}: {exc}")
 
     def _read_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
@@ -295,6 +306,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Raises:
             Exception: If CSV parsing fails.
+
         """
         data: dict[str, Any] = {}
         parsed_rows, parse_issues = parse_legacy_text_csv_file(file_path)
@@ -348,6 +360,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Raises:
             Exception: If CSV writing fails.
+
         """
         from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 
@@ -447,6 +460,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any] | None: The model reference data, or None if file doesn't exist.
+
         """
         with self._lock:
             if not (force_refresh or self.should_fetch_data(category)):
@@ -471,7 +485,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 logger.debug(f"Loaded {category} from {file_path}")
                 return data
 
-            except Exception as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.error(f"Failed to read {file_path}: {e}")
                 self._invalidate_cache(category)
                 return None
@@ -489,6 +503,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             dict mapping categories to their model reference data.
+
         """
         result: dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None] = {}
 
@@ -516,6 +531,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any] | None: The model reference data.
+
         """
         async with self._async_lock:
             if not (force_refresh or self.should_fetch_data(category)):
@@ -537,7 +553,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 self._store_in_cache(category, data)
                 logger.debug(f"Loaded {category} from {file_path} asynchronously")
                 return data
-            except Exception as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.error(f"Failed to read {file_path} asynchronously: {e}")
                 self._invalidate_cache(category)
                 return None
@@ -570,6 +586,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             Path | None: Path to the JSON file, or None if not configured.
+
         """
         return horde_model_reference_paths.get_model_reference_file_path(
             category,
@@ -582,6 +599,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             dict: Mapping of categories to their file paths.
+
         """
         return horde_model_reference_paths.get_all_model_reference_file_paths(base_path=self.base_path)
 
@@ -602,6 +620,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any] | None: The legacy format data, or None if file doesn't exist.
+
         """
         with self._lock:
             # Check cache first unless redownload
@@ -648,7 +667,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 logger.debug(f"Loaded legacy JSON for {category} from {legacy_file_path}")
                 return data
 
-            except Exception as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.error(f"Failed to read legacy file {legacy_file_path}: {e}")
                 self._invalidate_legacy_cache(category)
                 return None
@@ -670,6 +689,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             str | None: The legacy format as JSON string, or None if file doesn't exist.
+
         """
         with self._lock:
             # Check cache first unless redownload
@@ -715,7 +735,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 logger.debug(f"Loaded legacy JSON string for {category} from {legacy_file_path}")
                 return content
 
-            except Exception as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.error(f"Failed to read legacy file {legacy_file_path}: {e}")
                 self._invalidate_legacy_cache(category)
                 return None
@@ -726,6 +746,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             bool: Always True.
+
         """
         return True
 
@@ -735,6 +756,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             bool: Always True.
+
         """
         return True
 
@@ -762,6 +784,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Raises:
             FileNotFoundError: If the category file path is not configured.
+
         """
         from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 
@@ -787,7 +810,7 @@ class FileSystemBackend(ReplicaBackendBase):
                         f"V2 format is always JSON, including text_generation.json. Error: {e}"
                     )
                     raise
-                except Exception as e:
+                except OSError as e:
                     logger.error(f"Failed to read {file_path}: {e}")
                     raise
             else:
@@ -839,7 +862,7 @@ class FileSystemBackend(ReplicaBackendBase):
                         import os
 
                         os.fsync(f.fileno())
-                    except Exception:
+                    except OSError:
                         pass
 
                 # Atomic replace
@@ -847,7 +870,7 @@ class FileSystemBackend(ReplicaBackendBase):
                     backup_path = file_path.with_suffix(".bak")
                     file_path.replace(backup_path)
                     temp_path.replace(file_path)
-                    with contextlib.suppress(Exception):
+                    with contextlib.suppress(OSError):
                         backup_path.unlink()
                 else:
                     temp_path.replace(file_path)
@@ -885,11 +908,11 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 self._mark_category_modified(category, file_path)
 
-            except Exception as e:
+            except (OSError, ValueError, TypeError) as e:
                 try:
                     if temp_path.exists():
                         temp_path.unlink()
-                except Exception:
+                except OSError:
                     pass
                 logger.error(f"Failed to update model {model_name} in {category}: {e}")
                 raise
@@ -917,6 +940,7 @@ class FileSystemBackend(ReplicaBackendBase):
         Raises:
             FileNotFoundError: If the category file doesn't exist.
             KeyError: If the model doesn't exist in the category.
+
         """
         with self._lock:
             file_path = horde_model_reference_paths.get_model_reference_file_path(
@@ -939,7 +963,7 @@ class FileSystemBackend(ReplicaBackendBase):
                     f"V2 format is always JSON, including text_generation.json. Error: {e}"
                 )
                 raise
-            except Exception as e:
+            except OSError as e:
                 logger.error(f"Failed to read {file_path}: {e}")
                 raise
 
@@ -959,14 +983,14 @@ class FileSystemBackend(ReplicaBackendBase):
                         import os
 
                         os.fsync(f.fileno())
-                    except Exception:
+                    except OSError:
                         pass
 
                 backup_path = file_path.with_suffix(".bak")
                 file_path.replace(backup_path)
                 temp_path.replace(file_path)
 
-                with contextlib.suppress(Exception):
+                with contextlib.suppress(OSError):
                     backup_path.unlink()
 
                 logger.info(f"Deleted model {model_name} from category {category} at {file_path}")
@@ -993,11 +1017,11 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 self._mark_category_modified(category, file_path)
 
-            except Exception as e:
+            except (OSError, ValueError, TypeError) as e:
                 try:
                     if temp_path.exists():
                         temp_path.unlink()
-                except Exception:
+                except OSError:
                     pass
                 logger.error(f"Failed to delete model {model_name} from {category}: {e}")
                 raise
@@ -1006,14 +1030,15 @@ class FileSystemBackend(ReplicaBackendBase):
     def supports_legacy_writes(self) -> bool:
         """Check if backend supports legacy format writes.
 
-        Returns True only when canonical_format='legacy' in settings.
+        Returns True only when canonical_format='LEGACY' in settings.
 
         Returns:
             bool: True if legacy writes are supported.
+
         """
         from horde_model_reference import horde_model_reference_settings
 
-        return horde_model_reference_settings.canonical_format == "legacy"
+        return horde_model_reference_settings.canonical_format == CanonicalFormat.LEGACY
 
     @override
     def update_model_legacy(
@@ -1038,13 +1063,14 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Raises:
             FileNotFoundError: If the legacy category file path is not configured.
-            RuntimeError: If canonical_format is not set to 'legacy'.
+            RuntimeError: If canonical_format is not set to 'LEGACY'.
+
         """
         from horde_model_reference import horde_model_reference_settings
 
         if not self.supports_legacy_writes():
             raise RuntimeError(
-                "Legacy writes are only supported when canonical_format='legacy'. "
+                "Legacy writes are only supported when canonical_format='LEGACY'. "
                 f"Current setting: canonical_format='{horde_model_reference_settings.canonical_format}'"
             )
 
@@ -1073,7 +1099,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 try:
                     with open(legacy_file_path, encoding="utf-8") as f:
                         existing_data = json.load(f)
-                except Exception as e:
+                except (OSError, json.JSONDecodeError) as e:
                     logger.error(f"Failed to read {legacy_file_path}: {e}")
                     raise
             else:
@@ -1097,14 +1123,14 @@ class FileSystemBackend(ReplicaBackendBase):
                         import os
 
                         os.fsync(f.fileno())
-                    except Exception:
+                    except OSError:
                         pass
 
                 if target_write_path.exists():
                     backup_path = target_write_path.with_suffix(".bak")
                     target_write_path.replace(backup_path)
                     temp_path.replace(target_write_path)
-                    with contextlib.suppress(Exception):
+                    with contextlib.suppress(OSError):
                         backup_path.unlink()
                 else:
                     temp_path.replace(target_write_path)
@@ -1137,11 +1163,11 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 self._mark_legacy_category_modified(category, target_write_path)
 
-            except Exception as e:
+            except (OSError, ValueError, TypeError) as e:
                 try:
                     if temp_path.exists():
                         temp_path.unlink()
-                except Exception:
+                except OSError:
                     pass
                 logger.error(f"Failed to update legacy model {model_name} in {category}: {e}")
                 raise
@@ -1164,6 +1190,7 @@ class FileSystemBackend(ReplicaBackendBase):
             record_dict: The model record data.
             logical_user_id: Optional logical user ID for audit logging.
             request_id: Optional request ID for audit logging.
+
         """
         from horde_model_reference.text_model_write_processor import TextModelWriteProcessor
 
@@ -1260,6 +1287,7 @@ class FileSystemBackend(ReplicaBackendBase):
         Raises:
             FileNotFoundError: If the CSV file doesn't exist.
             KeyError: If the model doesn't exist.
+
         """
         category = MODEL_REFERENCE_CATEGORY.text_generation
         csv_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
@@ -1343,13 +1371,14 @@ class FileSystemBackend(ReplicaBackendBase):
         Raises:
             FileNotFoundError: If the legacy category file doesn't exist.
             KeyError: If the model doesn't exist in the category.
-            RuntimeError: If canonical_format is not set to 'legacy'.
+            RuntimeError: If canonical_format is not set to 'LEGACY'.
+
         """
         from horde_model_reference import horde_model_reference_settings
 
         if not self.supports_legacy_writes():
             raise RuntimeError(
-                "Legacy writes are only supported when canonical_format='legacy'. "
+                "Legacy writes are only supported when canonical_format='LEGACY'. "
                 f"Current setting: canonical_format='{horde_model_reference_settings.canonical_format}'"
             )
 
@@ -1376,7 +1405,7 @@ class FileSystemBackend(ReplicaBackendBase):
             try:
                 with open(legacy_file_path, encoding="utf-8") as f:
                     existing_data = json.load(f)
-            except Exception as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.error(f"Failed to read {legacy_file_path}: {e}")
                 raise
 
@@ -1395,14 +1424,14 @@ class FileSystemBackend(ReplicaBackendBase):
                         import os
 
                         os.fsync(f.fileno())
-                    except Exception:
+                    except OSError:
                         pass
 
                 if target_write_path.exists():
                     backup_path = target_write_path.with_suffix(".bak")
                     target_write_path.replace(backup_path)
                     temp_path.replace(target_write_path)
-                    with contextlib.suppress(Exception):
+                    with contextlib.suppress(OSError):
                         backup_path.unlink()
                 else:
                     temp_path.replace(target_write_path)
@@ -1430,11 +1459,11 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 self._mark_legacy_category_modified(category, target_write_path)
 
-            except Exception as e:
+            except (OSError, ValueError, TypeError) as e:
                 try:
                     if temp_path.exists():
                         temp_path.unlink()
-                except Exception:
+                except OSError:
                     pass
                 logger.error(f"Failed to delete legacy model {model_name} from {category}: {e}")
                 raise
@@ -1456,6 +1485,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             int: Number of models that had metadata populated.
+
         """
         with self._lock:
             file_path = horde_model_reference_paths.get_model_reference_file_path(
@@ -1473,7 +1503,7 @@ class FileSystemBackend(ReplicaBackendBase):
             try:
                 with open(file_path, encoding="utf-8") as f:
                     data: dict[str, Any] = json.load(f)
-            except Exception as e:
+            except (OSError, json.JSONDecodeError) as e:
                 logger.error(f"Failed to read {file_path} for metadata population: {e}")
                 return 0
 
@@ -1499,14 +1529,14 @@ class FileSystemBackend(ReplicaBackendBase):
                         import os
 
                         os.fsync(f.fileno())
-                    except Exception:
+                    except OSError:
                         pass
 
                 backup_path = file_path.with_suffix(".bak")
                 file_path.replace(backup_path)
                 temp_path.replace(file_path)
 
-                with contextlib.suppress(Exception):
+                with contextlib.suppress(OSError):
                     backup_path.unlink()
 
                 logger.info(f"Populated metadata for {models_updated} models in {category}")
@@ -1514,11 +1544,11 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 return models_updated
 
-            except Exception as e:
+            except (OSError, ValueError, TypeError) as e:
                 try:
                     if temp_path.exists():
                         temp_path.unlink()
-                except Exception:
+                except OSError:
                     pass
                 logger.error(f"Failed to write metadata-populated file for {category}: {e}")
                 return 0
@@ -1546,6 +1576,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 - "legacy_metadata_initialized": bool
                 - "models_updated": int
                 - "timestamp_used": int
+
         """
         with self._lock:
             if timestamp is None:
@@ -1611,6 +1642,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             AllMetadataPopulationResult with summary of metadata population.
+
         """
         with self._lock:
             result = AllMetadataPopulationResult()
@@ -1666,6 +1698,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             CategoryMetadata | None: The legacy metadata, or None if not available.
+
         """
         return self._metadata_manager.get_legacy_metadata(category)
 
@@ -1678,6 +1711,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             CategoryMetadata | None: The legacy metadata, or None if not available.
+
         """
         return self._metadata_manager.get_legacy_metadata(category)
 
@@ -1690,6 +1724,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             CategoryMetadata | None: The v2 metadata, or None if not available.
+
         """
         return self._metadata_manager.get_v2_metadata(category)
 
@@ -1702,6 +1737,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             CategoryMetadata | None: The v2 metadata, or None if not available.
+
         """
         return self._metadata_manager.get_v2_metadata(category)
 
@@ -1711,6 +1747,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their legacy metadata.
+
         """
         return self._metadata_manager.get_all_legacy_metadata()
 
@@ -1720,6 +1757,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their legacy metadata.
+
         """
         return self._metadata_manager.get_all_legacy_metadata()
 
@@ -1729,6 +1767,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their v2 metadata.
+
         """
         return self._metadata_manager.get_all_v2_metadata()
 
@@ -1738,5 +1777,6 @@ class FileSystemBackend(ReplicaBackendBase):
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their v2 metadata.
+
         """
         return self._metadata_manager.get_all_v2_metadata()

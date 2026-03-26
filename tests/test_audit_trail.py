@@ -6,15 +6,15 @@ from typing import Any
 
 import pytest
 
-from horde_model_reference import AuditSettings, ReplicateMode, horde_model_reference_settings
+from horde_model_reference import AuditSettings, CanonicalFormat, ReplicateMode, horde_model_reference_settings
 from horde_model_reference.audit.events import AuditDomain, AuditOperation
 from horde_model_reference.audit.writer import AuditTrailWriter
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.path_consts import horde_model_reference_paths
 
-LEGACY_DOMAIN = AuditDomain("legacy")
-V2_DOMAIN = AuditDomain("v2")
+LEGACY_DOMAIN = AuditDomain(CanonicalFormat.LEGACY)
+V2_DOMAIN = AuditDomain(CanonicalFormat.v2)
 CREATE_OPERATION = AuditOperation("create")
 UPDATE_OPERATION = AuditOperation("update")
 DELETE_OPERATION = AuditOperation("delete")

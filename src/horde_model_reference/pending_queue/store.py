@@ -1,7 +1,8 @@
+"""File-backed persistence store for pending change queue items."""
+
 from __future__ import annotations
 
 import json
-import os
 from collections.abc import Iterable
 from pathlib import Path
 from threading import RLock
@@ -14,6 +15,7 @@ from horde_model_reference.pending_queue.models import (
     PendingQueueFilter,
     now_ts,
 )
+from horde_model_reference.util import atomic_write_json
 
 
 class PendingQueueStore:
@@ -29,8 +31,10 @@ class PendingQueueStore:
         self._changes: dict[int, PendingChangeRecord] = {}
         self._last_change_id = 0
         self._last_batch_id = 0
-        self._load_state()
+        state_ok = self._load_state()
         self._load_changes()
+        if not state_ok and self._changes:
+            self._recover_ids_from_changes()
 
     def enqueue_change(self, record: PendingChangeRecord) -> PendingChangeRecord:
         """Persist a new pending change and allocate an id if needed."""
@@ -109,6 +113,7 @@ class PendingQueueStore:
 
         Returns:
             The batch ID of existing APPROVED changes, or None if no open batch exists.
+
         """
         with self._lock:
             for record in self._changes.values():
@@ -124,6 +129,7 @@ class PendingQueueStore:
 
         Returns:
             The batch ID to use for new approvals.
+
         """
         with self._lock:
             existing_batch_id = self._get_current_pending_batch_id_locked()
@@ -151,6 +157,7 @@ class PendingQueueStore:
 
         Returns:
             True if APPROVED changes exist in the batch, False otherwise.
+
         """
         with self._lock:
             for record in self._changes.values():
@@ -166,6 +173,7 @@ class PendingQueueStore:
 
         Returns:
             List of APPROVED change records in the batch.
+
         """
         with self._lock:
             return [
@@ -200,16 +208,18 @@ class PendingQueueStore:
             return lowered in record.model_name.lower()
         return True
 
-    def _load_state(self) -> None:
+    def _load_state(self) -> bool:
+        """Load the index.json state file. Returns True on success, False on missing/corrupt."""
         if not self._state_path.exists():
-            return
+            return False
         try:
             payload = json.loads(self._state_path.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as exc:  # pragma: no cover - defensive
-            logger.warning("Unable to parse pending queue index: %s", exc)
-            return
+        except json.JSONDecodeError as exc:
+            logger.error("Pending queue index is corrupt and will be recovered from changes: %s", exc)
+            return False
         self._last_change_id = int(payload.get("last_change_id", 0))
         self._last_batch_id = int(payload.get("last_batch_id", 0))
+        return True
 
     def _load_changes(self) -> None:
         if not self._changes_path.exists():
@@ -230,17 +240,29 @@ class PendingQueueStore:
         if self._changes:
             self._last_change_id = max(self._last_change_id, max(self._changes))
 
+    def _recover_ids_from_changes(self) -> None:
+        """Recover last_change_id and last_batch_id from loaded change records after state corruption."""
+        self._last_change_id = max(self._changes)
+        batch_ids = [r.batch_id for r in self._changes.values() if r.batch_id is not None]
+        self._last_batch_id = max(batch_ids) if batch_ids else 0
+        logger.warning(
+            "Recovered IDs from changes: last_change_id=%d, last_batch_id=%d",
+            self._last_change_id,
+            self._last_batch_id,
+        )
+        self._persist_state_locked()
+
     def _persist_locked(self) -> None:
         self._persist_state_locked()
         serialized = [record.model_dump(mode="json", exclude_none=True) for record in self._changes.values()]
-        _atomic_write_json(self._changes_path, serialized, ensure_ascii=False)
+        atomic_write_json(self._changes_path, serialized, ensure_ascii=False)
 
     def _persist_state_locked(self) -> None:
         state_payload = {
             "last_change_id": self._last_change_id,
             "last_batch_id": self._last_batch_id,
         }
-        _atomic_write_json(self._state_path, state_payload, ensure_ascii=True)
+        atomic_write_json(self._state_path, state_payload, ensure_ascii=True)
 
     def _next_change_id_locked(self) -> int:
         self._last_change_id += 1
@@ -248,10 +270,12 @@ class PendingQueueStore:
         return self._last_change_id
 
     def reserve_for_apply(self, *, change_id: int, reservation_id: str) -> PendingChangeRecord:
-        """Mark a change as reserved for application if it is still approved.
+        """Transition an APPROVED change to APPLYING and set the reservation.
 
         The reservation is recorded on the change via ``applied_job_id`` to prevent
-        concurrent apply attempts from issuing duplicate backend mutations.
+        concurrent apply attempts from issuing duplicate backend mutations.  The
+        status moves to ``APPLYING`` so that a crash mid-apply is detectable on
+        restart.
         """
         with self._lock:
             record = self._changes.get(change_id)
@@ -270,24 +294,80 @@ class PendingQueueStore:
                 # Idempotent re-entry for the same job id
                 return record.model_copy(deep=True)
 
-            updated = record.model_copy(update={"applied_job_id": reservation_id, "updated_at": now_ts()})
+            updated = record.model_copy(
+                update={
+                    "status": PendingChangeStatus.APPLYING,
+                    "applied_job_id": reservation_id,
+                    "updated_at": now_ts(),
+                },
+            )
             self._changes[change_id] = updated
             self._persist_locked()
             return updated.model_copy(deep=True)
 
     def clear_reservation_if_matches(self, *, change_id: int, reservation_id: str) -> None:
-        """Release a reservation if it still matches and the change is not applied yet."""
+        """Release a reservation if it still matches, reverting APPLYING → APPROVED."""
         with self._lock:
             record = self._changes.get(change_id)
             if record is None:
                 return
-            if record.status is not PendingChangeStatus.APPROVED:
+            if record.status not in {PendingChangeStatus.APPROVED, PendingChangeStatus.APPLYING}:
                 return
             if record.applied_job_id != reservation_id:
                 return
-            updated = record.model_copy(update={"applied_job_id": None, "updated_at": now_ts()})
+            updated = record.model_copy(
+                update={
+                    "status": PendingChangeStatus.APPROVED,
+                    "applied_job_id": None,
+                    "updated_at": now_ts(),
+                },
+            )
             self._changes[change_id] = updated
             self._persist_locked()
+
+    def get_applying_records(self) -> list[PendingChangeRecord]:
+        """Return all records currently in APPLYING state.
+
+        Used on startup to detect changes that were mid-apply when the process
+        crashed.  Callers should log warnings and decide whether to retry or
+        revert each one.
+        """
+        with self._lock:
+            return [
+                record.model_copy(deep=True)
+                for record in self._changes.values()
+                if record.status == PendingChangeStatus.APPLYING
+            ]
+
+    def revert_applying_to_approved(self, change_id: int) -> PendingChangeRecord:
+        """Revert a stuck APPLYING record back to APPROVED.
+
+        Args:
+            change_id: The change to revert.
+
+        Returns:
+            The updated record.
+
+        Raises:
+            ValueError: If the record is missing or not in APPLYING state.
+
+        """
+        with self._lock:
+            record = self._changes.get(change_id)
+            if record is None:
+                raise ValueError(f"Change {change_id} does not exist.")
+            if record.status is not PendingChangeStatus.APPLYING:
+                raise ValueError(f"Change {change_id} is not in APPLYING state (status={record.status}).")
+            updated = record.model_copy(
+                update={
+                    "status": PendingChangeStatus.APPROVED,
+                    "applied_job_id": None,
+                    "updated_at": now_ts(),
+                },
+            )
+            self._changes[change_id] = updated
+            self._persist_locked()
+            return updated.model_copy(deep=True)
 
 
 def assert_pending(record: PendingChangeRecord) -> PendingChangeRecord:
@@ -295,13 +375,3 @@ def assert_pending(record: PendingChangeRecord) -> PendingChangeRecord:
     if record.status is not PendingChangeStatus.PENDING:
         raise ValueError(f"Change {record.change_id} is not pending (status={record.status}).")
     return record
-
-
-def _atomic_write_json(path: Path, payload: object, *, ensure_ascii: bool) -> None:
-    """Atomically write JSON content to ``path`` using a temporary file."""
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    with tmp_path.open("w", encoding="utf-8") as handle:
-        json.dump(payload, handle, indent=2, ensure_ascii=ensure_ascii)
-        handle.flush()
-        os.fsync(handle.fileno())
-    tmp_path.replace(path)

@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from horde_model_reference import ModelReferenceManager, horde_model_reference_settings
+from horde_model_reference import CanonicalFormat, ModelReferenceManager, horde_model_reference_settings
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_metadata import CategoryMetadata
 from horde_model_reference.service.shared import (
@@ -67,13 +67,14 @@ async def read_legacy_last_updated(
     """Get the last update timestamp for the canonical format.
 
     This endpoint returns the maximum last_updated timestamp across all categories
-    for legacy format operations. Only available when canonical_format='legacy'.
+    for legacy format operations. Only available when canonical_format='LEGACY'.
 
     Returns:
         LastUpdatedResponse with the maximum timestamp, or None if no metadata exists.
 
     Raises:
-        HTTPException: 503 if metadata is not supported or canonical_format != 'legacy'.
+        HTTPException: 503 if metadata is not supported or canonical_format != 'LEGACY'.
+
     """
     # Check if backend supports metadata
     if not manager.backend.supports_metadata():
@@ -82,11 +83,11 @@ async def read_legacy_last_updated(
             detail="Metadata tracking is not supported in REPLICA mode",
         )
 
-    # Check if canonical format is 'legacy'
-    if horde_model_reference_settings.canonical_format != "legacy":
+    # Check if canonical format is 'LEGACY'
+    if horde_model_reference_settings.canonical_format != CanonicalFormat.LEGACY:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"This endpoint is only available when canonical_format='legacy'. "
+            detail=f"This endpoint is only available when canonical_format='LEGACY'. "
             f"Current setting: canonical_format='{horde_model_reference_settings.canonical_format}'",
         )
 
@@ -152,6 +153,7 @@ async def read_legacy_category_last_updated(
     Raises:
         HTTPException: 503 if metadata is not supported.
         HTTPException: 404 if category has no metadata.
+
     """
     # Check if backend supports metadata
     if not manager.backend.supports_metadata():
@@ -221,6 +223,7 @@ async def read_all_legacy_metadata(
 
     Raises:
         HTTPException: 503 if metadata is not supported.
+
     """
     # Check if backend supports metadata
     if not manager.backend.supports_metadata():
@@ -284,6 +287,7 @@ async def read_legacy_category_metadata(
     Raises:
         HTTPException: 503 if metadata is not supported.
         HTTPException: 404 if category has no metadata.
+
     """
     # Check if backend supports metadata
     if not manager.backend.supports_metadata():

@@ -1,3 +1,5 @@
+"""Audit event models and type definitions for the append-only audit trail."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -7,12 +9,14 @@ from typing import Any
 from pydantic import BaseModel, Field
 from strenum import StrEnum
 
+from horde_model_reference import CanonicalFormat
+
 
 class AuditDomain(StrEnum):
     """Supported domains for audit events."""
 
-    LEGACY = "legacy"
-    V2 = "v2"
+    LEGACY = CanonicalFormat.LEGACY
+    V2 = CanonicalFormat.v2
 
 
 class AuditOperation(StrEnum):

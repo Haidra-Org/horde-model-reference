@@ -378,3 +378,9 @@ horde_model_reference_paths = HordeModelReferencePaths(
     cache_home=ai_horde_worker_settings.aiworker_cache_home,
     log_folder=ai_horde_worker_settings.logs_folder,
 )
+
+
+__all__ = [
+    "HordeModelReferencePaths",
+    "horde_model_reference_paths",
+]

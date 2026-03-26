@@ -250,3 +250,66 @@ def test_mark_applied_requires_approved_status(
             applied_username=_TEST_APPROVER_USERNAME,
             job_id="job-321",
         )
+
+
+def test_mark_applied_accepts_applying_status(
+    pending_queue_service: tuple[PendingQueueService, _StubAuditWriter],
+) -> None:
+    """mark_applied should accept records in APPLYING state (set during reservation)."""
+    service, _ = pending_queue_service
+    change_id = _enqueue(service, model_name="applying_model")
+
+    service.process_batch(
+        approver_id=_TEST_APPROVER_ID,
+        approver_username=_TEST_APPROVER_USERNAME,
+        batch_title="approve",
+        approved_ids=[change_id],
+        rejected_ids=None,
+        reject_reason=None,
+    )
+
+    # Simulate the reservation step (APPROVED → APPLYING)
+    service.reserve_for_apply(change_id=change_id, reservation_id="job-1")
+
+    result = service.mark_applied(
+        change_id=change_id,
+        applied_by=_TEST_APPROVER_ID,
+        applied_username=_TEST_APPROVER_USERNAME,
+        job_id="job-1",
+    )
+
+    assert result.record.status is PendingChangeStatus.APPLIED
+
+
+def test_scan_stuck_applying_reverts_records(
+    pending_queue_service: tuple[PendingQueueService, _StubAuditWriter],
+) -> None:
+    """scan_stuck_applying reverts APPLYING records to APPROVED."""
+    service, _ = pending_queue_service
+    change_id = _enqueue(service, model_name="stuck_model")
+
+    service.process_batch(
+        approver_id=_TEST_APPROVER_ID,
+        approver_username=_TEST_APPROVER_USERNAME,
+        batch_title="approve",
+        approved_ids=[change_id],
+        rejected_ids=None,
+        reject_reason=None,
+    )
+
+    service.reserve_for_apply(change_id=change_id, reservation_id="crashed-job")
+
+    # Simulate restart
+    reverted = service.scan_stuck_applying()
+    assert len(reverted) == 1
+    assert reverted[0].change_id == change_id
+    assert reverted[0].status is PendingChangeStatus.APPROVED
+    assert reverted[0].applied_job_id is None
+
+
+def test_scan_stuck_applying_returns_empty_when_none(
+    pending_queue_service: tuple[PendingQueueService, _StubAuditWriter],
+) -> None:
+    """scan_stuck_applying returns empty when no APPLYING records exist."""
+    service, _ = pending_queue_service
+    assert service.scan_stuck_applying() == []

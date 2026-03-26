@@ -11,7 +11,7 @@ from typing import Any
 
 from loguru import logger
 
-from horde_model_reference import ModelReferenceManager, horde_model_reference_settings
+from horde_model_reference import CanonicalFormat, ModelReferenceManager, horde_model_reference_settings
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.pending_queue import PendingQueueService
 from horde_model_reference.pending_queue.diff_utils import (
@@ -45,6 +45,7 @@ class PendingChangeDiffService:
         Args:
             manager: The model reference manager for fetching current state.
             queue_service: The pending queue service for fetching change records.
+
         """
         self._manager = manager
         self._queue_service = queue_service
@@ -57,6 +58,7 @@ class PendingChangeDiffService:
 
         Returns:
             PendingChangeDiff with computed field diffs, or None if change not found.
+
         """
         record = self._queue_service.get_change(change_id)
         if record is None:
@@ -75,6 +77,7 @@ class PendingChangeDiffService:
 
         Returns:
             PendingChangeDiffPage containing all computed diffs and any errors.
+
         """
         diffs: list[PendingChangeDiff] = []
         errors: list[dict[str, Any]] = []
@@ -95,7 +98,7 @@ class PendingChangeDiffService:
                 diff = self._compute_diff_for_record(record)
                 diffs.append(diff)
 
-            except Exception as exc:
+            except (KeyError, ValueError, TypeError) as exc:
                 logger.warning(f"Failed to compute diff for change {change_id}: {exc}")
                 errors.append(
                     {
@@ -119,6 +122,7 @@ class PendingChangeDiffService:
 
         Returns:
             PendingChangeDiff with computed field diffs.
+
         """
         current_state = self._fetch_current_state(record)
 
@@ -181,8 +185,9 @@ class PendingChangeDiffService:
 
         Returns:
             The current model state dict, or None if the model doesn't exist.
+
         """
-        if horde_model_reference_settings.canonical_format == "legacy":
+        if horde_model_reference_settings.canonical_format == CanonicalFormat.LEGACY:
             legacy_json = self._manager.backend.get_legacy_json(record.category)
             if legacy_json is None:
                 return None
@@ -209,6 +214,7 @@ class PendingChangeDiffService:
 
         Returns:
             NetChangeType indicating the effective operation.
+
         """
         if operation == AuditOperation.CREATE:
             # CREATE on existing model is effectively an update
@@ -231,3 +237,8 @@ class PendingChangeDiffService:
             return NetChangeType.UNCHANGED
 
         return NetChangeType.MODIFIED
+
+
+__all__ = [
+    "PendingChangeDiffService",
+]

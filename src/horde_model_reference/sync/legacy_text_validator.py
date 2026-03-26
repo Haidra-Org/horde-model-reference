@@ -43,6 +43,7 @@ class LegacyTextValidator:
         Args:
             generation_params_path: Ignored, kept for API compatibility.
             defaults_path: Ignored, kept for API compatibility.
+
         """
         self._processor = TextModelWriteProcessor()
 
@@ -80,6 +81,7 @@ class LegacyTextValidator:
 
         Raises:
             ValueError: If validation fails (invalid settings keys, missing required fields, etc.)
+
         """
         logger.debug(f"Validating {len(data)} legacy text generation records (grouped format)")
 

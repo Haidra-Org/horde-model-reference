@@ -21,7 +21,7 @@ from horde_model_reference.service.shared import PathVariables, RouteNames, rout
 from ..helpers import ALL_MODEL_CATEGORIES
 
 # Note: The v1_canonical_manager fixture is now defined in conftest.py
-# It provides a PRIMARY mode manager with canonical_format='legacy' for v1 API tests
+# It provides a PRIMARY mode manager with canonical_format='LEGACY' for v1 API tests
 
 
 def _create_legacy_json_file(base_path: Path, category: MODEL_REFERENCE_CATEGORY, data: dict[str, Any]) -> None:
@@ -533,7 +533,7 @@ class TestLegacyFormatWriteRestriction:
     """Tests that write operations require legacy canonical format.
 
     Note: These tests verify the conditional import behavior. In the test environment,
-    canonical_format is set to 'legacy' at import time so routes are registered.
+    canonical_format is set to 'LEGACY' at import time so routes are registered.
     In production with canonical_format='v2', the v1 CRUD routes would not be registered at all.
     """
 
@@ -541,8 +541,8 @@ class TestLegacyFormatWriteRestriction:
         self,
         v1_canonical_manager: ModelReferenceManager,
     ) -> None:
-        """Backend should support legacy writes when canonical_format='legacy'."""
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        """Backend should support legacy writes when canonical_format='LEGACY'."""
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
         assert v1_canonical_manager.backend.supports_legacy_writes() is True
 
     def test_backend_rejects_legacy_writes_in_v2_mode(
@@ -978,7 +978,7 @@ class TestTextGenerationEndpoint:
 class TestRouteConditionalImport:
     """Tests for conditional import of CRUD routes.
 
-    Note: In the test environment, canonical_format is set to 'legacy' at import time,
+    Note: In the test environment, canonical_format is set to 'LEGACY' at import time,
     so v1 CRUD routes ARE registered. In a production deployment with canonical_format='v2',
     these routes would not be registered at all (conditional import in references.py:143-144).
 
@@ -1004,8 +1004,8 @@ class TestRouteConditionalImport:
         v1_canonical_manager: ModelReferenceManager,
         mock_auth_success: None,
     ) -> None:
-        """CRUD routes should be registered when canonical_format='legacy' at import time."""
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        """CRUD routes should be registered when canonical_format='LEGACY' at import time."""
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
         route_name = _get_create_route_for_category(category)

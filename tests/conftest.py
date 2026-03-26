@@ -11,7 +11,7 @@ os.environ["AI_HORDE_TESTING"] = "True"
 os.environ["HORDE_MODEL_REFERENCE_REPLICATE_MODE"] = "PRIMARY"
 # Set to legacy so v1 CRUD routes are registered at import time
 # v2 tests will override this via fixtures
-os.environ["HORDE_MODEL_REFERENCE_CANONICAL_FORMAT"] = "legacy"
+os.environ["HORDE_MODEL_REFERENCE_CANONICAL_FORMAT"] = "LEGACY"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -193,7 +193,7 @@ def legacy_canonical_mode(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
 
     This fixture uses monkeypatch to ensure proper cleanup and isolation.
     """
-    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "legacy")
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "LEGACY")
     yield
 
 
@@ -214,17 +214,17 @@ def v1_canonical_manager(
     dependency_override: Callable[[Callable[[], Any], Callable[[], Any]], None],
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[ModelReferenceManager]:
-    """Create a PRIMARY mode manager with canonical_format='legacy' for v1 API tests.
+    """Create a PRIMARY mode manager with canonical_format='LEGACY' for v1 API tests.
 
     This fixture:
-    1. Sets canonical_format to 'legacy' via monkeypatch
+    1. Sets canonical_format to 'LEGACY' via monkeypatch
     2. Creates a fresh PRIMARY manager with isolated base_path
     3. Registers it as a dependency override for v1 API endpoints
     4. Cleans up automatically after the test
     """
     from horde_model_reference.service.shared import get_model_reference_manager
 
-    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "legacy")
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "LEGACY")
 
     queue_root = primary_base / "pending_queue"
     queue_root.mkdir(parents=True, exist_ok=True)
@@ -625,9 +625,6 @@ def mock_auth_success(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Patch auth_against_horde in the modules where it's actually defined/imported
     monkeypatch.setattr("horde_model_reference.service.shared.auth_against_horde", _mock_auth)
-
-    allowed_user_ids = [test_user_id]
-    monkeypatch.setattr("horde_model_reference.service.shared.allowed_users", allowed_user_ids)
 
     horde_model_reference_settings.pending_queue.requestor_ids = [test_user_id]
     horde_model_reference_settings.pending_queue.approver_ids = [test_user_id]

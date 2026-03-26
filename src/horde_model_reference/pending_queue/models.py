@@ -1,3 +1,5 @@
+"""Pydantic models for the pending change queue: records, status, and payload schemas."""
+
 from __future__ import annotations
 
 from collections.abc import Collection
@@ -12,10 +14,21 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
 class PendingChangeStatus(StrEnum):
-    """Lifecycle states for queued changes."""
+    """Lifecycle states for queued changes.
+
+    State transitions::
+
+        PENDING → APPROVED → APPLYING → APPLIED
+        PENDING → REJECTED
+
+    The ``APPLYING`` state is a transient lock held while the backend write is
+    in progress.  If the process crashes during this window, records stuck in
+    ``APPLYING`` are detected on restart and logged as warnings.
+    """
 
     PENDING = "pending"
     APPROVED = "approved"
+    APPLYING = "applying"
     APPLIED = "applied"
     REJECTED = "rejected"
 

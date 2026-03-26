@@ -1,3 +1,5 @@
+"""FastAPI application factory with lifespan management and CORS configuration."""
+
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -18,7 +20,7 @@ import horde_model_reference.service.v2.routers.pending_queue_audit as v2_pendin
 import horde_model_reference.service.v2.routers.references as v2_references
 import horde_model_reference.service.v2.routers.search as v2_search
 import horde_model_reference.service.v2.routers.user as v2_user
-from horde_model_reference import BackendInfo, CanonicalFormat, ReplicateMode, horde_model_reference_settings
+from horde_model_reference import BackendInfo, ReplicateMode, horde_model_reference_settings
 from horde_model_reference.service.shared import statistics_prefix, v1_prefix, v2_prefix
 
 
@@ -39,6 +41,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     yield
 
     # Shutdown
+    from horde_model_reference.service.shared import httpx_client
+
+    await httpx_client.aclose()
+
     if horde_model_reference_settings.cache_hydration_enabled:
         from horde_model_reference.analytics.cache_hydrator import get_cache_hydrator
 
@@ -103,9 +109,7 @@ async def replicate_mode() -> BackendInfo:
     from horde_model_reference import horde_model_reference_settings
 
     # Map the string setting to the enum
-    canonical_format = (
-        CanonicalFormat.LEGACY if horde_model_reference_settings.canonical_format == "legacy" else CanonicalFormat.V2
-    )
+    canonical_format = horde_model_reference_settings.canonical_format
 
     return BackendInfo(
         replicate_mode=horde_model_reference_settings.replicate_mode,

@@ -46,9 +46,9 @@ route_registry.register_route(
 
 @router.delete(
     delete_model_route_subpath,
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
-        200: {
+        204: {
             "description": "Model deleted successfully",
         },
         202: {
@@ -70,7 +70,7 @@ async def delete_legacy_model(
     """Delete a model from a legacy model reference category.
 
     When pending queue is enabled, this enqueues the deletion and returns HTTP 202.
-    When pending queue is disabled, this deletes the model immediately and returns HTTP 200.
+    When pending queue is disabled, this deletes the model immediately and returns HTTP 204.
     """
     return await _delete_legacy_model(
         manager,
@@ -152,7 +152,7 @@ async def create_legacy_image_generation_model(
     summary="Update an existing model in legacy format",
     description=(
         "Update an existing model or create if it doesn't exist (upsert) in legacy format.\n\n"
-        "This endpoint is only available when canonical_format='legacy' in PRIMARY mode."
+        "This endpoint is only available when canonical_format='LEGACY' in PRIMARY mode."
     ),
     operation_id="update_legacy_model",
 )
@@ -252,7 +252,7 @@ async def create_legacy_text_generation_model(
     summary="Update an existing model in legacy format",
     description=(
         "Update an existing model or create if it doesn't exist (upsert) in legacy format.\n\n"
-        "This endpoint is only available when canonical_format='legacy' in PRIMARY mode."
+        "This endpoint is only available when canonical_format='LEGACY' in PRIMARY mode."
     ),
     operation_id="update_legacy_text_generation_model",
 )
@@ -352,7 +352,7 @@ async def create_legacy_clip_model(
     summary="Update an existing CLIP model in legacy format",
     description=(
         "Update an existing model or create if it doesn't exist (upsert) in legacy format.\n\n"
-        "This endpoint is only available when canonical_format='legacy' in PRIMARY mode."
+        "This endpoint is only available when canonical_format='LEGACY' in PRIMARY mode."
     ),
     operation_id="update_legacy_clip_model",
 )
@@ -452,7 +452,7 @@ async def create_legacy_blip_model(
     summary="Update an existing BLIP model in legacy format",
     description=(
         "Update an existing model or create if it doesn't exist (upsert) in legacy format.\n\n"
-        "This endpoint is only available when canonical_format='legacy' in PRIMARY mode."
+        "This endpoint is only available when canonical_format='LEGACY' in PRIMARY mode."
     ),
     operation_id="update_legacy_blip_model",
 )
@@ -552,7 +552,7 @@ async def create_legacy_codeformer_model(
     summary="Update an existing Codeformer model in legacy format",
     description=(
         "Update an existing model or create if it doesn't exist (upsert) in legacy format.\n\n"
-        "This endpoint is only available when canonical_format='legacy' in PRIMARY mode."
+        "This endpoint is only available when canonical_format='LEGACY' in PRIMARY mode."
     ),
     operation_id="update_legacy_codeformer_model",
 )
@@ -652,7 +652,7 @@ async def create_legacy_controlnet_model(
     summary="Update an existing ControlNet model in legacy format",
     description=(
         "Update an existing model or create if it doesn't exist (upsert) in legacy format.\n\n"
-        "This endpoint is only available when canonical_format='legacy' in PRIMARY mode."
+        "This endpoint is only available when canonical_format='LEGACY' in PRIMARY mode."
     ),
     operation_id="update_legacy_controlnet_model",
 )
@@ -752,7 +752,7 @@ async def create_legacy_esrgan_model(
     summary="Update an existing ESRGAN model in legacy format",
     description=(
         "Update an existing model or create if it doesn't exist (upsert) in legacy format.\n\n"
-        "This endpoint is only available when canonical_format='legacy' in PRIMARY mode."
+        "This endpoint is only available when canonical_format='LEGACY' in PRIMARY mode."
     ),
     operation_id="update_legacy_esrgan_model",
 )
@@ -852,7 +852,7 @@ async def create_legacy_gfpgan_model(
     summary="Update an existing GFPGAN model in legacy format",
     description=(
         "Update an existing model or create if it doesn't exist (upsert) in legacy format.\n\n"
-        "This endpoint is only available when canonical_format='legacy' in PRIMARY mode."
+        "This endpoint is only available when canonical_format='LEGACY' in PRIMARY mode."
     ),
     operation_id="update_legacy_gfpgan_model",
 )
@@ -952,7 +952,7 @@ async def create_legacy_safety_checker_model(
     summary="Update an existing safety checker model in legacy format",
     description=(
         "Update an existing model or create if it doesn't exist (upsert) in legacy format.\n\n"
-        "This endpoint is only available when canonical_format='legacy' in PRIMARY mode."
+        "This endpoint is only available when canonical_format='LEGACY' in PRIMARY mode."
     ),
     operation_id="update_legacy_safety_checker_model",
 )
@@ -1052,7 +1052,7 @@ async def create_legacy_miscellaneous_model(
     summary="Update an existing miscellaneous model in legacy format",
     description=(
         "Update an existing model or create if it doesn't exist (upsert) in legacy format.\n\n"
-        "This endpoint is only available when canonical_format='legacy' in PRIMARY mode."
+        "This endpoint is only available when canonical_format='LEGACY' in PRIMARY mode."
     ),
     operation_id="update_legacy_miscellaneous_model",
 )

@@ -87,6 +87,15 @@ class _DummyBackend:
 @dataclass
 class _DummyManager:
     backend: _DummyBackend
+    invalidated_categories: list[MODEL_REFERENCE_CATEGORY] | None = None
+
+    def __post_init__(self) -> None:
+        if self.invalidated_categories is None:
+            self.invalidated_categories = []
+
+    def invalidate_category_cache(self, category: MODEL_REFERENCE_CATEGORY) -> None:
+        assert self.invalidated_categories is not None
+        self.invalidated_categories.append(category)
 
 
 class _DummyQueueService:
@@ -132,7 +141,12 @@ class _DummyQueueService:
         existing = record.applied_job_id
         if existing is not None and existing != reservation_id:
             raise ValueError("already reserved")
-        updated = record.model_copy(update={"applied_job_id": reservation_id})
+        updated = record.model_copy(
+            update={
+                "status": PendingChangeStatus.APPLYING,
+                "applied_job_id": reservation_id,
+            },
+        )
         self.records[change_id] = updated
         return updated
 
@@ -142,7 +156,12 @@ class _DummyQueueService:
             return
         if record.applied_job_id != reservation_id:
             return
-        self.records[change_id] = record.model_copy(update={"applied_job_id": None})
+        self.records[change_id] = record.model_copy(
+            update={
+                "status": PendingChangeStatus.APPROVED,
+                "applied_job_id": None,
+            },
+        )
 
 
 def _approved_record(
@@ -456,3 +475,88 @@ def test_apply_pending_changes_requires_change_ids() -> None:
             applied_by="approver",
             applied_username="approver",
         )
+
+
+def test_reserve_transitions_to_applying_state() -> None:
+    """Reserve sets the record status to APPLYING."""
+    queue_service_stub = _DummyQueueService(
+        [_approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "one"})]
+    )
+
+    reserved = queue_service_stub.reserve_for_apply(change_id=1, reservation_id="job-1")
+    assert reserved.status is PendingChangeStatus.APPLYING
+    assert reserved.applied_job_id == "job-1"
+
+
+def test_clear_reservation_reverts_to_approved() -> None:
+    """Clearing a reservation on an APPLYING record reverts to APPROVED."""
+    queue_service_stub = _DummyQueueService(
+        [_approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "one"})]
+    )
+    queue_service_stub.reserve_for_apply(change_id=1, reservation_id="job-1")
+    queue_service_stub.clear_apply_reservation(change_id=1, reservation_id="job-1")
+
+    record = queue_service_stub.records[1]
+    assert record.status is PendingChangeStatus.APPROVED
+    assert record.applied_job_id is None
+
+
+def test_apply_invalidates_category_cache() -> None:
+    """Successful apply calls invalidate_category_cache on the manager."""
+    backend = _DummyBackend()
+    manager_stub = _DummyManager(backend=backend)
+    queue_service_stub = _DummyQueueService(
+        [_approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "one"})]
+    )
+
+    apply_pending_changes(
+        manager=cast(ModelReferenceManager, manager_stub),
+        queue_service=cast(PendingQueueService, queue_service_stub),
+        change_ids=[1],
+        applied_by="approver",
+        applied_username="approver",
+        job_id="job-1",
+    )
+
+    assert manager_stub.invalidated_categories == [MODEL_REFERENCE_CATEGORY.image_generation]
+
+
+def test_apply_does_not_invalidate_on_backend_failure() -> None:
+    """Failed backend write does not trigger cache invalidation."""
+    backend = _DummyBackend(fail_on_models={"model_1"})
+    manager_stub = _DummyManager(backend=backend)
+    queue_service_stub = _DummyQueueService(
+        [_approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "fails"})]
+    )
+
+    result = apply_pending_changes(
+        manager=cast(ModelReferenceManager, manager_stub),
+        queue_service=cast(PendingQueueService, queue_service_stub),
+        change_ids=[1],
+        applied_by="approver",
+        applied_username="approver",
+        job_id="job-1",
+    )
+
+    assert isinstance(result.failed_error, PendingChangeBackendError)
+    assert manager_stub.invalidated_categories == []
+
+
+def test_apply_record_passes_through_applying_state() -> None:
+    """Applied records transition through APPLYING before reaching APPLIED."""
+    backend = _DummyBackend()
+    manager_stub = _DummyManager(backend=backend)
+    queue_service_stub = _DummyQueueService(
+        [_approved_record(1, operation=AuditOperation.UPDATE, payload={"name": "one"})]
+    )
+
+    result = apply_pending_changes(
+        manager=cast(ModelReferenceManager, manager_stub),
+        queue_service=cast(PendingQueueService, queue_service_stub),
+        change_ids=[1],
+        applied_by="approver",
+        applied_username="approver",
+        job_id="job-1",
+    )
+
+    assert result.applied_records[0].status is PendingChangeStatus.APPLIED
