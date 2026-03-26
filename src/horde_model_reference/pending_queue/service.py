@@ -1,3 +1,5 @@
+"""Business logic for the pending change queue: proposal, approval, and application workflows."""
+
 from __future__ import annotations
 
 from collections.abc import Collection
@@ -5,7 +7,7 @@ from typing import Any
 
 from loguru import logger
 
-from horde_model_reference import horde_model_reference_settings
+from horde_model_reference import CanonicalFormat, horde_model_reference_settings
 from horde_model_reference.audit import AuditTrailWriter
 from horde_model_reference.audit.events import AuditDomain, AuditOperation, AuditPayload
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
@@ -28,7 +30,7 @@ _QUEUE_CATEGORY = "pending_queue"
 def _pending_queue_audit_domain() -> AuditDomain:
     """Return the audit domain that matches the active canonical format."""
     canonical = horde_model_reference_settings.canonical_format
-    return AuditDomain.LEGACY if canonical == "legacy" else AuditDomain.V2
+    return AuditDomain.LEGACY if canonical == CanonicalFormat.LEGACY else AuditDomain.V2
 
 
 class PendingQueueService:
@@ -230,7 +232,7 @@ class PendingQueueService:
         applied_username: str,
         job_id: str | None = None,
     ) -> MarkAppliedResult:
-        """Mark an approved change as applied by a downstream job.
+        """Mark an APPLYING change as APPLIED by a downstream job.
 
         Batch Split Semantics:
         - After applying a change, if other APPROVED changes remain in the same batch,
@@ -242,12 +244,13 @@ class PendingQueueService:
 
         Returns:
             MarkAppliedResult containing the updated record and any batch split info.
+
         """
         record = self._store.get_change(change_id)
         if record is None:
             raise ValueError(f"Change {change_id} not found.")
-        if record.status is not PendingChangeStatus.APPROVED:
-            raise ValueError("Only approved changes can transition to applied.")
+        if record.status not in {PendingChangeStatus.APPROVED, PendingChangeStatus.APPLYING}:
+            raise ValueError("Only approved or applying changes can transition to applied.")
 
         original_batch_id = record.batch_id
         now = now_ts()
@@ -302,6 +305,7 @@ class PendingQueueService:
 
         Returns:
             BatchSplitInfo if a split occurred, None if the batch was fully applied.
+
         """
         remaining_approved = self._store.get_approved_changes_in_batch(original_batch_id)
         if not remaining_approved:
@@ -357,6 +361,35 @@ class PendingQueueService:
     def clear_apply_reservation(self, *, change_id: int, reservation_id: str) -> None:
         """Release a reservation when an apply attempt fails."""
         self._store.clear_reservation_if_matches(change_id=change_id, reservation_id=reservation_id)
+
+    def scan_stuck_applying(self) -> list[PendingChangeRecord]:
+        """Detect records stuck in APPLYING state after a crash and revert them.
+
+        Should be called once on startup.  Each stuck record is reverted to
+        APPROVED so it can be retried, and a warning is logged.
+
+        Returns:
+            The records that were reverted.
+
+        """
+        stuck = self._store.get_applying_records()
+        if not stuck:
+            return []
+
+        reverted: list[PendingChangeRecord] = []
+        for record in stuck:
+            logger.warning(
+                "Change %d (%s/%s) was stuck in APPLYING state — reverting to APPROVED",
+                record.change_id,
+                record.category,
+                record.model_name,
+            )
+            try:
+                updated = self._store.revert_applying_to_approved(record.change_id)
+                reverted.append(updated)
+            except ValueError as exc:
+                logger.error("Failed to revert stuck change %d: %s", record.change_id, exc)
+        return reverted
 
     def _write_audit_event(self, *, logical_user_id: str, action: str, payload: dict[str, Any]) -> None:
         if not self._audit_writer:

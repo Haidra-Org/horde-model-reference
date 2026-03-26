@@ -10,6 +10,7 @@ from horde_model_reference.meta_consts import (
     ModelClassification,
 )
 from horde_model_reference.model_reference_records import (
+    MODEL_RECORD_TYPE_LOOKUP,
     DownloadRecord,
     GenericModelRecord,
     GenericModelRecordConfig,
@@ -147,3 +148,28 @@ def test_download_count_zero() -> None:
     """Verify download_count is zero when no downloads exist."""
     record = _make_generic_record()
     assert record.download_count == 0
+
+
+def test_model_record_union_covers_all_registered_types() -> None:
+    """Verify ModelRecordUnionType includes every type registered in MODEL_RECORD_TYPE_LOOKUP.
+
+    TS-4: If a new record class is registered via @register_record_type but not added
+    to the union, type narrowing breaks silently. This test catches that drift.
+    """
+    from types import UnionType
+
+    from horde_model_reference.service.v2.models import ModelRecordUnionType
+
+    # Extract the set of types from the union
+    assert isinstance(ModelRecordUnionType, UnionType), (
+        f"ModelRecordUnionType should be a Union, got {type(ModelRecordUnionType)}"
+    )
+    union_members = set(ModelRecordUnionType.__args__)
+
+    # Every distinct record type in the lookup must appear in the union
+    registered_types = set(MODEL_RECORD_TYPE_LOOKUP.values())
+    missing = registered_types - union_members
+    assert not missing, (
+        f"Record types registered via @register_record_type but missing from ModelRecordUnionType: "
+        f"{', '.join(cls.__name__ for cls in missing)}"
+    )

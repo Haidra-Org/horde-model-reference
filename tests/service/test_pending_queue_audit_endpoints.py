@@ -11,6 +11,7 @@ from horde_model_reference import (
     ModelReferenceManager,
     horde_model_reference_settings,
 )
+from horde_model_reference.audit import AuditDomain
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.pending_queue import PendingQueueService
 from horde_model_reference.service.shared import get_model_reference_manager
@@ -154,16 +155,16 @@ def test_pending_queue_audit_defaults_to_legacy_domain(
     )
     assert response.status_code == 200
     payload = response.json()
-    assert payload["domain"] == "legacy"
+    assert payload["domain"] == AuditDomain.LEGACY
     assert payload["batches"][0]["batch_id"] == batch.batch_id
 
     override_resp = api_client.get(
         "/model_references/v1/pending_queue/audit/batches",
-        params={"domain_override": "legacy", "limit": 1},
+        params={"domain_override": AuditDomain.LEGACY, "limit": 1},
         headers=_API_HEADERS,
     )
     assert override_resp.status_code == 200
-    assert override_resp.json()["domain"] == "legacy"
+    assert override_resp.json()["domain"] == AuditDomain.LEGACY
 
 
 def test_pending_queue_audit_requires_authentication(

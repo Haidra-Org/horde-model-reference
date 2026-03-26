@@ -1,3 +1,5 @@
+"""v1 API router for reading model references in legacy format."""
+
 import json
 from typing import Annotated, Literal
 

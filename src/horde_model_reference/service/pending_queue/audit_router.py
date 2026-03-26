@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from collections.abc import Sequence
-from functools import lru_cache
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from horde_model_reference import ModelReferenceManager, horde_model_reference_paths, horde_model_reference_settings
+from horde_model_reference import (
+    CanonicalFormat,
+    ModelReferenceManager,
+    horde_model_reference_paths,
+    horde_model_reference_settings,
+)
 from horde_model_reference.audit import AuditDomain
 from horde_model_reference.pending_queue.audit_view import (
     BatchNetChangeResponse,
@@ -160,39 +165,54 @@ def build_pending_queue_audit_router(*, tags: Sequence[str]) -> APIRouter:
     return router
 
 
-@lru_cache(maxsize=128)
+_NET_CHANGES_CACHE: dict[tuple[str, AuditDomain, int], tuple[float, BatchNetChangeResponse | None]] = {}
+_NET_CHANGES_CACHE_LOCK = threading.Lock()
+_NET_CHANGES_TTL_SECONDS = 300
+
+
 def _get_batch_net_changes_cached(
     root_path_str: str,
     domain: AuditDomain,
     batch_id: int,
 ) -> BatchNetChangeResponse | None:
-    """Wrap the batch net change computation.
-
-    Cache expires implicitly when process restarts. For production deployments,
-    consider time-based cache invalidation matching the 5-minute TTL pattern.
+    """Batch net change computation with 5-minute TTL cache.
 
     Args:
-        root_path_str: String path to the audit dataset root (used for caching key).
-        domain: Audit domain to compute net changes for.
-        batch_id: ID of the batch to compute net changes for.
+        root_path_str (str): The root path for the audit dataset.
+        domain (AuditDomain): The audit domain.
+        batch_id (int): The batch ID.
 
     Returns:
-        BatchNetChangeResponse if batch is found, None if batch_id does not exist.
+        BatchNetChangeResponse | None: The net changes for the batch, or None if not found.
+
     """
     from pathlib import Path
 
-    return compute_batch_net_changes(
+    key = (root_path_str, domain, batch_id)
+    now = time.monotonic()
+
+    with _NET_CHANGES_CACHE_LOCK:
+        entry = _NET_CHANGES_CACHE.get(key)
+        if entry is not None and (now - entry[0]) < _NET_CHANGES_TTL_SECONDS:
+            return entry[1]
+
+    result = compute_batch_net_changes(
         root_path=Path(root_path_str),
         domain=domain,
         batch_id=batch_id,
     )
+
+    with _NET_CHANGES_CACHE_LOCK:
+        _NET_CHANGES_CACHE[key] = (now, result)
+
+    return result
 
 
 def _resolve_domain(domain_override: AuditDomain | None) -> AuditDomain:
     if domain_override is not None:
         return domain_override
     canonical = horde_model_reference_settings.canonical_format
-    return AuditDomain.LEGACY if canonical == "legacy" else AuditDomain.V2
+    return AuditDomain.LEGACY if canonical == CanonicalFormat.LEGACY else AuditDomain.V2
 
 
 def _ensure_audit_enabled() -> None:

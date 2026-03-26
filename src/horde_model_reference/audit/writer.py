@@ -1,3 +1,5 @@
+"""Audit trail writer that appends structured events to segment files on disk."""
+
 from __future__ import annotations
 
 import json
@@ -8,6 +10,7 @@ from threading import RLock
 from loguru import logger
 
 from horde_model_reference.audit.events import AuditDomain, AuditEvent, AuditOperation, AuditPayload
+from horde_model_reference.util import atomic_write_json
 
 DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 
@@ -64,7 +67,7 @@ class AuditTrailWriter:
 
     def _allocate_event_id(self) -> int:
         self._last_event_id += 1
-        self._state_path.write_text(json.dumps({"last_event_id": self._last_event_id}))
+        atomic_write_json(self._state_path, {"last_event_id": self._last_event_id})
         return self._last_event_id
 
     def _load_last_event_id(self) -> int:

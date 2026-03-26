@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
-from horde_model_reference import ModelReferenceManager, horde_model_reference_settings
+from horde_model_reference import CanonicalFormat, ModelReferenceManager, horde_model_reference_settings
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_metadata import CategoryMetadata
 from horde_model_reference.service.shared import (
@@ -74,6 +74,7 @@ async def read_v2_last_updated(
 
     Raises:
         HTTPException: 503 if metadata is not supported or canonical_format != 'v2'.
+
     """
     # Check if backend supports metadata
     if not manager.backend.supports_metadata():
@@ -83,7 +84,7 @@ async def read_v2_last_updated(
         )
 
     # Check if canonical format is 'v2'
-    if horde_model_reference_settings.canonical_format != "v2":
+    if horde_model_reference_settings.canonical_format != CanonicalFormat.v2:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"This endpoint is only available when canonical_format='v2'. "
@@ -152,6 +153,7 @@ async def read_v2_category_last_updated(
     Raises:
         HTTPException: 503 if metadata is not supported.
         HTTPException: 404 if category has no metadata.
+
     """
     # Check if backend supports metadata
     if not manager.backend.supports_metadata():
@@ -221,6 +223,7 @@ async def read_all_v2_metadata(
 
     Raises:
         HTTPException: 503 if metadata is not supported.
+
     """
     # Check if backend supports metadata
     if not manager.backend.supports_metadata():
@@ -284,6 +287,7 @@ async def read_v2_category_metadata(
     Raises:
         HTTPException: 503 if metadata is not supported.
         HTTPException: 404 if category has no metadata.
+
     """
     # Check if backend supports metadata
     if not manager.backend.supports_metadata():

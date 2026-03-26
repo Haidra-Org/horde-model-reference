@@ -114,20 +114,20 @@ class TestCanonicalFormatSetting:
         assert settings.canonical_format == "v2"
 
     def test_canonical_format_accepts_legacy(self) -> None:
-        """Test that canonical_format can be set to 'legacy' via constructor."""
-        settings = HordeModelReferenceSettings(canonical_format="legacy")
-        assert settings.canonical_format == "legacy"
+        """Test that canonical_format can be set to 'LEGACY' via constructor."""
+        settings = HordeModelReferenceSettings(canonical_format="LEGACY")
+        assert settings.canonical_format == "LEGACY"
 
     def test_canonical_format_validation_warns_legacy_in_replica(
         self,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Test validation warning when canonical_format='legacy' in REPLICA mode."""
+        """Test validation warning when canonical_format='LEGACY' in REPLICA mode."""
         settings = HordeModelReferenceSettings(
-            canonical_format="legacy",
+            canonical_format="LEGACY",
             replicate_mode=ReplicateMode.REPLICA,
         )
-        assert settings.canonical_format == "legacy"
+        assert settings.canonical_format == "LEGACY"
         assert "v1 API will be read-only" in caplog.text
 
 
@@ -157,7 +157,7 @@ class TestFileSystemBackendLegacyWrites:
         """Test that update_model_legacy creates a legacy format file."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         backend = FileSystemBackend(
             base_path=primary_base,
@@ -207,7 +207,7 @@ class TestFileSystemBackendLegacyWrites:
         """Test that delete_model_legacy removes a model from legacy file."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         backend = FileSystemBackend(
             base_path=primary_base,
@@ -240,7 +240,7 @@ class TestFileSystemBackendLegacyWrites:
         """Test that delete_model_legacy raises KeyError if model not found."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         backend = FileSystemBackend(
             base_path=primary_base,
@@ -269,7 +269,7 @@ class TestModelReferenceManagerLegacyWrites:
         """Test that ModelReferencemanager.backend.update_model_legacy works."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         manager = ModelReferenceManager(
             base_path=primary_base,
@@ -299,7 +299,7 @@ class TestModelReferenceManagerLegacyWrites:
         """Test that ModelReferencemanager.backend.delete_model_legacy works."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         manager = ModelReferenceManager(
             base_path=primary_base,
@@ -351,7 +351,7 @@ class TestLegacyConverterStubs:
         from horde_model_reference.legacy.classes.legacy_converters import BaseLegacyConverter
 
         converter = BaseLegacyConverter(
-            legacy_folder_path=primary_base / "legacy",
+            legacy_folder_path=primary_base / "LEGACY",
             target_file_folder=primary_base,
             model_reference_category=MODEL_REFERENCE_CATEGORY.image_generation,
         )
@@ -382,7 +382,7 @@ class TestReplicaModeWriteRestrictions:
         """Test that REPLICA mode manager rejects update_model_legacy."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
@@ -405,7 +405,7 @@ class TestReplicaModeWriteRestrictions:
         """Test that REPLICA mode manager rejects delete_model_legacy."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         stub_backend = StubReplicaBackend()
         manager = ModelReferenceManager(
@@ -568,14 +568,14 @@ class TestCrossFormatWriteRestrictions:
         legacy_canonical_mode: None,
         restore_manager_singleton: None,
     ) -> None:
-        """Test that v2 write operations should be restricted when canonical_format='legacy'.
+        """Test that v2 write operations should be restricted when canonical_format='LEGACY'.
 
         While the backend technically supports writes in PRIMARY mode, the service layer
         should check canonical_format and only allow legacy writes when in legacy mode.
         """
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         backend = FileSystemBackend(
             base_path=primary_base,
@@ -584,7 +584,7 @@ class TestCrossFormatWriteRestrictions:
 
         # Backend in PRIMARY mode supports writes
         assert backend.supports_writes() is True
-        # When canonical_format='legacy', legacy writes ARE supported
+        # When canonical_format='LEGACY', legacy writes ARE supported
         assert backend.supports_legacy_writes() is True
 
         # Note: The backend itself doesn't enforce canonical_format restrictions.
@@ -632,7 +632,7 @@ class TestInvalidDataValidation:
         """Test that deleting from an empty legacy file raises KeyError."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         backend = FileSystemBackend(
             base_path=primary_base,
@@ -657,7 +657,7 @@ class TestInvalidDataValidation:
         """Test that deleting from non-existent legacy file raises appropriate error."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         backend = FileSystemBackend(
             base_path=primary_base,
@@ -688,7 +688,7 @@ class TestCanonicalFormatEdgeCases:
         """Test legacy writes with multiple models in same file."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         manager = ModelReferenceManager(
             base_path=primary_base,
@@ -729,7 +729,7 @@ class TestCanonicalFormatEdgeCases:
         """Test that updating the same legacy model multiple times works (upsert)."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         manager = ModelReferenceManager(
             base_path=primary_base,
@@ -773,7 +773,7 @@ class TestCanonicalFormatEdgeCases:
         """Test that supports_legacy_writes depends on canonical_format setting."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         primary_backend = FileSystemBackend(
             base_path=primary_base,
@@ -850,7 +850,7 @@ class TestLegacyDeleteEdgeCases:
         """Test that deleting one model doesn't affect other models in the same file."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         manager = ModelReferenceManager(
             base_path=primary_base,
@@ -1004,7 +1004,7 @@ class TestNameValidation:
         """Test that legacy models can have names with special characters."""
         from horde_model_reference import horde_model_reference_settings
 
-        assert horde_model_reference_settings.canonical_format == "legacy"
+        assert horde_model_reference_settings.canonical_format == "LEGACY"
 
         manager = ModelReferenceManager(
             base_path=primary_base,

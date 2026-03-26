@@ -506,5 +506,30 @@ def get_record_type_for_category(category: MODEL_REFERENCE_CATEGORY | str) -> ty
     Returns:
         The record type class registered for the category, or ``GenericModelRecord``
         if no specific type has been registered.
+
     """
     return MODEL_RECORD_TYPE_LOOKUP.get(category, GenericModelRecord)
+
+
+__all__ = [
+    "MODEL_RECORD_TYPE_LOOKUP",
+    "AudioGenerationModelRecord",
+    "BlipModelRecord",
+    "ClipModelRecord",
+    "CodeformerModelRecord",
+    "ControlNetModelRecord",
+    "DownloadRecord",
+    "EsrganModelRecord",
+    "FineTuneSeriesInfo",
+    "GenericModelRecord",
+    "GenericModelRecordConfig",
+    "GenericModelRecordMetadata",
+    "GfpganModelRecord",
+    "ImageGenerationModelRecord",
+    "MiscellaneousModelRecord",
+    "SafetyCheckerModelRecord",
+    "TextGenerationModelRecord",
+    "VideoGenerationModelRecord",
+    "get_record_type_for_category",
+    "register_record_type",
+]

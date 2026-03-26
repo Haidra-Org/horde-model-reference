@@ -12,12 +12,15 @@ Used by both the API write path and the GitHub sync validator.
 
 from __future__ import annotations
 
+import functools
 import json
 import re
 from importlib import resources
 from pathlib import Path
 
 from loguru import logger
+
+from horde_model_reference.text_backend_names import validate_not_backend_prefixed
 
 # Type aliases (shared with LegacyTextValidator)
 type SettingsValue = int | float | str | list[int] | list[float] | list[str] | bool
@@ -42,6 +45,7 @@ def _load_bundled_json(filename: str) -> dict[str, LegacyRecordValue]:
 
     Raises:
         FileNotFoundError: If the file cannot be located in either location.
+
     """
     # Try package data first (installed package)
     try:
@@ -67,35 +71,26 @@ def _load_bundled_json(filename: str) -> dict[str, LegacyRecordValue]:
     )
 
 
-# Module-level singletons loaded once
-_generation_params: GenerationParamsDict | None = None
-_defaults: GenerationDefaultsDict | None = None
-
-
+@functools.lru_cache(maxsize=1)
 def _get_generation_params() -> GenerationParamsDict:
     """Get the generation_params.json data, loading on first access."""
-    global _generation_params
-    if _generation_params is None:
-        raw = _load_bundled_json("generation_params.json")
-        # generation_params.json values are int | float | str | bool | list[int]
-        validated: GenerationParamsDict = {}
-        for k, v in raw.items():
-            if isinstance(v, (int, float, str)):
-                validated[k] = v
-            elif isinstance(v, list):
-                validated[k] = [x for x in v if isinstance(x, int)]
-        _generation_params = validated
-        logger.debug(f"Loaded generation_params.json with {len(_generation_params)} valid setting keys")
-    return _generation_params
+    raw = _load_bundled_json("generation_params.json")
+    validated: GenerationParamsDict = {}
+    for k, v in raw.items():
+        if isinstance(v, (int, float, str)):
+            validated[k] = v
+        elif isinstance(v, list):
+            validated[k] = [x for x in v if isinstance(x, int)]
+    logger.debug(f"Loaded generation_params.json with {len(validated)} valid setting keys")
+    return validated
 
 
+@functools.lru_cache(maxsize=1)
 def _get_defaults() -> GenerationDefaultsDict:
     """Get the defaults.json data, loading on first access."""
-    global _defaults
-    if _defaults is None:
-        _defaults = _load_bundled_json("defaults.json")
-        logger.debug(f"Loaded defaults.json with {len(_defaults)} default fields")
-    return _defaults
+    defaults = _load_bundled_json("defaults.json")
+    logger.debug(f"Loaded defaults.json with {len(defaults)} default fields")
+    return defaults
 
 
 def get_valid_settings_keys() -> list[str]:
@@ -105,6 +100,7 @@ def get_valid_settings_keys() -> list[str]:
 
     Returns:
         Sorted list of valid setting key names.
+
     """
     return sorted(_get_generation_params().keys())
 
@@ -144,7 +140,10 @@ class TextModelWriteProcessor:
 
         Raises:
             ValueError: If validation fails (invalid settings keys, missing parameters, etc.)
+
         """
+        validate_not_backend_prefixed(entry_key)
+
         result = dict(record)
 
         original_style = result.get("style") if result.get("style") else None
@@ -204,6 +203,7 @@ class TextModelWriteProcessor:
 
         Raises:
             ValueError: If parameters is missing, non-numeric, or non-positive.
+
         """
         if value is None:
             raise ValueError(f"{entry_key}: 'parameters' field is required")
@@ -248,6 +248,7 @@ class TextModelWriteProcessor:
 
         Raises:
             ValueError: If settings is not a dict or contains invalid keys.
+
         """
         if value is None:
             return None
@@ -300,6 +301,7 @@ class TextModelWriteProcessor:
 
         Returns:
             Sorted list of unique tags.
+
         """
         tags_set: set[str] = set()
 
@@ -337,6 +339,7 @@ class TextModelWriteProcessor:
 
         Raises:
             ValueError: If ``entry_key`` looks like a URL (contains ``://``).
+
         """
         if "://" in entry_key:
             raise ValueError(
@@ -362,6 +365,7 @@ class TextModelWriteProcessor:
         Example:
             >>> TextModelWriteProcessor.generate_display_name("llama-2-7b-chat")
             'llama 2 7b chat'
+
         """
         display_name = re.sub(r"[-_]", " ", model_name)
         display_name = re.sub(r" +", " ", display_name)

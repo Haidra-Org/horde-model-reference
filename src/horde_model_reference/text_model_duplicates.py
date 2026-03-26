@@ -3,6 +3,9 @@
 Handles generation and cleanup of backend-prefixed duplicate entries
 (aphrodite/, koboldcpp/) in the legacy format. These duplicates exist
 for backwards compatibility with the Horde API.
+
+Variant name computation is delegated to ``text_backend_names.get_model_name_variants``
+which is the single source of truth for the naming rules.
 """
 
 from __future__ import annotations
@@ -12,9 +15,8 @@ from typing import Any
 
 from loguru import logger
 
-from horde_model_reference.meta_consts import TEXT_BACKENDS
 from horde_model_reference.text_backend_names import (
-    TEXT_LEGACY_BACKEND_PREFIXES,
+    get_model_name_variants,
     has_legacy_text_backend_prefix,
 )
 
@@ -34,6 +36,8 @@ class TextModelDuplicateManager:
         """Get all backend-prefixed variant names for a base model.
 
         Does NOT include the base name itself in the returned list.
+        Delegates to ``get_model_name_variants`` which is the single
+        source of truth for variant naming rules.
 
         Args:
             base_name: The canonical model name (e.g., "Author/ModelName" or "ModelName").
@@ -43,25 +47,11 @@ class TextModelDuplicateManager:
 
         Example:
             >>> TextModelDuplicateManager.get_variant_names("ReadyArt/Broken-Tutu-24B")
-            ['aphrodite/ReadyArt/Broken-Tutu-24B', 'koboldcpp/Broken-Tutu-24B']
+            ['aphrodite/ReadyArt/Broken-Tutu-24B', 'koboldcpp/Broken-Tutu-24B', 'koboldcpp/ReadyArt_Broken-Tutu-24B']
+
         """
-        variants: list[str] = []
-
-        # model_name is the part after "/" (or the full name if no "/")
-        model_name_only = base_name.split("/", 1)[1] if "/" in base_name else base_name
-
-        for backend, prefix in TEXT_LEGACY_BACKEND_PREFIXES.items():
-            if backend == TEXT_BACKENDS.aphrodite:
-                variants.append(f"{prefix}{base_name}")
-            elif backend == TEXT_BACKENDS.koboldcpp:
-                prefixed = f"{prefix}{model_name_only}"
-                variants.append(prefixed)
-                # Also include the flattened variant if the base name contains "/"
-                sanitized = base_name.replace("/", "_")
-                if sanitized not in {base_name, model_name_only}:
-                    variants.append(f"{prefix}{sanitized}")
-
-        return variants
+        all_variants = get_model_name_variants(base_name)
+        return all_variants[1:]
 
     @staticmethod
     def get_all_names(base_name: str) -> list[str]:
@@ -76,8 +66,9 @@ class TextModelDuplicateManager:
         Example:
             >>> TextModelDuplicateManager.get_all_names("Author/Model-7B")
             ['Author/Model-7B', 'aphrodite/Author/Model-7B', 'koboldcpp/Model-7B', 'koboldcpp/Author_Model-7B']
+
         """
-        return [base_name, *TextModelDuplicateManager.get_variant_names(base_name)]
+        return get_model_name_variants(base_name)
 
     @staticmethod
     def generate_duplicates(
@@ -86,8 +77,9 @@ class TextModelDuplicateManager:
     ) -> dict[str, dict[str, Any]]:
         """Generate backend-prefixed duplicate entries from a base model record.
 
-        Each duplicate is a copy of the base record with the "name" field updated
-        to the prefixed variant.
+        Each duplicate is a deep copy of the base record with the ``name`` field
+        updated to the prefixed variant. Uses ``get_variant_names`` so all
+        variant rules (including the legacy flattened koboldcpp form) are applied.
 
         Args:
             base_name: The canonical model name (e.g., "ReadyArt/Broken-Tutu-24B").
@@ -102,23 +94,15 @@ class TextModelDuplicateManager:
             ...     {"name": "ReadyArt/Broken-Tutu-24B", "parameters": 24000000000}
             ... )
             >>> sorted(dupes.keys())
-            ['aphrodite/ReadyArt/Broken-Tutu-24B', 'koboldcpp/Broken-Tutu-24B']
+            ['aphrodite/ReadyArt/Broken-Tutu-24B', 'koboldcpp/Broken-Tutu-24B', 'koboldcpp/ReadyArt_Broken-Tutu-24B']
+
         """
         result: dict[str, dict[str, Any]] = {}
 
-        model_name_only = base_name.split("/", 1)[1] if "/" in base_name else base_name
-
-        for backend, prefix in TEXT_LEGACY_BACKEND_PREFIXES.items():
-            if backend == TEXT_BACKENDS.aphrodite:
-                prefixed_name = f"{prefix}{base_name}"
-            elif backend == TEXT_BACKENDS.koboldcpp:
-                prefixed_name = f"{prefix}{model_name_only}"
-            else:
-                continue
-
+        for variant_name in TextModelDuplicateManager.get_variant_names(base_name):
             prefixed_record = copy.deepcopy(record)
-            prefixed_record["name"] = prefixed_name
-            result[prefixed_name] = prefixed_record
+            prefixed_record["name"] = variant_name
+            result[variant_name] = prefixed_record
 
         logger.trace(f"Generated {len(result)} backend duplicates for '{base_name}': {sorted(result.keys())}")
         return result
@@ -132,6 +116,7 @@ class TextModelDuplicateManager:
 
         Returns:
             New dictionary with only base (non-prefixed) model entries.
+
         """
         return {name: record for name, record in data.items() if not has_legacy_text_backend_prefix(name)}
 
@@ -148,6 +133,7 @@ class TextModelDuplicateManager:
 
         Returns:
             List of variant names that exist in the data dict.
+
         """
         variant_names = TextModelDuplicateManager.get_variant_names(base_name)
         return [name for name in variant_names if name in data]

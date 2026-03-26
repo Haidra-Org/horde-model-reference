@@ -23,6 +23,7 @@ from horde_model_reference.service.shared import (
     header_auth_scheme,
     route_registry,
     v2_prefix,
+    validate_model_name,
 )
 from horde_model_reference.service.v2.models import ModelRecordUnion, ModelRecordUnionType
 from horde_model_reference.service.v2.routers.write_validations import assert_v2_write_enabled
@@ -145,6 +146,7 @@ async def _queue_model_record_request(
     requestor = await authenticate_queue_requestor(apikey)
     model_name = model_record.name
     assert_v2_write_enabled(manager)
+    validate_model_name(model_name)
 
     # Reject backend-prefixed names for text_generation: server auto-generates duplicates
     if category == MODEL_REFERENCE_CATEGORY.text_generation:
@@ -207,6 +209,7 @@ async def _queue_delete_request(
 ) -> JSONResponse:
     requestor = await authenticate_queue_requestor(apikey)
     assert_v2_write_enabled(manager)
+    validate_model_name(model_name)
 
     # Reject backend-prefixed names for text_generation: server auto-generates duplicates
     if category == MODEL_REFERENCE_CATEGORY.text_generation:

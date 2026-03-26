@@ -10,6 +10,7 @@ All pull requests, large or small, from anyone are welcome!
         - [First time setup](#first-time-setup)
     - [Code Quality Tools](#code-quality-tools)
     - [Testing](#testing)
+        - [Writing Tests](#writing-tests)
     - [Git Workflow](#git-workflow)
     - [Code Style and System Design](#code-style-and-system-design)
 
@@ -20,8 +21,8 @@ All pull requests, large or small, from anyone are welcome!
 ### First time setup
 
 - Install uv, as described [in the uv installation guide](https://github.com/astral-sh/uv/#installation).
-- `uv python install 3.13` -- This project requires Python 3.13+.
-- `uv python pin 3.13` -- Pin the default version.
+- `uv python install 3.12` -- This project requires Python 3.12+.
+- `uv python pin 3.12` -- Pin the default version.
 - `uv self update`
 - `uv sync --all-groups`
 - The `.venv/` directory will now be created with all project, development and documentation dependencies installed.
