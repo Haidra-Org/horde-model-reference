@@ -1,3 +1,5 @@
+"""Image-generation-specific model constants, enums, and descriptors."""
+
 from dataclasses import dataclass, field
 from enum import auto
 
@@ -32,6 +34,7 @@ class BaselineDescriptor:
         native_resolution: Preferred single-side resolution, or ``None`` for baselines
             like ``infer`` that have no fixed resolution.
         alternative_names: Alternative human/API names that map to this baseline.
+
     """
 
     native_resolution: int | None
@@ -180,6 +183,7 @@ def _matching_image_baseline_exists(
 
     Returns:
         True if the baseline name matches the given known baseline, False otherwise.
+
     """
     desc = _IMAGE_BASELINE_REGISTRY.get(known_image_generation_baseline)
     if desc is not None and desc.alternative_names:
@@ -195,6 +199,7 @@ def is_known_image_baseline(baseline: str) -> bool:
 
     Returns:
         True if the baseline is known, False otherwise.
+
     """
     return _IMAGE_BASELINE_REGISTRY.contains(baseline) or baseline in _ALTERNATIVE_NAME_TO_BASELINE
 
@@ -207,6 +212,7 @@ def get_baseline_descriptor(baseline: KNOWN_IMAGE_GENERATION_BASELINE | str) -> 
 
     Raises:
         KeyError: If the baseline is not registered.
+
     """
     return _IMAGE_BASELINE_REGISTRY.get(baseline)
 
@@ -228,6 +234,7 @@ def get_baseline_native_resolution(baseline: KNOWN_IMAGE_GENERATION_BASELINE | s
 
     Returns:
         The native resolution of the baseline.
+
     """
     return IMAGE_GENERATION_BASELINE_NATIVE_RESOLUTION_LOOKUP[baseline]
 
@@ -240,6 +247,7 @@ def get_baselines_by_resolution(resolution: int) -> list[KNOWN_IMAGE_GENERATION_
 
     Returns:
         A list of baselines that have the given native resolution.
+
     """
     return [
         baseline

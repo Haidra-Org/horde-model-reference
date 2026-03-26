@@ -23,7 +23,7 @@ from typing import Any
 
 from loguru import logger
 
-from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
+from horde_model_reference.text_backend_names import get_model_name_variants, has_legacy_text_backend_prefix
 from horde_model_reference.text_model_write_processor import (
     TextModelWriteProcessor,
     _get_defaults,
@@ -75,6 +75,7 @@ class TextGenerationSyncArtifacts:
     Attributes:
         csv_content: The models.csv file content as a string.
         json_content: The db.json file content as a string.
+
     """
 
     csv_content: str
@@ -114,6 +115,7 @@ class TextGenerationSerializer:
 
         Returns:
             Artifacts containing CSV and JSON file contents.
+
         """
         base_records: dict[str, LegacyRecordDict] = {}
         for name, record in primary_base_records.items():
@@ -162,6 +164,7 @@ class TextGenerationSerializer:
 
         Returns:
             List of row dicts in file order.
+
         """
         rows: list[dict[str, str]] = []
         with open(csv_path, newline="", encoding="utf-8") as csvfile:
@@ -191,6 +194,7 @@ class TextGenerationSerializer:
 
         Returns:
             Dict with string values keyed by CSV column names.
+
         """
         row: dict[str, str] = {"name": name}
 
@@ -264,6 +268,7 @@ class TextGenerationSerializer:
 
         Returns:
             Comma-separated string of non-auto-generated tags.
+
         """
         auto_tags: set[str] = set()
 
@@ -298,6 +303,7 @@ class TextGenerationSerializer:
 
         Returns:
             Merged list of CSV row dicts.
+
         """
         remaining_primary = dict(primary_csv_rows)
         result: list[dict[str, str]] = []
@@ -334,6 +340,7 @@ class TextGenerationSerializer:
 
         Returns:
             Merged row dict.
+
         """
         merged = dict(existing_row)
         for key, value in primary_row.items():
@@ -356,6 +363,7 @@ class TextGenerationSerializer:
 
         Returns:
             The complete db.json dict with all entries (base + backend prefixes).
+
         """
         defaults = dict(self._defaults)
         data: dict[str, LegacyRecordDict] = {}
@@ -401,6 +409,7 @@ class TextGenerationSerializer:
 
         Returns:
             CSV file content as a string.
+
         """
         output = io.StringIO()
         writer = csv.DictWriter(
@@ -424,6 +433,7 @@ class TextGenerationSerializer:
 
         Returns:
             JSON file content as a string.
+
         """
         return json.dumps(db_dict, indent=4) + "\n"
 
@@ -447,6 +457,7 @@ def _format_parameters_bn(value: float) -> str:
         '0.56'
         >>> _format_parameters_bn(123.0)
         '123'
+
     """
     if value == int(value):
         return str(int(value))

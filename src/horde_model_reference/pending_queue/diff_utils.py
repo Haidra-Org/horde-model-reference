@@ -75,6 +75,7 @@ def compute_field_diffs(
 
     Returns:
         List of FieldDiff objects describing each changed field.
+
     """
     diffs: list[FieldDiff] = []
 
@@ -179,6 +180,7 @@ def has_critical_changes(category: MODEL_REFERENCE_CATEGORY, diffs: list[FieldDi
 
     Returns:
         True if any diff involves a critical field, False otherwise.
+
     """
     critical_fields = CRITICAL_FIELDS_BY_CATEGORY.get(category, set())
     if not critical_fields:
@@ -211,6 +213,7 @@ def categorize_field_diffs(diffs: list[FieldDiff]) -> tuple[list[str], list[str]
 
     Returns:
         Tuple of (fields_added, fields_removed, fields_modified) lists.
+
     """
     fields_added: list[str] = []
     fields_removed: list[str] = []

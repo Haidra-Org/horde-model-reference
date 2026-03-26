@@ -79,6 +79,7 @@ class BaseLegacyConverter:
             model_reference_category: The category of model reference to convert.
             debug_mode: If true, include extra information in the error log.
             dry_run: If true, don't write out the converted database or any logs.
+
         """
         self._initialize()
 
@@ -121,6 +122,7 @@ class BaseLegacyConverter:
 
         Returns:
             The converted model records in the new format.
+
         """
         if self.converted_successfully:
             self._initialize()
@@ -258,6 +260,7 @@ class BaseLegacyConverter:
 
         Raises:
             NotImplementedError: This conversion is not yet implemented.
+
         """
         raise NotImplementedError(
             "v2 → legacy conversion is not yet implemented. "
@@ -281,6 +284,7 @@ class BaseLegacyConverter:
 
         Raises:
             NotImplementedError: This conversion is not yet implemented.
+
         """
         raise NotImplementedError(
             "v2 → legacy conversion is not yet implemented. "

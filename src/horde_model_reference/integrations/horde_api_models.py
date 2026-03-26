@@ -128,6 +128,7 @@ class IndexedHordeModelStatus(RootModel[dict[str, HordeModelStatus]]):
 
         Args:
             status_list: List of HordeModelStatus from API
+
         """
         # Build case-insensitive lookup dictionary
         status_dict = {s.name.lower(): s for s in status_list}
@@ -143,6 +144,7 @@ class IndexedHordeModelStatus(RootModel[dict[str, HordeModelStatus]]):
 
         Returns:
             HordeModelStatus if found, None otherwise
+
         """
         return self.root.get(model_name.lower())
 
@@ -151,6 +153,7 @@ class IndexedHordeModelStatus(RootModel[dict[str, HordeModelStatus]]):
 
         Returns:
             List of all HordeModelStatus objects
+
         """
         return list(self.root.values())
 
@@ -166,6 +169,7 @@ class IndexedHordeModelStatus(RootModel[dict[str, HordeModelStatus]]):
 
         Returns:
             Aggregated HordeModelStatus or None if no variants have status.
+
         """
         from horde_model_reference.text_backend_names import get_model_name_variants
 
@@ -198,6 +202,7 @@ class IndexedHordeModelStatus(RootModel[dict[str, HordeModelStatus]]):
             - aggregated_status: Combined status or None if no variants found
             - variations_dict: Dict of backend_name -> HordeModelStatus
               Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
+
         """
         from horde_model_reference.text_backend_names import get_model_name_variants
 
@@ -252,6 +257,7 @@ def _strip_quantization_suffix(model_name: str) -> str:
         "Lumimaid-v0.2-8B-Q8_0" -> "Lumimaid-v0.2-8B"
         "Lumimaid-v0.2-8B" -> "Lumimaid-v0.2-8B"
         "koboldcpp/Lumimaid-v0.2-8B-Q4_K_M" -> "koboldcpp/Lumimaid-v0.2-8B"
+
     """
     import re
 
@@ -291,6 +297,7 @@ def _build_base_name_index(model_names: list[str]) -> dict[str, list[str]]:
         Output: {"lumimaid-v0.2": ["koboldcpp/lumimaid-v0.2-8b",
                                    "koboldcpp/lumimaid-v0.2-8b-q8_0",
                                    "aphrodite/neversleep/lumimaid-v0.2-8b"]}
+
     """
     from horde_model_reference.analytics.text_model_parser import get_base_model_name
     from horde_model_reference.text_backend_names import strip_backend_prefix
@@ -354,6 +361,7 @@ def _build_model_with_size_index(model_names: list[str]) -> dict[str, list[str]]
             "koboldcpp/lumimaid-v0.2-12b": ["koboldcpp/lumimaid-v0.2-12b"],
             "aphrodite/lumimaid-v0.2-8b": ["aphrodite/neversleep/lumimaid-v0.2-8b"]
         }
+
     """
     model_with_size_index: dict[str, list[str]] = {}
 
@@ -413,6 +421,7 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
 
         Args:
             stats_response: HordeModelStatsResponse from API
+
         """
         # Build case-insensitive lookup dictionaries for each time period
         lookups = _StatsLookup(
@@ -466,6 +475,7 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
             >>> day, month, total = indexed.get_aggregated_stats("Lumimaid-v0.2-8B")
             # Will aggregate: Lumimaid-v0.2-8B, koboldcpp/Lumimaid-v0.2-8B,
             #                 koboldcpp/Lumimaid-v0.2-8B-Q8_0, aphrodite/NeverSleep/Lumimaid-v0.2-8B, etc.
+
         """
         from horde_model_reference.analytics.text_model_parser import get_base_model_name
         from horde_model_reference.text_backend_names import get_model_name_variants
@@ -520,6 +530,7 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
             - aggregated_stats: (day_total, month_total, total_total) for this exact model
             - variations_dict: Dict of backend_name -> (day, month, total)
               Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
+
         """
         from horde_model_reference.text_backend_names import get_model_name_variants
 
@@ -658,6 +669,7 @@ class IndexedHordeWorkers(RootModel[dict[str, list[HordeWorker]]]):
 
         Args:
             workers_list: List of HordeWorker from API
+
         """
         # Build case-insensitive lookup dictionary by model name
         workers_by_model: dict[str, list[HordeWorker]] = {}
@@ -679,6 +691,7 @@ class IndexedHordeWorkers(RootModel[dict[str, list[HordeWorker]]]):
 
         Returns:
             List of HordeWorker serving this model (empty list if none)
+
         """
         return self.root.get(model_name.lower(), [])
 
@@ -687,6 +700,7 @@ class IndexedHordeWorkers(RootModel[dict[str, list[HordeWorker]]]):
 
         Returns:
             List of all HordeWorker objects (deduplicated)
+
         """
         seen_ids = set()
         all_workers = []

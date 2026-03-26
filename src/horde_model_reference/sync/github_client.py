@@ -66,6 +66,7 @@ class GitHubSyncClient:
 
         Raises:
             RuntimeError: If GitHub App settings are not properly configured.
+
         """
         if not github_app_settings.is_configured():
             raise RuntimeError("GitHub App settings are not fully configured")
@@ -193,6 +194,7 @@ class GitHubSyncClient:
 
         Returns:
             The PR URL if created, None if no PR was needed or dry run.
+
         """
         if not diff.has_changes():
             logger.info(f"No changes detected for {category}, skipping PR creation")
@@ -256,6 +258,7 @@ class GitHubSyncClient:
 
         Returns:
             The PR URL if created, None if no PR was needed or dry run.
+
         """
         total_changes = sum(diff.total_changes() for diff, _, _ in categories_data.values())
 
@@ -322,6 +325,7 @@ class GitHubSyncClient:
             github_settings.name = "AI-Horde-image-model-reference"
             target_clone_dir = "/path/to/clones"
             Returns: Path("/path/to/clones/Haidra-Org/AI-Horde-image-model-reference")
+
         """
         if not self.settings.target_clone_dir:
             return None
@@ -342,6 +346,7 @@ class GitHubSyncClient:
         Raises:
             RuntimeError: If directory is not a git repository.
             ValueError: If owner/repo or branch doesn't match expected values.
+
         """
         git_dir = repo_path / ".git"
         if not git_dir.exists():
@@ -382,6 +387,7 @@ class GitHubSyncClient:
         Example:
             "https://token@github.com/owner/repo.git" -> "https://github.com/owner/repo.git"
             "https://user:pass@github.com/owner/repo.git" -> "https://github.com/owner/repo.git"
+
         """
         parsed = urlparse(url)
         # Handle HTTPS URLs: strip credentials if host is github.com
@@ -410,6 +416,7 @@ class GitHubSyncClient:
         Example:
             "https://github.com/Haidra-Org/AI-Horde-image-model-reference.git"
             -> "Haidra-Org/AI-Horde-image-model-reference"
+
         """
         # HTTPS clone URL: https://github.com/owner/repo.git
         if url.startswith("https://"):
@@ -450,6 +457,7 @@ class GitHubSyncClient:
 
         Returns:
             True if uncommitted changes or untracked files exist.
+
         """
         return repo.is_dirty(untracked_files=True)
 
@@ -469,6 +477,7 @@ class GitHubSyncClient:
 
         Raises:
             RuntimeError: If user chooses to abort or on git operation failure.
+
         """
         logger.info("Fetching latest changes from origin...")
         try:
@@ -526,6 +535,7 @@ class GitHubSyncClient:
 
         Args:
             github_settings: GitHub repository settings from HordeModelReferenceSettings.
+
         """
         target_dir = self._get_target_dir_for_repo(github_settings)
         repo_name = github_settings.repo_owner_and_name
@@ -601,6 +611,7 @@ class GitHubSyncClient:
 
         Returns:
             The name of the created branch.
+
         """
         if not self._current_repo:
             raise RuntimeError("No repository cloned")
@@ -633,6 +644,7 @@ class GitHubSyncClient:
 
         Returns:
             dict[str, dict[str, Any]]: Model data with backend prefix duplicates.
+
         """
         from horde_model_reference.meta_consts import TEXT_BACKENDS
         from horde_model_reference.text_backend_names import TEXT_LEGACY_BACKEND_PREFIXES
@@ -684,6 +696,7 @@ class GitHubSyncClient:
             text_generation_artifacts: Pre-computed serialization artifacts for
                 text_generation. When provided, files are written directly without
                 re-running the serializer.
+
         """
         if not self._current_repo or not self._temp_dir:
             raise RuntimeError("No repository cloned")
@@ -718,6 +731,7 @@ class GitHubSyncClient:
             primary_data: The complete PRIMARY data (may include backend-prefixed entries).
             artifacts: Pre-computed serialization artifacts. When provided, these
                 are written directly instead of re-running the serializer.
+
         """
         assert self._temp_dir is not None
 
@@ -760,6 +774,7 @@ class GitHubSyncClient:
         Args:
             category (MODEL_REFERENCE_CATEGORY): The category being synced.
             diff: The diff summary for generating commit message.
+
         """
         if not self._current_repo:
             raise RuntimeError("No repository cloned")
@@ -781,6 +796,7 @@ class GitHubSyncClient:
 
         Args:
             branch_name: The name of the branch to push.
+
         """
         if not self._current_repo:
             raise RuntimeError("No repository cloned?")
@@ -800,6 +816,7 @@ class GitHubSyncClient:
 
         Returns:
             The authenticated repository URL.
+
         """
         if not self._current_repo:
             raise RuntimeError("No repository cloned")
@@ -838,6 +855,7 @@ class GitHubSyncClient:
 
         Returns:
             List of open pull request objects created by the sync service.
+
         """
         if not self._github_client:
             raise RuntimeError("GitHub client not initialized")
@@ -866,6 +884,7 @@ class GitHubSyncClient:
         Args:
             repo_name: Repository in 'owner/repo' format.
             category: Optional category to filter PRs. If None, closes all sync PRs.
+
         """
         existing_prs = self._find_existing_sync_prs(repo_name, category)
 
@@ -910,6 +929,7 @@ class GitHubSyncClient:
 
         Returns:
             The URL of the created PR.
+
         """
         if not self._github_client:
             raise RuntimeError("GitHub client not initialized")
@@ -966,6 +986,7 @@ class GitHubSyncClient:
 
         Returns:
             The commit message.
+
         """
         lines = [f"Sync {category} from PRIMARY instance"]
         lines.append("")
@@ -1004,6 +1025,7 @@ class GitHubSyncClient:
 
         Returns:
             The PR title.
+
         """
         date_str = datetime.now().strftime("%Y-%m-%d")
         return f"Sync {category} from PRIMARY instance - {date_str}"
@@ -1021,6 +1043,7 @@ class GitHubSyncClient:
 
         Returns:
             The PR body in Markdown format.
+
         """
         lines = [
             "## Automated Sync from PRIMARY Instance",
@@ -1087,6 +1110,7 @@ class GitHubSyncClient:
 
         Returns:
             The name of the created branch.
+
         """
         if not self._current_repo:
             raise RuntimeError("No repository cloned")
@@ -1113,6 +1137,7 @@ class GitHubSyncClient:
 
         Args:
             categories_data: Dict mapping categories to (diff, primary_data, artifacts) tuples.
+
         """
         if not self._current_repo:
             raise RuntimeError("No repository cloned")
@@ -1143,6 +1168,7 @@ class GitHubSyncClient:
 
         Returns:
             The commit message.
+
         """
         category_names = ", ".join(str(cat) for cat in sorted(categories_data.keys()))
         total_changes = sum(diff.total_changes() for diff, _, _ in categories_data.values())
@@ -1204,6 +1230,7 @@ class GitHubSyncClient:
 
         Returns:
             The URL of the created PR.
+
         """
         if not self._github_client:
             raise RuntimeError("GitHub client not initialized")
@@ -1256,6 +1283,7 @@ class GitHubSyncClient:
 
         Returns:
             The PR title.
+
         """
         date_str = datetime.now().strftime("%Y-%m-%d")
         return f"Sync multiple categories from PRIMARY instance - {date_str}"
@@ -1274,6 +1302,7 @@ class GitHubSyncClient:
 
         Returns:
             The PR body in Markdown format.
+
         """
         total_added = sum(len(diff.added_models) for diff, _, _ in categories_data.values())
         total_removed = sum(len(diff.removed_models) for diff, _, _ in categories_data.values())

@@ -1,3 +1,5 @@
+"""Audit log view and query utilities for pending queue operations."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
@@ -454,6 +456,7 @@ def compute_batch_net_changes(
 
     Returns:
         BatchNetChangeResponse with per-model diffs, or None if batch not found.
+
     """
     import time
 

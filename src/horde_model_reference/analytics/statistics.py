@@ -155,6 +155,7 @@ def calculate_category_statistics(
         >>> stats = calculate_category_statistics(models, MODEL_REFERENCE_CATEGORY.image_generation)
         >>> print(f"Total models: {stats.total_models}")
         >>> print(f"NSFW: {stats.nsfw_count}, SFW: {stats.sfw_count}")
+
     """
     import time
     from urllib.parse import urlparse

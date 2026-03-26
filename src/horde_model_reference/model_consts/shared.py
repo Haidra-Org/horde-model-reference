@@ -1,3 +1,5 @@
+"""Shared model constants and enums used across multiple model categories."""
+
 from enum import auto
 
 from strenum import StrEnum

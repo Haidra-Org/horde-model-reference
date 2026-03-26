@@ -73,6 +73,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Raises:
             ValueError: If file_backend is not in PRIMARY mode.
+
         """
         if file_backend.replicate_mode != ReplicateMode.PRIMARY:
             raise ValueError(
@@ -214,6 +215,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             dict[str, Any] | None: The model reference data.
+
         """
         key = self._category_key(category)
         data: dict[str, Any] | None = None
@@ -274,6 +276,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             dict[str, Any] | None: The model reference data.
+
         """
         key = self._category_key(category)
         data: dict[str, Any] | None = None
@@ -418,6 +421,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             bool: True if file backend supports metadata.
+
         """
         return self._file_backend.supports_metadata()
 
@@ -427,6 +431,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             bool: Always True.
+
         """
         return True
 
@@ -436,6 +441,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             bool: Always True.
+
         """
         return True
 
@@ -445,6 +451,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             bool: Always True.
+
         """
         return True
 
@@ -538,6 +545,7 @@ class RedisBackend(ModelReferenceBackend):
                 - total_commands: Total commands processed
                 - memory_used_bytes: Memory used in bytes
                 - memory_used_human: Human-readable memory usage
+
         """
         try:
             info = self._sync_redis.info("stats")
@@ -564,6 +572,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             CategoryMetadata | None: The legacy metadata, or None if not available.
+
         """
         key = self._legacy_metadata_key(category)
 
@@ -599,6 +608,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             CategoryMetadata | None: The legacy metadata, or None if not available.
+
         """
         # For now, delegate to sync version
         return self.get_legacy_metadata(category)
@@ -612,6 +622,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             CategoryMetadata | None: The v2 metadata, or None if not available.
+
         """
         key = self._v2_metadata_key(category)
 
@@ -647,6 +658,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             CategoryMetadata | None: The v2 metadata, or None if not available.
+
         """
         # For now, delegate to sync version
         return self.get_metadata(category)
@@ -657,6 +669,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their legacy metadata.
+
         """
         result = {}
         for category in MODEL_REFERENCE_CATEGORY:
@@ -671,6 +684,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their legacy metadata.
+
         """
         return self.get_all_legacy_metadata()
 
@@ -680,6 +694,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their v2 metadata.
+
         """
         result = {}
         for category in MODEL_REFERENCE_CATEGORY:
@@ -694,6 +709,7 @@ class RedisBackend(ModelReferenceBackend):
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, CategoryMetadata]: Mapping of categories to their v2 metadata.
+
         """
         return self.get_all_metadata()
 

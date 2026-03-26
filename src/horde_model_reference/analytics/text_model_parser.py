@@ -25,6 +25,7 @@ class ParsedTextModelName:
         variant: Model variant if detected (e.g., "Instruct", "Chat", "Code").
         quant: Quantization type if detected (e.g., "Q4", "Q8", "GGUF").
         normalized_name: A normalized version of the name for comparison.
+
     """
 
     original_name: str
@@ -79,6 +80,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
         >>> print(parsed.size)  # "8B"
         >>> print(parsed.variant)  # "Instruct"
         >>> print(parsed.quant)  # "Q4_K_M"
+
     """
     logger.trace(f"Parsing text model name: {model_name}")
 
@@ -162,6 +164,7 @@ def get_base_model_name(model_name: str) -> str:
         "StrawberryLemonade-L3-v1"
         >>> get_base_model_name("aphrodite/ReadyArt/Broken-Tutu-24B")
         "Broken-Tutu"
+
     """
     from horde_model_reference.text_backend_names import strip_backend_prefix
 
@@ -194,6 +197,7 @@ def normalize_model_name(model_name: str) -> str:
     Example:
         >>> normalize_model_name("Llama-3-8B-Instruct")
         "llama_3_8b_instruct"
+
     """
     normalized = model_name.lower()
 
@@ -211,6 +215,7 @@ class TextModelGroup:
     Attributes:
         base_name: The base model name.
         variants: List of full model names that are variants of the base model.
+
     """
 
     base_name: str
@@ -243,6 +248,7 @@ def group_text_models_by_base(
             "Llama-3": ["Llama-3-8B-Instruct", "Llama-3-8B-Instruct-Q4", "Llama-3-70B-Instruct"],
             "Mistral": ["Mistral-7B-v0.1"]
         }
+
     """
     grouped: dict[str, list[str]] = {}
 
@@ -280,6 +286,7 @@ def is_quantized_variant(model_name: str) -> bool:
         True
         >>> is_quantized_variant("Llama-3-8B-Instruct")
         False
+
     """
     parsed = parse_text_model_name(model_name)
     return parsed.quant is not None
@@ -300,6 +307,7 @@ def get_model_size(model_name: str) -> str | None:
         "8B"
         >>> get_model_size("GPT-4")
         None
+
     """
     parsed = parse_text_model_name(model_name)
     return parsed.size
@@ -320,6 +328,7 @@ def get_model_variant(model_name: str) -> str | None:
         "Instruct"
         >>> get_model_variant("Llama-3-8B")
         None
+
     """
     parsed = parse_text_model_name(model_name)
     return parsed.variant

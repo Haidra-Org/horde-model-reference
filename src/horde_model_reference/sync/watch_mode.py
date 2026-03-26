@@ -35,6 +35,7 @@ class WatchModeManager:
             interval_seconds: Polling interval in seconds (default: from settings).
             initial_delay_seconds: Initial delay before starting watch loop (default: from settings).
             enable_startup_sync: Whether to run sync immediately on startup (default: from settings).
+
         """
         self.api_url = api_url.rstrip("/")
         self.sync_callback = sync_callback
@@ -57,6 +58,7 @@ class WatchModeManager:
 
         Raises:
             httpx.HTTPError: If the request fails.
+
         """
         endpoint = f"{self.api_url}/model_references/v1/metadata/last_updated"
 
@@ -89,6 +91,7 @@ class WatchModeManager:
 
         Returns:
             True if changes were detected (or first run), False otherwise.
+
         """
         try:
             current_timestamp = self.fetch_last_updated_timestamp()
@@ -139,6 +142,7 @@ class WatchModeManager:
 
         Returns:
             Exit code (0 for success, 1 for failure).
+
         """
         self.running = True
 

@@ -1,3 +1,5 @@
+"""Audit trail reader for querying and filtering historical audit events."""
+
 from __future__ import annotations
 
 from collections.abc import Collection, Iterator

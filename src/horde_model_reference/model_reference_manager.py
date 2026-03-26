@@ -1,3 +1,5 @@
+"""Singleton manager for model reference lifecycle: backend selection, caching, and the public API."""
+
 from __future__ import annotations
 
 import asyncio
@@ -117,6 +119,7 @@ class ModelReferenceManager:
 
         Raises:
             RuntimeError: If the instance has not been created yet.
+
         """
         with cls._lock:
             if cls._instance is None:
@@ -129,6 +132,7 @@ class ModelReferenceManager:
 
         Returns:
             bool: True if the instance exists, False otherwise.
+
         """
         with cls._lock:
             return cls._instance is not None
@@ -169,6 +173,7 @@ class ModelReferenceManager:
 
         Returns:
             ModelReferenceBackend: The configured backend instance.
+
         """
         logger.debug(f"Creating backend with replicate_mode={replicate_mode}, base_path={base_path}")
         if replicate_mode == ReplicateMode.PRIMARY:
@@ -394,6 +399,7 @@ class ModelReferenceManager:
 
         Args:
             category: The category that was invalidated.
+
         """
         logger.debug(f"Backend invalidated category {category}, clearing pydantic cache")
         self._invalidate_cache(category)
@@ -404,6 +410,7 @@ class ModelReferenceManager:
         Args:
             category: If provided, only invalidate the specific category.
                 If None, invalidate the entire cache.
+
         """
         with self._lock:
             if category is None:
@@ -413,6 +420,18 @@ class ModelReferenceManager:
                 logger.debug(f"Invalidating cached pydantic records for category: {category}.")
                 self._cached_records.pop(category, None)
 
+    def invalidate_category_cache(self, category: MODEL_REFERENCE_CATEGORY) -> None:
+        """Explicitly invalidate cached data for a category.
+
+        Intended for use by the apply workflow after a successful backend write,
+        so stale data is never served regardless of backend callback timing.
+
+        Args:
+            category: The category whose cache should be dropped.
+
+        """
+        self._invalidate_cache(category)
+
     def _fetch_from_backend_if_needed(
         self,
         force_refresh: bool,
@@ -421,6 +440,7 @@ class ModelReferenceManager:
 
         Args:
             force_refresh: Whether to force refresh all categories.
+
         """
         return self.backend.fetch_all_categories(force_refresh=force_refresh)
 
@@ -434,6 +454,7 @@ class ModelReferenceManager:
         Args:
             force_refresh: Whether to force refresh all categories.
             httpx_client: An optional httpx async client to use.
+
         """
         return await self.backend.fetch_all_categories_async(
             force_refresh=force_refresh,
@@ -482,6 +503,7 @@ class ModelReferenceManager:
 
         Returns:
             DeferredPrefetchHandle: Handle that can execute the warm-up later.
+
         """
         handle = DeferredPrefetchHandle(manager=self, force_refresh=force_refresh)
         self._deferred_prefetch_handle = handle
@@ -524,6 +546,7 @@ class ModelReferenceManager:
         Args:
             force_refresh: Whether to bypass backend caches while warming.
             httpx_client: Optional shared async client for HTTP backends.
+
         """
         await self.get_all_model_references_or_none_async(
             overwrite_existing=force_refresh,
@@ -541,6 +564,7 @@ class ModelReferenceManager:
         Args:
             overwrite_existing: Whether to bypass backend caches while warming.
             httpx_client: Optional shared async client for HTTP backends.
+
         """
         await self.warm_cache_async(force_refresh=overwrite_existing, httpx_client=httpx_client)
 
@@ -561,6 +585,7 @@ class ModelReferenceManager:
         Returns:
             dict[str, GenericModelRecord] | None: The dict representing the model reference,
                 or None if conversion failed.
+
         """
         if file_json_dict is None:
             logger.warning(f"File dict json is None for {category}.")
@@ -600,6 +625,7 @@ class ModelReferenceManager:
 
         Returns:
             dict | None: The dict representing the model reference, or None if conversion failed.
+
         """
         if model_reference is None:
             raise ValueError("model_reference cannot be None")
@@ -631,6 +657,7 @@ class ModelReferenceManager:
 
         Returns:
             dict: The dict representing the model reference.
+
         """
         json_dict_safe = ModelReferenceManager.model_reference_to_json_dict(model_reference, safe_mode=True)
 
@@ -648,6 +675,7 @@ class ModelReferenceManager:
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord] | None]: A mapping of model reference
                 categories to their corresponding pydantic model objects.
+
         """
         with self._lock:
             logger.debug(f"Returning {len(self._cached_records)} cached pydantic model references.")
@@ -746,6 +774,7 @@ class ModelReferenceManager:
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord] | None]: A mapping of model reference
                 categories to their corresponding model reference objects.
+
         """
         use_cache, cached_result, categories_to_load = self._evaluate_cache_state(
             overwrite_existing=overwrite_existing,
@@ -781,6 +810,7 @@ class ModelReferenceManager:
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]: Mapping where
             missing categories map to empty dicts.
+
         """
         safe_references: dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]] = {}
         missing_references: list[MODEL_REFERENCE_CATEGORY] = []
@@ -812,6 +842,7 @@ class ModelReferenceManager:
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]: A mapping of model reference
                 categories to their corresponding model reference objects.
+
         """
         all_references = self.get_all_model_references_or_none(overwrite_existing=overwrite_existing)
         return self._build_safe_reference_view(all_references)
@@ -833,6 +864,7 @@ class ModelReferenceManager:
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord] | None]: Possibly
             sparse mapping keyed by category.
+
         """
         use_cache, cached_result, categories_to_load = self._evaluate_cache_state(
             overwrite_existing=overwrite_existing,
@@ -874,6 +906,7 @@ class ModelReferenceManager:
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]: Mapping with
             empty dicts substituted for missing categories.
+
         """
         all_references = await self.get_all_model_references_or_none_async(
             overwrite_existing=overwrite_existing,
@@ -895,6 +928,7 @@ class ModelReferenceManager:
         Returns:
             dict[str, GenericModelRecord] | None: The model reference object for the category,
                 or None if not found.
+
         """
         all_references = self.get_all_model_references_or_none(overwrite_existing=overwrite_existing)
         return all_references.get(category)
@@ -915,6 +949,7 @@ class ModelReferenceManager:
 
         Returns:
             dict[str, GenericModelRecord] | None: Mapping of model names or None.
+
         """
         all_references = await self.get_all_model_references_or_none_async(
             overwrite_existing=overwrite_existing,
@@ -968,6 +1003,7 @@ class ModelReferenceManager:
 
         Raises:
             RuntimeError: If the category is missing or could not be parsed.
+
         """
         model_reference = await self.get_model_reference_or_none_async(
             category,
@@ -992,6 +1028,7 @@ class ModelReferenceManager:
 
         Returns:
             list[str] | None: The list of model names for the category, or None if not found.
+
         """
         model_reference = self.get_model_reference_or_none(
             category,
@@ -1018,6 +1055,7 @@ class ModelReferenceManager:
 
         Returns:
             list[str]: The list of model names for the category.
+
         """
         model_reference = self.get_model_reference(
             category,
@@ -1043,6 +1081,7 @@ class ModelReferenceManager:
 
         Returns:
             GenericModelRecord | None: The model record, or None if not found.
+
         """
         model_reference = self.get_model_reference_or_none(
             category,
@@ -1071,6 +1110,7 @@ class ModelReferenceManager:
 
         Returns:
             GenericModelRecord: The model record.
+
         """
         model_reference = self.get_model_reference(
             category,
@@ -1100,6 +1140,7 @@ class ModelReferenceManager:
 
         Returns:
             dict[str, Any] | None: The raw JSON dict for the category, or None if not found.
+
         """
         return self.backend.fetch_category(category, force_refresh=overwrite_existing)
 
@@ -1122,6 +1163,7 @@ class ModelReferenceManager:
 
         Returns:
             dict[str, Any] | None: The raw JSON dict for the model, or None if not found.
+
         """
         category_json = self.backend.fetch_category(category, force_refresh=overwrite_existing)
 
@@ -1249,23 +1291,21 @@ class ModelReferenceManager:
         )
 
     @overload
-    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery:
-        ...
+    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery: ...
 
     @overload
-    def query(self, category: Literal["text_generation"]) -> TextModelQuery:
-        ...
+    def query(self, category: Literal["text_generation"]) -> TextModelQuery: ...
 
     @overload
-    def query(self, category: Literal["controlnet"]) -> ControlNetQuery:
-        ...
+    def query(self, category: Literal["controlnet"]) -> ControlNetQuery: ...
 
     @overload
     def query(
         self,
         category: str,
-    ) -> ModelQuery[GenericModelRecord, GenericFieldName | ImageGenFieldName | TextGenFieldName | ControlNetFieldName]:
-        ...
+    ) -> ModelQuery[
+        GenericModelRecord, GenericFieldName | ImageGenFieldName | TextGenFieldName | ControlNetFieldName
+    ]: ...
 
     def query(
         self,
@@ -1287,6 +1327,7 @@ class ModelReferenceManager:
 
         Returns:
             A ``ModelQuery`` (or typed subclass) ready for chaining filters.
+
         """
         if isinstance(category, str):
             category = MODEL_REFERENCE_CATEGORY(category)
@@ -1309,6 +1350,7 @@ class ModelReferenceManager:
 
         Returns:
             A ``ModelQuery[GenericModelRecord]`` over every cached record.
+
         """
         all_refs = self.get_all_model_references()
         return build_cross_category_query(all_refs)
@@ -1436,6 +1478,7 @@ class ModelReferenceManager:
 
         Returns:
             A list of ``PopularModelResult`` sorted by the chosen metric.
+
         """
         from horde_model_reference.integrations.data_merger import (
             CombinedModelStatistics,
@@ -1533,3 +1576,10 @@ class DeferredPrefetchHandle(Awaitable[None]):
     def __await__(self) -> Generator[Any]:
         """Allow awaiting the handle directly as sugar for run_async()."""
         return self.run_async().__await__()
+
+
+__all__ = [
+    "DeferredPrefetchHandle",
+    "ModelReferenceManager",
+    "PrefetchStrategy",
+]

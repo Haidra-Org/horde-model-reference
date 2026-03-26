@@ -1,3 +1,5 @@
+"""Domain enums, category descriptors, and runtime registries for model reference metadata."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -355,6 +357,7 @@ def get_category_descriptor(category: MODEL_REFERENCE_CATEGORY | str) -> Categor
 
     Raises:
         KeyError: If the category is not registered.
+
     """
     return _CATEGORY_REGISTRY.get(category)
 

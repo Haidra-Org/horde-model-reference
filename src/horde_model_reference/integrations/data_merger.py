@@ -106,6 +106,7 @@ def merge_model_with_horde_data(
             - usage_stats: UsageStats with {day, month, total} usage counts
             - worker_summaries: Dict of worker_id -> WorkerSummary (if workers provided)
             - backend_variations: Dict of backend_name -> BackendVariation (if include_backend_variations=True)
+
     """
     indexed_status = IndexedHordeModelStatus(horde_status) if isinstance(horde_status, list) else horde_status
     indexed_stats = (
@@ -228,6 +229,7 @@ def merge_category_with_horde_data(
 
     Returns:
         Dict of model_name -> CombinedModelStatistics with added runtime fields.
+
     """
     # Convert to indexed types if needed (supports both old and new API)
     indexed_status = IndexedHordeModelStatus(horde_status) if isinstance(horde_status, list) else horde_status

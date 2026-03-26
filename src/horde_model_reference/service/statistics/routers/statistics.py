@@ -98,6 +98,7 @@ async def get_category_statistics(
 
     Raises:
         HTTPException: 404 if category not found, 500 if computation fails.
+
     """
     logger.debug(
         f"Statistics request for category: {model_category_name}, "
@@ -251,6 +252,7 @@ async def read_models_with_stats(
 
     Raises:
         HTTPException: 404 if category not found, 500 if Horde API fails.
+
     """
     # 1. Get reference data (from ModelReferenceManager cache)
     model_names = manager.get_model_names(model_category_name)

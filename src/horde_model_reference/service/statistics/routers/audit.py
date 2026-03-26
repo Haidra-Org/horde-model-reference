@@ -128,6 +128,7 @@ async def get_category_audit(
 
     Raises:
         HTTPException: 400 for unsupported categories or invalid preset, 404 if not found, 500 for errors.
+
     """
     # Determine effective backend variations flag
     # Only include backend variations for text models in ungrouped mode

@@ -1,3 +1,5 @@
+"""Text-generation-specific model constants, enums, and descriptors."""
+
 from enum import auto
 
 from strenum import StrEnum
@@ -21,6 +23,7 @@ def register_text_backend(backend: str) -> None:
 
     Args:
         backend: The text backend to register.
+
     """
     _TEXT_BACKEND_REGISTRY.register(backend)
 
@@ -33,5 +36,6 @@ def is_known_text_backend(backend: str) -> bool:
 
     Returns:
         True if the text backend is known, False otherwise.
+
     """
     return _TEXT_BACKEND_REGISTRY.is_known(backend)

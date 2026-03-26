@@ -31,6 +31,7 @@ class StatisticsCache(RedisCache[CategoryStatistics]):
 
         Returns:
             Redis key prefix string.
+
         """
         return f"{horde_model_reference_settings.redis.key_prefix}:stats"
 
@@ -39,6 +40,7 @@ class StatisticsCache(RedisCache[CategoryStatistics]):
 
         Returns:
             TTL in seconds from settings.
+
         """
         return horde_model_reference_settings.statistics_cache_ttl
 
@@ -47,6 +49,7 @@ class StatisticsCache(RedisCache[CategoryStatistics]):
 
         Returns:
             CategoryStatistics class.
+
         """
         from horde_model_reference.analytics.statistics import CategoryStatistics
 
@@ -74,6 +77,7 @@ class StatisticsCache(RedisCache[CategoryStatistics]):
 
         Args:
             category: The category that was invalidated.
+
         """
         logger.debug(f"Invalidating statistics cache for category: {category}")
         self.invalidate(category, grouped=None)  # Invalidate both variants

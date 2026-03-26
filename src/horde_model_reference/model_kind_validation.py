@@ -1,3 +1,5 @@
+"""Per-category field validation framework using KindPolicy and FieldPolicy rules."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -41,6 +43,7 @@ class KindPolicyRegistry:
 
         Raises:
             ValueError: If a policy is already registered for the given category.
+
         """
         if category in self._policies:
             raise ValueError(f"Policy already registered for {category!r}")
@@ -54,6 +57,7 @@ class KindPolicyRegistry:
 
         Returns:
             The KindPolicy associated with the category, or None if not found.
+
         """
         return self._policies.get(category)
 
