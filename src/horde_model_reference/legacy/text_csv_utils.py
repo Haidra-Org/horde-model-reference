@@ -183,6 +183,7 @@ def csv_rows_to_legacy_dict(
 
     Returns:
         Legacy dict matching convert.py output format.
+
     """
     defaults = dict(_get_defaults())
     data: dict[str, Any] = {}
@@ -247,6 +248,7 @@ def _parameters_to_bn_str(parameters: int) -> str:
 
     Returns:
         Minimal string representation in billions.
+
     """
     bn = parameters / 1_000_000_000
     if bn == int(bn):
@@ -266,6 +268,7 @@ def legacy_record_to_csv_row(name: str, record: dict[str, Any]) -> TextCSVRow:
 
     Returns:
         A TextCSVRow suitable for writing to CSV.
+
     """
     parameters = int(record.get("parameters", 0) or 0)
     parameters_bn = parameters / 1_000_000_000
@@ -323,6 +326,7 @@ def write_legacy_text_csv(rows: list[TextCSVRow], csv_path: Path) -> None:
     Args:
         rows: The rows to write.
         csv_path: Path to write the CSV file.
+
     """
     csv_path.parent.mkdir(parents=True, exist_ok=True)
 

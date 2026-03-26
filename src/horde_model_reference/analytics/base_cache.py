@@ -98,6 +98,7 @@ class RedisCache[T: BaseModel](ABC):
 
         Returns:
             Redis key prefix string (e.g., "horde:stats" or "horde:audit").
+
         """
         ...
 
@@ -107,6 +108,7 @@ class RedisCache[T: BaseModel](ABC):
 
         Returns:
             TTL in seconds.
+
         """
         ...
 
@@ -116,6 +118,7 @@ class RedisCache[T: BaseModel](ABC):
 
         Returns:
             Pydantic model class (e.g., CategoryStatistics or CategoryAuditResponse).
+
         """
         ...
 
@@ -142,6 +145,7 @@ class RedisCache[T: BaseModel](ABC):
 
         Returns:
             Cache key string.
+
         """
         group_suffix = ":grouped=true" if grouped else ":grouped=false"
         variations_suffix = ":variations=true" if include_backend_variations else ""
@@ -155,6 +159,7 @@ class RedisCache[T: BaseModel](ABC):
 
         Returns:
             Full Redis key string with prefix.
+
         """
         return f"{self._redis_key_prefix}:{cache_key}"
 
@@ -184,6 +189,7 @@ class RedisCache[T: BaseModel](ABC):
 
         Returns:
             Cached result or None if not cached or expired beyond stale TTL.
+
         """
         cache_key = self._build_cache_key(category, grouped, include_backend_variations)
 
@@ -255,6 +261,7 @@ class RedisCache[T: BaseModel](ABC):
 
         Returns:
             True if fresh data exists within TTL, False otherwise.
+
         """
         cache_key = self._build_cache_key(category, grouped, include_backend_variations)
 
@@ -292,6 +299,7 @@ class RedisCache[T: BaseModel](ABC):
             result: The computed result to cache.
             grouped: Whether this is the grouped text models variant.
             include_backend_variations: Whether backend variations are included.
+
         """
         cache_key = self._build_cache_key(category, grouped, include_backend_variations)
 
@@ -327,6 +335,7 @@ class RedisCache[T: BaseModel](ABC):
             category: The model reference category to invalidate.
             grouped: Whether to invalidate grouped variant (None = both).
             include_backend_variations: Whether to invalidate variation states (None = both).
+
         """
         # Determine which variants to invalidate
         grouped_variants = [False, True] if grouped is None else [grouped]
@@ -385,6 +394,7 @@ class RedisCache[T: BaseModel](ABC):
 
         Returns:
             Dictionary with cache statistics including size, Redis status, TTL.
+
         """
         with self._lock:
             return {

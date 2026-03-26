@@ -114,6 +114,7 @@ class HordeAPIIntegration:
 
         Returns:
             Cache key string
+
         """
         if model_type is None:
             return f"{cache_type}:all"
@@ -127,6 +128,7 @@ class HordeAPIIntegration:
 
         Returns:
             Full Redis key with prefix
+
         """
         return f"{self._redis_key_prefix}:{cache_key}"
 
@@ -138,6 +140,7 @@ class HordeAPIIntegration:
 
         Returns:
             Cached data as bytes, or None if not found or error
+
         """
         if not self._redis_client:
             return None
@@ -158,6 +161,7 @@ class HordeAPIIntegration:
         Args:
             cache_key: Cache key to store under
             data: Data to store (serialized bytes)
+
         """
         if not self._redis_client:
             return
@@ -186,6 +190,7 @@ class HordeAPIIntegration:
 
         Returns:
             List of model status objects
+
         """
         cache_key = self._get_cache_key("status", model_type)
 
@@ -235,6 +240,7 @@ class HordeAPIIntegration:
 
         Raises:
             httpx.HTTPError: On network or HTTP errors
+
         """
         url = f"{self._base_url}/status/models"
         params: dict[str, str] = {"type": model_type, "model_state": model_state}
@@ -259,6 +265,7 @@ class HordeAPIIntegration:
             cache_key: Cache key to store under
             model_type: Model type
             data: Status data to cache
+
         """
         # Serialize for Redis
         serialized = json.dumps([item.model_dump() for item in data])
@@ -285,6 +292,7 @@ class HordeAPIIntegration:
 
         Returns:
             Model statistics response
+
         """
         cache_key = self._get_cache_key("stats", model_type)
 
@@ -332,6 +340,7 @@ class HordeAPIIntegration:
 
         Raises:
             httpx.HTTPError: On network or HTTP errors
+
         """
         endpoint = "stats/img/models" if model_type == "image" else "stats/text/models"
         url = f"{self._base_url}/{endpoint}"
@@ -355,6 +364,7 @@ class HordeAPIIntegration:
             cache_key: Cache key to store under
             model_type: Model type
             data: Stats data to cache
+
         """
         # Serialize for Redis
         serialized = json.dumps(data.model_dump())
@@ -379,6 +389,7 @@ class HordeAPIIntegration:
 
         Returns:
             List of worker objects
+
         """
         cache_key = self._get_cache_key("workers", model_type)
 
@@ -424,6 +435,7 @@ class HordeAPIIntegration:
 
         Raises:
             httpx.HTTPError: On network or HTTP errors
+
         """
         url = f"{self._base_url}/workers"
         params = {}
@@ -449,6 +461,7 @@ class HordeAPIIntegration:
             cache_key: Cache key to store under
             model_type: Model type (or None)
             data: Workers data to cache
+
         """
         # Serialize for Redis
         serialized = json.dumps([item.model_dump() for item in data])
@@ -475,6 +488,7 @@ class HordeAPIIntegration:
 
         Returns:
             Tuple of (status, stats, workers)
+
         """
         status_task: asyncio.Task[list[HordeModelStatus]] = asyncio.create_task(
             self.get_model_status(model_type, force_refresh=force_refresh)
@@ -520,6 +534,7 @@ class HordeAPIIntegration:
 
         Returns:
             IndexedHordeModelStatus with O(1) lookup by model name
+
         """
         status_list = await self.get_model_status(model_type, min_count, model_state, force_refresh)
         return IndexedHordeModelStatus(status_list)
@@ -543,6 +558,7 @@ class HordeAPIIntegration:
 
         Returns:
             IndexedHordeModelStats with O(1) lookup by model name
+
         """
         stats = await self.get_model_stats(model_type, model_state, force_refresh)
         return IndexedHordeModelStats(stats)
@@ -564,6 +580,7 @@ class HordeAPIIntegration:
 
         Returns:
             IndexedHordeWorkers with O(1) lookup by model name
+
         """
         workers_list = await self.get_workers(model_type, force_refresh)
         return IndexedHordeWorkers(workers_list)
@@ -588,6 +605,7 @@ class HordeAPIIntegration:
 
         Returns:
             Tuple of (indexed_status, indexed_stats, indexed_workers)
+
         """
         status, stats, workers = await self.get_combined_data(model_type, include_workers, force_refresh)
 
@@ -602,6 +620,7 @@ class HordeAPIIntegration:
 
         Args:
             model_type: Model type to invalidate, or None to invalidate all
+
         """
         with self._lock:
             if model_type is None:

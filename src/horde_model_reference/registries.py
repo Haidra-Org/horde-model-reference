@@ -1,3 +1,5 @@
+"""Generic EnumRegistry and DescriptorRegistry base classes for runtime-extensible registries."""
+
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
@@ -22,6 +24,7 @@ class EnumRegistry[T]:
 
         Args:
             initial (Iterable[T]): An iterable of initial string values to populate the registry with.
+
         """
         self._known: set[str] = {str(item) for item in initial}
 
@@ -33,6 +36,7 @@ class EnumRegistry[T]:
 
         Returns:
             bool: True if the value is known (registered), False otherwise.
+
         """
         return str(value) in self._known
 
@@ -43,6 +47,7 @@ class EnumRegistry[T]:
 
         Args:
             value (str | Enum): The value to register.
+
         """
         normalized = str(value)
         if normalized in self._known:
@@ -54,6 +59,7 @@ class EnumRegistry[T]:
 
         Returns:
             set[str]: A set of all known (registered) string values in the registry.
+
         """
         return set(self._known)
 
@@ -62,6 +68,7 @@ class EnumRegistry[T]:
 
         Returns:
             set[str]: A live set of known values.
+
         """
         return self._known
 
@@ -81,6 +88,7 @@ class DescriptorRegistry[K, V]:
         Args:
             rebuild (Callable[[dict[K, V]], None]): Function to call to rebuild derived data when the registry is
                 updated.
+
         """
         self._data: dict[K, V] = {}
         self._rebuild = rebuild
@@ -95,6 +103,7 @@ class DescriptorRegistry[K, V]:
 
         Raises:
             ValueError: If the key is already registered.
+
         """
         if key in self._data:
             raise ValueError(f"{key!r} is already registered")
@@ -121,6 +130,7 @@ class DescriptorRegistry[K, V]:
 
         Returns:
             V: The value associated with the key.
+
         """
         return self._data[key]
 
@@ -129,6 +139,7 @@ class DescriptorRegistry[K, V]:
 
         Returns:
             dict[K, V]: A copy of all registered key-value pairs.
+
         """
         return dict(self._data)
 
@@ -140,5 +151,6 @@ class DescriptorRegistry[K, V]:
 
         Returns:
             bool: True if the key is registered, False otherwise.
+
         """
         return key in self._data

@@ -36,18 +36,22 @@ class Predicate:
         return self._fn(record)
 
     def __and__(self, other: Predicate) -> Predicate:
+        """Combine this predicate with *other* using logical AND (short-circuit)."""
         left, right = self._fn, other._fn
         return Predicate(lambda r: left(r) and right(r))
 
     def __or__(self, other: Predicate) -> Predicate:
+        """Combine this predicate with *other* using logical OR (short-circuit)."""
         left, right = self._fn, other._fn
         return Predicate(lambda r: left(r) or right(r))
 
     def __invert__(self) -> Predicate:
+        """Return the logical NOT of this predicate."""
         fn = self._fn
         return Predicate(lambda r: not fn(r))
 
     def __repr__(self) -> str:
+        """Return a debug representation of this predicate."""
         return f"Predicate({self._fn!r})"
 
 
@@ -61,6 +65,7 @@ class OrderSpec:
         self.descending = descending
 
     def __repr__(self) -> str:
+        """Return a debug representation with field name and sort direction."""
         direction = "DESC" if self.descending else "ASC"
         return f"OrderSpec({self.field!r}, {direction})"
 
@@ -83,14 +88,16 @@ class FieldRef:
         """The underlying field name string."""
         return self._field_name
 
-    def __eq__(self, other: object) -> Predicate:  # type: ignore[override]
+    def __eq__(self, other: Any) -> Predicate:  # noqa # type: ignore : It's idiomatic for __eq__ to return a non-bool in this DSL context
+        """Return a predicate that tests field equality to *other*."""
         field = self._field_name
         if isinstance(other, FieldRef):
             other_field = other._field_name
             return Predicate(lambda r: getattr(r, field, None) == getattr(r, other_field, None))
         return Predicate(lambda r: getattr(r, field, None) == other)
 
-    def __ne__(self, other: object) -> Predicate:  # type: ignore[override]
+    def __ne__(self, other: Any) -> Predicate:  # noqa # type: ignore : It's idiomatic for __ne__ to return a non-bool in this DSL context
+        """Return a predicate that tests field inequality to *other*."""
         field = self._field_name
         if isinstance(other, FieldRef):
             other_field = other._field_name
@@ -98,18 +105,22 @@ class FieldRef:
         return Predicate(lambda r: getattr(r, field, None) != other)
 
     def __lt__(self, other: object) -> Predicate:
+        """Return a predicate for field value less-than comparison."""
         field = self._field_name
         return Predicate(lambda r: (v := getattr(r, field, None)) is not None and v < other)
 
     def __le__(self, other: object) -> Predicate:
+        """Return a predicate for field value less-than-or-equal comparison."""
         field = self._field_name
         return Predicate(lambda r: (v := getattr(r, field, None)) is not None and v <= other)
 
     def __gt__(self, other: object) -> Predicate:
+        """Return a predicate for field value greater-than comparison."""
         field = self._field_name
         return Predicate(lambda r: (v := getattr(r, field, None)) is not None and v > other)
 
     def __ge__(self, other: object) -> Predicate:
+        """Return a predicate for field value greater-than-or-equal comparison."""
         field = self._field_name
         return Predicate(lambda r: (v := getattr(r, field, None)) is not None and v >= other)
 
@@ -143,9 +154,11 @@ class FieldRef:
         return OrderSpec(self._field_name, descending=True)
 
     def __hash__(self) -> int:
+        """Hash by field name, enabling use in sets and dict keys."""
         return hash(self._field_name)
 
     def __repr__(self) -> str:
+        """Return a debug representation showing the field name."""
         return f"FieldRef({self._field_name!r})"
 
 

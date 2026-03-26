@@ -147,6 +147,7 @@ class HordeModelReferencePaths:
             model_reference_settings (HordeModelReferenceSettings): The model reference settings to use.
             cache_home (str | Path): The path to the cache home directory.
             log_folder (str | Path | None): The path to the log folder.
+
         """
         if HordeModelReferencePaths._initialized:
             return
@@ -221,6 +222,7 @@ class HordeModelReferencePaths:
 
         Returns:
             str: The legacy filename (e.g., 'models.csv' for text_generation).
+
         """
         if model_reference_category not in self.legacy_model_reference_filenames:
             # Default to v2 filename if no legacy-specific filename is set
@@ -246,6 +248,7 @@ class HordeModelReferencePaths:
         Returns:
             str: The filename for the given model reference category. If base_path is provided, returns the full path
             from get_model_reference_file_path(...).
+
         """
         if base_path:
             base_path = Path(base_path)
@@ -268,6 +271,7 @@ class HordeModelReferencePaths:
 
         Returns:
             path:
+
         """
         if base_path is None:
             base_path = self.base_path
@@ -288,6 +292,7 @@ class HordeModelReferencePaths:
 
         Returns:
             path:
+
         """
         if base_path is None:
             base_path = self.base_path
@@ -321,6 +326,7 @@ class HordeModelReferencePaths:
 
         Returns:
             path:
+
         """
         if base_path is None:
             logger.trace("Using default base_path for legacy model reference file path.")
@@ -342,6 +348,7 @@ class HordeModelReferencePaths:
 
         Returns:
             Path to legacy metadata file (meta/legacy/{category}_metadata.json)
+
         """
         if base_path is None:
             base_path = self.base_path
@@ -365,6 +372,7 @@ class HordeModelReferencePaths:
 
         Returns:
             Path to v2 metadata file (meta/v2/{category}_metadata.json)
+
         """
         if base_path is None:
             base_path = self.base_path

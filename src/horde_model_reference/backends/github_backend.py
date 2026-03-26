@@ -67,6 +67,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Raises:
             ValueError: If replicate_mode is not REPLICA.
+
         """
         super().__init__(mode=replicate_mode, cache_ttl_seconds=cache_ttl_seconds)
 
@@ -115,6 +116,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             Path | None: Path to converted file for mtime validation.
+
         """
         return horde_model_reference_paths.get_model_reference_file_path(
             category,
@@ -130,6 +132,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             Path | None: Path to legacy file for mtime validation.
+
         """
         return self._references_paths_cache.get(category)
 
@@ -150,6 +153,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any] | None: The converted model reference data (new format).
+
         """
         with self._lock:
             # Use helper to determine if we need to fetch
@@ -175,6 +179,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             dict mapping categories to their converted model reference data.
+
         """
         with self._lock:
             if force_refresh:
@@ -210,6 +215,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any] | None: The converted model reference data.
+
         """
         lock = self.async_lock
         if lock is None:
@@ -244,6 +250,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             dict mapping categories to their data.
+
         """
         lock = self.async_lock
         if lock is None:
@@ -290,6 +297,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             bool: True if needs refresh (stale or mtime changed).
+
         """
         return super().needs_refresh(category)
 
@@ -299,6 +307,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Args:
             category: The category to mark stale.
+
         """
         logger.debug(f"Marking category {category} as stale")
         super().mark_stale(category)
@@ -312,6 +321,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             Path | None: Path to the converted (new format) file, or None if not available.
+
         """
         return horde_model_reference_paths.get_model_reference_file_path(
             category,
@@ -324,6 +334,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             dict[MODEL_REFERENCE_CATEGORY, Path | None]: Mapping of categories to their converted file paths.
+
         """
         return horde_model_reference_paths.get_all_model_reference_file_paths(base_path=self.base_path)
 
@@ -343,6 +354,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any] | None: The loaded data, or None on error.
+
         """
         if not file_path.exists():
             logger.debug(f"Legacy file {file_path} does not exist")
@@ -392,6 +404,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any]: Model data with 3 entries per CSV row (matching db.json format).
+
         """
         parsed_rows, parse_issues = parse_legacy_text_csv_file(file_path)
         for issue in parse_issues:
@@ -411,6 +424,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any]: Model data with one entry per base model.
+
         """
         parsed_rows, parse_issues = parse_legacy_text_csv_file(file_path)
         for issue in parse_issues:
@@ -434,6 +448,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any] | None: The loaded data, or None on error.
+
         """
         file_path = horde_model_reference_paths.get_model_reference_file_path(
             category,
@@ -475,6 +490,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             dict[str, Any] | None: The raw legacy JSON dict, or None if not found.
+
         """
         with self._lock:
             # Use helper to determine if we need to fetch
@@ -510,6 +526,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             str | None: The raw legacy JSON string, or None if not found.
+
         """
         with self._lock:
             # Use helper to determine if we need to fetch
@@ -540,6 +557,7 @@ class GitHubBackend(ReplicaBackendBase):
         Args:
             category: The category to download and convert.
             overwrite_existing: If True, overwrite existing files.
+
         """
         self._download_legacy(category, overwrite_existing=overwrite_existing)
 
@@ -571,6 +589,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             Path | None: Path to the downloaded file, or None on failure.
+
         """
         if not self._download_allowed():
             return self._references_paths_cache.get(category)
@@ -678,6 +697,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         Returns:
             Path | None: Path to the downloaded file, or None on failure.
+
         """
         if not self._download_allowed():
             logger.debug(f"Replicate mode is not REPLICA, skipping download for {category}")

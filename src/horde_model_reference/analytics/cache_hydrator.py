@@ -40,6 +40,7 @@ class CacheHydrator:
         # Stop on service shutdown
         await hydrator.stop()
         ```
+
     """
 
     _instance: CacheHydrator | None = None
@@ -195,6 +196,7 @@ class CacheHydrator:
             category: The model reference category.
             grouped: Whether to use grouped text model view.
             include_backend_variations: Whether to include backend variations.
+
         """
         from horde_model_reference.analytics.audit_cache import AuditCache
 
@@ -246,6 +248,7 @@ class CacheHydrator:
 
         Returns:
             CategoryAuditResponse if successful, None on error.
+
         """
         from horde_model_reference.analytics.audit_analysis import ModelAuditInfoFactory
         from horde_model_reference.analytics.text_model_grouping import apply_text_model_grouping_to_audit
@@ -316,6 +319,7 @@ class CacheHydrator:
         Args:
             category: The model reference category.
             grouped: Whether to use grouped text model view.
+
         """
         from horde_model_reference.analytics.statistics_cache import StatisticsCache
 
@@ -346,6 +350,7 @@ class CacheHydrator:
 
         Returns:
             CategoryStatistics if successful, None on error.
+
         """
         # TODO: Implement statistics computation when statistics endpoint logic is refactored
         # This would mirror the statistics endpoint logic
@@ -359,5 +364,6 @@ def get_cache_hydrator() -> CacheHydrator:
 
     Returns:
         CacheHydrator singleton.
+
     """
     return CacheHydrator()
