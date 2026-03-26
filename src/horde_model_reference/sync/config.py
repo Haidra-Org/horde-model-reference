@@ -31,6 +31,7 @@ class GithubAppSettings(BaseSettings):
 
         Returns:
             True if app_id, installation_id, and either private_key or private_key_path is set.
+
         """
         has_key = self.github_app_private_key is not None or self.github_app_private_key_path is not None
         return self.github_app_id is not None and self.github_installation_id is not None and has_key
@@ -44,6 +45,7 @@ class GithubAppSettings(BaseSettings):
         Raises:
             ValueError: If neither private_key nor private_key_path is configured,
                        or if both are set (mutually exclusive), or if file cannot be read.
+
         """
         # Check for mutually exclusive configuration
         if self.github_app_private_key and self.github_app_private_key_path:
@@ -257,6 +259,7 @@ github_text_repo, and github_branch settings."""
 
         Returns:
             True if the category should be synced, False otherwise.
+
         """
         if self.categories_to_sync is None:
             return True

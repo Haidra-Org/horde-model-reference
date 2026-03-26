@@ -284,6 +284,7 @@ class ModelQuery[T: GenericModelRecord, F: str]:
 
         Returns:
             A new query with the additional predicates applied.
+
         """
         new_preds: list[Callable[[T], bool]] = list(self._predicates)
         new_preds.extend(predicates)
@@ -461,6 +462,7 @@ class ModelQuery[T: GenericModelRecord, F: str]:
 
         Returns:
             A dict mapping each distinct value to the list of records with that value.
+
         """
         _validate_field_exists(self._record_type, field)
         groups: dict[Hashable, list[T]] = {}
@@ -619,6 +621,7 @@ class TextModelQuery(ModelQuery[TextGenerationModelRecord, TextGenFieldName]):
 
         Returns:
             A dict mapping each base model name to the list of matching records.
+
         """
         from horde_model_reference.analytics.text_model_parser import get_base_model_name
 
@@ -649,6 +652,7 @@ class ControlNetQuery(ModelQuery[GenericModelRecord, ControlNetFieldName]):
 
         Returns:
             A dict mapping each style to the list of matching records.
+
         """
         groups: dict[str, list[GenericModelRecord]] = {}
         for record in self._execute():
@@ -670,6 +674,7 @@ def build_query[T: GenericModelRecord](
 
     Returns:
         A fresh ``ModelQuery`` ready for chaining.
+
     """
     return ModelQuery(
         records=list(records.values()),
@@ -688,6 +693,7 @@ def build_image_query(
 
     Returns:
         A fresh ``ImageGenerationQuery`` ready for chaining.
+
     """
     return ImageGenerationQuery(
         records=list(records.values()),
@@ -706,6 +712,7 @@ def build_text_query(
 
     Returns:
         A fresh ``TextModelQuery`` ready for chaining.
+
     """
     return TextModelQuery(
         records=list(records.values()),
@@ -724,6 +731,7 @@ def build_controlnet_query(
 
     Returns:
         A fresh ``ControlNetQuery`` ready for chaining.
+
     """
     return ControlNetQuery(
         records=list(records.values()),
@@ -741,6 +749,7 @@ def build_cross_category_query(
 
     Returns:
         A ``ModelQuery[GenericModelRecord]`` over every record in every category.
+
     """
     all_records: list[GenericModelRecord] = []
     for category_records in all_references.values():

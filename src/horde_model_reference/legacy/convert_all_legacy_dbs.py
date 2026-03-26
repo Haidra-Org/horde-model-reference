@@ -1,3 +1,5 @@
+"""Script orchestrating the full legacy-format to v2 conversion for all model categories."""
+
 from pathlib import Path
 
 from loguru import logger
@@ -26,6 +28,7 @@ def convert_legacy_stable_diffusion_database(
 
     Returns:
         True if the conversion succeeded, False otherwise.
+
     """
     base_path = normalize_legacy_base_path(legacy_path)
     target_base_path = normalize_legacy_base_path(target_path)
@@ -54,6 +57,7 @@ def convert_legacy_clip_database(
 
     Returns:
         True if the conversion succeeded, False otherwise.
+
     """
     base_path = normalize_legacy_base_path(legacy_path)
     target_base_path = normalize_legacy_base_path(target_path)
@@ -82,6 +86,7 @@ def convert_legacy_text_generation_database(
 
     Returns:
         True if the conversion succeeded, False otherwise.
+
     """
     base_path = normalize_legacy_base_path(legacy_path)
     target_base_path = normalize_legacy_base_path(target_path)
@@ -110,6 +115,7 @@ def convert_legacy_controlnet_database(
 
     Returns:
         True if the conversion succeeded, False otherwise.
+
     """
     base_path = normalize_legacy_base_path(legacy_path)
     target_base_path = normalize_legacy_base_path(target_path)
@@ -140,6 +146,7 @@ def convert_legacy_database_by_category(
 
     Returns:
         True if the conversion succeeded, False otherwise.
+
     """
     if model_category in get_no_legacy_format_categories():
         logger.info(f"Skipping legacy database conversion for category: {model_category} (no legacy format available)")
@@ -185,6 +192,7 @@ def convert_all_legacy_model_references(
 
     Returns:
         True if all conversions succeeded, False otherwise.
+
     """
     all_succeeded = True
 

@@ -107,6 +107,7 @@ class ModelMetadataHandlerProtocol(Protocol):
 
         Returns:
             GenericModelRecordMetadata: Transformed metadata.
+
         """
         ...
 
@@ -124,6 +125,7 @@ class ModelMetadataManager:
 
         Args:
             custom_handler: Optional custom handler for metadata transformation.
+
         """
         self._custom_handler = custom_handler
 
@@ -135,6 +137,7 @@ class ModelMetadataManager:
 
         Returns:
             GenericModelRecordMetadata: The metadata object, or a new empty one if not present.
+
         """
         metadata_dict = record_dict.get("metadata", {})
         return GenericModelRecordMetadata(**metadata_dict)
@@ -145,6 +148,7 @@ class ModelMetadataManager:
         Args:
             record_dict: Model record as dictionary.
             metadata: The metadata to set.
+
         """
         record_dict["metadata"] = metadata.model_dump(exclude_unset=True, mode="json")
 
@@ -161,6 +165,7 @@ class ModelMetadataManager:
 
         Returns:
             GenericModelRecordMetadata: The updated metadata object.
+
         """
         metadata = self.get_metadata(record_dict)
         for field, value in updates.items():
@@ -179,6 +184,7 @@ class ModelMetadataManager:
         Args:
             existing_record: The existing model record with metadata to preserve.
             new_record: The new model record to update with preserved metadata.
+
         """
         existing_metadata = self.get_metadata(existing_record)
         new_metadata = self.get_metadata(new_record)
@@ -200,6 +206,7 @@ class ModelMetadataManager:
         Args:
             record_dict: Model record as dictionary.
             timestamp: Unix timestamp to use, or None to use current time.
+
         """
         if timestamp is None:
             timestamp = int(time.time())
@@ -215,6 +222,7 @@ class ModelMetadataManager:
         Args:
             record_dict: Model record as dictionary.
             timestamp: Unix timestamp to use, or None to use current time.
+
         """
         if timestamp is None:
             timestamp = int(time.time())
@@ -235,6 +243,7 @@ class ModelMetadataManager:
 
         Returns:
             bool: True if any metadata fields were populated, False if all were already present.
+
         """
         if timestamp is None:
             timestamp = int(time.time())
@@ -265,6 +274,7 @@ class ModelMetadataManager:
         Args:
             record_dict: Model record as dictionary.
             context: Additional context for the transformation.
+
         """
         if self._custom_handler is not None:
             metadata = self.get_metadata(record_dict)
@@ -293,6 +303,7 @@ class MetadataManager:
             base_path: Base path for horde model reference data.
             model_metadata_manager: Optional custom ModelMetadataManager for dependency injection.
                 If None, a default instance will be created.
+
         """
         self._base_path = base_path
         self._lock = RLock()
@@ -328,6 +339,7 @@ class MetadataManager:
 
         Returns:
             ModelMetadataManager: The model metadata manager instance.
+
         """
         return self._model_metadata_manager
 
@@ -347,6 +359,7 @@ class MetadataManager:
 
         Returns:
             Path to legacy metadata JSON file
+
         """
         return self._base_path / "meta" / "legacy" / f"{category.value}_metadata.json"
 
@@ -358,6 +371,7 @@ class MetadataManager:
 
         Returns:
             Path to v2 metadata JSON file
+
         """
         return self._base_path / "meta" / "v2" / f"{category.value}_metadata.json"
 
@@ -369,6 +383,7 @@ class MetadataManager:
 
         Returns:
             CategoryMetadata if file exists and is valid, None otherwise
+
         """
         if not file_path.exists():
             return None
@@ -389,6 +404,7 @@ class MetadataManager:
         Args:
             file_path: Path to metadata file
             metadata: Metadata to write
+
         """
         temp_path = file_path.with_suffix(f".tmp.{time.time()}")
         backup_path = file_path.with_suffix(".bak")
@@ -441,6 +457,7 @@ class MetadataManager:
 
         Returns:
             True if cache is valid, False otherwise
+
         """
         # Check explicit staleness
         if category in stale_set:
@@ -477,6 +494,7 @@ class MetadataManager:
 
         Returns:
             Newly created CategoryMetadata
+
         """
         current_time = int(time.time())
         return CategoryMetadata(
@@ -500,6 +518,7 @@ class MetadataManager:
 
         Returns:
             Newly created CategoryMetadata
+
         """
         current_time = int(time.time())
         return CategoryMetadata(
@@ -526,6 +545,7 @@ class MetadataManager:
 
         Returns:
             CategoryMetadata: The existing or newly created v2 metadata
+
         """
         with self._lock:
             metadata_path = self._get_v2_metadata_path(category)
@@ -574,6 +594,7 @@ class MetadataManager:
 
         Returns:
             CategoryMetadata: The existing or newly created legacy metadata
+
         """
         with self._lock:
             metadata_path = self._get_legacy_metadata_path(category)
@@ -627,6 +648,7 @@ class MetadataManager:
 
         Returns:
             Updated CategoryMetadata
+
         """
         with self._lock:
             # Load existing metadata or initialize
@@ -691,6 +713,7 @@ class MetadataManager:
 
         Returns:
             Updated CategoryMetadata
+
         """
         with self._lock:
             # Load existing metadata or initialize
@@ -749,6 +772,7 @@ class MetadataManager:
 
         Returns:
             Updated CategoryMetadata
+
         """
         with self._lock:
             metadata_path = self._get_legacy_metadata_path(category)
@@ -787,6 +811,7 @@ class MetadataManager:
 
         Returns:
             Updated CategoryMetadata
+
         """
         with self._lock:
             metadata_path = self._get_v2_metadata_path(category)
@@ -823,6 +848,7 @@ class MetadataManager:
 
         Raises:
             RuntimeError: If legacy metadata does not exist on disk
+
         """
         with self._lock:
             # Check cache validity
@@ -872,6 +898,7 @@ class MetadataManager:
 
         Raises:
             RuntimeError: If v2 metadata does not exist on disk
+
         """
         with self._lock:
             # Check cache validity
@@ -913,6 +940,7 @@ class MetadataManager:
 
         Returns:
             Dict mapping categories to their legacy metadata
+
         """
         result = {}
         for category in MODEL_REFERENCE_CATEGORY:
@@ -926,6 +954,7 @@ class MetadataManager:
 
         Returns:
             Dict mapping categories to their v2 metadata
+
         """
         result = {}
         for category in MODEL_REFERENCE_CATEGORY:
@@ -939,6 +968,7 @@ class MetadataManager:
 
         Args:
             category: Category to mark stale
+
         """
         with self._lock:
             self._stale_legacy.add(category)
@@ -948,6 +978,7 @@ class MetadataManager:
 
         Args:
             category: Category to mark stale
+
         """
         with self._lock:
             self._stale_v2.add(category)

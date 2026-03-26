@@ -53,6 +53,7 @@ def filter_deletion_candidates(model: ModelAuditInfo) -> bool:
 
     Returns:
         True if model matches deletion candidate criteria.
+
     """
     return model.at_risk or model.usage_percentage_of_category < LOW_USAGE_THRESHOLD or model.worker_count == 0
 
@@ -65,6 +66,7 @@ def filter_zero_usage(model: ModelAuditInfo) -> bool:
 
     Returns:
         True if model has zero usage in the past month.
+
     """
     return model.usage_month == 0
 
@@ -77,6 +79,7 @@ def filter_no_workers(model: ModelAuditInfo) -> bool:
 
     Returns:
         True if model has zero active workers.
+
     """
     return model.worker_count == 0
 
@@ -93,6 +96,7 @@ def filter_missing_data(model: ModelAuditInfo) -> bool:
 
     Returns:
         True if model is missing description or baseline.
+
     """
     return model.deletion_risk_flags.missing_description or model.deletion_risk_flags.missing_baseline
 
@@ -111,6 +115,7 @@ def filter_host_issues(model: ModelAuditInfo) -> bool:
 
     Returns:
         True if model has any hosting-related issues.
+
     """
     return (
         model.deletion_risk_flags.has_non_preferred_host
@@ -130,6 +135,7 @@ def filter_critical(model: ModelAuditInfo) -> bool:
 
     Returns:
         True if model is in critical state.
+
     """
     return model.is_critical
 
@@ -144,6 +150,7 @@ def filter_low_usage(model: ModelAuditInfo) -> bool:
 
     Returns:
         True if model has low usage.
+
     """
     return model.deletion_risk_flags.low_usage
 
@@ -171,6 +178,7 @@ def apply_preset_filter(models: list[ModelAuditInfo], preset: str | AuditFilterP
 
     Raises:
         ValueError: If preset is not recognized.
+
     """
     if isinstance(preset, str):
         try:
@@ -197,6 +205,7 @@ def get_available_presets() -> list[dict[str, str]]:
 
     Returns:
         List of dicts with 'name' and 'description' keys.
+
     """
     return [
         {

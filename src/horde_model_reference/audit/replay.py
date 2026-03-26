@@ -1,3 +1,5 @@
+"""Audit log replay utilities for reconstructing historical model reference state."""
+
 from __future__ import annotations
 
 from collections.abc import Collection

@@ -29,6 +29,7 @@ def merge_deletion_flags(flags_list: list[DeletionRiskFlags]) -> DeletionRiskFla
 
     Returns:
         Merged DeletionRiskFlags.
+
     """
     from horde_model_reference.analytics.audit_analysis import DeletionRiskFlags
 
@@ -60,6 +61,7 @@ def merge_usage_trends(trends: list[UsageTrend], weights: list[int]) -> UsageTre
 
     Returns:
         Merged UsageTrend with weighted average ratios.
+
     """
     from horde_model_reference.analytics.audit_analysis import UsageTrend
 
@@ -98,6 +100,7 @@ def group_audit_models(models: list[ModelAuditInfo]) -> list[ModelAuditInfo]:
 
     Returns:
         List of grouped ModelAuditInfo objects with aggregated metrics.
+
     """
     from horde_model_reference.analytics.audit_analysis import ModelAuditInfo
 
@@ -210,6 +213,7 @@ def recalculate_audit_summary(models: list[ModelAuditInfo], category_total_usage
 
     Returns:
         New CategoryAuditSummary with updated counts.
+
     """
     from horde_model_reference.analytics.audit_analysis import CategoryAuditSummary
 
@@ -241,6 +245,7 @@ def apply_text_model_grouping_to_audit(audit_response: CategoryAuditResponse) ->
 
     Returns:
         New CategoryAuditResponse with grouped models and updated summary.
+
     """
     from horde_model_reference.analytics.audit_analysis import CategoryAuditResponse
 

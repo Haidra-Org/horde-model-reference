@@ -107,6 +107,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
             ) -> bool:
                 # Custom validation logic
                 return self._check_data_integrity(category)
+
     """
 
     def __init__(
@@ -120,6 +121,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
         Args:
             mode: The replication mode (REPLICA or PRIMARY).
             cache_ttl_seconds: TTL for cache entries in seconds. None means no expiration.
+
         """
         super().__init__(mode=mode)
 
@@ -148,6 +150,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Args:
             category: The category to mark as fresh.
+
         """
         self._category_timestamps[category] = time.time()
         self._stale_categories.discard(category)
@@ -176,6 +179,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Returns:
             bool: True if data exists in cache (may be stale), False if never loaded.
+
         """
         with self._lock:
             return category in self._cache
@@ -220,6 +224,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Note:
             This method is thread-safe and uses the internal `_lock` for synchronization.
+
         """
         with self._lock:
             if category in self._stale_categories:
@@ -285,6 +290,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
         Returns:
             bool: True if data should be fetched (either initial or refresh),
                   False if cached data is valid and fresh.
+
         """
         return not self.is_cache_valid(category)
 
@@ -355,6 +361,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Returns:
             Path | None: File path to check for mtime, or None to skip mtime validation.
+
         """
         return None
 
@@ -369,6 +376,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Returns:
             bool: True if cache is valid, False to invalidate.
+
         """
         return True
 
@@ -404,6 +412,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
                     lambda: self._fetch_from_source(category),
                     force_refresh=force_refresh
                 )
+
         """
         # Check cache first unless force refresh
         if not force_refresh:
@@ -439,6 +448,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
         Returns:
             dict[str, Any] | None: Cached data if valid, None if cache miss (initial fetch needed)
                                    or cache invalid (refresh needed).
+
         """
         with self._lock:
             if self.is_cache_valid(category):
@@ -457,6 +467,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
         Args:
             category: The category to store.
             data: The data to cache, or None if category has no data.
+
         """
         with self._lock:
             self._cache[category] = data
@@ -475,6 +486,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Args:
             category: The category to invalidate.
+
         """
         with self._lock:
             self._stale_categories.add(category)
@@ -492,6 +504,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Returns:
             Path | None: Legacy file path to check for mtime, or None to skip mtime validation.
+
         """
         return None
 
@@ -502,6 +515,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Args:
             category: The category to mark as fresh.
+
         """
         self._legacy_cache_timestamps[category] = time.time()
         self._stale_legacy_categories.discard(category)
@@ -529,6 +543,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Returns:
             bool: True if legacy cache is valid and can be used.
+
         """
         with self._lock:
             if category in self._stale_legacy_categories:
@@ -579,6 +594,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Returns:
             tuple[dict | None, str | None]: (legacy_dict, legacy_string) or (None, None) if cache miss.
+
         """
         with self._lock:
             if self.is_legacy_cache_valid(category):
@@ -605,6 +621,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
             category: The category to store.
             legacy_dict: The legacy JSON as a dict, or None.
             legacy_string: The legacy JSON as a string, or None.
+
         """
         with self._lock:
             self._legacy_json_cache[category] = legacy_dict
@@ -624,6 +641,7 @@ class ReplicaBackendBase(ModelReferenceBackend):
 
         Args:
             category: The category to invalidate.
+
         """
         with self._lock:
             self._stale_legacy_categories.add(category)

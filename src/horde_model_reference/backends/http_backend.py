@@ -57,6 +57,7 @@ class HTTPBackend(ReplicaBackendBase):
 
         Raises:
             ValueError: If github_backend is not REPLICA mode
+
         """
         if github_backend.replicate_mode != ReplicateMode.REPLICA:
             raise ValueError("HTTPBackend requires a GitHubBackend in REPLICA mode as fallback")
@@ -124,6 +125,7 @@ class HTTPBackend(ReplicaBackendBase):
 
         Returns:
             tuple[dict | None, str | None]: (legacy_dict, legacy_string) or (None, None) on failure
+
         """
         url = self._legacy_category_api_url(category)
 
@@ -205,6 +207,7 @@ class HTTPBackend(ReplicaBackendBase):
 
         Returns:
             tuple[dict | None, str | None]: (legacy_dict, legacy_string) or (None, None) on failure
+
         """
         import asyncio
 
@@ -257,6 +260,7 @@ class HTTPBackend(ReplicaBackendBase):
 
         Returns:
             Model reference data or None
+
         """
         # Use helper to determine if we need to fetch
         if force_refresh or self.should_fetch_data(category):
@@ -306,6 +310,7 @@ class HTTPBackend(ReplicaBackendBase):
 
         Returns:
             Model reference data or None
+
         """
         # Use helper to determine if we need to fetch
         if force_refresh or self.should_fetch_data(category):
@@ -382,6 +387,7 @@ class HTTPBackend(ReplicaBackendBase):
 
         Returns:
             Legacy JSON dict or None
+
         """
         # Check cache first unless redownload
         if not redownload:
@@ -421,6 +427,7 @@ class HTTPBackend(ReplicaBackendBase):
 
         Returns:
             Legacy JSON string or None
+
         """
         # Check cache first unless redownload
         if not redownload:
@@ -455,6 +462,7 @@ class HTTPBackend(ReplicaBackendBase):
                 - primary_hits: Number of successful PRIMARY API fetches
                 - github_fallbacks: Number of times GitHub fallback was used
                 - cache_size: Number of categories in local cache
+
         """
         return {
             "primary_hits": self._primary_hits,

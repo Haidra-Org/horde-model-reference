@@ -86,6 +86,7 @@ class ModelReferenceBackend(ABC):
             - [ReplicaBackendBase._fetch_with_cache()]
               [^^^.replica_backend_base.ReplicaBackendBase._fetch_with_cache]:
               Helper for cache management
+
         """
 
     @abstractmethod
@@ -121,6 +122,7 @@ class ModelReferenceBackend(ABC):
         See Also:
             - [fetch_category()][(c).fetch_category]: Single category fetching
             - [fetch_all_categories_async()][(c).fetch_all_categories_async]: Async variant
+
         """
 
     @abstractmethod
@@ -167,6 +169,7 @@ class ModelReferenceBackend(ABC):
         See Also:
             - [fetch_category()][(c).fetch_category]: Synchronous variant
             - [fetch_all_categories_async()][(c).fetch_all_categories_async]: Async batch fetching
+
         """
 
     @abstractmethod
@@ -212,6 +215,7 @@ class ModelReferenceBackend(ABC):
         See Also:
             - [fetch_all_categories()][(c).fetch_all_categories]: Synchronous variant
             - [fetch_category_async()][(c).fetch_category_async]: Async single category fetch
+
         """
 
     @abstractmethod
@@ -250,6 +254,7 @@ class ModelReferenceBackend(ABC):
             - [mark_stale()][(c).mark_stale]: Explicitly mark a category as stale
             - [ReplicaBackendBase.should_fetch_data()][^^^.replica_backend_base.ReplicaBackendBase.should_fetch_data]:
               Combined initial fetch + refresh check
+
         """
 
     def register_invalidation_callback(
@@ -263,6 +268,7 @@ class ModelReferenceBackend(ABC):
 
         Args:
             callback: Function to call with the invalidated category.
+
         """
         self._invalidation_callbacks.append(callback)
         logger.debug(f"Registered invalidation callback: {getattr(callback, '__name__', repr(callback))}")
@@ -272,6 +278,7 @@ class ModelReferenceBackend(ABC):
 
         Args:
             category: The category that was invalidated.
+
         """
         for callback in self._invalidation_callbacks:
             try:
@@ -297,6 +304,7 @@ class ModelReferenceBackend(ABC):
         Note:
             The public `mark_stale()` method calls this implementation and then automatically
             notifies all registered invalidation callbacks.
+
         """
 
     def mark_stale(self, category: MODEL_REFERENCE_CATEGORY) -> None:
@@ -317,6 +325,7 @@ class ModelReferenceBackend(ABC):
             - [_mark_stale_impl()][(c)._mark_stale_impl]: Backend-specific staleness tracking
             - [register_invalidation_callback()][(c).register_invalidation_callback]:
               Register callbacks for invalidation events
+
         """
         self._mark_stale_impl(category)
         self._notify_invalidation(category)
@@ -351,6 +360,7 @@ class ModelReferenceBackend(ABC):
 
         See Also:
             - [get_all_category_file_paths()][(c).get_all_category_file_paths]: Get all file paths
+
         """
 
     @abstractmethod
@@ -377,6 +387,7 @@ class ModelReferenceBackend(ABC):
 
         See Also:
             - [get_category_file_path()][(c).get_category_file_path]: Get single category file path
+
         """
 
     @abstractmethod
@@ -405,6 +416,7 @@ class ModelReferenceBackend(ABC):
 
         See Also:
             - [get_legacy_json_string()][(c).get_legacy_json_string]: Get as string instead of dict
+
         """
 
     @abstractmethod
@@ -432,6 +444,7 @@ class ModelReferenceBackend(ABC):
 
         See Also:
             - [get_legacy_json()][(c).get_legacy_json]: Get as dict instead of string
+
         """
 
     def support_any_writes(self) -> bool:
@@ -439,6 +452,7 @@ class ModelReferenceBackend(ABC):
 
         Returns:
             bool: True if any write operations are supported, False otherwise.
+
         """
         return self.supports_writes() or self.supports_legacy_writes()
 
@@ -450,6 +464,7 @@ class ModelReferenceBackend(ABC):
 
         Returns:
             bool: True if write operations are supported, False otherwise.
+
         """
         return False
 
@@ -457,10 +472,11 @@ class ModelReferenceBackend(ABC):
         """Check if this backend supports write operations in legacy format.
 
         Legacy write operations include update_model_legacy() and delete_model_legacy().
-        Only available when canonical_format='legacy' in PRIMARY mode.
+        Only available when canonical_format='LEGACY' in PRIMARY mode.
 
         Returns:
             bool: True if legacy write operations are supported, False otherwise.
+
         """
         return False
 
@@ -472,6 +488,7 @@ class ModelReferenceBackend(ABC):
 
         Returns:
             bool: True if cache warming is supported, False otherwise.
+
         """
         return False
 
@@ -483,6 +500,7 @@ class ModelReferenceBackend(ABC):
 
         Returns:
             bool: True if health checks are supported, False otherwise.
+
         """
         return False
 
@@ -493,6 +511,7 @@ class ModelReferenceBackend(ABC):
 
         Returns:
             bool: True if statistics are supported, False otherwise.
+
         """
         return False
 
@@ -534,6 +553,7 @@ class ModelReferenceBackend(ABC):
               Update from pydantic model (automatically provided)
             - [delete_model()][(c).delete_model]: Delete a model
             - [supports_writes()][(c).supports_writes]: Feature detection method
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support write operations")
 
@@ -572,6 +592,7 @@ class ModelReferenceBackend(ABC):
         See Also:
             - [update_model()][(c).update_model]: Update from dictionary (implement this)
             - [supports_writes()][(c).supports_writes]: Feature detection method
+
         """
         if not self.supports_writes():
             raise NotImplementedError(f"{self.__class__.__name__} does not support write operations")
@@ -619,6 +640,7 @@ class ModelReferenceBackend(ABC):
         See Also:
             - [update_model()][(c).update_model]: Update or create a model
             - [supports_writes()][(c).supports_writes]: Feature detection method
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support write operations")
 
@@ -634,7 +656,7 @@ class ModelReferenceBackend(ABC):
         """Update or create a model reference in legacy format.
 
         This is an optional method that legacy-write-capable backends can implement.
-        Only available when canonical_format='legacy' in PRIMARY mode.
+        Only available when canonical_format='LEGACY' in PRIMARY mode.
 
         Args:
             category: The category to update.
@@ -645,6 +667,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support legacy write operations")
 
@@ -660,7 +683,7 @@ class ModelReferenceBackend(ABC):
         """Update or create a model reference in legacy format from a pydantic BaseModel.
 
         This is an optional method that legacy-write-capable backends can implement.
-        Only available when canonical_format='legacy' in PRIMARY mode.
+        Only available when canonical_format='LEGACY' in PRIMARY mode.
 
         Args:
             category: The category to update.
@@ -671,6 +694,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.
+
         """
         if not self.supports_legacy_writes():
             raise NotImplementedError(f"{self.__class__.__name__} does not support legacy write operations")
@@ -695,7 +719,7 @@ class ModelReferenceBackend(ABC):
         """Delete a model reference from legacy format files.
 
         This is an optional method that legacy-write-capable backends can implement.
-        Only available when canonical_format='legacy' in PRIMARY mode.
+        Only available when canonical_format='LEGACY' in PRIMARY mode.
 
         Args:
             category: The category containing the model.
@@ -705,6 +729,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support legacy write operations")
 
@@ -716,6 +741,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support cache warming.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support cache warming")
 
@@ -727,6 +753,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support async cache warming.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support async cache warming")
 
@@ -741,6 +768,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support health checks.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support health checks")
 
@@ -755,6 +783,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support statistics.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support statistics")
 
@@ -763,6 +792,7 @@ class ModelReferenceBackend(ABC):
 
         Returns:
             ReplicateMode: The replicate mode (PRIMARY or REPLICA).
+
         """
         return self._replicate_mode
 
@@ -775,6 +805,7 @@ class ModelReferenceBackend(ABC):
 
         Returns:
             bool: True if metadata tracking is supported, False otherwise.
+
         """
         return False
 
@@ -792,6 +823,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support metadata.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support metadata tracking")
 
@@ -809,6 +841,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support metadata.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support async metadata tracking")
 
@@ -826,6 +859,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support metadata.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support metadata tracking")
 
@@ -843,6 +877,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support metadata.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support async metadata tracking")
 
@@ -857,6 +892,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support metadata.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support metadata tracking")
 
@@ -871,6 +907,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support metadata.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support async metadata tracking")
 
@@ -885,6 +922,7 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support metadata.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support metadata tracking")
 
@@ -899,5 +937,6 @@ class ModelReferenceBackend(ABC):
 
         Raises:
             NotImplementedError: If the backend does not support metadata.
+
         """
         raise NotImplementedError(f"{self.__class__.__name__} does not support async metadata tracking")

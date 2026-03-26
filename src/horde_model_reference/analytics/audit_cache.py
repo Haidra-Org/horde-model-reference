@@ -31,6 +31,7 @@ class AuditCache(RedisCache[CategoryAuditResponse]):
 
         Returns:
             Redis key prefix string.
+
         """
         return f"{horde_model_reference_settings.redis.key_prefix}:audit"
 
@@ -39,6 +40,7 @@ class AuditCache(RedisCache[CategoryAuditResponse]):
 
         Returns:
             TTL in seconds from settings.
+
         """
         return horde_model_reference_settings.audit_cache_ttl
 
@@ -47,6 +49,7 @@ class AuditCache(RedisCache[CategoryAuditResponse]):
 
         Returns:
             CategoryAuditResponse class.
+
         """
         from horde_model_reference.analytics.audit_analysis import CategoryAuditResponse
 
@@ -74,6 +77,7 @@ class AuditCache(RedisCache[CategoryAuditResponse]):
 
         Args:
             category: The category that was invalidated.
+
         """
         logger.debug(f"Invalidating audit cache for category: {category}")
         self.invalidate(category, grouped=None)  # Invalidate both variants

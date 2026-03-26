@@ -98,40 +98,46 @@ class DeletionRiskFlags(BaseModel):
 
         Returns:
             True if at least one flag is set, False otherwise.
+
         """
-        return any([
-            self.zero_usage_day,
-            self.zero_usage_month,
-            self.zero_usage_total,
-            self.no_active_workers,
-            self.has_multiple_hosts,
-            self.has_non_preferred_host,
-            self.has_unknown_host,
-            self.no_download_urls,
-            self.missing_description,
-            self.missing_baseline,
-            self.low_usage,
-        ])
+        return any(
+            [
+                self.zero_usage_day,
+                self.zero_usage_month,
+                self.zero_usage_total,
+                self.no_active_workers,
+                self.has_multiple_hosts,
+                self.has_non_preferred_host,
+                self.has_unknown_host,
+                self.no_download_urls,
+                self.missing_description,
+                self.missing_baseline,
+                self.low_usage,
+            ]
+        )
 
     def flag_count(self) -> int:
         """Count the number of flags set.
 
         Returns:
             Number of deletion risk flags that are True.
+
         """
-        return sum([
-            self.zero_usage_day,
-            self.zero_usage_month,
-            self.zero_usage_total,
-            self.no_active_workers,
-            self.has_multiple_hosts,
-            self.has_non_preferred_host,
-            self.has_unknown_host,
-            self.no_download_urls,
-            self.missing_description,
-            self.missing_baseline,
-            self.low_usage,
-        ])
+        return sum(
+            [
+                self.zero_usage_day,
+                self.zero_usage_month,
+                self.zero_usage_total,
+                self.no_active_workers,
+                self.has_multiple_hosts,
+                self.has_non_preferred_host,
+                self.has_unknown_host,
+                self.no_download_urls,
+                self.missing_description,
+                self.missing_baseline,
+                self.low_usage,
+            ]
+        )
 
 
 class FlagValidatorService:
@@ -155,6 +161,7 @@ class FlagValidatorService:
 
         Returns:
             Tuple of (no_download_urls, has_multiple_hosts, has_non_preferred_host, has_unknown_host)
+
         """
         # Skip download validation for text_generation if configured
         if (
@@ -205,6 +212,7 @@ class FlagValidatorService:
 
         Returns:
             True if description is missing or empty.
+
         """
         return not description or len(description.strip()) == 0
 
@@ -217,6 +225,7 @@ class FlagValidatorService:
 
         Returns:
             True if baseline is missing.
+
         """
         return not baseline
 
@@ -237,6 +246,7 @@ class FlagValidatorService:
 
         Returns:
             Tuple of (zero_usage_day, zero_usage_month, zero_usage_total, no_active_workers, low_usage)
+
         """
         if not statistics:
             return (False, False, False, False, False)
@@ -311,6 +321,7 @@ class DeletionRiskFlagsBuilder:
 
         Returns:
             Self for method chaining.
+
         """
         self.no_download_urls = no_download_urls
         self.has_multiple_hosts = has_multiple_hosts
@@ -326,6 +337,7 @@ class DeletionRiskFlagsBuilder:
 
         Returns:
             Self for method chaining.
+
         """
         self.missing_description = missing
         return self
@@ -338,6 +350,7 @@ class DeletionRiskFlagsBuilder:
 
         Returns:
             Self for method chaining.
+
         """
         self.missing_baseline = missing
         return self
@@ -361,6 +374,7 @@ class DeletionRiskFlagsBuilder:
 
         Returns:
             Self for method chaining.
+
         """
         self.zero_usage_day = zero_usage_day
         self.zero_usage_month = zero_usage_month
@@ -374,6 +388,7 @@ class DeletionRiskFlagsBuilder:
 
         Returns:
             DeletionRiskFlags with all accumulated flag values.
+
         """
         return DeletionRiskFlags(
             zero_usage_day=self.zero_usage_day,
@@ -451,6 +466,7 @@ class ModelAuditInfo(BaseModel):
 
         Returns:
             Number of flags that are True.
+
         """
         return self.deletion_risk_flags.flag_count()
 
@@ -464,6 +480,7 @@ class ModelAuditInfo(BaseModel):
 
         Returns:
             True if model meets critical criteria.
+
         """
         if self.category == MODEL_REFERENCE_CATEGORY.text_generation:
             usage_threshold = horde_model_reference_settings.text_gen_critical_usage_threshold
@@ -480,6 +497,7 @@ class ModelAuditInfo(BaseModel):
 
         Returns:
             True if model has warning-level flags.
+
         """
         return (
             self.deletion_risk_flags.has_multiple_hosts
@@ -537,6 +555,7 @@ class CategoryAuditSummary(BaseModel):
 
         Returns:
             CategoryAuditSummary with aggregate statistics.
+
         """
         total_models = len(audit_models)
         models_at_risk = sum(1 for m in audit_models if m.at_risk)
@@ -617,6 +636,7 @@ class DeletionRiskFlagsHandler:
 
         Returns:
             True if this handler can process the model record type.
+
         """
         raise NotImplementedError("Subclasses must implement can_handle")
 
@@ -636,6 +656,7 @@ class DeletionRiskFlagsHandler:
 
         Returns:
             DeletionRiskFlags object.
+
         """
         raise NotImplementedError("Subclasses must implement create_flags")
 
@@ -651,6 +672,7 @@ class ImageGenerationDeletionRiskFlagsHandler(DeletionRiskFlagsHandler):
 
         Returns:
             True if the model record is an ImageGenerationModelRecord.
+
         """
         return isinstance(model_record, ImageGenerationModelRecord)
 
@@ -669,6 +691,7 @@ class ImageGenerationDeletionRiskFlagsHandler(DeletionRiskFlagsHandler):
 
         Returns:
             DeletionRiskFlags with appropriate flags set.
+
         """
         downloads = model_record.config.download if model_record.config else []
 
@@ -703,6 +726,7 @@ class ImageGenerationDeletionRiskFlagsHandler(DeletionRiskFlagsHandler):
 
         Returns:
             DeletionRiskFlags object.
+
         """
         if not isinstance(model_record, ImageGenerationModelRecord):
             error_message = f"Expected ImageGenerationModelRecord, got {type(model_record).__name__}"
@@ -722,6 +746,7 @@ class TextGenerationDeletionRiskFlagsHandler(DeletionRiskFlagsHandler):
 
         Returns:
             True if the model record is a TextGenerationModelRecord.
+
         """
         return isinstance(model_record, TextGenerationModelRecord)
 
@@ -740,6 +765,7 @@ class TextGenerationDeletionRiskFlagsHandler(DeletionRiskFlagsHandler):
 
         Returns:
             DeletionRiskFlags with appropriate flags set.
+
         """
         downloads = model_record.config.download if model_record.config else []
 
@@ -774,6 +800,7 @@ class TextGenerationDeletionRiskFlagsHandler(DeletionRiskFlagsHandler):
 
         Returns:
             DeletionRiskFlags object.
+
         """
         if not isinstance(model_record, TextGenerationModelRecord):
             error_message = f"Expected TextGenerationModelRecord, got {type(model_record).__name__}"
@@ -795,6 +822,7 @@ class GenericDeletionRiskFlagsHandler(DeletionRiskFlagsHandler):
 
         Returns:
             True (accepts all model records).
+
         """
         return True
 
@@ -814,6 +842,7 @@ class GenericDeletionRiskFlagsHandler(DeletionRiskFlagsHandler):
 
         Returns:
             DeletionRiskFlags object.
+
         """
         logger.warning(f"Using fallback handler for unsupported model type: {type(model_record).__name__}")
 
@@ -847,6 +876,7 @@ class DeletionRiskFlagsFactory:
         # Adding custom handler
         factory.register_handler(CustomDeletionRiskFlagsHandler())
         ```
+
     """
 
     def __init__(self, handlers: list[DeletionRiskFlagsHandler] | None = None) -> None:
@@ -854,6 +884,7 @@ class DeletionRiskFlagsFactory:
 
         Args:
             handlers: List of handlers to use. If None, no handlers are registered.
+
         """
         self._handlers: list[DeletionRiskFlagsHandler] = handlers or []
 
@@ -863,6 +894,7 @@ class DeletionRiskFlagsFactory:
 
         Returns:
             DeletionRiskFlagsFactory with default handlers registered.
+
         """
         return cls(
             handlers=[
@@ -880,6 +912,7 @@ class DeletionRiskFlagsFactory:
 
         Args:
             handler: The handler to register.
+
         """
         self._handlers.append(handler)
 
@@ -902,6 +935,7 @@ class DeletionRiskFlagsFactory:
 
         Raises:
             ValueError: If no handler can process the model record type.
+
         """
         for handler in self._handlers:
             if handler.can_handle(model_record):
@@ -929,6 +963,7 @@ class ModelAuditInfoHandler:
 
         Returns:
             True if this handler can process the model record type.
+
         """
         raise NotImplementedError("Subclasses must implement can_handle")
 
@@ -954,6 +989,7 @@ class ModelAuditInfoHandler:
 
         Returns:
             ModelAuditInfo object.
+
         """
         raise NotImplementedError("Subclasses must implement create_audit_info")
 
@@ -987,6 +1023,7 @@ class ModelAuditInfoHandler:
 
         Returns:
             ModelAuditInfo object.
+
         """
         # Extract Horde API data from statistics
         worker_count = statistics.worker_count if statistics else 0
@@ -1094,6 +1131,7 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
         Args:
             flags_factory: Optional factory for creating deletion risk flags.
                 If None, uses default factory.
+
         """
         self._flags_factory = flags_factory or DeletionRiskFlagsFactory.create_default()
 
@@ -1105,6 +1143,7 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
 
         Returns:
             True if the model record is an ImageGenerationModelRecord.
+
         """
         return isinstance(model_record, ImageGenerationModelRecord)
 
@@ -1130,6 +1169,7 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
 
         Returns:
             ModelAuditInfo object.
+
         """
         if not isinstance(model_record, ImageGenerationModelRecord):
             error_message = f"Expected ImageGenerationModelRecord, got {type(model_record).__name__}"
@@ -1167,6 +1207,7 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
         Args:
             flags_factory: Optional factory for creating deletion risk flags.
                 If None, uses default factory.
+
         """
         self._flags_factory = flags_factory or DeletionRiskFlagsFactory.create_default()
 
@@ -1178,6 +1219,7 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
 
         Returns:
             True if the model record is a TextGenerationModelRecord.
+
         """
         return isinstance(model_record, TextGenerationModelRecord)
 
@@ -1203,6 +1245,7 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
 
         Returns:
             ModelAuditInfo object.
+
         """
         if not isinstance(model_record, TextGenerationModelRecord):
             error_message = f"Expected TextGenerationModelRecord, got {type(model_record).__name__}"
@@ -1244,6 +1287,7 @@ class GenericModelAuditHandler(ModelAuditInfoHandler):
 
         Returns:
             True (accepts all model records).
+
         """
         return True
 
@@ -1269,6 +1313,7 @@ class GenericModelAuditHandler(ModelAuditInfoHandler):
 
         Returns:
             ModelAuditInfo object.
+
         """
         logger.warning(f"Using fallback handler for unsupported model type: {type(model_record).__name__}")
 
@@ -1315,6 +1360,7 @@ class ModelAuditInfoFactory:
         # Adding custom handler
         factory.register_handler(CustomModelAuditHandler())
         ```
+
     """
 
     def __init__(self, handlers: list[ModelAuditInfoHandler] | None = None) -> None:
@@ -1322,6 +1368,7 @@ class ModelAuditInfoFactory:
 
         Args:
             handlers: List of handlers to use. If None, no handlers are registered.
+
         """
         self._handlers: list[ModelAuditInfoHandler] = handlers or []
 
@@ -1331,6 +1378,7 @@ class ModelAuditInfoFactory:
 
         Returns:
             ModelAuditInfoFactory with default handlers registered.
+
         """
         return cls(
             handlers=[
@@ -1348,6 +1396,7 @@ class ModelAuditInfoFactory:
 
         Args:
             handler: The handler to register.
+
         """
         self._handlers.append(handler)
 
@@ -1376,6 +1425,7 @@ class ModelAuditInfoFactory:
 
         Raises:
             ValueError: If no handler can process the model record type.
+
         """
         for handler in self._handlers:
             if handler.can_handle(model_record):
@@ -1414,6 +1464,7 @@ class ModelAuditInfoFactory:
 
         Returns:
             List of ModelAuditInfo sorted by usage (descending).
+
         """
         audit_models: list[ModelAuditInfo] = []
 
@@ -1467,6 +1518,7 @@ class ModelAuditInfoFactory:
 
         Returns:
             CategoryAuditResponse with models and summary.
+
         """
         # Analyze all models
         audit_models = self.analyze_models(

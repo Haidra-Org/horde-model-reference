@@ -57,21 +57,21 @@ def test_audit_endpoint_includes_worker_counts(api_client: TestClient) -> None:
         if worker_count > 0:
             models_with_workers.append(model_name)
             # If worker_count > 0, the no_active_workers flag should be False
-            assert (
-                no_active_workers_flag is False
-            ), f"Model '{model_name}' has {worker_count} workers but no_active_workers flag is True"
+            assert no_active_workers_flag is False, (
+                f"Model '{model_name}' has {worker_count} workers but no_active_workers flag is True"
+            )
         else:
             models_without_workers.append(model_name)
             # If worker_count == 0, the no_active_workers flag should be True
-            assert (
-                no_active_workers_flag is True
-            ), f"Model '{model_name}' has 0 workers but no_active_workers flag is False"
+            assert no_active_workers_flag is True, (
+                f"Model '{model_name}' has 0 workers but no_active_workers flag is False"
+            )
 
     # The bug we're testing for: ALL models showing worker_count=0
     # This assertion will FAIL with the current buggy implementation
-    assert (
-        len(models_with_workers) > 0
-    ), f"BUG: All {total_models} models show worker_count=0, but some should have workers from Horde API status data"
+    assert len(models_with_workers) > 0, (
+        f"BUG: All {total_models} models show worker_count=0, but some should have workers from Horde API status data"
+    )
 
     # At least some models should have workers
     # In a realistic dataset, not all models are served by workers

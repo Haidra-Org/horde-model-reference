@@ -83,6 +83,7 @@ class ModelReferenceComparator:
 
         Returns:
             A ModelReferenceDiff object containing all detected differences.
+
         """
         logger.debug(f"Comparing {category}: {len(primary_data)} PRIMARY models vs {len(github_data)} GitHub models")
 
