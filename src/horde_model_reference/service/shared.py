@@ -11,11 +11,18 @@ from loguru import logger
 from pydantic import BaseModel
 from strenum import StrEnum
 
-from horde_model_reference import ModelReferenceManager, ai_horde_worker_settings, horde_model_reference_settings
+from horde_model_reference import (
+    CanonicalFormat,
+    ModelReferenceManager,
+    ai_horde_worker_settings,
+    horde_model_reference_settings,
+)
 
 header_auth_scheme = APIKeyHeader(name="apikey")
 
-httpx_client = httpx.AsyncClient()
+DEFAULT_AUTH_TIMEOUT_SECONDS = 10.0
+
+httpx_client = httpx.AsyncClient(timeout=httpx.Timeout(DEFAULT_AUTH_TIMEOUT_SECONDS))
 
 v1_prefix = "/model_references/v1"
 v2_prefix = "/model_references/v2"
@@ -130,9 +137,6 @@ class Operation(StrEnum):
     delete = "delete"
 
 
-# Full names, like Tazlin#6572, are unreliable because the user can change them.
-# Instead, we use the immutable user ID for authentication allowlisting.
-allowed_users = ["1", "6572"]
 _requestor_fallback_logged = False
 _approver_fallback_logged = False
 
@@ -162,6 +166,9 @@ async def auth_against_horde(
 
     Returns:
         HordeUserContext | None: User details if authentication is successful, None otherwise.
+
+    Raises:
+        HTTPException: 503 if the Horde auth service is unreachable or times out.
     """
     find_user_subpath = "v2/find_user"
     url = urllib.parse.urljoin(
@@ -169,10 +176,17 @@ async def auth_against_horde(
         find_user_subpath,
     )
 
-    response = await client.get(
-        url,
-        headers={"apikey": f"{apikey}"},
-    )
+    try:
+        response = await client.get(
+            url,
+            headers={"apikey": f"{apikey}"},
+        )
+    except httpx.TimeoutException:
+        logger.warning("Horde auth service timed out")
+        raise HTTPException(status_code=503, detail="Auth service timed out") from None
+    except httpx.HTTPError as exc:
+        logger.warning(f"Horde auth service unreachable: {exc}")
+        raise HTTPException(status_code=503, detail="Auth service unavailable") from None
 
     if response.status_code != 200:
         return None
@@ -198,25 +212,22 @@ def _normalize_ids(values: Collection[str]) -> set[str]:
 
 
 def _fallback_allowed_users(context: Literal["requestor", "approver"]) -> set[str]:
-    fallback = _normalize_ids(allowed_users)
-    if not fallback:
-        logger.warning(
-            f"Pending queue {context} allowlist is empty and no fallback IDs are defined; rejecting access",
-        )
-        return set()
+    """Return an empty set and log a warning when no allowlist is configured.
 
+    Fails closed: if no allowlist is configured, no users are authorized.
+    """
     global _requestor_fallback_logged, _approver_fallback_logged
     already_logged = _requestor_fallback_logged if context == "requestor" else _approver_fallback_logged
     if not already_logged:
         logger.warning(
-            f"Pending queue {context} allowlist is not configured; falling back to built-in IDs for development use"
+            f"Pending queue {context} allowlist is not configured; all {context} requests will be rejected",
         )
         if context == "requestor":
             _requestor_fallback_logged = True
         else:
             _approver_fallback_logged = True
 
-    return fallback
+    return set()
 
 
 def _queue_requestor_allowlist() -> set[str]:
@@ -237,7 +248,12 @@ def _queue_approver_allowlist() -> set[str]:
 
 
 async def authenticate_queue_requestor(apikey: str) -> HordeUserContext:
-    """Authenticate a queue requestor using the configured allowlist."""
+    """Authenticate a queue requestor using the configured allowlist.
+
+    Raises:
+        APIKeyInvalidException: If no allowlist is configured or the user is not authorized.
+        HTTPException: 503 if the Horde auth service is unreachable.
+    """
     allowlist = _queue_requestor_allowlist()
     if not allowlist:
         raise APIKeyInvalidException()
@@ -249,13 +265,19 @@ async def authenticate_queue_requestor(apikey: str) -> HordeUserContext:
 
 
 async def authenticate_queue_approver(apikey: str) -> HordeUserContext:
-    """Authenticate a queue approver using the configured allowlist."""
+    """Authenticate a queue approver using the configured allowlist.
+
+    Raises:
+        APIKeyInvalidException: If no allowlist is configured or the user is not authorized.
+        HTTPException: 503 if the Horde auth service is unreachable.
+    """
     allowlist = _queue_approver_allowlist()
     if not allowlist:
         raise APIKeyInvalidException()
 
     context = await auth_against_horde(apikey, httpx_client, allowed_user_ids=allowlist)
-    logger.debug(f"Approver authenticated: {context} with allowlist {allowlist}")
+    if context is not None:
+        logger.debug(f"Approver authenticated: user_id={context.user_id}")
     if context is None:
         raise APIKeyInvalidException()
     return context
@@ -325,6 +347,28 @@ class ErrorResponse(BaseModel):
     """Error details - either a string message or list of validation errors."""
 
 
+_INVALID_MODEL_NAME_CHARS = frozenset("\\")
+
+
+def validate_model_name(model_name: str) -> None:
+    """Reject model names that are empty, whitespace-only, or contain path separators.
+
+    Raises:
+        HTTPException: 422 if the model name is invalid.
+    """
+    if not model_name or not model_name.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Model name must not be empty or whitespace-only.",
+        )
+    if _INVALID_MODEL_NAME_CHARS & set(model_name):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Model name must not contain invalid characters {''.join(_INVALID_MODEL_NAME_CHARS)}: "
+            f"'{model_name}'",
+        )
+
+
 def get_model_reference_manager() -> ModelReferenceManager:
     """Dependency helper that returns the singleton model reference manager."""
     return ModelReferenceManager()
@@ -333,12 +377,12 @@ def get_model_reference_manager() -> ModelReferenceManager:
 def assert_canonical_write_enabled(
     manager: ModelReferenceManager,
     *,
-    canonical_format: Literal["legacy", "v2"],
+    canonical_format: CanonicalFormat,
 ) -> None:
     """Ensure that writes are attempted only when the canonical format allows them."""
     backend = manager.backend
     expected_format = horde_model_reference_settings.canonical_format
-    if canonical_format == "v2":
+    if canonical_format == CanonicalFormat.v2:
         if not backend.supports_writes():
             raise HTTPException(
                 status_code=503,
@@ -381,7 +425,7 @@ def assert_pending_queue_write_enabled(manager: ModelReferenceManager) -> None:
     backend = manager.backend
     canonical_format = horde_model_reference_settings.canonical_format
 
-    if canonical_format == "v2":
+    if canonical_format == CanonicalFormat.v2:
         if not backend.supports_writes():
             raise HTTPException(
                 status_code=503,
@@ -392,7 +436,7 @@ def assert_pending_queue_write_enabled(manager: ModelReferenceManager) -> None:
             )
         return
 
-    if canonical_format == "legacy":
+    if canonical_format == CanonicalFormat.LEGACY:
         if not backend.supports_legacy_writes():
             raise HTTPException(
                 status_code=503,

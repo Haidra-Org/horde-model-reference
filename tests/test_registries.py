@@ -417,7 +417,7 @@ class TestTextBackendPrefixFunctions:
         variants = get_model_name_variants("ReadyArt/Broken-Tutu-24B")
         assert "aphrodite/ReadyArt/Broken-Tutu-24B" in variants
         assert "koboldcpp/Broken-Tutu-24B" in variants
-        assert "koboldcpp/ReadyArt_Broken-Tutu-24B" in variants
+        assert "koboldcpp/ReadyArt/Broken-Tutu-24B" in variants
 
     def test_variants_without_org_prefix(self) -> None:
         """Name without org prefix should not produce a spurious sanitized variant."""

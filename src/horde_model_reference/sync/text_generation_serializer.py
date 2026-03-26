@@ -388,8 +388,7 @@ class TextGenerationSerializer:
 
             row = {k: v for k, v in row.items() if v}
 
-            for key_format in ["{name}", "aphrodite/{name}", "koboldcpp/{model_name}"]:
-                key = key_format.format(name=name, model_name=model_name)
+            for key in get_model_name_variants(name):
                 data[key] = {"name": key, "model_name": model_name, **defaults, **row}
 
         return data

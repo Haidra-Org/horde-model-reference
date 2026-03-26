@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import urllib.parse
 from enum import auto
-from typing import Any, Literal
+from typing import Any
 
 from haidra_core.ai_horde.meta import AIHordeCISettings
 from haidra_core.ai_horde.settings import AIHordeWorkerSettings
@@ -97,6 +97,7 @@ class GithubRepoSettings(BaseModel):
 
         Returns:
             str: The full URL to the file.
+
         """
         full_url = urllib.parse.urljoin(self.url_base_only + "/", filename)
         if self.proxy_settings and self.proxy_settings.github_proxy_url_base:
@@ -117,6 +118,7 @@ class GithubRepoSettings(BaseModel):
 
         Returns:
             str: The HTTPS git clone URL (e.g., 'https://github.com/owner/name.git').
+
         """
         return f"https://github.com/{self.owner}/{self.name}.git"
 
@@ -156,13 +158,13 @@ class CanonicalFormat(StrEnum):
     """Which format is the canonical source of truth for model data.
 
     This controls which API version has write access:
-    - 'legacy': v1 API has CRUD operations, v2 API is read-only
+    - 'LEGACY': v1 API has CRUD operations, v2 API is read-only
     - 'v2': v2 API has CRUD operations, v1 API is read-only
     """
 
     LEGACY = auto()
     """Legacy format is canonical. V1 API has write access."""
-    V2 = auto()
+    v2 = auto()
     """V2 format is canonical. V2 API has write access."""
 
 
@@ -302,6 +304,7 @@ class HordeModelReferenceSettings(BaseSettings):
 
         Returns:
             GithubRepoSettings: The GitHub repository settings for the specified category.
+
         """
         if category == MODEL_REFERENCE_CATEGORY.text_generation:
             return self.text_github_repo
@@ -334,10 +337,10 @@ If None, REPLICA clients will only use GitHub. Example: https://stablehorde.net/
     """Whether PRIMARY mode should seed from GitHub on first initialization if local files don't exist. \
 Only used in PRIMARY mode. If True, will download and convert legacy references once on startup."""
 
-    canonical_format: Literal["legacy", "v2"] = "v2"
+    canonical_format: CanonicalFormat = CanonicalFormat.v2
     """Which format is the canonical source of truth. Controls which API has write access. \
 'v2' (default): v2 API has CRUD, v1 API is read-only (converts from v2 to legacy). \
-'legacy': v1 API has CRUD, v2 API is read-only (converts from legacy to v2)."""
+'LEGACY': v1 API has CRUD, v2 API is read-only (converts from legacy to v2)."""
 
     horde_api_timeout: int = 30
     """Timeout in seconds for Horde API requests to fetch model status, statistics, and worker information."""
@@ -444,17 +447,17 @@ Allows service to fully initialize before background tasks begin."""
             )
             self.github_seed_enabled = False
 
-        if self.canonical_format == "legacy" and self.replicate_mode == ReplicateMode.REPLICA:
+        if self.canonical_format == CanonicalFormat.LEGACY and self.replicate_mode == ReplicateMode.REPLICA:
             logger.warning(
-                "canonical_format='legacy' in REPLICA mode: "
+                "canonical_format='LEGACY' in REPLICA mode: "
                 "v1 API will be read-only. Write operations require PRIMARY mode."
             )
 
-        if self.canonical_format == "legacy" and self.replicate_mode == ReplicateMode.PRIMARY:
+        if self.canonical_format == CanonicalFormat.LEGACY and self.replicate_mode == ReplicateMode.PRIMARY:
             logger.info(
-                "canonical_format='legacy' in PRIMARY mode: "
+                "canonical_format='LEGACY' in PRIMARY mode: "
                 "v1 API has CRUD operations, v2 API is read-only. "
-                "Note: v2 → legacy conversion is not yet implemented."
+                "Note: v2 → LEGACY conversion is not yet implemented."
             )
 
         return self

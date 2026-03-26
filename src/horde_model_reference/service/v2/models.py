@@ -5,10 +5,19 @@ from typing import Annotated
 from pydantic import BaseModel, Field
 
 from horde_model_reference.model_reference_records import (
+    AudioGenerationModelRecord,
+    BlipModelRecord,
+    ClipModelRecord,
+    CodeformerModelRecord,
     ControlNetModelRecord,
+    EsrganModelRecord,
     GenericModelRecord,
+    GfpganModelRecord,
     ImageGenerationModelRecord,
+    MiscellaneousModelRecord,
+    SafetyCheckerModelRecord,
     TextGenerationModelRecord,
+    VideoGenerationModelRecord,
 )
 
 
@@ -32,7 +41,19 @@ class UserRolesResponse(BaseModel):
 
 
 ModelRecordUnion = Annotated[
-    ImageGenerationModelRecord | TextGenerationModelRecord | ControlNetModelRecord | GenericModelRecord,
+    ImageGenerationModelRecord
+    | TextGenerationModelRecord
+    | ControlNetModelRecord
+    | BlipModelRecord
+    | ClipModelRecord
+    | CodeformerModelRecord
+    | EsrganModelRecord
+    | GfpganModelRecord
+    | SafetyCheckerModelRecord
+    | VideoGenerationModelRecord
+    | AudioGenerationModelRecord
+    | MiscellaneousModelRecord
+    | GenericModelRecord,
     Field(
         description="A model record conforming to one of the category-specific schemas",
     ),
@@ -40,6 +61,18 @@ ModelRecordUnion = Annotated[
 """Union of all possible model record types for OpenAPI documentation."""
 
 ModelRecordUnionType = (
-    ImageGenerationModelRecord | TextGenerationModelRecord | ControlNetModelRecord | GenericModelRecord
+    ImageGenerationModelRecord
+    | TextGenerationModelRecord
+    | ControlNetModelRecord
+    | BlipModelRecord
+    | ClipModelRecord
+    | CodeformerModelRecord
+    | EsrganModelRecord
+    | GfpganModelRecord
+    | SafetyCheckerModelRecord
+    | VideoGenerationModelRecord
+    | AudioGenerationModelRecord
+    | MiscellaneousModelRecord
+    | GenericModelRecord
 )
 """Union of all possible model record types for type hints."""

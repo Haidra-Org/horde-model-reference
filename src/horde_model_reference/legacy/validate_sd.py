@@ -1,3 +1,5 @@
+"""Script for validating stable-diffusion legacy reference data."""
+
 import argparse
 import json
 from pathlib import Path
@@ -12,7 +14,7 @@ def validate_legacy_stable_diffusion_db(
     write_to_path: Path | None = None,
     fail_on_extra: bool = False,
 ) -> bool:
-    """Validate the ('legacy') stable diffusion model database.
+    """Validate the ('LEGACY') stable diffusion model database.
 
     Args:
         sd_db (Path): Path to the stable diffusion model database (should be a .json file)
@@ -24,6 +26,7 @@ def validate_legacy_stable_diffusion_db(
 
     Returns:
         bool: True if the validation passes, False otherwise.
+
     """
     raw_json_sd_db: str
     with open(sd_db, encoding="utf-8") as sd_db_file:
@@ -101,9 +104,9 @@ def validate_legacy_stable_diffusion_db(
 
 
 def main() -> None:
-    """Validate the ('legacy') stable diffusion model database."""
+    """Validate the ('LEGACY') stable diffusion model database."""
     argParser = argparse.ArgumentParser()
-    argParser.description = "Validate the ('legacy') stable diffusion model database."
+    argParser.description = "Validate the ('LEGACY') stable diffusion model database."
     argParser.add_argument(
         "sd_db",
         help="Path to the stable diffusion model database (should be a .json file)",

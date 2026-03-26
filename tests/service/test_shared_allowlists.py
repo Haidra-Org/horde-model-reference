@@ -30,83 +30,47 @@ def test_queue_requestor_allowlist_combines_configured_ids() -> None:
     assert allowlist == {"111", "222"}
 
 
-def test_queue_requestor_allowlist_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Verify requestor allowlist falls back when no IDs are configured."""
+def test_queue_requestor_allowlist_rejects_when_unconfigured() -> None:
+    """Verify requestor allowlist returns empty set when no IDs are configured (fail closed)."""
     settings = horde_model_reference_settings.pending_queue
     settings.requestor_ids = []
     settings.approver_ids = []
-
-    monkeypatch.setattr(shared, "allowed_users", ["fallback"])
-    monkeypatch.setattr(shared, "_requestor_fallback_logged", False)
 
     allowlist = shared._queue_requestor_allowlist()
 
-    assert allowlist == {"fallback"}
+    assert allowlist == set()
 
 
-def test_queue_approver_allowlist_falls_back_to_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Verify approver allowlist falls back when no IDs are configured."""
+def test_queue_approver_allowlist_rejects_when_unconfigured() -> None:
+    """Verify approver allowlist returns empty set when no IDs are configured (fail closed)."""
     settings = horde_model_reference_settings.pending_queue
     settings.approver_ids = []
-
-    monkeypatch.setattr(shared, "allowed_users", ["fallback"])
-    monkeypatch.setattr(shared, "_approver_fallback_logged", False)
 
     allowlist = shared._queue_approver_allowlist()
 
-    assert allowlist == {"fallback"}
+    assert allowlist == set()
 
 
 @pytest.mark.asyncio
-async def test_authenticate_queue_approver_uses_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure approver authentication succeeds with fallback allowlist."""
+async def test_authenticate_queue_approver_rejects_when_unconfigured() -> None:
+    """Ensure approver authentication rejects when no allowlist is configured (fail closed)."""
     settings = horde_model_reference_settings.pending_queue
     settings.requestor_ids = []
     settings.approver_ids = []
 
-    monkeypatch.setattr(shared, "allowed_users", ["fallback"])
-    monkeypatch.setattr(shared, "_approver_fallback_logged", False)
-
-    async def _mock_auth(
-        apikey: str,
-        client: AsyncClient,
-        *,
-        allowed_user_ids: set[str],
-    ) -> HordeUserContext | None:
-        assert allowed_user_ids == {"fallback"}
-        return HordeUserContext(user_id="fallback", username="tester#fallback")
-
-    monkeypatch.setattr(shared, "auth_against_horde", _mock_auth)
-
-    result = await shared.authenticate_queue_approver("dummy")
-
-    assert result.user_id == "fallback"
+    with pytest.raises(shared.APIKeyInvalidException):
+        await shared.authenticate_queue_approver("dummy")
 
 
 @pytest.mark.asyncio
-async def test_authenticate_queue_requestor_uses_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Ensure requestor authentication succeeds with fallback allowlist."""
+async def test_authenticate_queue_requestor_rejects_when_unconfigured() -> None:
+    """Ensure requestor authentication rejects when no allowlist is configured (fail closed)."""
     settings = horde_model_reference_settings.pending_queue
     settings.requestor_ids = []
     settings.approver_ids = []
 
-    monkeypatch.setattr(shared, "allowed_users", ["fallback"])
-    monkeypatch.setattr(shared, "_requestor_fallback_logged", False)
-
-    async def _mock_auth(
-        apikey: str,
-        client: AsyncClient,
-        *,
-        allowed_user_ids: set[str],
-    ) -> HordeUserContext | None:
-        assert allowed_user_ids == {"fallback"}
-        return HordeUserContext(user_id="fallback", username="tester#fallback")
-
-    monkeypatch.setattr(shared, "auth_against_horde", _mock_auth)
-
-    result = await shared.authenticate_queue_requestor("dummy")
-
-    assert result.user_id == "fallback"
+    with pytest.raises(shared.APIKeyInvalidException):
+        await shared.authenticate_queue_requestor("dummy")
 
 
 @pytest.mark.asyncio

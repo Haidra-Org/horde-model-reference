@@ -33,13 +33,16 @@ class SearchResponse(BaseModel):
     limit: int
     """Limit applied."""
 
+    has_more: bool
+    """Whether more results exist beyond the current page."""
+
 
 def _validate_category(category_name: str) -> MODEL_REFERENCE_CATEGORY:
     try:
         return MODEL_REFERENCE_CATEGORY(category_name)
     except ValueError:
         valid = [c.value for c in MODEL_REFERENCE_CATEGORY]
-        raise HTTPException(status_code=404, detail=f"Unknown category '{category_name}'. Valid: {valid}") from None
+        raise HTTPException(status_code=422, detail=f"Unknown category '{category_name}'. Valid: {valid}") from None
 
 
 def _serialize_record(record: GenericModelRecord) -> dict[str, Any]:
@@ -123,6 +126,7 @@ def _apply_generic_filters(
         total=total,
         offset=offset,
         limit=limit,
+        has_more=offset + limit < total,
     )
 
 
@@ -232,6 +236,7 @@ def search_all(
         total=total,
         offset=offset,
         limit=limit,
+        has_more=offset + limit < total,
     )
 
 
