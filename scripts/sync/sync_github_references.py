@@ -67,6 +67,7 @@ from typing import Any
 
 import httpx
 from loguru import logger
+from tenacity import RetryError
 
 logger.remove()
 logger.add(
@@ -77,6 +78,11 @@ logger.add(
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY, horde_model_reference_settings  # noqa: E402
 from horde_model_reference.backends.github_backend import GitHubBackend  # noqa: E402
+from horde_model_reference.http_retry import (  # noqa: E402
+    RetryableHTTPStatusError,
+    http_retry_sync,
+    is_retryable_status_code,
+)
 from horde_model_reference.sync import (  # noqa: E402
     GitHubSyncClient,
     ModelReferenceComparator,
@@ -114,7 +120,7 @@ class GithubSynchronizer:
         """Fetch model reference data from PRIMARY v1 API.
 
         Args:
-            api_url: Base URL of PRIMARY API (e.g., https://stablehorde.net/api).
+            api_url: Base URL of PRIMARY API (e.g., https://models.aihorde.net/).
             category (MODEL_REFERENCE_CATEGORY): The category to fetch.
             timeout: Request timeout in seconds.
 
@@ -128,15 +134,18 @@ class GithubSynchronizer:
         logger.debug(f"Fetching PRIMARY data from {endpoint}")
 
         try:
-            with httpx.Client(timeout=timeout) as client:
-                response = client.get(endpoint)
-                response.raise_for_status()
-                data: dict[str, dict[str, Any]] = response.json()
+            for attempt in http_retry_sync(max_attempts=3, min_wait=1.0, max_wait=15.0):
+                with attempt, httpx.Client(timeout=timeout) as client:
+                    response = client.get(endpoint)
+                    if is_retryable_status_code(response.status_code):
+                        raise RetryableHTTPStatusError(response)
+                    response.raise_for_status()
+                    data: dict[str, dict[str, Any]] = response.json()
 
             logger.debug(f"Fetched {len(data)} models for {category} from PRIMARY")
             return data
 
-        except httpx.HTTPError as e:
+        except (RetryError, httpx.HTTPError) as e:
             logger.error(f"Failed to fetch PRIMARY data for {category}: {e}")
             raise
 
@@ -194,10 +203,13 @@ class GithubSynchronizer:
         db_json_url = repo.compose_full_file_url("db.json")
         logger.debug(f"Fetching GitHub db.json from {db_json_url}")
 
-        with httpx.Client(timeout=timeout) as client:
-            response = client.get(db_json_url)
-            response.raise_for_status()
-            data: dict[str, dict[str, Any]] = response.json()
+        for attempt in http_retry_sync(max_attempts=3, min_wait=1.0, max_wait=15.0):
+            with attempt, httpx.Client(timeout=timeout) as client:
+                response = client.get(db_json_url)
+                if is_retryable_status_code(response.status_code):
+                    raise RetryableHTTPStatusError(response)
+                response.raise_for_status()
+                data: dict[str, dict[str, Any]] = response.json()
 
         logger.debug(f"Fetched {len(data)} models from GitHub db.json")
         return data

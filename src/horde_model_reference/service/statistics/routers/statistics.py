@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
+from tenacity import RetryError
 
 from horde_model_reference import ModelReferenceManager
 from horde_model_reference.analytics.statistics import CategoryStatistics, calculate_category_statistics
@@ -17,6 +18,7 @@ from horde_model_reference.integrations.data_merger import (
     CombinedModelStatistics,
     merge_category_with_horde_data,
 )
+from horde_model_reference.integrations.horde_api_integration import HordeAPIDegradedError
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.service.shared import (
     ErrorResponse,
@@ -279,6 +281,12 @@ async def read_models_with_stats(
         status_data = await horde_api.get_model_status_indexed(model_type)
         stats_data = await horde_api.get_model_stats_indexed(model_type)
         workers_data = await horde_api.get_workers_indexed(model_type) if include_workers else None
+    except (HordeAPIDegradedError, RetryError) as e:
+        logger.warning(f"AI Horde API unavailable for {model_type}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI Horde API is currently unavailable: {e!s}",
+        ) from e
     except Exception as e:
         logger.exception(f"Failed to fetch Horde API data for {model_type}: {e}")
         raise HTTPException(

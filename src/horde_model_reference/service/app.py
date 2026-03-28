@@ -5,8 +5,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from haidra_core.service_base import ContainsMessage, ContainsStatus
+from haidra_core.service_base import ContainsMessage
 from loguru import logger
+from pydantic import BaseModel
 
 import horde_model_reference.service.statistics.routers.deletion_risk as ref_deletion_risk
 import horde_model_reference.service.statistics.routers.statistics as ref_statistics
@@ -21,7 +22,23 @@ import horde_model_reference.service.v2.routers.references as v2_references
 import horde_model_reference.service.v2.routers.search as v2_search
 import horde_model_reference.service.v2.routers.user as v2_user
 from horde_model_reference import BackendInfo, ReplicateMode, horde_model_reference_settings
+from horde_model_reference.http_retry import horde_api_circuit_breaker
 from horde_model_reference.service.shared import statistics_prefix, v1_prefix, v2_prefix
+
+
+class AIHordeStatus(BaseModel):
+    """Status of the external AI Horde API connection."""
+
+    degraded: bool
+    consecutive_failures: int
+    seconds_until_retry: float | None
+
+
+class HeartbeatResponse(BaseModel):
+    """Enhanced heartbeat response with external service status."""
+
+    status: str
+    ai_horde: AIHordeStatus
 
 
 @asynccontextmanager
@@ -87,9 +104,23 @@ async def read_root() -> ContainsMessage:
 
 
 @app.get("/heartbeat")
-async def heartbeat() -> ContainsStatus:
-    """Heartbeat endpoint to check the service status."""
-    return ContainsStatus(status="ok")
+async def heartbeat() -> HeartbeatResponse:
+    """Heartbeat endpoint to check the service status.
+
+    Returns overall service status and the state of the external AI Horde API
+    connection. When the AI Horde API is unreachable, ``ai_horde.degraded`` is
+    ``True`` and ``ai_horde.seconds_until_retry`` indicates when the next probe
+    request will be attempted.
+    """
+    cb_status = horde_api_circuit_breaker.get_status_dict()
+    return HeartbeatResponse(
+        status="ok",
+        ai_horde=AIHordeStatus(
+            degraded=cb_status["degraded"],
+            consecutive_failures=cb_status["consecutive_failures"],
+            seconds_until_retry=cb_status["seconds_until_retry"],
+        ),
+    )
 
 
 @app.get("/replicate_mode")

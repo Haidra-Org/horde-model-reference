@@ -7,6 +7,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
+from tenacity import RetryError
 
 from horde_model_reference import ModelReferenceManager
 from horde_model_reference.analytics.deletion_risk_analysis import (
@@ -18,7 +19,7 @@ from horde_model_reference.analytics.deletion_risk_cache import DeletionRiskCach
 from horde_model_reference.analytics.filter_presets import apply_preset_filter
 from horde_model_reference.analytics.text_model_grouping import apply_text_model_grouping_to_risk_response
 from horde_model_reference.integrations.data_merger import merge_category_with_horde_data
-from horde_model_reference.integrations.horde_api_integration import HordeAPIIntegration
+from horde_model_reference.integrations.horde_api_integration import HordeAPIDegradedError, HordeAPIIntegration
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.service.shared import (
     PathVariables,
@@ -221,6 +222,12 @@ async def get_category_deletion_risk(
         status_data = await horde_api.get_model_status_indexed(model_type)
         stats_data = await horde_api.get_model_stats_indexed(model_type)
         # Don't fetch workers for deletion risk analysis (not needed)
+    except (HordeAPIDegradedError, RetryError) as e:
+        logger.warning(f"AI Horde API unavailable for {model_type}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"AI Horde API is currently unavailable: {e!s}",
+        ) from e
     except Exception as e:
         logger.exception(f"Error fetching Horde API data for {model_type}: {e}")
         raise HTTPException(

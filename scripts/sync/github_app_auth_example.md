@@ -23,7 +23,7 @@ We recommend App authentication in production. You can use personal access token
 ### Using Private Key File
 
 ```bash
-export HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://stablehorde.net/api"
+export HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://models.aihorde.net"
 export GITHUB_APP_ID="123456"
 export GITHUB_APP_INSTALLATION_ID="12345678"
 export GITHUB_APP_PRIVATE_KEY_PATH="/path/to/private-key.pem"
@@ -34,7 +34,7 @@ export GITHUB_APP_PRIVATE_KEY_PATH="/path/to/private-key.pem"
 If you store the private key in a secret manager or environment variable:
 
 ```bash
-export HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://stablehorde.net/api"
+export HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://models.aihorde.net"
 export GITHUB_APP_ID="123456"
 export GITHUB_APP_INSTALLATION_ID="12345678"
 export GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
@@ -127,7 +127,7 @@ services:
   horde-github-sync:
     image: horde-model-reference:latest
     environment:
-      - HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://stablehorde.net/api
+      - HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://models.aihorde.net
       - GITHUB_APP_ID=123456
       - GITHUB_APP_INSTALLATION_ID=12345678
       - GITHUB_APP_PRIVATE_KEY_PATH=/secrets/github-app-key.pem
@@ -177,7 +177,7 @@ spec:
         command: ["python", "scripts/sync/sync_github_references.py"]
         env:
         - name: HORDE_GITHUB_SYNC_PRIMARY_API_URL
-          value: "https://stablehorde.net/api"
+          value: "https://models.aihorde.net/"
         - name: GITHUB_APP_ID
           valueFrom:
             secretKeyRef:

@@ -37,7 +37,7 @@ The package has two operational modes:
 ```bash
 # REPLICA mode (default) - for workers/clients
 export HORDE_MODEL_REFERENCE_REPLICATE_MODE=REPLICA
-export HORDE_MODEL_REFERENCE_PRIMARY_API_URL=https://aihorde.net/api
+export HORDE_MODEL_REFERENCE_PRIMARY_API_URL=https://models.aihorde.net/
 
 # PRIMARY mode - for server deployment
 export HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY

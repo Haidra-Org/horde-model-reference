@@ -85,9 +85,8 @@ def get_model_name_variants(canonical_name: str) -> list[str]:
     Given a canonical name like "ReadyArt/Broken-Tutu-24B", returns all possible
     variants that might appear in the Horde API stats:
     - Canonical: ReadyArt/Broken-Tutu-24B
-    - Aphrodite: aphrodite/ReadyArt/Broken-Tutu-24B
-    - KoboldCPP: koboldcpp/ReadyArt/Broken-Tutu-24B
-    - Canonical with Backend: koboldcpp/ReadyArt/Broken-Tutu-24B (only if the canonical name contains a "/")
+    - Aphrodite: aphrodite/ReadyArt/Broken-Tutu-24B (prefix + full canonical name)
+    - KoboldCpp: koboldcpp/Broken-Tutu-24B (prefix + model name only)
 
     Args:
         canonical_name: The canonical model name from the model reference.
@@ -97,9 +96,8 @@ def get_model_name_variants(canonical_name: str) -> list[str]:
 
     Example:
         >>> get_model_name_variants("ReadyArt/Broken-Tutu-24B")
-        ['ReadyArt/Broken-Tutu-24B', 'aphrodite/ReadyArt/Broken-Tutu-24B', 'koboldcpp/Broken-Tutu-24B', 'koboldcpp/ReadyArt/Broken-Tutu-24B']
-
-    """  # noqa: E501
+        ['ReadyArt/Broken-Tutu-24B', 'aphrodite/ReadyArt/Broken-Tutu-24B', 'koboldcpp/Broken-Tutu-24B']
+    """
     variants = [canonical_name]
 
     model_name_only = canonical_name.split("/", 1)[1] if "/" in canonical_name else canonical_name
@@ -108,8 +106,10 @@ def get_model_name_variants(canonical_name: str) -> list[str]:
         if value not in variants:
             variants.append(value)
 
-    for prefix in TEXT_LEGACY_BACKEND_PREFIXES.values():
-        _append_variant(f"{prefix}{model_name_only}")
-        _append_variant(f"{prefix}{canonical_name}")
+    for backend, prefix in TEXT_LEGACY_BACKEND_PREFIXES.items():
+        if backend == TEXT_BACKENDS.koboldcpp:
+            _append_variant(f"{prefix}{model_name_only}")
+        elif backend == TEXT_BACKENDS.aphrodite:
+            _append_variant(f"{prefix}{canonical_name}")
 
     return variants

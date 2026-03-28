@@ -6,16 +6,22 @@ with fallback to GitHub if the PRIMARY is unavailable.
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 from typing import Any, override
 
 import httpx
 from loguru import logger
+from tenacity import RetryError
 
 from horde_model_reference import ReplicateMode, horde_model_reference_settings
 from horde_model_reference.backends.github_backend import GitHubBackend
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
+from horde_model_reference.http_retry import (
+    RetryableHTTPStatusError,
+    http_retry_async,
+    http_retry_sync,
+    is_retryable_status_code,
+)
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
@@ -47,7 +53,7 @@ class HTTPBackend(ReplicaBackendBase):
         """Initialize HTTP backend with GitHub fallback.
 
         Args:
-            primary_api_url: Base URL of PRIMARY server API (e.g., "https://stablehorde.net/api")
+            primary_api_url: Base URL of PRIMARY server API (e.g., "https://models.aihorde.net/")
             github_backend: GitHub backend to use as fallback
             cache_ttl_seconds: TTL for local cache in seconds
             timeout_seconds: HTTP request timeout in seconds
@@ -88,33 +94,30 @@ class HTTPBackend(ReplicaBackendBase):
         """Fetch from PRIMARY API with retries (synchronous)."""
         url = self._category_api_url(category)
 
-        for attempt in range(self._retry_max_attempts):
-            if attempt > 0:
-                wait_time = self._retry_backoff_seconds * (2 ** (attempt - 1))
-                logger.debug(f"Retrying PRIMARY API for {category} in {wait_time}s (attempt {attempt + 1})")
-                time.sleep(wait_time)
+        try:
+            for attempt in http_retry_sync(
+                max_attempts=self._retry_max_attempts, min_wait=self._retry_backoff_seconds
+            ):
+                with attempt:
+                    response = httpx.get(url, timeout=self._timeout_seconds)
 
-            try:
-                response = httpx.get(url, timeout=self._timeout_seconds)
+                    if response.status_code == 404:
+                        logger.debug(f"PRIMARY API returned 404 for {category}")
+                        return None
+                    if is_retryable_status_code(response.status_code):
+                        raise RetryableHTTPStatusError(response)
+                    if response.status_code != 200:
+                        logger.warning(f"PRIMARY API returned {response.status_code} for {category}")
+                        return None
 
-                if response.status_code == 200:
                     data: dict[str, Any] = response.json()
                     logger.info(f"Fetched {category} from PRIMARY API")
                     self._primary_hits += 1
                     return data
-
-                if response.status_code == 404:
-                    logger.debug(f"PRIMARY API returned 404 for {category}")
-                    return None
-
-                logger.warning(f"PRIMARY API returned {response.status_code} for {category}")
-
-            except httpx.TimeoutException:
-                logger.warning(f"PRIMARY API timeout for {category}")
-            except Exception as e:
-                logger.warning(f"PRIMARY API error for {category}: {e}")
-
-        logger.warning(f"Failed to fetch {category} from PRIMARY after {self._retry_max_attempts} attempts")
+        except RetryError:
+            logger.warning(f"Failed to fetch {category} from PRIMARY after {self._retry_max_attempts} attempts")
+        except RetryableHTTPStatusError:
+            logger.warning(f"Failed to fetch {category} from PRIMARY after {self._retry_max_attempts} attempts")
         return None
 
     def _fetch_legacy_from_primary(
@@ -129,34 +132,31 @@ class HTTPBackend(ReplicaBackendBase):
         """
         url = self._legacy_category_api_url(category)
 
-        for attempt in range(self._retry_max_attempts):
-            if attempt > 0:
-                wait_time = self._retry_backoff_seconds * (2 ** (attempt - 1))
-                logger.debug(f"Retrying PRIMARY API for legacy {category} in {wait_time}s (attempt {attempt + 1})")
-                time.sleep(wait_time)
+        try:
+            for attempt in http_retry_sync(
+                max_attempts=self._retry_max_attempts, min_wait=self._retry_backoff_seconds
+            ):
+                with attempt:
+                    response = httpx.get(url, timeout=self._timeout_seconds)
 
-            try:
-                response = httpx.get(url, timeout=self._timeout_seconds)
+                    if response.status_code == 404:
+                        logger.debug(f"PRIMARY API returned 404 for legacy {category}")
+                        return None, None
+                    if is_retryable_status_code(response.status_code):
+                        raise RetryableHTTPStatusError(response)
+                    if response.status_code != 200:
+                        logger.warning(f"PRIMARY API returned {response.status_code} for legacy {category}")
+                        return None, None
 
-                if response.status_code == 200:
                     legacy_string = response.text
                     legacy_dict: dict[str, Any] = response.json()
                     logger.info(f"Fetched legacy {category} from PRIMARY API")
                     self._primary_hits += 1
                     return legacy_dict, legacy_string
-
-                if response.status_code == 404:
-                    logger.debug(f"PRIMARY API returned 404 for legacy {category}")
-                    return None, None
-
-                logger.warning(f"PRIMARY API returned {response.status_code} for legacy {category}")
-
-            except httpx.TimeoutException:
-                logger.warning(f"PRIMARY API timeout for legacy {category}")
-            except Exception as e:
-                logger.warning(f"PRIMARY API error for legacy {category}: {e}")
-
-        logger.warning(f"Failed to fetch legacy {category} from PRIMARY after {self._retry_max_attempts} attempts")
+        except RetryError:
+            logger.warning(f"Failed to fetch legacy {category} from PRIMARY after {self._retry_max_attempts} attempts")
+        except RetryableHTTPStatusError:
+            logger.warning(f"Failed to fetch legacy {category} from PRIMARY after {self._retry_max_attempts} attempts")
         return None, None
 
     async def _fetch_from_primary_async(
@@ -165,37 +165,32 @@ class HTTPBackend(ReplicaBackendBase):
         client: httpx.AsyncClient,
     ) -> dict[str, Any] | None:
         """Fetch from PRIMARY API with retries (asynchronous)."""
-        import asyncio
-
         url = self._category_api_url(category)
 
-        for attempt in range(self._retry_max_attempts):
-            if attempt > 0:
-                wait_time = self._retry_backoff_seconds * (2 ** (attempt - 1))
-                logger.debug(f"Retrying PRIMARY API for {category} in {wait_time}s (attempt {attempt + 1})")
-                await asyncio.sleep(wait_time)
+        try:
+            async for attempt in http_retry_async(
+                max_attempts=self._retry_max_attempts, min_wait=self._retry_backoff_seconds
+            ):
+                with attempt:
+                    response = await client.get(url, timeout=self._timeout_seconds)
 
-            try:
-                response = await client.get(url, timeout=self._timeout_seconds)
+                    if response.status_code == 404:
+                        logger.debug(f"PRIMARY API returned 404 for {category}")
+                        return None
+                    if is_retryable_status_code(response.status_code):
+                        raise RetryableHTTPStatusError(response)
+                    if response.status_code != 200:
+                        logger.warning(f"PRIMARY API returned {response.status_code} for {category}")
+                        return None
 
-                if response.status_code == 200:
                     data: dict[str, Any] = response.json()
                     logger.info(f"Fetched {category} from PRIMARY API (async)")
                     self._primary_hits += 1
                     return data
-
-                if response.status_code == 404:
-                    logger.debug(f"PRIMARY API returned 404 for {category}")
-                    return None
-
-                logger.warning(f"PRIMARY API returned {response.status_code} for {category}")
-
-            except httpx.TimeoutException:
-                logger.warning(f"PRIMARY API timeout for {category}")
-            except Exception as e:
-                logger.warning(f"PRIMARY API error for {category}: {e}")
-
-        logger.warning(f"Failed to fetch {category} from PRIMARY async after {self._retry_max_attempts} attempts")
+        except RetryError:
+            logger.warning(f"Failed to fetch {category} from PRIMARY async after {self._retry_max_attempts} attempts")
+        except RetryableHTTPStatusError:
+            logger.warning(f"Failed to fetch {category} from PRIMARY async after {self._retry_max_attempts} attempts")
         return None
 
     async def _fetch_legacy_from_primary_async(
@@ -209,40 +204,37 @@ class HTTPBackend(ReplicaBackendBase):
             tuple[dict | None, str | None]: (legacy_dict, legacy_string) or (None, None) on failure
 
         """
-        import asyncio
-
         url = self._legacy_category_api_url(category)
 
-        for attempt in range(self._retry_max_attempts):
-            if attempt > 0:
-                wait_time = self._retry_backoff_seconds * (2 ** (attempt - 1))
-                logger.debug(f"Retrying PRIMARY API for legacy {category} in {wait_time}s (attempt {attempt + 1})")
-                await asyncio.sleep(wait_time)
+        try:
+            async for attempt in http_retry_async(
+                max_attempts=self._retry_max_attempts, min_wait=self._retry_backoff_seconds
+            ):
+                with attempt:
+                    response = await client.get(url, timeout=self._timeout_seconds)
 
-            try:
-                response = await client.get(url, timeout=self._timeout_seconds)
+                    if response.status_code == 404:
+                        logger.debug(f"PRIMARY API returned 404 for legacy {category}")
+                        return None, None
+                    if is_retryable_status_code(response.status_code):
+                        raise RetryableHTTPStatusError(response)
+                    if response.status_code != 200:
+                        logger.warning(f"PRIMARY API returned {response.status_code} for legacy {category}")
+                        return None, None
 
-                if response.status_code == 200:
                     legacy_string = response.text
                     legacy_dict: dict[str, Any] = response.json()
                     logger.info(f"Fetched legacy {category} from PRIMARY API (async)")
                     self._primary_hits += 1
                     return legacy_dict, legacy_string
-
-                if response.status_code == 404:
-                    logger.debug(f"PRIMARY API returned 404 for legacy {category}")
-                    return None, None
-
-                logger.warning(f"PRIMARY API returned {response.status_code} for legacy {category}")
-
-            except httpx.TimeoutException:
-                logger.warning(f"PRIMARY API timeout for legacy {category}")
-            except Exception as e:
-                logger.warning(f"PRIMARY API error for legacy {category}: {e}")
-
-        logger.warning(
-            f"Failed to fetch legacy {category} from PRIMARY async after {self._retry_max_attempts} attempts"
-        )
+        except RetryError:
+            logger.warning(
+                f"Failed to fetch legacy {category} from PRIMARY async after {self._retry_max_attempts} attempts"
+            )
+        except RetryableHTTPStatusError:
+            logger.warning(
+                f"Failed to fetch legacy {category} from PRIMARY async after {self._retry_max_attempts} attempts"
+            )
         return None, None
 
     @override

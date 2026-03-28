@@ -204,7 +204,7 @@ cp .env.sync.example .env.sync
 
 ```bash
 # Required: PRIMARY API URL
-HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://stablehorde.net/api
+HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://models.aihorde.net
 ```
 
 **3. Configure authentication (choose one method):**
@@ -255,7 +255,7 @@ For non-Docker deployments, set environment variables directly:
 
 ```bash
 # PRIMARY API URL (required)
-export HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://stablehorde.net/api"
+export HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://models.aihorde.net/"
 ```
 
 Then configure authentication (see next section).
@@ -636,7 +636,7 @@ Run every 6 hours:
 
 # Or with explicit configuration
 0 */6 * * * cd /path/to/horde-model-reference && \
-  HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://stablehorde.net/api" \
+  HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://models.aihorde.net" \
   GITHUB_TOKEN="ghp_xxxx" \
   /path/to/venv/bin/python scripts/sync/sync_github_references.py
 ```
@@ -723,7 +723,7 @@ WantedBy=timers.target
 **Create `/etc/horde-github-sync/env`:**
 
 ```bash
-HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://stablehorde.net/api
+HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://models.aihorde.net/api
 GITHUB_TOKEN=ghp_your_token_here
 ```
 
@@ -753,7 +753,7 @@ services:
   horde-github-sync:
     image: horde-model-reference:latest
     environment:
-      - HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://stablehorde.net/api
+      - HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://models.aihorde.net/api
       - GITHUB_APP_ID=123456
       - GITHUB_APP_INSTALLATION_ID=12345678
       - GITHUB_APP_PRIVATE_KEY_PATH=/secrets/github-app-key.pem
@@ -812,7 +812,7 @@ spec:
         command: ["python", "scripts/sync/sync_github_references.py", "--watch", "--watch-interval", "300"]
         env:
         - name: HORDE_GITHUB_SYNC_PRIMARY_API_URL
-          value: "https://stablehorde.net/api"
+          value: "https://models.aihorde.net/"
         - name: GITHUB_APP_ID
           valueFrom:
             secretKeyRef:
@@ -930,7 +930,7 @@ Test coverage includes:
 Set the `HORDE_GITHUB_SYNC_PRIMARY_API_URL` environment variable:
 
 ```bash
-export HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://stablehorde.net/api"
+export HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://aihorde.net/api"
 ```
 
 #### "GitHub token is not configured"
