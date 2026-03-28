@@ -1,6 +1,6 @@
 """Constants for analytics calculations.
 
-Centralized configuration values used across statistics and audit analysis modules.
+Centralized configuration values used across statistics and deletion risk analysis modules.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ TOP_TAGS_LIMIT = 40
 TOP_STYLES_LIMIT = 30
 """Maximum number of top styles to include in statistics."""
 
-# Audit analysis constants
+# Deletion risk analysis constants
 LOW_USAGE_THRESHOLD = 0.01
 """Threshold (as percentage) for flagging models with low usage.
 

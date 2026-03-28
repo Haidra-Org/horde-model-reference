@@ -8,10 +8,10 @@ from fastapi.testclient import TestClient
 
 from horde_model_reference import (
     MODEL_REFERENCE_CATEGORY,
+    CanonicalFormat,
     ModelReferenceManager,
     horde_model_reference_settings,
 )
-from horde_model_reference.audit import AuditDomain
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.pending_queue import PendingQueueService
 from horde_model_reference.service.shared import get_model_reference_manager
@@ -45,7 +45,7 @@ def v2_primary_manager(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[ModelReferenceManager]:
     """PRIMARY manager with canonical v2 for pending queue audit tests."""
-    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "v2")
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", CanonicalFormat.v2)
     manager = primary_manager_override_factory(get_model_reference_manager)
     yield manager
 
@@ -155,16 +155,16 @@ def test_pending_queue_audit_defaults_to_legacy_domain(
     )
     assert response.status_code == 200
     payload = response.json()
-    assert payload["domain"] == AuditDomain.LEGACY
+    assert payload["domain"] == CanonicalFormat.LEGACY
     assert payload["batches"][0]["batch_id"] == batch.batch_id
 
     override_resp = api_client.get(
         "/model_references/v1/pending_queue/audit/batches",
-        params={"domain_override": AuditDomain.LEGACY, "limit": 1},
+        params={"domain_override": CanonicalFormat.LEGACY, "limit": 1},
         headers=_API_HEADERS,
     )
     assert override_resp.status_code == 200
-    assert override_resp.json()["domain"] == AuditDomain.LEGACY
+    assert override_resp.json()["domain"] == CanonicalFormat.LEGACY
 
 
 def test_pending_queue_audit_requires_authentication(

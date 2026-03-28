@@ -10,6 +10,7 @@ from httpx import Response
 
 from horde_model_reference import (
     MODEL_REFERENCE_CATEGORY,
+    CanonicalFormat,
     ModelReferenceManager,
     horde_model_reference_paths,
     horde_model_reference_settings,
@@ -760,7 +761,7 @@ class TestLegacyPendingQueueAdmin:
     ) -> None:
         """Pending queue should work in v2 mode - both legacy and v2 support enqueued changes."""
         _enqueue_legacy_pending_change(v1_canonical_manager, model_name="v2_queue_test")
-        monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "v2")
+        monkeypatch.setattr(horde_model_reference_settings, "canonical_format", CanonicalFormat.v2)
 
         response = api_client.get(f"{self._base_url}/changes", headers=_queue_auth_headers())
         # Both legacy and v2 modes support pending queue

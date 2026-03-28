@@ -1,1 +1,1 @@
-"""The statistics and audit specific endpoints."""
+"""The statistics and deletion risk analysis endpoints."""

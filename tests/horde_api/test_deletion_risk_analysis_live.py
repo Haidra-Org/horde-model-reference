@@ -1,4 +1,4 @@
-"""Integration tests for audit analysis with live Horde API data.
+"""Integration tests for deletion risk analysis with live Horde API data.
 
 Contains integration tests hitting live API (slower, network-dependent, marked with @pytest.mark.integration)
 
@@ -25,15 +25,15 @@ GOLDEN_IMAGE_MODELS: set[str] = {
 GOLDEN_TEXT_MODELS: set[str] = set()
 # Add golden text models here when identified
 
-# Performance threshold for full category audit (seconds)
-MAX_AUDIT_TIME_SECONDS = 15.0
+# Performance threshold for full category deletion risk analysis (seconds)
+MAX_RISK_ANALYSIS_TIME_SECONDS = 15.0
 
 
-def verify_audit_response_structure(response_data: dict[str, Any]) -> None:
-    """Verify the structure of an audit response.
+def verify_risk_response_structure(response_data: dict[str, Any]) -> None:
+    """Verify the structure of a deletion risk response.
 
     Args:
-        response_data: The parsed JSON response from audit endpoint
+        response_data: The parsed JSON response from deletion risk endpoint
     """
     assert "summary" in response_data
     assert "models" in response_data
@@ -57,7 +57,7 @@ def verify_golden_models_not_critical(
     """Verify that golden models are never marked as critical.
 
     Args:
-        response_data: The parsed JSON response from audit endpoint
+        response_data: The parsed JSON response from deletion risk endpoint
         golden_models: Set of model names that should never be critical
     """
     models = response_data["models"]
@@ -77,7 +77,7 @@ def verify_summary_consistency(response_data: dict[str, Any]) -> None:
     The models list may be filtered by preset or paginated, so we verify against total_count.
 
     Args:
-        response_data: The parsed JSON response from audit endpoint
+        response_data: The parsed JSON response from deletion risk endpoint
     """
     summary = response_data["summary"]
     total_count = response_data["total_count"]
@@ -94,18 +94,18 @@ def verify_summary_consistency(response_data: dict[str, Any]) -> None:
     assert summary["average_risk_score"] >= 0.0
 
 
-class TestAuditCacheBehavior:
-    """Test audit caching behavior."""
+class TestDeletionRiskCacheBehavior:
+    """Test deletion risk caching behavior."""
 
-    def test_audit_cache_consistency(self, api_client: TestClient) -> None:
-        """Test that repeated audit calls within cache window return consistent results."""
+    def test_deletion_risk_cache_consistency(self, api_client: TestClient) -> None:
+        """Test that repeated deletion risk calls within cache window return consistent results."""
         # First call
-        response1 = api_client.get("/model_references/statistics/image_generation/audit")
+        response1 = api_client.get("/model_references/statistics/image_generation/deletion-risk")
         assert response1.status_code == 200
         data1 = response1.json()
 
         # Second call (should hit cache)
-        response2 = api_client.get("/model_references/statistics/image_generation/audit")
+        response2 = api_client.get("/model_references/statistics/image_generation/deletion-risk")
         assert response2.status_code == 200
         data2 = response2.json()
 
@@ -115,25 +115,25 @@ class TestAuditCacheBehavior:
         assert len(data1["models"]) == len(data2["models"])
 
 
-class TestAuditPerformance:
-    """Test audit performance characteristics."""
+class TestDeletionRiskPerformance:
+    """Test deletion risk performance characteristics."""
 
-    def test_audit_completes_within_threshold(self, api_client: TestClient) -> None:
-        """Test that full category audit completes within performance threshold."""
+    def test_risk_analysis_completes_within_threshold(self, api_client: TestClient) -> None:
+        """Test that full category deletion risk analysis completes within performance threshold."""
         start_time = time.time()
 
-        response = api_client.get("/model_references/statistics/image_generation/audit")
+        response = api_client.get("/model_references/statistics/image_generation/deletion-risk")
 
         elapsed = time.time() - start_time
 
         assert response.status_code == 200
-        assert elapsed < MAX_AUDIT_TIME_SECONDS, (
-            f"Audit took {elapsed:.2f}s, exceeding threshold of {MAX_AUDIT_TIME_SECONDS}s"
+        assert elapsed < MAX_RISK_ANALYSIS_TIME_SECONDS, (
+            f"Deletion risk analysis took {elapsed:.2f}s, exceeding threshold of {MAX_RISK_ANALYSIS_TIME_SECONDS}s"
         )
 
-    def test_audit_sorting_by_usage(self, api_client: TestClient) -> None:
+    def test_risk_analysis_sorting_by_usage(self, api_client: TestClient) -> None:
         """Test that models are sorted by usage (descending)."""
-        response = api_client.get("/model_references/statistics/image_generation/audit")
+        response = api_client.get("/model_references/statistics/image_generation/deletion-risk")
 
         assert response.status_code == 200
         data = response.json()
@@ -147,12 +147,12 @@ class TestAuditPerformance:
             )
 
 
-class TestAuditEdgeCases:
-    """Test edge cases in audit analysis."""
+class TestDeletionRiskEdgeCases:
+    """Test edge cases in deletion risk analysis."""
 
     def test_models_with_zero_workers(self, api_client: TestClient) -> None:
         """Test handling of models with zero active workers."""
-        response = api_client.get("/model_references/statistics/image_generation/audit")
+        response = api_client.get("/model_references/statistics/image_generation/deletion-risk")
 
         assert response.status_code == 200
         data = response.json()
@@ -169,7 +169,7 @@ class TestAuditEdgeCases:
 
     def test_models_with_multiple_hosts(self, api_client: TestClient) -> None:
         """Test identification of models with multiple download hosts."""
-        response = api_client.get("/model_references/statistics/image_generation/audit")
+        response = api_client.get("/model_references/statistics/image_generation/deletion-risk")
 
         assert response.status_code == 200
         data = response.json()
@@ -185,7 +185,7 @@ class TestAuditEdgeCases:
 
     def test_usage_percentage_calculations(self, api_client: TestClient) -> None:
         """Test that usage percentage calculations are accurate."""
-        response = api_client.get("/model_references/statistics/image_generation/audit")
+        response = api_client.get("/model_references/statistics/image_generation/deletion-risk")
 
         assert response.status_code == 200
         data = response.json()
@@ -205,7 +205,7 @@ class TestAuditEdgeCases:
 
     def test_cost_benefit_score_calculations(self, api_client: TestClient) -> None:
         """Test that cost-benefit scores are calculated correctly."""
-        response = api_client.get("/model_references/statistics/image_generation/audit")
+        response = api_client.get("/model_references/statistics/image_generation/deletion-risk")
 
         assert response.status_code == 200
         data = response.json()
@@ -230,53 +230,53 @@ class TestAuditEdgeCases:
 
 # Integration tests that hit the live API
 @pytest.mark.integration
-class TestAuditLiveIntegration:
+class TestDeletionRiskLiveIntegration:
     """Integration tests against live Horde API (marked with @pytest.mark.integration)."""
 
-    def test_live_image_generation_audit(self, api_client: TestClient) -> None:
-        """Test image generation audit against live Horde API."""
-        response = api_client.get("/model_references/statistics/image_generation/audit")
+    def test_live_image_generation_deletion_risk(self, api_client: TestClient) -> None:
+        """Test image generation deletion risk against live Horde API."""
+        response = api_client.get("/model_references/statistics/image_generation/deletion-risk")
 
         assert response.status_code == 200
         data = response.json()
 
-        verify_audit_response_structure(data)
+        verify_risk_response_structure(data)
         verify_summary_consistency(data)
         verify_golden_models_not_critical(data, GOLDEN_IMAGE_MODELS)
 
-    def test_live_text_generation_audit(self, api_client: TestClient) -> None:
-        """Test text generation audit against live Horde API."""
-        response = api_client.get("/model_references/statistics/text_generation/audit")
+    def test_live_text_generation_deletion_risk(self, api_client: TestClient) -> None:
+        """Test text generation deletion risk against live Horde API."""
+        response = api_client.get("/model_references/statistics/text_generation/deletion-risk")
 
         assert response.status_code == 200
         data = response.json()
 
-        verify_audit_response_structure(data)
+        verify_risk_response_structure(data)
         verify_summary_consistency(data)
 
-    def test_live_audit_performance(self, api_client: TestClient) -> None:
-        """Test audit performance against live API."""
+    def test_live_risk_analysis_performance(self, api_client: TestClient) -> None:
+        """Test deletion risk performance against live API."""
         start_time = time.time()
 
-        response = api_client.get("/model_references/statistics/image_generation/audit")
+        response = api_client.get("/model_references/statistics/image_generation/deletion-risk")
 
         elapsed = time.time() - start_time
 
         assert response.status_code == 200
-        assert elapsed < MAX_AUDIT_TIME_SECONDS, (
-            f"Live audit took {elapsed:.2f}s, exceeding threshold of {MAX_AUDIT_TIME_SECONDS}s"
+        assert elapsed < MAX_RISK_ANALYSIS_TIME_SECONDS, (
+            f"Deletion risk analysis took {elapsed:.2f}s, exceeding {MAX_RISK_ANALYSIS_TIME_SECONDS}s threshold"
         )
 
     def test_live_golden_models_consistency(self, api_client: TestClient) -> None:
         """Test that golden models maintain consistent non-critical status."""
-        # Run audit twice
-        response1 = api_client.get("/model_references/statistics/image_generation/audit")
+        # Run deletion risk analysis twice
+        response1 = api_client.get("/model_references/statistics/image_generation/deletion-risk")
         assert response1.status_code == 200
         data1 = response1.json()
 
         time.sleep(2)  # Brief pause
 
-        response2 = api_client.get("/model_references/statistics/image_generation/audit")
+        response2 = api_client.get("/model_references/statistics/image_generation/deletion-risk")
         assert response2.status_code == 200
         data2 = response2.json()
 

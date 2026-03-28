@@ -11,6 +11,15 @@ from .apply import (
     apply_pending_change,
     apply_pending_changes,
 )
+from .audit_events import (
+    ApplyEvent,
+    ApproveEvent,
+    BatchSplitEvent,
+    EnqueueEvent,
+    PendingQueueAction,
+    PurgeEvent,
+    RejectEvent,
+)
 from .diff_utils import (
     CRITICAL_FIELDS_BY_CATEGORY,
     DOWNLOAD_URL_FIELDS,
@@ -36,6 +45,10 @@ from .store import PendingQueueStore
 __all__ = [
     "CRITICAL_FIELDS_BY_CATEGORY",
     "DOWNLOAD_URL_FIELDS",
+    "ApplyEvent",
+    "ApproveEvent",
+    "BatchSplitEvent",
+    "EnqueueEvent",
     "FieldChangeType",
     "FieldDiff",
     "NetChangeType",
@@ -51,10 +64,13 @@ __all__ = [
     "PendingChangeRecord",
     "PendingChangeStateError",
     "PendingChangeStatus",
+    "PendingQueueAction",
     "PendingQueueFilter",
     "PendingQueuePage",
     "PendingQueueService",
     "PendingQueueStore",
+    "PurgeEvent",
+    "RejectEvent",
     "apply_pending_change",
     "apply_pending_changes",
     "categorize_field_diffs",

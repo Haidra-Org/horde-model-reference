@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from loguru import logger
 
-from horde_model_reference.analytics.audit_analysis import (
-    CategoryAuditResponse,
-    CategoryAuditSummary,
+from horde_model_reference.analytics.deletion_risk_analysis import (
+    CategoryDeletionRiskResponse,
+    CategoryDeletionRiskSummary,
     DeletionRiskFlags,
-    ModelAuditInfo,
+    ModelDeletionRiskInfo,
     UsageTrend,
 )
 from horde_model_reference.analytics.text_model_parser import get_base_model_name
@@ -31,7 +31,7 @@ def merge_deletion_flags(flags_list: list[DeletionRiskFlags]) -> DeletionRiskFla
         Merged DeletionRiskFlags.
 
     """
-    from horde_model_reference.analytics.audit_analysis import DeletionRiskFlags
+    from horde_model_reference.analytics.deletion_risk_analysis import DeletionRiskFlags
 
     if not flags_list:
         return DeletionRiskFlags()
@@ -63,7 +63,7 @@ def merge_usage_trends(trends: list[UsageTrend], weights: list[int]) -> UsageTre
         Merged UsageTrend with weighted average ratios.
 
     """
-    from horde_model_reference.analytics.audit_analysis import UsageTrend
+    from horde_model_reference.analytics.deletion_risk_analysis import UsageTrend
 
     if not trends or not weights:
         return UsageTrend()
@@ -89,39 +89,39 @@ def merge_usage_trends(trends: list[UsageTrend], weights: list[int]) -> UsageTre
     )
 
 
-def group_audit_models(models: list[ModelAuditInfo]) -> list[ModelAuditInfo]:
+def group_risk_models(models: list[ModelDeletionRiskInfo]) -> list[ModelDeletionRiskInfo]:
     """Group text model variants by base name and aggregate metrics.
 
     Combines multiple quantization variants (Q4_K_M, Q5_0, etc.) into a single
     model entry with aggregated metrics.
 
     Args:
-        models: List of ModelAuditInfo objects to group.
+        models: List of ModelDeletionRiskInfo objects to group.
 
     Returns:
-        List of grouped ModelAuditInfo objects with aggregated metrics.
+        List of grouped ModelDeletionRiskInfo objects with aggregated metrics.
 
     """
-    from horde_model_reference.analytics.audit_analysis import ModelAuditInfo
+    from horde_model_reference.analytics.deletion_risk_analysis import ModelDeletionRiskInfo
 
     if not models:
         return []
 
-    grouped: dict[str, list[ModelAuditInfo]] = {}
+    grouped: dict[str, list[ModelDeletionRiskInfo]] = {}
     for model in models:
         base_name = get_base_model_name(model.name)
         if base_name not in grouped:
             grouped[base_name] = []
         grouped[base_name].append(model)
 
-    result: list[ModelAuditInfo] = []
+    result: list[ModelDeletionRiskInfo] = []
     for base_name, variants in grouped.items():
         if len(variants) == 1:
             # Single variant - normalize the name to base_name (strip backend/author prefixes)
             single_model = variants[0]
             if single_model.name != base_name:
                 # Create a copy with the normalized base name
-                single_model = ModelAuditInfo(
+                single_model = ModelDeletionRiskInfo(
                     name=base_name,
                     category=single_model.category,
                     deletion_risk_flags=single_model.deletion_risk_flags,
@@ -175,7 +175,7 @@ def group_audit_models(models: list[ModelAuditInfo]) -> list[ModelAuditInfo]:
         if avg_size_gb and avg_size_gb > 0:
             cost_benefit = total_usage_month / avg_size_gb
 
-        grouped_model = ModelAuditInfo(
+        grouped_model = ModelDeletionRiskInfo(
             name=base_name,
             category=first_variant.category,
             deletion_risk_flags=merged_flags,
@@ -204,20 +204,23 @@ def group_audit_models(models: list[ModelAuditInfo]) -> list[ModelAuditInfo]:
     return result
 
 
-def recalculate_audit_summary(models: list[ModelAuditInfo], category_total_usage: int) -> CategoryAuditSummary:
-    """Recalculate audit summary after grouping models.
+def recalculate_risk_summary(
+    models: list[ModelDeletionRiskInfo],
+    category_total_usage: int,
+) -> CategoryDeletionRiskSummary:
+    """Recalculate risk summary after grouping models.
 
     Args:
-        models: List of (potentially grouped) ModelAuditInfo objects.
+        models: List of (potentially grouped) ModelDeletionRiskInfo objects.
         category_total_usage: Total monthly usage for the category.
 
     Returns:
-        New CategoryAuditSummary with updated counts.
+        New CategoryDeletionRiskSummary with updated counts.
 
     """
-    from horde_model_reference.analytics.audit_analysis import CategoryAuditSummary
+    from horde_model_reference.analytics.deletion_risk_analysis import CategoryDeletionRiskSummary
 
-    return CategoryAuditSummary(
+    return CategoryDeletionRiskSummary(
         total_models=len(models),
         models_at_risk=sum(1 for m in models if m.at_risk),
         models_critical=sum(1 for m in models if m.is_critical),
@@ -235,34 +238,36 @@ def recalculate_audit_summary(models: list[ModelAuditInfo], category_total_usage
     )
 
 
-def apply_text_model_grouping_to_audit(audit_response: CategoryAuditResponse) -> CategoryAuditResponse:
-    """Apply text model grouping to audit response.
+def apply_text_model_grouping_to_risk_response(
+    risk_response: CategoryDeletionRiskResponse,
+) -> CategoryDeletionRiskResponse:
+    """Apply text model grouping to deletion risk response.
 
     Groups text generation models by base name and recalculates summary.
 
     Args:
-        audit_response: Original CategoryAuditResponse.
+        risk_response: Original CategoryDeletionRiskResponse.
 
     Returns:
-        New CategoryAuditResponse with grouped models and updated summary.
+        New CategoryDeletionRiskResponse with grouped models and updated summary.
 
     """
-    from horde_model_reference.analytics.audit_analysis import CategoryAuditResponse
+    from horde_model_reference.analytics.deletion_risk_analysis import CategoryDeletionRiskResponse
 
-    if audit_response.category != MODEL_REFERENCE_CATEGORY.text_generation:
-        logger.debug(f"Skipping grouping for non-text category: {audit_response.category}")
-        return audit_response
+    if risk_response.category != MODEL_REFERENCE_CATEGORY.text_generation:
+        logger.debug(f"Skipping grouping for non-text category: {risk_response.category}")
+        return risk_response
 
-    grouped_models = group_audit_models(audit_response.models)
-    new_summary = recalculate_audit_summary(grouped_models, audit_response.category_total_month_usage)
+    grouped_models = group_risk_models(risk_response.models)
+    new_summary = recalculate_risk_summary(grouped_models, risk_response.category_total_month_usage)
 
-    return CategoryAuditResponse(
-        category=audit_response.category,
-        category_total_month_usage=audit_response.category_total_month_usage,
-        total_count=audit_response.total_count,  # Preserve original total
+    return CategoryDeletionRiskResponse(
+        category=risk_response.category,
+        category_total_month_usage=risk_response.category_total_month_usage,
+        total_count=risk_response.total_count,  # Preserve original total
         returned_count=len(grouped_models),
-        offset=audit_response.offset,
-        limit=audit_response.limit,
+        offset=risk_response.offset,
+        limit=risk_response.limit,
         models=grouped_models,
         summary=new_summary,
     )

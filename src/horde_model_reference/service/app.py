@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from haidra_core.service_base import ContainsMessage, ContainsStatus
 from loguru import logger
 
-import horde_model_reference.service.statistics.routers.audit as ref_audit
+import horde_model_reference.service.statistics.routers.deletion_risk as ref_deletion_risk
 import horde_model_reference.service.statistics.routers.statistics as ref_statistics
 import horde_model_reference.service.v1.routers.metadata as v1_metadata
 import horde_model_reference.service.v1.routers.pending_queue as v1_pending_queue
@@ -70,7 +70,7 @@ app.include_router(v2_pending_queue_audit.router, prefix=v2_prefix, tags=["v2", 
 app.include_router(v2_user.router, prefix=v2_prefix, tags=["v2", "user"])
 app.include_router(v2_references.router, prefix=v2_prefix, tags=["v2"])
 app.include_router(ref_statistics.router, prefix=statistics_prefix, tags=["v2", "statistics"])
-app.include_router(ref_audit.router, prefix=statistics_prefix, tags=["v2", "audit"])
+app.include_router(ref_deletion_risk.router, prefix=statistics_prefix, tags=["v2", "deletion-risk"])
 app.include_router(v2_metadata.router, prefix=f"{v2_prefix}/metadata", tags=["v2", "metadata"])
 app.include_router(v1_pending_queue.router, prefix=v1_prefix, tags=["v1", "pending_queue"])
 app.include_router(v1_pending_queue_audit.router, prefix=v1_prefix, tags=["v1", "pending_queue", "audit"])

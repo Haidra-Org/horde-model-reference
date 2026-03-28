@@ -8,7 +8,8 @@ from pathlib import Path
 from loguru import logger
 from pydantic import ValidationError
 
-from horde_model_reference.audit.events import AuditDomain, AuditEvent
+from horde_model_reference import CanonicalFormat
+from horde_model_reference.audit.events import AuditEvent
 
 
 def _iter_dirs(path: Path) -> list[Path]:
@@ -25,7 +26,7 @@ class AuditTrailReader:
     def iter_events(
         self,
         *,
-        domains: Collection[AuditDomain] | None = None,
+        domains: Collection[CanonicalFormat] | None = None,
         categories: Collection[str] | None = None,
         model_names: Collection[str] | None = None,
         min_event_id: int | None = None,
@@ -43,7 +44,7 @@ class AuditTrailReader:
 
         for domain_path in _iter_dirs(self._root_path):
             try:
-                domain = AuditDomain(domain_path.name)
+                domain = CanonicalFormat(domain_path.name)
             except ValueError:
                 logger.debug(f"Skipping unknown audit domain directory: {domain_path}")
                 continue
@@ -72,7 +73,7 @@ class AuditTrailReader:
         self,
         segment_path: Path,
         *,
-        domain: AuditDomain,
+        domain: CanonicalFormat,
         category: str,
         model_filter: set[str] | None,
         min_event_id: int | None,

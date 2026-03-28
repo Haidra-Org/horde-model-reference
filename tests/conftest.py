@@ -18,7 +18,13 @@ from fastapi.testclient import TestClient
 from loguru import logger
 from pytest import LogCaptureFixture
 
-from horde_model_reference import PrefetchStrategy, ReplicateMode, ai_horde_ci_settings, horde_model_reference_settings
+from horde_model_reference import (
+    CanonicalFormat,
+    PrefetchStrategy,
+    ReplicateMode,
+    ai_horde_ci_settings,
+    horde_model_reference_settings,
+)
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.model_reference_manager import ModelReferenceManager
 from horde_model_reference.service.app import app
@@ -193,7 +199,7 @@ def legacy_canonical_mode(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
 
     This fixture uses monkeypatch to ensure proper cleanup and isolation.
     """
-    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "LEGACY")
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", CanonicalFormat.LEGACY)
     yield
 
 
@@ -203,7 +209,7 @@ def v2_canonical_mode(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
 
     This fixture uses monkeypatch to ensure proper cleanup and isolation.
     """
-    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "v2")
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", CanonicalFormat.v2)
     yield
 
 
@@ -224,7 +230,7 @@ def v1_canonical_manager(
     """
     from horde_model_reference.service.shared import get_model_reference_manager
 
-    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "LEGACY")
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", CanonicalFormat.LEGACY)
 
     queue_root = primary_base / "pending_queue"
     queue_root.mkdir(parents=True, exist_ok=True)

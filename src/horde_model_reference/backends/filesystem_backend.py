@@ -26,7 +26,7 @@ from horde_model_reference import (
     horde_model_reference_paths,
     horde_model_reference_settings,
 )
-from horde_model_reference.audit import AuditDomain, AuditOperation, AuditPayload, AuditTrailWriter
+from horde_model_reference.audit import AuditOperation, AuditPayload, AuditTrailWriter
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
 from horde_model_reference.legacy.text_csv_utils import (
     TextCSVRow,
@@ -240,9 +240,10 @@ class FileSystemBackend(ReplicaBackendBase):
         logger.debug(f"Read {len(data)} models from legacy CSV (with backend prefixes) from {file_path}")
         return data
 
-    def _append_legacy_audit_event(
+    def _append_audit_event(
         self,
         *,
+        domain: CanonicalFormat,
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         operation: AuditOperation,
@@ -255,7 +256,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         try:
             self._audit_writer.append_event(
-                domain=AuditDomain.LEGACY,
+                domain=domain,
                 category=category.value,
                 model_name=model_name,
                 operation=operation,
@@ -264,33 +265,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 request_id=request_id,
             )
         except OSError as exc:  # pragma: no cover - audit writes must not break CRUD
-            logger.warning(f"Failed to append audit event for {category}/{model_name}: {exc}")
-
-    def _append_v2_audit_event(
-        self,
-        *,
-        category: MODEL_REFERENCE_CATEGORY,
-        model_name: str,
-        operation: AuditOperation,
-        payload: AuditPayload,
-        logical_user_id: str | None,
-        request_id: str | None,
-    ) -> None:
-        if self._audit_writer is None or logical_user_id is None:
-            return
-
-        try:
-            self._audit_writer.append_event(
-                domain=AuditDomain.V2,
-                category=category.value,
-                model_name=model_name,
-                operation=operation,
-                logical_user_id=logical_user_id,
-                payload=payload,
-                request_id=request_id,
-            )
-        except OSError as exc:  # pragma: no cover - audit writes must not break CRUD
-            logger.warning(f"Failed to append v2 audit event for {category}/{model_name}: {exc}")
+            logger.warning(f"Failed to append {domain} audit event for {category}/{model_name}: {exc}")
 
     def _read_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
         """Read CSV file and convert to dict format (grouped by base name, no backend prefixes).
@@ -897,7 +872,8 @@ class FileSystemBackend(ReplicaBackendBase):
                         payload = AuditPayload.from_create(record_snapshot)
                         audit_operation = AuditOperation.CREATE
 
-                    self._append_v2_audit_event(
+                    self._append_audit_event(
+                        domain=CanonicalFormat.v2,
                         category=category,
                         model_name=model_name,
                         operation=audit_operation,
@@ -1006,7 +982,8 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 if logical_user_id is not None and self._audit_writer is not None:
                     payload = AuditPayload.from_delete(deleted_snapshot)
-                    self._append_v2_audit_event(
+                    self._append_audit_event(
+                        domain=CanonicalFormat.v2,
                         category=category,
                         model_name=model_name,
                         operation=AuditOperation.DELETE,
@@ -1152,7 +1129,8 @@ class FileSystemBackend(ReplicaBackendBase):
                     else:
                         payload = AuditPayload.from_create(record_snapshot)
                         audit_operation = AuditOperation.CREATE
-                    self._append_legacy_audit_event(
+                    self._append_audit_event(
+                        domain=CanonicalFormat.LEGACY,
                         category=category,
                         model_name=model_name,
                         operation=audit_operation,
@@ -1259,7 +1237,8 @@ class FileSystemBackend(ReplicaBackendBase):
             else:
                 payload = AuditPayload.from_create(record_snapshot)
                 audit_operation = AuditOperation.CREATE
-            self._append_legacy_audit_event(
+            self._append_audit_event(
+                domain=CanonicalFormat.LEGACY,
                 category=category,
                 model_name=model_name,
                 operation=audit_operation,
@@ -1338,7 +1317,8 @@ class FileSystemBackend(ReplicaBackendBase):
 
         if logical_user_id is not None and self._audit_writer is not None:
             payload = AuditPayload.from_delete(deleted_snapshot)
-            self._append_legacy_audit_event(
+            self._append_audit_event(
+                domain=CanonicalFormat.LEGACY,
                 category=category,
                 model_name=model_name,
                 operation=AuditOperation.DELETE,
@@ -1448,7 +1428,8 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 if logical_user_id is not None and self._audit_writer is not None:
                     payload = AuditPayload.from_delete(deleted_snapshot)
-                    self._append_legacy_audit_event(
+                    self._append_audit_event(
+                        domain=CanonicalFormat.LEGACY,
                         category=category,
                         model_name=model_name,
                         operation=AuditOperation.DELETE,
