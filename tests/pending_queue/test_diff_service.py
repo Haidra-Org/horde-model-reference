@@ -5,7 +5,7 @@ from typing import Any
 
 import pytest
 
-from horde_model_reference import horde_model_reference_settings
+from horde_model_reference import CanonicalFormat, horde_model_reference_settings
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.diff_service import PendingChangeDiffService
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
@@ -81,7 +81,7 @@ def test_bulk_diff_reports_total_requests_even_when_errors() -> None:
 
 def test_fetch_current_state_uses_v2_when_canonical_format_is_v2(monkeypatch: pytest.MonkeyPatch) -> None:
     """When canonical_format is 'v2', diff should use get_raw_model_json (v2 path)."""
-    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "v2")
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", CanonicalFormat.v2)
 
     record = PendingChangeRecord(
         change_id=1,

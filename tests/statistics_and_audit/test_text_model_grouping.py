@@ -8,19 +8,19 @@ from __future__ import annotations
 
 import pytest
 
-from horde_model_reference.analytics.audit_analysis import (
-    CategoryAuditResponse,
-    CategoryAuditSummary,
+from horde_model_reference.analytics.deletion_risk_analysis import (
+    CategoryDeletionRiskResponse,
+    CategoryDeletionRiskSummary,
     DeletionRiskFlags,
-    ModelAuditInfo,
+    ModelDeletionRiskInfo,
     UsageTrend,
 )
 from horde_model_reference.analytics.text_model_grouping import (
-    apply_text_model_grouping_to_audit,
-    group_audit_models,
+    apply_text_model_grouping_to_risk_response,
+    group_risk_models,
     merge_deletion_flags,
     merge_usage_trends,
-    recalculate_audit_summary,
+    recalculate_risk_summary,
 )
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
@@ -175,17 +175,17 @@ class TestMergeUsageTrends:
         assert result.month_to_total_ratio is None
 
 
-class TestGroupAuditModels:
+class TestGroupRiskModels:
     """Test grouping multiple model variants into aggregated entries."""
 
     def test_group_empty_list(self) -> None:
         """Empty list should return empty list."""
-        result = group_audit_models([])
+        result = group_risk_models([])
         assert result == []
 
     def test_group_single_model(self) -> None:
         """Single model should have its name normalized to base name."""
-        model = ModelAuditInfo(
+        model = ModelDeletionRiskInfo(
             name="llama-2-7b-Q4_K_M",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(),
@@ -198,7 +198,7 @@ class TestGroupAuditModels:
             usage_percentage_of_category=5.0,
             usage_trend=UsageTrend(day_to_month_ratio=0.03, month_to_total_ratio=0.06),
         )
-        result = group_audit_models([model])
+        result = group_risk_models([model])
         assert len(result) == 1
         # Name should be normalized to base name (strips size, quant info)
         assert result[0].name == "llama-2"
@@ -208,7 +208,7 @@ class TestGroupAuditModels:
 
     def test_group_different_base_names(self) -> None:
         """Models with different base names should not be grouped but names normalized."""
-        model1 = ModelAuditInfo(
+        model1 = ModelDeletionRiskInfo(
             name="llama-2-7b",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(),
@@ -221,7 +221,7 @@ class TestGroupAuditModels:
             usage_percentage_of_category=2.5,
             usage_trend=UsageTrend(),
         )
-        model2 = ModelAuditInfo(
+        model2 = ModelDeletionRiskInfo(
             name="mistral-7b",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(),
@@ -234,7 +234,7 @@ class TestGroupAuditModels:
             usage_percentage_of_category=4.0,
             usage_trend=UsageTrend(),
         )
-        result = group_audit_models([model1, model2])
+        result = group_risk_models([model1, model2])
         assert len(result) == 2
         # Names should be normalized to base names (strip size info)
         result_names = {r.name for r in result}
@@ -242,7 +242,7 @@ class TestGroupAuditModels:
 
     def test_group_variants_of_same_base(self) -> None:
         """Variants of the same base model should be grouped."""
-        model1 = ModelAuditInfo(
+        model1 = ModelDeletionRiskInfo(
             name="llama-2-7b-Q4_K_M",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(),
@@ -256,7 +256,7 @@ class TestGroupAuditModels:
             usage_trend=UsageTrend(day_to_month_ratio=0.03, month_to_total_ratio=0.06),
             size_gb=3.5,
         )
-        model2 = ModelAuditInfo(
+        model2 = ModelDeletionRiskInfo(
             name="llama-2-7b-Q8",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(),
@@ -270,7 +270,7 @@ class TestGroupAuditModels:
             usage_trend=UsageTrend(day_to_month_ratio=0.03, month_to_total_ratio=0.06),
             size_gb=7.0,
         )
-        result = group_audit_models([model1, model2])
+        result = group_risk_models([model1, model2])
         assert len(result) == 1
         grouped = result[0]
         # Grouped model name should be the base name (without (grouped) suffix for frontend compatibility)
@@ -288,7 +288,7 @@ class TestGroupAuditModels:
 
     def test_group_with_flags_merging(self) -> None:
         """Grouped model should have merged flags."""
-        model1 = ModelAuditInfo(
+        model1 = ModelDeletionRiskInfo(
             name="mixtral-8x7b-Q4",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(zero_usage_day=True),
@@ -301,7 +301,7 @@ class TestGroupAuditModels:
             usage_percentage_of_category=0.1,
             usage_trend=UsageTrend(),
         )
-        model2 = ModelAuditInfo(
+        model2 = ModelDeletionRiskInfo(
             name="mixtral-8x7b-Q8",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(no_active_workers=True, low_usage=True),
@@ -314,7 +314,7 @@ class TestGroupAuditModels:
             usage_percentage_of_category=0.2,
             usage_trend=UsageTrend(),
         )
-        result = group_audit_models([model1, model2])
+        result = group_risk_models([model1, model2])
         assert len(result) == 1
         grouped = result[0]
         # Should have flags from both models
@@ -326,7 +326,7 @@ class TestGroupAuditModels:
 
     def test_group_with_null_sizes(self) -> None:
         """Grouping models with some null sizes should handle correctly."""
-        model1 = ModelAuditInfo(
+        model1 = ModelDeletionRiskInfo(
             name="model-v1-Q4",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(),
@@ -340,7 +340,7 @@ class TestGroupAuditModels:
             usage_trend=UsageTrend(),
             size_gb=None,  # No size
         )
-        model2 = ModelAuditInfo(
+        model2 = ModelDeletionRiskInfo(
             name="model-v1-Q8",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(),
@@ -354,7 +354,7 @@ class TestGroupAuditModels:
             usage_trend=UsageTrend(),
             size_gb=6.0,
         )
-        result = group_audit_models([model1, model2])
+        result = group_risk_models([model1, model2])
         assert len(result) == 1
         grouped = result[0]
         # Average should only consider non-null sizes
@@ -364,7 +364,7 @@ class TestGroupAuditModels:
 
     def test_group_normalizes_backend_prefixes(self) -> None:
         """Models with backend/author prefixes should be normalized to base name."""
-        model = ModelAuditInfo(
+        model = ModelDeletionRiskInfo(
             name="koboldcpp/SicariusSicariiStuff/Fiendish_LLAMA_3B",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(),
@@ -377,14 +377,14 @@ class TestGroupAuditModels:
             usage_percentage_of_category=0.1,
             usage_trend=UsageTrend(),
         )
-        result = group_audit_models([model])
+        result = group_risk_models([model])
         assert len(result) == 1
         # Backend and author prefixes should be stripped
         assert result[0].name == "Fiendish_LLAMA_3B"
 
     def test_group_normalizes_size_in_name(self) -> None:
         """Models with size info should have it stripped from base name."""
-        model = ModelAuditInfo(
+        model = ModelDeletionRiskInfo(
             name="koboldcpp/allura-org/MS-Meadowlark-22B",
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             deletion_risk_flags=DeletionRiskFlags(),
@@ -397,18 +397,18 @@ class TestGroupAuditModels:
             usage_percentage_of_category=0.1,
             usage_trend=UsageTrend(),
         )
-        result = group_audit_models([model])
+        result = group_risk_models([model])
         assert len(result) == 1
         # Backend, author, and size should all be stripped
         assert result[0].name == "MS-Meadowlark"
 
 
-class TestRecalculateAuditSummary:
+class TestRecalculateRiskSummary:
     """Test recalculating summary after grouping."""
 
     def test_summary_empty_list(self) -> None:
         """Empty list should return zero counts."""
-        summary = recalculate_audit_summary([], 0)
+        summary = recalculate_risk_summary([], 0)
         assert summary.total_models == 0
         assert summary.models_at_risk == 0
         assert summary.models_critical == 0
@@ -417,7 +417,7 @@ class TestRecalculateAuditSummary:
     def test_summary_no_risks(self) -> None:
         """Models with no risks should have zero at-risk count."""
         models = [
-            ModelAuditInfo(
+            ModelDeletionRiskInfo(
                 name="model1",
                 category=MODEL_REFERENCE_CATEGORY.text_generation,
                 deletion_risk_flags=DeletionRiskFlags(),
@@ -431,7 +431,7 @@ class TestRecalculateAuditSummary:
                 usage_trend=UsageTrend(),
             ),
         ]
-        summary = recalculate_audit_summary(models, 60000)
+        summary = recalculate_risk_summary(models, 60000)
         assert summary.total_models == 1
         assert summary.models_at_risk == 0
         assert summary.models_critical == 0
@@ -440,7 +440,7 @@ class TestRecalculateAuditSummary:
     def test_summary_with_risks(self) -> None:
         """Models with risks should be counted."""
         models = [
-            ModelAuditInfo(
+            ModelDeletionRiskInfo(
                 name="model1",
                 category=MODEL_REFERENCE_CATEGORY.text_generation,
                 deletion_risk_flags=DeletionRiskFlags(zero_usage_month=True, no_active_workers=True),
@@ -453,7 +453,7 @@ class TestRecalculateAuditSummary:
                 usage_percentage_of_category=0.0,
                 usage_trend=UsageTrend(),
             ),
-            ModelAuditInfo(
+            ModelDeletionRiskInfo(
                 name="model2",
                 category=MODEL_REFERENCE_CATEGORY.text_generation,
                 deletion_risk_flags=DeletionRiskFlags(low_usage=True),
@@ -467,7 +467,7 @@ class TestRecalculateAuditSummary:
                 usage_trend=UsageTrend(),
             ),
         ]
-        summary = recalculate_audit_summary(models, 50000)
+        summary = recalculate_risk_summary(models, 50000)
         assert summary.total_models == 2
         assert summary.models_at_risk == 2
         assert summary.models_critical == 1  # model1 is critical
@@ -477,12 +477,12 @@ class TestRecalculateAuditSummary:
         assert summary.average_risk_score == 1.5  # (2 + 1) / 2
 
 
-class TestApplyTextModelGroupingToAudit:
-    """Test applying grouping to full CategoryAuditResponse."""
+class TestApplyTextModelGroupingToRiskResponse:
+    """Test applying grouping to full CategoryDeletionRiskResponse."""
 
     def test_non_text_category_returns_unchanged(self) -> None:
         """Non-text categories should not be grouped."""
-        response = CategoryAuditResponse(
+        response = CategoryDeletionRiskResponse(
             category=MODEL_REFERENCE_CATEGORY.image_generation,
             category_total_month_usage=100000,
             total_count=10,
@@ -490,7 +490,7 @@ class TestApplyTextModelGroupingToAudit:
             offset=0,
             limit=100,
             models=[
-                ModelAuditInfo(
+                ModelDeletionRiskInfo(
                     name="model1",
                     category=MODEL_REFERENCE_CATEGORY.image_generation,
                     deletion_risk_flags=DeletionRiskFlags(),
@@ -504,7 +504,7 @@ class TestApplyTextModelGroupingToAudit:
                     usage_trend=UsageTrend(),
                 ),
             ],
-            summary=CategoryAuditSummary(
+            summary=CategoryDeletionRiskSummary(
                 total_models=1,
                 models_at_risk=0,
                 models_critical=0,
@@ -513,14 +513,14 @@ class TestApplyTextModelGroupingToAudit:
                 category_total_month_usage=100000,
             ),
         )
-        result = apply_text_model_grouping_to_audit(response)
+        result = apply_text_model_grouping_to_risk_response(response)
         # Should return unchanged
         assert result == response
         assert len(result.models) == 1
 
     def test_text_category_groups_models(self) -> None:
         """Text generation category should group variants."""
-        response = CategoryAuditResponse(
+        response = CategoryDeletionRiskResponse(
             category=MODEL_REFERENCE_CATEGORY.text_generation,
             category_total_month_usage=10000,
             total_count=2,
@@ -528,7 +528,7 @@ class TestApplyTextModelGroupingToAudit:
             offset=0,
             limit=100,
             models=[
-                ModelAuditInfo(
+                ModelDeletionRiskInfo(
                     name="llama-2-7b-Q4",
                     category=MODEL_REFERENCE_CATEGORY.text_generation,
                     deletion_risk_flags=DeletionRiskFlags(),
@@ -541,7 +541,7 @@ class TestApplyTextModelGroupingToAudit:
                     usage_percentage_of_category=15.0,
                     usage_trend=UsageTrend(),
                 ),
-                ModelAuditInfo(
+                ModelDeletionRiskInfo(
                     name="llama-2-7b-Q8",
                     category=MODEL_REFERENCE_CATEGORY.text_generation,
                     deletion_risk_flags=DeletionRiskFlags(),
@@ -555,7 +555,7 @@ class TestApplyTextModelGroupingToAudit:
                     usage_trend=UsageTrend(),
                 ),
             ],
-            summary=CategoryAuditSummary(
+            summary=CategoryDeletionRiskSummary(
                 total_models=2,
                 models_at_risk=0,
                 models_critical=0,
@@ -564,7 +564,7 @@ class TestApplyTextModelGroupingToAudit:
                 category_total_month_usage=10000,
             ),
         )
-        result = apply_text_model_grouping_to_audit(response)
+        result = apply_text_model_grouping_to_risk_response(response)
         # Should have grouped into 1 model
         assert len(result.models) == 1
         # Grouped model name should be the base name (without (grouped) suffix for frontend compatibility)

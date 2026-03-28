@@ -7,7 +7,6 @@ from typing import Any
 
 from horde_model_reference import CanonicalFormat
 from horde_model_reference.audit import (
-    AuditDomain,
     AuditPayload,
     AuditReplayer,
     AuditTrailReader,
@@ -15,7 +14,7 @@ from horde_model_reference.audit import (
 )
 from horde_model_reference.audit.events import AuditOperation
 
-LEGACY_DOMAIN = AuditDomain(CanonicalFormat.LEGACY)
+LEGACY_DOMAIN = CanonicalFormat.LEGACY
 CREATE_OPERATION = AuditOperation("create")
 UPDATE_OPERATION = AuditOperation("update")
 DELETE_OPERATION = AuditOperation("delete")

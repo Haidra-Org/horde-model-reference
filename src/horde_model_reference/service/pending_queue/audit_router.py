@@ -15,7 +15,6 @@ from horde_model_reference import (
     horde_model_reference_paths,
     horde_model_reference_settings,
 )
-from horde_model_reference.audit import AuditDomain
 from horde_model_reference.pending_queue.audit_view import (
     BatchNetChangeResponse,
     PendingQueueAuditBatchDetail,
@@ -32,7 +31,7 @@ from horde_model_reference.service.shared import (
     header_auth_scheme,
 )
 
-DomainOverride = Annotated[AuditDomain | None, Query(description="Optional audit domain override")]
+DomainOverride = Annotated[CanonicalFormat | None, Query(description="Optional audit domain override")]
 CursorQuery = Annotated[int | None, Query(ge=1, description="Return items older than this batch id")]
 LimitQuery = Annotated[int, Query(ge=1, le=50, description="Maximum number of batches to return")]
 
@@ -165,21 +164,21 @@ def build_pending_queue_audit_router(*, tags: Sequence[str]) -> APIRouter:
     return router
 
 
-_NET_CHANGES_CACHE: dict[tuple[str, AuditDomain, int], tuple[float, BatchNetChangeResponse | None]] = {}
+_NET_CHANGES_CACHE: dict[tuple[str, CanonicalFormat, int], tuple[float, BatchNetChangeResponse | None]] = {}
 _NET_CHANGES_CACHE_LOCK = threading.Lock()
 _NET_CHANGES_TTL_SECONDS = 300
 
 
 def _get_batch_net_changes_cached(
     root_path_str: str,
-    domain: AuditDomain,
+    domain: CanonicalFormat,
     batch_id: int,
 ) -> BatchNetChangeResponse | None:
     """Batch net change computation with 5-minute TTL cache.
 
     Args:
         root_path_str (str): The root path for the audit dataset.
-        domain (AuditDomain): The audit domain.
+        domain (CanonicalFormat): The audit domain.
         batch_id (int): The batch ID.
 
     Returns:
@@ -208,11 +207,10 @@ def _get_batch_net_changes_cached(
     return result
 
 
-def _resolve_domain(domain_override: AuditDomain | None) -> AuditDomain:
+def _resolve_domain(domain_override: CanonicalFormat | None) -> CanonicalFormat:
     if domain_override is not None:
         return domain_override
-    canonical = horde_model_reference_settings.canonical_format
-    return AuditDomain.LEGACY if canonical == CanonicalFormat.LEGACY else AuditDomain.V2
+    return horde_model_reference_settings.canonical_format
 
 
 def _ensure_audit_enabled() -> None:

@@ -6,8 +6,9 @@ from typing import Any, cast
 
 import pytest
 
+from horde_model_reference import CanonicalFormat
 from horde_model_reference.audit import AuditTrailWriter
-from horde_model_reference.audit.events import AuditDomain, AuditOperation, AuditPayload
+from horde_model_reference.audit.events import AuditOperation, AuditPayload
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.pending_queue.models import PendingChangeStatus, PendingQueueFilter
 from horde_model_reference.pending_queue.service import PendingQueueService
@@ -26,7 +27,7 @@ class _StubAuditWriter:
     def append_event(
         self,
         *,
-        domain: AuditDomain,
+        domain: CanonicalFormat,
         category: str,
         model_name: str,
         operation: AuditOperation,

@@ -97,7 +97,7 @@ class RedisCache[T: BaseModel](ABC):
         """Get the Redis key prefix for this cache type.
 
         Returns:
-            Redis key prefix string (e.g., "horde:stats" or "horde:audit").
+            Redis key prefix string (e.g., "horde:stats" or "horde:deletion_risk").
 
         """
         ...
@@ -117,7 +117,7 @@ class RedisCache[T: BaseModel](ABC):
         """Get the Pydantic model class for deserialization.
 
         Returns:
-            Pydantic model class (e.g., CategoryStatistics or CategoryAuditResponse).
+            Pydantic model class (e.g., CategoryStatistics or CategoryDeletionRiskResponse).
 
         """
         ...

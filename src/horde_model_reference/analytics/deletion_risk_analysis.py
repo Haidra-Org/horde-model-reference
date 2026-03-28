@@ -1,6 +1,6 @@
-"""Audit analysis for model references.
+"""Deletion risk analysis for model references.
 
-Provides functions to analyze models for deletion risk and audit-worthiness.
+Provides functions to analyze models for deletion risk.
 Identifies issues like missing downloads, non-preferred hosts, low usage, etc.
 """
 
@@ -36,11 +36,11 @@ class UsageTrend(BaseModel):
     """Ratio of month usage to total usage (month/total). None if total usage is zero."""
 
 
-class BackendAuditVariation(BaseModel):
-    """Per-backend statistics for a text generation model in audit context.
+class BackendVariationStats(BaseModel):
+    """Per-backend statistics for a text generation model in deletion risk context.
 
     Provides breakdown of workers and usage by backend (aphrodite, koboldcpp, canonical).
-    Used in ungrouped audit view to show backend-specific details for each model.
+    Used in ungrouped deletion risk view to show backend-specific details for each model.
     """
 
     model_config = ConfigDict(use_attribute_docstrings=True)
@@ -405,8 +405,8 @@ class DeletionRiskFlagsBuilder:
         )
 
 
-class ModelAuditInfo(BaseModel):
-    """Audit information for a single model.
+class ModelDeletionRiskInfo(BaseModel):
+    """Deletion risk information for a single model.
 
     Contains model metadata along with deletion risk assessment and usage statistics.
     """
@@ -457,7 +457,7 @@ class ModelAuditInfo(BaseModel):
     """Number of download entries."""
     download_hosts: list[str] = Field(default_factory=list)
     """List of download host domains."""
-    backend_variations: list[BackendAuditVariation] | None = Field(default=None)
+    backend_variations: list[BackendVariationStats] | None = Field(default=None)
     """Per-backend statistics for text generation models (ungrouped view)."""
 
     @property
@@ -507,10 +507,10 @@ class ModelAuditInfo(BaseModel):
         )
 
 
-class CategoryAuditSummary(BaseModel):
-    """Summary statistics for a category audit.
+class CategoryDeletionRiskSummary(BaseModel):
+    """Summary statistics for a category deletion risk analysis.
 
-    Aggregates audit information across all models in a category.
+    Aggregates deletion risk information across all models in a category.
     """
 
     model_config = ConfigDict(use_attribute_docstrings=True)
@@ -547,33 +547,33 @@ class CategoryAuditSummary(BaseModel):
     """Total monthly usage for the entire category."""
 
     @classmethod
-    def from_audit_models(cls, audit_models: list[ModelAuditInfo]) -> CategoryAuditSummary:
-        """Calculate summary statistics from audit models.
+    def from_risk_models(cls, risk_models: list[ModelDeletionRiskInfo]) -> CategoryDeletionRiskSummary:
+        """Calculate summary statistics from risk models.
 
         Args:
-            audit_models: List of ModelAuditInfo objects.
+            risk_models: List of ModelDeletionRiskInfo objects.
 
         Returns:
-            CategoryAuditSummary with aggregate statistics.
+            CategoryDeletionRiskSummary with aggregate statistics.
 
         """
-        total_models = len(audit_models)
-        models_at_risk = sum(1 for m in audit_models if m.at_risk)
-        models_critical = sum(1 for m in audit_models if m.is_critical)
-        models_with_warnings = sum(1 for m in audit_models if m.has_warning)
+        total_models = len(risk_models)
+        models_at_risk = sum(1 for m in risk_models if m.at_risk)
+        models_critical = sum(1 for m in risk_models if m.is_critical)
+        models_with_warnings = sum(1 for m in risk_models if m.has_warning)
 
-        models_with_zero_day_usage = sum(1 for m in audit_models if m.deletion_risk_flags.zero_usage_day)
-        models_with_zero_month_usage = sum(1 for m in audit_models if m.deletion_risk_flags.zero_usage_month)
-        models_with_zero_total_usage = sum(1 for m in audit_models if m.deletion_risk_flags.zero_usage_total)
-        models_with_no_active_workers = sum(1 for m in audit_models if m.deletion_risk_flags.no_active_workers)
-        models_with_no_downloads = sum(1 for m in audit_models if m.deletion_risk_flags.no_download_urls)
-        models_with_non_preferred_hosts = sum(1 for m in audit_models if m.deletion_risk_flags.has_non_preferred_host)
-        models_with_multiple_hosts = sum(1 for m in audit_models if m.deletion_risk_flags.has_multiple_hosts)
-        models_with_low_usage = sum(1 for m in audit_models if m.deletion_risk_flags.low_usage)
+        models_with_zero_day_usage = sum(1 for m in risk_models if m.deletion_risk_flags.zero_usage_day)
+        models_with_zero_month_usage = sum(1 for m in risk_models if m.deletion_risk_flags.zero_usage_month)
+        models_with_zero_total_usage = sum(1 for m in risk_models if m.deletion_risk_flags.zero_usage_total)
+        models_with_no_active_workers = sum(1 for m in risk_models if m.deletion_risk_flags.no_active_workers)
+        models_with_no_downloads = sum(1 for m in risk_models if m.deletion_risk_flags.no_download_urls)
+        models_with_non_preferred_hosts = sum(1 for m in risk_models if m.deletion_risk_flags.has_non_preferred_host)
+        models_with_multiple_hosts = sum(1 for m in risk_models if m.deletion_risk_flags.has_multiple_hosts)
+        models_with_low_usage = sum(1 for m in risk_models if m.deletion_risk_flags.low_usage)
 
-        category_total_month_usage = sum(m.usage_month for m in audit_models)
+        category_total_month_usage = sum(m.usage_month for m in risk_models)
 
-        total_risk_score = sum(m.risk_score for m in audit_models)
+        total_risk_score = sum(m.risk_score for m in risk_models)
         average_risk_score = total_risk_score / total_models if total_models > 0 else 0.0
 
         return cls(
@@ -594,16 +594,16 @@ class CategoryAuditSummary(BaseModel):
         )
 
 
-class CategoryAuditResponse(BaseModel):
-    """Complete audit response for a category.
+class CategoryDeletionRiskResponse(BaseModel):
+    """Complete deletion risk response for a category.
 
-    Contains both per-model audit information and aggregate summary.
+    Contains both per-model deletion risk information and aggregate summary.
     """
 
     model_config = ConfigDict(use_attribute_docstrings=True)
 
     category: MODEL_REFERENCE_CATEGORY
-    """The category being audited."""
+    """The category being analyzed."""
     category_total_month_usage: int = Field(ge=0)
     """Total monthly usage for the entire category."""
 
@@ -616,9 +616,9 @@ class CategoryAuditResponse(BaseModel):
     limit: int | None = None
     """Maximum number of models per page (None if not paginated)."""
 
-    models: list[ModelAuditInfo]
-    """List of audit information for each model."""
-    summary: CategoryAuditSummary
+    models: list[ModelDeletionRiskInfo]
+    """List of deletion risk information for each model."""
+    summary: CategoryDeletionRiskSummary
     """Aggregate summary statistics."""
 
 
@@ -949,8 +949,8 @@ class DeletionRiskFlagsFactory:
         raise ValueError(error_message)
 
 
-class ModelAuditInfoHandler:
-    """Abstract handler for creating ModelAuditInfo from specific model record types.
+class ModelDeletionRiskInfoHandler:
+    """Abstract handler for creating ModelDeletionRiskInfo from specific model record types.
 
     Subclasses should implement type-specific extraction and flag generation logic.
     """
@@ -967,7 +967,7 @@ class ModelAuditInfoHandler:
         """
         raise NotImplementedError("Subclasses must implement can_handle")
 
-    def create_audit_info(
+    def create_risk_info(
         self,
         *,
         model_name: str,
@@ -976,8 +976,8 @@ class ModelAuditInfoHandler:
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
         include_backend_variations: bool = False,
-    ) -> ModelAuditInfo:
-        """Create ModelAuditInfo for a model record.
+    ) -> ModelDeletionRiskInfo:
+        """Create ModelDeletionRiskInfo for a model record.
 
         Args:
             model_name: The model name.
@@ -988,13 +988,13 @@ class ModelAuditInfoHandler:
             include_backend_variations: Whether to include per-backend breakdown (text models only).
 
         Returns:
-            ModelAuditInfo object.
+            ModelDeletionRiskInfo object.
 
         """
-        raise NotImplementedError("Subclasses must implement create_audit_info")
+        raise NotImplementedError("Subclasses must implement create_risk_info")
 
     @staticmethod
-    def _build_audit_info(
+    def _build_risk_info(
         *,
         model_name: str,
         model_record: GenericModelRecord,
@@ -1006,8 +1006,8 @@ class ModelAuditInfoHandler:
         nsfw: bool | None,
         size_bytes: int | None,
         include_backend_variations: bool = False,
-    ) -> ModelAuditInfo:
-        """Build ModelAuditInfo from common components.
+    ) -> ModelDeletionRiskInfo:
+        """Build ModelDeletionRiskInfo from common components.
 
         Args:
             model_name: The model name.
@@ -1022,7 +1022,7 @@ class ModelAuditInfoHandler:
             include_backend_variations: Whether to include per-backend breakdown.
 
         Returns:
-            ModelAuditInfo object.
+            ModelDeletionRiskInfo object.
 
         """
         # Extract Horde API data from statistics
@@ -1081,10 +1081,10 @@ class ModelAuditInfoHandler:
                     pass
 
         # Build backend variations list if requested and available
-        backend_variations_list: list[BackendAuditVariation] | None = None
+        backend_variations_list: list[BackendVariationStats] | None = None
         if include_backend_variations and statistics and statistics.backend_variations:
             backend_variations_list = [
-                BackendAuditVariation(
+                BackendVariationStats(
                     backend=bv.backend,
                     variant_name=bv.variant_name,
                     worker_count=bv.worker_count,
@@ -1096,8 +1096,8 @@ class ModelAuditInfoHandler:
                 for bv in statistics.backend_variations.values()
             ]
 
-        # Create audit info
-        return ModelAuditInfo(
+        # Create risk info
+        return ModelDeletionRiskInfo(
             name=model_name,
             category=category,
             deletion_risk_flags=flags,
@@ -1122,8 +1122,8 @@ class ModelAuditInfoHandler:
         )
 
 
-class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
-    """Handler for image generation model audit info creation."""
+class ImageGenerationModelDeletionRiskHandler(ModelDeletionRiskInfoHandler):
+    """Handler for image generation model deletion risk info creation."""
 
     def __init__(self, flags_factory: DeletionRiskFlagsFactory | None = None) -> None:
         """Initialize the handler with optional flags factory.
@@ -1147,7 +1147,7 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
         """
         return isinstance(model_record, ImageGenerationModelRecord)
 
-    def create_audit_info(
+    def create_risk_info(
         self,
         *,
         model_name: str,
@@ -1156,8 +1156,8 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
         include_backend_variations: bool = False,
-    ) -> ModelAuditInfo:
-        """Create ModelAuditInfo for an image generation model.
+    ) -> ModelDeletionRiskInfo:
+        """Create ModelDeletionRiskInfo for an image generation model.
 
         Args:
             model_name: The model name.
@@ -1168,7 +1168,7 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
             include_backend_variations: Ignored for image models (always False).
 
         Returns:
-            ModelAuditInfo object.
+            ModelDeletionRiskInfo object.
 
         """
         if not isinstance(model_record, ImageGenerationModelRecord):
@@ -1184,7 +1184,7 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
         nsfw = model_record.nsfw
         size_bytes = model_record.size_on_disk_bytes
 
-        return ModelAuditInfoHandler._build_audit_info(
+        return ModelDeletionRiskInfoHandler._build_risk_info(
             model_name=model_name,
             model_record=model_record,
             statistics=statistics,
@@ -1198,8 +1198,8 @@ class ImageGenerationModelAuditHandler(ModelAuditInfoHandler):
         )
 
 
-class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
-    """Handler for text generation model audit info creation."""
+class TextGenerationModelDeletionRiskHandler(ModelDeletionRiskInfoHandler):
+    """Handler for text generation model deletion risk info creation."""
 
     def __init__(self, flags_factory: DeletionRiskFlagsFactory | None = None) -> None:
         """Initialize the handler with optional flags factory.
@@ -1223,7 +1223,7 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
         """
         return isinstance(model_record, TextGenerationModelRecord)
 
-    def create_audit_info(
+    def create_risk_info(
         self,
         *,
         model_name: str,
@@ -1232,8 +1232,8 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
         include_backend_variations: bool = False,
-    ) -> ModelAuditInfo:
-        """Create ModelAuditInfo for a text generation model.
+    ) -> ModelDeletionRiskInfo:
+        """Create ModelDeletionRiskInfo for a text generation model.
 
         Args:
             model_name: The model name.
@@ -1244,7 +1244,7 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
             include_backend_variations: Whether to include per-backend breakdown.
 
         Returns:
-            ModelAuditInfo object.
+            ModelDeletionRiskInfo object.
 
         """
         if not isinstance(model_record, TextGenerationModelRecord):
@@ -1260,7 +1260,7 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
         nsfw = model_record.nsfw
         size_bytes = None  # Text generation models don't have size_on_disk_bytes
 
-        return ModelAuditInfoHandler._build_audit_info(
+        return ModelDeletionRiskInfoHandler._build_risk_info(
             model_name=model_name,
             model_record=model_record,
             statistics=statistics,
@@ -1274,7 +1274,7 @@ class TextGenerationModelAuditHandler(ModelAuditInfoHandler):
         )
 
 
-class GenericModelAuditHandler(ModelAuditInfoHandler):
+class GenericModelDeletionRiskHandler(ModelDeletionRiskInfoHandler):
     """Fallback handler for unsupported model record types."""
 
     def can_handle(self, model_record: GenericModelRecord) -> bool:
@@ -1291,7 +1291,7 @@ class GenericModelAuditHandler(ModelAuditInfoHandler):
         """
         return True
 
-    def create_audit_info(
+    def create_risk_info(
         self,
         *,
         model_name: str,
@@ -1300,8 +1300,8 @@ class GenericModelAuditHandler(ModelAuditInfoHandler):
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
         include_backend_variations: bool = False,
-    ) -> ModelAuditInfo:
-        """Create ModelAuditInfo for a generic/unsupported model type.
+    ) -> ModelDeletionRiskInfo:
+        """Create ModelDeletionRiskInfo for a generic/unsupported model type.
 
         Args:
             model_name: The model name.
@@ -1312,7 +1312,7 @@ class GenericModelAuditHandler(ModelAuditInfoHandler):
             include_backend_variations: Ignored for generic models.
 
         Returns:
-            ModelAuditInfo object.
+            ModelDeletionRiskInfo object.
 
         """
         logger.warning(f"Using fallback handler for unsupported model type: {type(model_record).__name__}")
@@ -1325,7 +1325,7 @@ class GenericModelAuditHandler(ModelAuditInfoHandler):
             category_total_usage=category_total_usage,
         )
 
-        return ModelAuditInfoHandler._build_audit_info(
+        return ModelDeletionRiskInfoHandler._build_risk_info(
             model_name=model_name,
             model_record=model_record,
             statistics=statistics,
@@ -1339,17 +1339,17 @@ class GenericModelAuditHandler(ModelAuditInfoHandler):
         )
 
 
-class ModelAuditInfoFactory:
-    """Factory for creating ModelAuditInfo objects with extensible handler support.
+class ModelDeletionRiskInfoFactory:
+    """Factory for creating ModelDeletionRiskInfo objects with extensible handler support.
 
     Handlers are registered and checked in order. The first handler that can process
-    a model record type will be used to create the audit info.
+    a model record type will be used to create the risk info.
 
     Examples:
         ```python
         # Using default handlers
-        factory = ModelAuditInfoFactory.create_default()
-        audit_info = factory.create_audit_info(
+        factory = ModelDeletionRiskInfoFactory.create_default()
+        risk_info = factory.create_risk_info(
             model_name="my_model",
             model_record=image_model_record,
             statistics=stats,
@@ -1358,37 +1358,37 @@ class ModelAuditInfoFactory:
         )
 
         # Adding custom handler
-        factory.register_handler(CustomModelAuditHandler())
+        factory.register_handler(CustomModelRiskHandler())
         ```
 
     """
 
-    def __init__(self, handlers: list[ModelAuditInfoHandler] | None = None) -> None:
+    def __init__(self, handlers: list[ModelDeletionRiskInfoHandler] | None = None) -> None:
         """Initialize the factory with optional handlers.
 
         Args:
             handlers: List of handlers to use. If None, no handlers are registered.
 
         """
-        self._handlers: list[ModelAuditInfoHandler] = handlers or []
+        self._handlers: list[ModelDeletionRiskInfoHandler] = handlers or []
 
     @classmethod
-    def create_default(cls) -> ModelAuditInfoFactory:
+    def create_default(cls) -> ModelDeletionRiskInfoFactory:
         """Create a factory with default handlers for standard model types.
 
         Returns:
-            ModelAuditInfoFactory with default handlers registered.
+            ModelDeletionRiskInfoFactory with default handlers registered.
 
         """
         return cls(
             handlers=[
-                ImageGenerationModelAuditHandler(),
-                TextGenerationModelAuditHandler(),
-                GenericModelAuditHandler(),  # Fallback handler (must be last)
+                ImageGenerationModelDeletionRiskHandler(),
+                TextGenerationModelDeletionRiskHandler(),
+                GenericModelDeletionRiskHandler(),  # Fallback handler (must be last)
             ]
         )
 
-    def register_handler(self, handler: ModelAuditInfoHandler) -> None:
+    def register_handler(self, handler: ModelDeletionRiskInfoHandler) -> None:
         """Register a new handler.
 
         Handlers are checked in registration order. Register more specific handlers
@@ -1400,7 +1400,7 @@ class ModelAuditInfoFactory:
         """
         self._handlers.append(handler)
 
-    def create_audit_info(
+    def create_risk_info(
         self,
         *,
         model_name: str,
@@ -1409,8 +1409,8 @@ class ModelAuditInfoFactory:
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
         include_backend_variations: bool = False,
-    ) -> ModelAuditInfo:
-        """Create ModelAuditInfo for a model record using the appropriate handler.
+    ) -> ModelDeletionRiskInfo:
+        """Create ModelDeletionRiskInfo for a model record using the appropriate handler.
 
         Args:
             model_name: The model name.
@@ -1421,7 +1421,7 @@ class ModelAuditInfoFactory:
             include_backend_variations: Whether to include per-backend breakdown (text models only).
 
         Returns:
-            ModelAuditInfo object.
+            ModelDeletionRiskInfo object.
 
         Raises:
             ValueError: If no handler can process the model record type.
@@ -1429,7 +1429,7 @@ class ModelAuditInfoFactory:
         """
         for handler in self._handlers:
             if handler.can_handle(model_record):
-                return handler.create_audit_info(
+                return handler.create_risk_info(
                     model_name=model_name,
                     model_record=model_record,
                     statistics=statistics,
@@ -1452,8 +1452,8 @@ class ModelAuditInfoFactory:
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
         include_backend_variations: bool = False,
-    ) -> list[ModelAuditInfo]:
-        """Analyze model records and statistics to create audit information.
+    ) -> list[ModelDeletionRiskInfo]:
+        """Analyze model records and statistics to create deletion risk information.
 
         Args:
             model_records: Dictionary of model names to typed model records.
@@ -1463,10 +1463,10 @@ class ModelAuditInfoFactory:
             include_backend_variations: Whether to include per-backend breakdown (text models only).
 
         Returns:
-            List of ModelAuditInfo sorted by usage (descending).
+            List of ModelDeletionRiskInfo sorted by usage (descending).
 
         """
-        audit_models: list[ModelAuditInfo] = []
+        risk_models: list[ModelDeletionRiskInfo] = []
 
         model_record: GenericModelRecord | ImageGenerationModelRecord | TextGenerationModelRecord
 
@@ -1474,8 +1474,8 @@ class ModelAuditInfoFactory:
             # Get statistics for this model (may be None if not in Horde data)
             statistics = model_statistics.get(model_name)
 
-            # Use factory to create audit info
-            audit_info = self.create_audit_info(
+            # Use factory to create risk info
+            risk_info = self.create_risk_info(
                 model_name=model_name,
                 model_record=model_record,
                 statistics=statistics,
@@ -1484,18 +1484,18 @@ class ModelAuditInfoFactory:
                 include_backend_variations=include_backend_variations,
             )
 
-            audit_models.append(audit_info)
+            risk_models.append(risk_info)
 
         # Sort by usage (descending) for easier review
-        audit_models.sort(key=lambda x: x.usage_month, reverse=True)
+        risk_models.sort(key=lambda x: x.usage_month, reverse=True)
 
         logger.info(
-            f"Analyzed {len(audit_models)} models for audit: {sum(1 for m in audit_models if m.at_risk)} at risk"
+            f"Analyzed {len(risk_models)} models for deletion risk: {sum(1 for m in risk_models if m.at_risk)} at risk"
         )
 
-        return audit_models
+        return risk_models
 
-    def create_audit_response(
+    def create_deletion_risk_response(
         self,
         model_records: (
             dict[str, GenericModelRecord]
@@ -1506,8 +1506,8 @@ class ModelAuditInfoFactory:
         category_total_usage: int,
         category: MODEL_REFERENCE_CATEGORY,
         include_backend_variations: bool = False,
-    ) -> CategoryAuditResponse:
-        """Analyze models and create complete audit response with summary.
+    ) -> CategoryDeletionRiskResponse:
+        """Analyze models and create complete deletion risk response with summary.
 
         Args:
             model_records: Dictionary of model names to typed model records.
@@ -1517,11 +1517,11 @@ class ModelAuditInfoFactory:
             include_backend_variations: Whether to include per-backend breakdown (text models only).
 
         Returns:
-            CategoryAuditResponse with models and summary.
+            CategoryDeletionRiskResponse with models and summary.
 
         """
         # Analyze all models
-        audit_models = self.analyze_models(
+        risk_models = self.analyze_models(
             model_records=model_records,
             model_statistics=model_statistics,
             category_total_usage=category_total_usage,
@@ -1530,16 +1530,16 @@ class ModelAuditInfoFactory:
         )
 
         # Calculate summary
-        summary = CategoryAuditSummary.from_audit_models(audit_models)
+        summary = CategoryDeletionRiskSummary.from_risk_models(risk_models)
 
         # Create response
-        return CategoryAuditResponse(
+        return CategoryDeletionRiskResponse(
             category=category,
             category_total_month_usage=category_total_usage,
-            total_count=len(audit_models),
-            returned_count=len(audit_models),
+            total_count=len(risk_models),
+            returned_count=len(risk_models),
             offset=0,
             limit=None,
-            models=audit_models,
+            models=risk_models,
             summary=summary,
         )

@@ -351,8 +351,8 @@ Only used in PRIMARY mode. If True, will download and convert legacy references 
     statistics_cache_ttl: int = 300
     """Cache TTL in seconds for category statistics. Uses Redis if available, otherwise in-memory caching."""
 
-    audit_cache_ttl: int = 300
-    """Cache TTL in seconds for category audit results. Uses Redis if available, otherwise in-memory caching."""
+    deletion_risk_cache_ttl: int = 300
+    """Cache TTL for deletion risk analysis results. Uses Redis if available, otherwise in-memory caching."""
 
     enable_statistics_precompute: bool = False
     """Enable background pre-computation of statistics. Currently not implemented (future feature)."""
@@ -388,7 +388,7 @@ When enabled, caches are proactively refreshed before TTL expiry so clients alwa
 
     cache_hydration_interval_seconds: int = 240
     """Interval in seconds between cache hydration refreshes. Should be less than cache TTLs \
-(statistics_cache_ttl, audit_cache_ttl) to ensure caches stay warm. Default 240s (4 min) with 300s TTLs."""
+(statistics_cache_ttl, deletion_risk_cache_ttl) to ensure caches stay warm. Default 240s (4 min) with 300s TTLs."""
 
     cache_hydration_stale_ttl_seconds: int = 3600
     """Maximum age in seconds before stale cached data is discarded. While hydration is running, \

@@ -1,22 +1,22 @@
-"""Unit tests for the audit analysis module."""
+"""Unit tests for the deletion risk analysis module."""
 
 from __future__ import annotations
 
 import pytest
 
 from horde_model_reference import KNOWN_IMAGE_GENERATION_BASELINE, MODEL_DOMAIN, MODEL_PURPOSE, ModelClassification
-from horde_model_reference.analytics.audit_analysis import (
-    CategoryAuditSummary,
+from horde_model_reference.analytics.deletion_risk_analysis import (
+    CategoryDeletionRiskSummary,
     DeletionRiskFlags,
     DeletionRiskFlagsFactory,
     DeletionRiskFlagsHandler,
     GenericDeletionRiskFlagsHandler,
-    GenericModelAuditHandler,
+    GenericModelDeletionRiskHandler,
     ImageGenerationDeletionRiskFlagsHandler,
-    ImageGenerationModelAuditHandler,
-    ModelAuditInfo,
-    ModelAuditInfoFactory,
-    ModelAuditInfoHandler,
+    ImageGenerationModelDeletionRiskHandler,
+    ModelDeletionRiskInfo,
+    ModelDeletionRiskInfoFactory,
+    ModelDeletionRiskInfoHandler,
     TextGenerationDeletionRiskFlagsHandler,
     UsageTrend,
 )
@@ -62,15 +62,15 @@ class TestDeletionRiskFlags:
         assert flags.flag_count() == 3
 
 
-class TestAnalyzeModelsForAudit:
-    """Tests for ModelAuditInfoFactory.analyze_models method."""
+class TestAnalyzeModelsForDeletionRisk:
+    """Tests for ModelDeletionRiskInfoFactory.analyze_models method."""
 
     def test_analyze_empty_dict(self) -> None:
         """Test analyzing empty model dictionary."""
-        factory = ModelAuditInfoFactory.create_default()
-        audit_models = factory.analyze_models({}, {}, 0, MODEL_REFERENCE_CATEGORY.image_generation)
+        factory = ModelDeletionRiskInfoFactory.create_default()
+        risk_models = factory.analyze_models({}, {}, 0, MODEL_REFERENCE_CATEGORY.image_generation)
 
-        assert len(audit_models) == 0
+        assert len(risk_models) == 0
 
     def test_analyze_single_model(self) -> None:
         """Test analyzing a single model."""
@@ -121,16 +121,16 @@ class TestAnalyzeModelsForAudit:
         model_records: dict[str, ImageGenerationModelRecord] = {"test_model": model_record}
         model_statistics: dict[str, CombinedModelStatistics] = {"test_model": statistics}
 
-        factory = ModelAuditInfoFactory.create_default()
-        audit_models = factory.analyze_models(
+        factory = ModelDeletionRiskInfoFactory.create_default()
+        risk_models = factory.analyze_models(
             model_records,
             model_statistics,
             1000,
             MODEL_REFERENCE_CATEGORY.image_generation,
         )
 
-        assert len(audit_models) == 1
-        model = audit_models[0]
+        assert len(risk_models) == 1
+        model = risk_models[0]
         assert model.name == "test_model"
         assert model.category == MODEL_REFERENCE_CATEGORY.image_generation
         assert not model.at_risk
@@ -169,16 +169,16 @@ class TestAnalyzeModelsForAudit:
         model_records = {"risky_model": model_record}
         model_statistics = {"risky_model": statistics}
 
-        factory = ModelAuditInfoFactory.create_default()
-        audit_models = factory.analyze_models(
+        factory = ModelDeletionRiskInfoFactory.create_default()
+        risk_models = factory.analyze_models(
             model_records,
             model_statistics,
             10000,
             MODEL_REFERENCE_CATEGORY.image_generation,
         )
 
-        assert len(audit_models) == 1
-        model = audit_models[0]
+        assert len(risk_models) == 1
+        model = risk_models[0]
         assert model.at_risk
         assert model.risk_score > 0
         assert model.deletion_risk_flags.no_download_urls
@@ -223,26 +223,26 @@ class TestAnalyzeModelsForAudit:
             "medium_usage": CombinedModelStatistics(usage_stats=UsageStats(day=3, month=50, total=200)),
         }
 
-        factory = ModelAuditInfoFactory.create_default()
-        audit_models = factory.analyze_models(
+        factory = ModelDeletionRiskInfoFactory.create_default()
+        risk_models = factory.analyze_models(
             model_records,
             model_statistics,
             160,
             MODEL_REFERENCE_CATEGORY.image_generation,
         )
 
-        assert len(audit_models) == 3
-        assert audit_models[0].name == "high_usage"
-        assert audit_models[1].name == "medium_usage"
-        assert audit_models[2].name == "low_usage"
+        assert len(risk_models) == 3
+        assert risk_models[0].name == "high_usage"
+        assert risk_models[1].name == "medium_usage"
+        assert risk_models[2].name == "low_usage"
 
 
-class TestCalculateAuditSummary:
-    """Tests for calculate_audit_summary function."""
+class TestCalculateRiskSummary:
+    """Tests for calculate_risk_summary function."""
 
     def test_summary_empty_list(self) -> None:
         """Test summary calculation with empty list."""
-        summary = CategoryAuditSummary.from_audit_models([])
+        summary = CategoryDeletionRiskSummary.from_risk_models([])
 
         assert summary.total_models == 0
         assert summary.models_at_risk == 0
@@ -250,10 +250,10 @@ class TestCalculateAuditSummary:
 
     def test_summary_no_risks(self) -> None:
         """Test summary calculation with models having no risks."""
-        from horde_model_reference.analytics.audit_analysis import ModelAuditInfo
+        from horde_model_reference.analytics.deletion_risk_analysis import ModelDeletionRiskInfo
 
-        audit_models = [
-            ModelAuditInfo(
+        risk_models = [
+            ModelDeletionRiskInfo(
                 name="model1",
                 category=MODEL_REFERENCE_CATEGORY.image_generation,
                 deletion_risk_flags=DeletionRiskFlags(),
@@ -261,7 +261,7 @@ class TestCalculateAuditSummary:
                 risk_score=0,
                 usage_trend=UsageTrend(),
             ),
-            ModelAuditInfo(
+            ModelDeletionRiskInfo(
                 name="model2",
                 category=MODEL_REFERENCE_CATEGORY.image_generation,
                 deletion_risk_flags=DeletionRiskFlags(),
@@ -271,7 +271,7 @@ class TestCalculateAuditSummary:
             ),
         ]
 
-        summary = CategoryAuditSummary.from_audit_models(audit_models)
+        summary = CategoryDeletionRiskSummary.from_risk_models(risk_models)
 
         assert summary.total_models == 2
         assert summary.models_at_risk == 0
@@ -279,10 +279,10 @@ class TestCalculateAuditSummary:
 
     def test_summary_with_risks(self) -> None:
         """Test summary calculation with models having risks."""
-        from horde_model_reference.analytics.audit_analysis import ModelAuditInfo
+        from horde_model_reference.analytics.deletion_risk_analysis import ModelDeletionRiskInfo
 
-        audit_models = [
-            ModelAuditInfo(
+        risk_models = [
+            ModelDeletionRiskInfo(
                 name="risky_model",
                 category=MODEL_REFERENCE_CATEGORY.image_generation,
                 deletion_risk_flags=DeletionRiskFlags(no_download_urls=True, no_active_workers=True),
@@ -290,7 +290,7 @@ class TestCalculateAuditSummary:
                 risk_score=2,
                 usage_trend=UsageTrend(),
             ),
-            ModelAuditInfo(
+            ModelDeletionRiskInfo(
                 name="safe_model",
                 category=MODEL_REFERENCE_CATEGORY.image_generation,
                 deletion_risk_flags=DeletionRiskFlags(),
@@ -300,7 +300,7 @@ class TestCalculateAuditSummary:
             ),
         ]
 
-        summary = CategoryAuditSummary.from_audit_models(audit_models)
+        summary = CategoryDeletionRiskSummary.from_risk_models(risk_models)
 
         assert summary.total_models == 2
         assert summary.models_at_risk == 1
@@ -310,10 +310,10 @@ class TestCalculateAuditSummary:
 
     def test_summary_counts_specific_flags(self) -> None:
         """Test summary correctly counts specific flag types."""
-        from horde_model_reference.analytics.audit_analysis import ModelAuditInfo
+        from horde_model_reference.analytics.deletion_risk_analysis import ModelDeletionRiskInfo
 
-        audit_models = [
-            ModelAuditInfo(
+        risk_models = [
+            ModelDeletionRiskInfo(
                 name="model1",
                 category=MODEL_REFERENCE_CATEGORY.image_generation,
                 deletion_risk_flags=DeletionRiskFlags(no_download_urls=True),
@@ -321,7 +321,7 @@ class TestCalculateAuditSummary:
                 risk_score=1,
                 usage_trend=UsageTrend(),
             ),
-            ModelAuditInfo(
+            ModelDeletionRiskInfo(
                 name="model2",
                 category=MODEL_REFERENCE_CATEGORY.image_generation,
                 deletion_risk_flags=DeletionRiskFlags(has_non_preferred_host=True),
@@ -329,7 +329,7 @@ class TestCalculateAuditSummary:
                 risk_score=1,
                 usage_trend=UsageTrend(),
             ),
-            ModelAuditInfo(
+            ModelDeletionRiskInfo(
                 name="model3",
                 category=MODEL_REFERENCE_CATEGORY.image_generation,
                 deletion_risk_flags=DeletionRiskFlags(no_active_workers=True, low_usage=True),
@@ -339,7 +339,7 @@ class TestCalculateAuditSummary:
             ),
         ]
 
-        summary = CategoryAuditSummary.from_audit_models(audit_models)
+        summary = CategoryDeletionRiskSummary.from_risk_models(risk_models)
 
         assert summary.total_models == 3
         assert summary.models_at_risk == 3
@@ -350,19 +350,19 @@ class TestCalculateAuditSummary:
         assert summary.average_risk_score == pytest.approx(1.33, abs=0.01)
 
 
-class TestModelAuditInfoFactory:
-    """Tests for ModelAuditInfoFactory and handler system."""
+class TestModelDeletionRiskInfoFactory:
+    """Tests for ModelDeletionRiskInfoFactory and handler system."""
 
     def test_create_default_factory(self) -> None:
         """Test creating factory with default handlers."""
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         assert factory is not None
         assert len(factory._handlers) == 3  # Image, Text, Generic
 
     def test_factory_with_image_generation_model(self) -> None:
-        """Test factory creates correct audit info for image generation model."""
-        factory = ModelAuditInfoFactory.create_default()
+        """Test factory creates correct risk info for image generation model."""
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         model_record = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -390,7 +390,7 @@ class TestModelAuditInfoFactory:
             worker_summaries={},
         )
 
-        audit_info = factory.create_audit_info(
+        risk_info = factory.create_risk_info(
             model_name="test_model",
             model_record=model_record,
             statistics=statistics,
@@ -398,23 +398,23 @@ class TestModelAuditInfoFactory:
             category=MODEL_REFERENCE_CATEGORY.image_generation,
         )
 
-        assert audit_info.name == "test_model"
-        assert audit_info.category == MODEL_REFERENCE_CATEGORY.image_generation
-        assert audit_info.usage_month == 100
-        assert audit_info.baseline == "stable_diffusion_xl"
-        assert audit_info.nsfw is False
+        assert risk_info.name == "test_model"
+        assert risk_info.category == MODEL_REFERENCE_CATEGORY.image_generation
+        assert risk_info.usage_month == 100
+        assert risk_info.baseline == "stable_diffusion_xl"
+        assert risk_info.nsfw is False
 
     def test_factory_with_custom_handler(self) -> None:
         """Test factory can use custom handler."""
 
-        class CustomHandler(ModelAuditInfoHandler):
+        class CustomHandler(ModelDeletionRiskInfoHandler):
             """Custom handler for testing."""
 
             def can_handle(self, model_record: GenericModelRecord) -> bool:
                 """Check if model name starts with 'custom_'."""
                 return model_record.name.startswith("custom_")
 
-            def create_audit_info(
+            def create_risk_info(
                 self,
                 *,
                 model_name: str,
@@ -423,18 +423,18 @@ class TestModelAuditInfoFactory:
                 category_total_usage: int,
                 category: MODEL_REFERENCE_CATEGORY,
                 include_backend_variations: bool = False,
-            ) -> ModelAuditInfo:
-                """Create custom audit info with hardcoded risk score."""
-                from horde_model_reference.analytics.audit_analysis import (
+            ) -> ModelDeletionRiskInfo:
+                """Create custom risk info with hardcoded risk score."""
+                from horde_model_reference.analytics.deletion_risk_analysis import (
                     DeletionRiskFlags,
-                    ModelAuditInfo,
+                    ModelDeletionRiskInfo,
                     UsageTrend,
                 )
 
                 # Custom logic: all custom models are at risk
                 flags = DeletionRiskFlags(missing_description=True)
 
-                return ModelAuditInfo(
+                return ModelDeletionRiskInfo(
                     name=model_name,
                     category=category,
                     deletion_risk_flags=flags,
@@ -447,10 +447,10 @@ class TestModelAuditInfoFactory:
                     usage_total=0,
                 )
 
-        factory = ModelAuditInfoFactory()
+        factory = ModelDeletionRiskInfoFactory()
         factory.register_handler(CustomHandler())
-        factory.register_handler(ImageGenerationModelAuditHandler())
-        factory.register_handler(GenericModelAuditHandler())
+        factory.register_handler(ImageGenerationModelDeletionRiskHandler())
+        factory.register_handler(GenericModelDeletionRiskHandler())
 
         # Create a model that will be handled by custom handler
         custom_model = ImageGenerationModelRecord(
@@ -466,7 +466,7 @@ class TestModelAuditInfoFactory:
             ),
         )
 
-        audit_info = factory.create_audit_info(
+        risk_info = factory.create_risk_info(
             model_name="custom_special_model",
             model_record=custom_model,
             statistics=None,
@@ -474,19 +474,19 @@ class TestModelAuditInfoFactory:
             category=MODEL_REFERENCE_CATEGORY.image_generation,
         )
 
-        assert audit_info.risk_score == 999
-        assert audit_info.at_risk is True
+        assert risk_info.risk_score == 999
+        assert risk_info.at_risk is True
 
     def test_factory_handler_order(self) -> None:
         """Test that handlers are checked in registration order."""
 
-        class FirstHandler(ModelAuditInfoHandler):
+        class FirstHandler(ModelDeletionRiskInfoHandler):
             """Handler that accepts all models."""
 
             def can_handle(self, model_record: GenericModelRecord) -> bool:
                 return True
 
-            def create_audit_info(
+            def create_risk_info(
                 self,
                 *,
                 model_name: str,
@@ -495,14 +495,14 @@ class TestModelAuditInfoFactory:
                 category_total_usage: int,
                 category: MODEL_REFERENCE_CATEGORY,
                 include_backend_variations: bool = False,
-            ) -> ModelAuditInfo:
-                from horde_model_reference.analytics.audit_analysis import (
+            ) -> ModelDeletionRiskInfo:
+                from horde_model_reference.analytics.deletion_risk_analysis import (
                     DeletionRiskFlags,
-                    ModelAuditInfo,
+                    ModelDeletionRiskInfo,
                     UsageTrend,
                 )
 
-                return ModelAuditInfo(
+                return ModelDeletionRiskInfo(
                     name=model_name,
                     category=category,
                     deletion_risk_flags=DeletionRiskFlags(),
@@ -515,13 +515,13 @@ class TestModelAuditInfoFactory:
                     usage_total=0,
                 )
 
-        class SecondHandler(ModelAuditInfoHandler):
+        class SecondHandler(ModelDeletionRiskInfoHandler):
             """Handler that also accepts all models."""
 
             def can_handle(self, model_record: GenericModelRecord) -> bool:
                 return True
 
-            def create_audit_info(
+            def create_risk_info(
                 self,
                 *,
                 model_name: str,
@@ -530,14 +530,14 @@ class TestModelAuditInfoFactory:
                 category_total_usage: int,
                 category: MODEL_REFERENCE_CATEGORY,
                 include_backend_variations: bool = False,
-            ) -> ModelAuditInfo:
-                from horde_model_reference.analytics.audit_analysis import (
+            ) -> ModelDeletionRiskInfo:
+                from horde_model_reference.analytics.deletion_risk_analysis import (
                     DeletionRiskFlags,
-                    ModelAuditInfo,
+                    ModelDeletionRiskInfo,
                     UsageTrend,
                 )
 
-                return ModelAuditInfo(
+                return ModelDeletionRiskInfo(
                     name=model_name,
                     category=category,
                     deletion_risk_flags=DeletionRiskFlags(),
@@ -551,7 +551,7 @@ class TestModelAuditInfoFactory:
                 )
 
         # First handler registered first, should be used
-        factory = ModelAuditInfoFactory()
+        factory = ModelDeletionRiskInfoFactory()
         factory.register_handler(FirstHandler())
         factory.register_handler(SecondHandler())
 
@@ -567,7 +567,7 @@ class TestModelAuditInfoFactory:
             ),
         )
 
-        audit_info = factory.create_audit_info(
+        risk_info = factory.create_risk_info(
             model_name="test",
             model_record=model_record,
             statistics=None,
@@ -576,18 +576,18 @@ class TestModelAuditInfoFactory:
         )
 
         # Should use FirstHandler since it was registered first
-        assert audit_info.risk_score == 1
+        assert risk_info.risk_score == 1
 
     def test_factory_no_matching_handler(self) -> None:
         """Test factory raises error when no handler matches."""
 
-        class NeverMatchHandler(ModelAuditInfoHandler):
+        class NeverMatchHandler(ModelDeletionRiskInfoHandler):
             """Handler that never matches."""
 
             def can_handle(self, model_record: GenericModelRecord) -> bool:
                 return False
 
-            def create_audit_info(
+            def create_risk_info(
                 self,
                 *,
                 model_name: str,
@@ -596,10 +596,10 @@ class TestModelAuditInfoFactory:
                 category_total_usage: int,
                 category: MODEL_REFERENCE_CATEGORY,
                 include_backend_variations: bool = False,
-            ) -> ModelAuditInfo:
+            ) -> ModelDeletionRiskInfo:
                 raise NotImplementedError("Should never be called")
 
-        factory = ModelAuditInfoFactory()
+        factory = ModelDeletionRiskInfoFactory()
         factory.register_handler(NeverMatchHandler())
 
         model_record = ImageGenerationModelRecord(
@@ -615,7 +615,7 @@ class TestModelAuditInfoFactory:
         )
 
         with pytest.raises(ValueError, match="No handler found"):
-            factory.create_audit_info(
+            factory.create_risk_info(
                 model_name="test",
                 model_record=model_record,
                 statistics=None,
@@ -624,15 +624,15 @@ class TestModelAuditInfoFactory:
             )
 
     def test_analyze_with_custom_factory(self) -> None:
-        """Test analyze_models_for_audit accepts custom factory."""
+        """Test analyze_models_for_deletion_risk accepts custom factory."""
 
-        class AlwaysAtRiskHandler(ModelAuditInfoHandler):
+        class AlwaysAtRiskHandler(ModelDeletionRiskInfoHandler):
             """Handler that marks all models as at risk."""
 
             def can_handle(self, model_record: GenericModelRecord) -> bool:
                 return True
 
-            def create_audit_info(
+            def create_risk_info(
                 self,
                 *,
                 model_name: str,
@@ -641,14 +641,14 @@ class TestModelAuditInfoFactory:
                 category_total_usage: int,
                 category: MODEL_REFERENCE_CATEGORY,
                 include_backend_variations: bool = False,
-            ) -> ModelAuditInfo:
-                from horde_model_reference.analytics.audit_analysis import (
+            ) -> ModelDeletionRiskInfo:
+                from horde_model_reference.analytics.deletion_risk_analysis import (
                     DeletionRiskFlags,
-                    ModelAuditInfo,
+                    ModelDeletionRiskInfo,
                     UsageTrend,
                 )
 
-                return ModelAuditInfo(
+                return ModelDeletionRiskInfo(
                     name=model_name,
                     category=category,
                     deletion_risk_flags=DeletionRiskFlags(zero_usage_month=True),
@@ -661,7 +661,7 @@ class TestModelAuditInfoFactory:
                     usage_total=0,
                 )
 
-        custom_factory = ModelAuditInfoFactory()
+        custom_factory = ModelDeletionRiskInfoFactory()
         custom_factory.register_handler(AlwaysAtRiskHandler())
 
         model_records = {
@@ -678,16 +678,16 @@ class TestModelAuditInfoFactory:
             )
         }
 
-        audit_models = custom_factory.analyze_models(
+        risk_models = custom_factory.analyze_models(
             model_records,
             {},
             0,
             MODEL_REFERENCE_CATEGORY.image_generation,
         )
 
-        assert len(audit_models) == 1
-        assert audit_models[0].at_risk is True
-        assert audit_models[0].risk_score == 10
+        assert len(risk_models) == 1
+        assert risk_models[0].at_risk is True
+        assert risk_models[0].risk_score == 10
 
 
 class TestSemanticBusinessLogic:
@@ -703,7 +703,7 @@ class TestSemanticBusinessLogic:
         # Override the default threshold to match this test's business rule
         monkeypatch.setattr(horde_model_reference_settings, "low_usage_threshold_percentage", 0.1)
 
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         # Category has 10,000 total monthly usage
         # 0.1% threshold = 10 usage
@@ -732,7 +732,7 @@ class TestSemanticBusinessLogic:
         low_stats = CombinedModelStatistics(usage_stats=UsageStats(day=1, month=9, total=100))
         acceptable_stats = CombinedModelStatistics(usage_stats=UsageStats(day=1, month=11, total=100))
 
-        low_audit = factory.create_audit_info(
+        low_risk = factory.create_risk_info(
             model_name="low_usage_model",
             model_record=low_usage_model,
             statistics=low_stats,
@@ -740,7 +740,7 @@ class TestSemanticBusinessLogic:
             category=MODEL_REFERENCE_CATEGORY.image_generation,
         )
 
-        acceptable_audit = factory.create_audit_info(
+        acceptable_risk = factory.create_risk_info(
             model_name="acceptable_usage_model",
             model_record=acceptable_usage_model,
             statistics=acceptable_stats,
@@ -749,16 +749,16 @@ class TestSemanticBusinessLogic:
         )
 
         # Verify semantic meaning: usage below threshold is flagged
-        assert low_audit.deletion_risk_flags.low_usage
-        assert not acceptable_audit.deletion_risk_flags.low_usage
+        assert low_risk.deletion_risk_flags.low_usage
+        assert not acceptable_risk.deletion_risk_flags.low_usage
 
         # Verify percentage calculations
-        assert low_audit.usage_percentage_of_category == pytest.approx(0.09, abs=0.001)
-        assert acceptable_audit.usage_percentage_of_category == pytest.approx(0.11, abs=0.001)
+        assert low_risk.usage_percentage_of_category == pytest.approx(0.09, abs=0.001)
+        assert acceptable_risk.usage_percentage_of_category == pytest.approx(0.11, abs=0.001)
 
     def test_low_usage_with_zero_category_usage(self) -> None:
         """Test low_usage flag when category has zero total usage (edge case)."""
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         model = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -771,7 +771,7 @@ class TestSemanticBusinessLogic:
 
         stats = CombinedModelStatistics(usage_stats=UsageStats(day=0, month=0, total=0))
 
-        audit = factory.create_audit_info(
+        risk_result = factory.create_risk_info(
             model_name="test_model",
             model_record=model,
             statistics=stats,
@@ -780,16 +780,16 @@ class TestSemanticBusinessLogic:
         )
 
         # When category total is 0, percentage should be 0 (not NaN or error)
-        assert audit.usage_percentage_of_category == 0.0
+        assert risk_result.usage_percentage_of_category == 0.0
         # Should not be flagged as low_usage when we can't calculate percentage
-        assert not audit.deletion_risk_flags.low_usage
+        assert not risk_result.deletion_risk_flags.low_usage
 
     def test_is_critical_requires_both_conditions(self) -> None:
         """Test that is_critical requires BOTH zero month usage AND no active workers.
 
         Business rule: A model is only critical if it has BOTH conditions, not just one.
         """
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         model = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -810,7 +810,7 @@ class TestSemanticBusinessLogic:
             },
         )
 
-        audit_with_workers = factory.create_audit_info(
+        risk_with_workers = factory.create_risk_info(
             model_name="test_model",
             model_record=model,
             statistics=stats_with_workers,
@@ -824,7 +824,7 @@ class TestSemanticBusinessLogic:
             worker_summaries={},
         )
 
-        audit_with_usage = factory.create_audit_info(
+        risk_with_usage = factory.create_risk_info(
             model_name="test_model",
             model_record=model,
             statistics=stats_with_usage,
@@ -838,7 +838,7 @@ class TestSemanticBusinessLogic:
             worker_summaries={},
         )
 
-        audit_critical = factory.create_audit_info(
+        risk_critical = factory.create_risk_info(
             model_name="test_model",
             model_record=model,
             statistics=stats_critical,
@@ -847,9 +847,9 @@ class TestSemanticBusinessLogic:
         )
 
         # Verify semantic meaning: critical requires BOTH conditions
-        assert not audit_with_workers.is_critical, "Model with workers should not be critical"
-        assert not audit_with_usage.is_critical, "Model with usage should not be critical"
-        assert audit_critical.is_critical, "Model with zero usage AND no workers should be critical"
+        assert not risk_with_workers.is_critical, "Model with workers should not be critical"
+        assert not risk_with_usage.is_critical, "Model with usage should not be critical"
+        assert risk_critical.is_critical, "Model with zero usage AND no workers should be critical"
 
     def test_cost_benefit_calculation(self) -> None:
         """Test cost-benefit score calculation with concrete values.
@@ -857,7 +857,7 @@ class TestSemanticBusinessLogic:
         Business rule: cost_benefit = usage_month / size_gb
         Higher scores indicate better value (more usage per GB).
         """
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         # Model with 1000 monthly usage and 5GB size
         # Expected cost-benefit: 1000 / 5 = 200.0
@@ -873,7 +873,7 @@ class TestSemanticBusinessLogic:
 
         stats = CombinedModelStatistics(usage_stats=UsageStats(day=50, month=1000, total=5000))
 
-        audit = factory.create_audit_info(
+        risk_result = factory.create_risk_info(
             model_name="efficient_model",
             model_record=model,
             statistics=stats,
@@ -882,12 +882,12 @@ class TestSemanticBusinessLogic:
         )
 
         # Verify cost-benefit calculation
-        assert audit.size_gb == pytest.approx(5.0, abs=0.01)
-        assert audit.cost_benefit_score == pytest.approx(200.0, abs=0.01)
+        assert risk_result.size_gb == pytest.approx(5.0, abs=0.01)
+        assert risk_result.cost_benefit_score == pytest.approx(200.0, abs=0.01)
 
     def test_cost_benefit_with_zero_size(self) -> None:
         """Test cost-benefit score when model has no size info (edge case)."""
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         model = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -901,7 +901,7 @@ class TestSemanticBusinessLogic:
 
         stats = CombinedModelStatistics(usage_stats=UsageStats(day=10, month=100, total=500))
 
-        audit = factory.create_audit_info(
+        risk_result = factory.create_risk_info(
             model_name="no_size_model",
             model_record=model,
             statistics=stats,
@@ -910,8 +910,8 @@ class TestSemanticBusinessLogic:
         )
 
         # When no size info, cost-benefit should be None
-        assert audit.size_gb is None
-        assert audit.cost_benefit_score is None
+        assert risk_result.size_gb is None
+        assert risk_result.cost_benefit_score is None
 
     def test_usage_trend_ratios(self) -> None:
         """Test usage trend ratio calculations.
@@ -920,7 +920,7 @@ class TestSemanticBusinessLogic:
         - day_to_month_ratio > 1.0 indicates accelerating usage
         - month_to_total_ratio shows recent vs historical activity
         """
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         # Accelerating model: day usage is 20% of month (high recent activity)
         accelerating_model = ImageGenerationModelRecord(
@@ -936,7 +936,7 @@ class TestSemanticBusinessLogic:
             usage_stats=UsageStats(day=200, month=1000, total=2000)  # day is 20% of month
         )
 
-        accelerating_audit = factory.create_audit_info(
+        accelerating_risk = factory.create_risk_info(
             model_name="accelerating",
             model_record=accelerating_model,
             statistics=accelerating_stats,
@@ -958,7 +958,7 @@ class TestSemanticBusinessLogic:
             usage_stats=UsageStats(day=10, month=1000, total=10000)  # day is 1% of month
         )
 
-        declining_audit = factory.create_audit_info(
+        declining_risk = factory.create_risk_info(
             model_name="declining",
             model_record=declining_model,
             statistics=declining_stats,
@@ -967,15 +967,15 @@ class TestSemanticBusinessLogic:
         )
 
         # Verify trend ratios
-        assert accelerating_audit.usage_trend.day_to_month_ratio == pytest.approx(0.2, abs=0.01)
-        assert accelerating_audit.usage_trend.month_to_total_ratio == pytest.approx(0.5, abs=0.01)
+        assert accelerating_risk.usage_trend.day_to_month_ratio == pytest.approx(0.2, abs=0.01)
+        assert accelerating_risk.usage_trend.month_to_total_ratio == pytest.approx(0.5, abs=0.01)
 
-        assert declining_audit.usage_trend.day_to_month_ratio == pytest.approx(0.01, abs=0.001)
-        assert declining_audit.usage_trend.month_to_total_ratio == pytest.approx(0.1, abs=0.01)
+        assert declining_risk.usage_trend.day_to_month_ratio == pytest.approx(0.01, abs=0.001)
+        assert declining_risk.usage_trend.month_to_total_ratio == pytest.approx(0.1, abs=0.01)
 
     def test_usage_trend_division_by_zero(self) -> None:
         """Test usage trend ratios handle division by zero gracefully."""
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         model = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -989,7 +989,7 @@ class TestSemanticBusinessLogic:
         # Zero month usage (can't calculate day_to_month_ratio)
         stats = CombinedModelStatistics(usage_stats=UsageStats(day=5, month=0, total=100))
 
-        audit = factory.create_audit_info(
+        risk_result = factory.create_risk_info(
             model_name="zero_usage",
             model_record=model,
             statistics=stats,
@@ -998,15 +998,15 @@ class TestSemanticBusinessLogic:
         )
 
         # Ratios should be None when denominator is zero
-        assert audit.usage_trend.day_to_month_ratio is None
-        assert audit.usage_trend.month_to_total_ratio is not None  # total is not zero
+        assert risk_result.usage_trend.day_to_month_ratio is None
+        assert risk_result.usage_trend.month_to_total_ratio is not None  # total is not zero
 
     def test_multiple_download_hosts(self) -> None:
         """Test that models with downloads from multiple hosts are flagged.
 
         Business rule: Models should consolidate downloads on a single host.
         """
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         model = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -1030,7 +1030,7 @@ class TestSemanticBusinessLogic:
             model_classification=ModelClassification(domain=MODEL_DOMAIN.image, purpose=MODEL_PURPOSE.generation),
         )
 
-        audit = factory.create_audit_info(
+        risk_result = factory.create_risk_info(
             model_name="multi_host_model",
             model_record=model,
             statistics=None,
@@ -1039,19 +1039,19 @@ class TestSemanticBusinessLogic:
         )
 
         # Should be flagged for multiple hosts
-        assert audit.deletion_risk_flags.has_multiple_hosts
-        assert len(audit.download_hosts) == 2
+        assert risk_result.deletion_risk_flags.has_multiple_hosts
+        assert len(risk_result.download_hosts) == 2
 
         # download_hosts already contains hostnames, not full URLs
-        assert "huggingface.co" in audit.download_hosts
-        assert "civitai.com" in audit.download_hosts
+        assert "huggingface.co" in risk_result.download_hosts
+        assert "civitai.com" in risk_result.download_hosts
 
     def test_non_preferred_host_detection(self) -> None:
         """Test that non-preferred hosts are detected.
 
         Business rule: Only huggingface.co is preferred (from settings).
         """
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         # Model hosted on civitai (non-preferred)
         non_preferred_model = ImageGenerationModelRecord(
@@ -1089,7 +1089,7 @@ class TestSemanticBusinessLogic:
             model_classification=ModelClassification(domain=MODEL_DOMAIN.image, purpose=MODEL_PURPOSE.generation),
         )
 
-        non_preferred_audit = factory.create_audit_info(
+        non_preferred_risk = factory.create_risk_info(
             model_name="civitai_model",
             model_record=non_preferred_model,
             statistics=None,
@@ -1097,7 +1097,7 @@ class TestSemanticBusinessLogic:
             category=MODEL_REFERENCE_CATEGORY.image_generation,
         )
 
-        preferred_audit = factory.create_audit_info(
+        preferred_risk = factory.create_risk_info(
             model_name="hf_model",
             model_record=preferred_model,
             statistics=None,
@@ -1106,12 +1106,12 @@ class TestSemanticBusinessLogic:
         )
 
         # Verify host preference detection
-        assert non_preferred_audit.deletion_risk_flags.has_non_preferred_host
-        assert not preferred_audit.deletion_risk_flags.has_non_preferred_host
+        assert non_preferred_risk.deletion_risk_flags.has_non_preferred_host
+        assert not preferred_risk.deletion_risk_flags.has_non_preferred_host
 
     def test_malformed_url_handling(self) -> None:
         """Test that malformed download URLs are flagged as unknown hosts."""
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         model = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -1130,7 +1130,7 @@ class TestSemanticBusinessLogic:
             model_classification=ModelClassification(domain=MODEL_DOMAIN.image, purpose=MODEL_PURPOSE.generation),
         )
 
-        audit = factory.create_audit_info(
+        risk_result = factory.create_risk_info(
             model_name="bad_url_model",
             model_record=model,
             statistics=None,
@@ -1139,7 +1139,7 @@ class TestSemanticBusinessLogic:
         )
 
         # Malformed URLs should be flagged (either as unknown host or no valid URLs)
-        assert audit.deletion_risk_flags.has_unknown_host or audit.deletion_risk_flags.no_download_urls
+        assert risk_result.deletion_risk_flags.has_unknown_host or risk_result.deletion_risk_flags.no_download_urls
 
     def test_scenario_popular_model_not_flagged(self) -> None:
         """Scenario test: A popular, well-configured model should have no risk flags.
@@ -1147,7 +1147,7 @@ class TestSemanticBusinessLogic:
         Business scenario: The most popular model in a category should be
         considered safe and not flagged for deletion.
         """
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         popular_model = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -1179,7 +1179,7 @@ class TestSemanticBusinessLogic:
             },
         )
 
-        audit = factory.create_audit_info(
+        risk_result = factory.create_risk_info(
             model_name="popular_model",
             model_record=popular_model,
             statistics=stats,
@@ -1188,13 +1188,13 @@ class TestSemanticBusinessLogic:
         )
 
         # Popular model should have NO risk flags
-        assert not audit.at_risk
-        assert audit.risk_score == 0
-        assert not audit.is_critical
-        assert not audit.has_warning
-        assert audit.worker_count == 50
-        assert audit.usage_percentage_of_category == 50.0
-        assert audit.cost_benefit_score is not None and audit.cost_benefit_score > 0
+        assert not risk_result.at_risk
+        assert risk_result.risk_score == 0
+        assert not risk_result.is_critical
+        assert not risk_result.has_warning
+        assert risk_result.worker_count == 50
+        assert risk_result.usage_percentage_of_category == 50.0
+        assert risk_result.cost_benefit_score is not None and risk_result.cost_benefit_score > 0
 
     def test_scenario_abandoned_model_is_critical(self) -> None:
         """Scenario test: An abandoned model should be flagged as critical.
@@ -1202,7 +1202,7 @@ class TestSemanticBusinessLogic:
         Business scenario: A model with no downloads, no usage, and no workers
         should be clearly identified as a candidate for deletion.
         """
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         abandoned_model = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -1222,7 +1222,7 @@ class TestSemanticBusinessLogic:
             worker_summaries={},
         )
 
-        audit = factory.create_audit_info(
+        risk_result = factory.create_risk_info(
             model_name="abandoned_model",
             model_record=abandoned_model,
             statistics=stats,
@@ -1231,13 +1231,13 @@ class TestSemanticBusinessLogic:
         )
 
         # Abandoned model should be critical with multiple risk flags
-        assert audit.at_risk
-        assert audit.is_critical
-        assert audit.risk_score > 3  # Multiple flags
-        assert audit.deletion_risk_flags.no_download_urls
-        assert audit.deletion_risk_flags.zero_usage_month
-        assert audit.deletion_risk_flags.no_active_workers
-        assert audit.deletion_risk_flags.missing_description
+        assert risk_result.at_risk
+        assert risk_result.is_critical
+        assert risk_result.risk_score > 3  # Multiple flags
+        assert risk_result.deletion_risk_flags.no_download_urls
+        assert risk_result.deletion_risk_flags.zero_usage_month
+        assert risk_result.deletion_risk_flags.no_active_workers
+        assert risk_result.deletion_risk_flags.missing_description
 
     def test_scenario_niche_model_warning_only(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Scenario test: A niche model with low usage but active workers.
@@ -1250,7 +1250,7 @@ class TestSemanticBusinessLogic:
         # Override threshold to 0.1% to match test expectations (0.05% usage should be flagged)
         monkeypatch.setattr(horde_model_reference_settings, "low_usage_threshold_percentage", 0.1)
 
-        factory = ModelAuditInfoFactory.create_default()
+        factory = ModelDeletionRiskInfoFactory.create_default()
 
         niche_model = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -1280,7 +1280,7 @@ class TestSemanticBusinessLogic:
             },
         )
 
-        audit = factory.create_audit_info(
+        risk_result = factory.create_risk_info(
             model_name="niche_model",
             model_record=niche_model,
             statistics=stats,
@@ -1289,12 +1289,12 @@ class TestSemanticBusinessLogic:
         )
 
         # Should be at risk due to low usage, but NOT critical (has workers)
-        assert audit.at_risk
-        assert not audit.is_critical
-        assert audit.deletion_risk_flags.low_usage
-        assert not audit.deletion_risk_flags.no_active_workers
-        assert audit.worker_count == 1
-        assert audit.usage_percentage_of_category == pytest.approx(0.05, abs=0.001)
+        assert risk_result.at_risk
+        assert not risk_result.is_critical
+        assert risk_result.deletion_risk_flags.low_usage
+        assert not risk_result.deletion_risk_flags.no_active_workers
+        assert risk_result.worker_count == 1
+        assert risk_result.usage_percentage_of_category == pytest.approx(0.05, abs=0.001)
 
 
 class TestDeletionRiskFlagsFactory:
@@ -1527,8 +1527,8 @@ class TestDeletionRiskFlagsFactory:
                 category_total_usage=0,
             )
 
-    def test_audit_handlers_use_flags_factory(self) -> None:
-        """Test that audit handlers can be initialized with custom flags factory."""
+    def test_risk_handlers_use_flags_factory(self) -> None:
+        """Test that risk handlers can be initialized with custom flags factory."""
 
         class AlwaysCriticalFlagsHandler(DeletionRiskFlagsHandler):
             """Custom handler that marks everything as critical."""
@@ -1553,8 +1553,8 @@ class TestDeletionRiskFlagsFactory:
         custom_flags_factory = DeletionRiskFlagsFactory()
         custom_flags_factory.register_handler(AlwaysCriticalFlagsHandler())
 
-        # Create audit handler with custom flags factory
-        audit_handler = ImageGenerationModelAuditHandler(flags_factory=custom_flags_factory)
+        # Create risk handler with custom flags factory
+        risk_handler = ImageGenerationModelDeletionRiskHandler(flags_factory=custom_flags_factory)
 
         model_record = ImageGenerationModelRecord(
             record_type=MODEL_REFERENCE_CATEGORY.image_generation,
@@ -1583,7 +1583,7 @@ class TestDeletionRiskFlagsFactory:
             },
         )
 
-        audit_info = audit_handler.create_audit_info(
+        risk_info = risk_handler.create_risk_info(
             model_name="test_model",
             model_record=model_record,
             statistics=statistics,
@@ -1591,6 +1591,6 @@ class TestDeletionRiskFlagsFactory:
             category=MODEL_REFERENCE_CATEGORY.image_generation,
         )
 
-        assert audit_info.deletion_risk_flags.zero_usage_month
-        assert audit_info.deletion_risk_flags.no_active_workers
-        assert audit_info.is_critical
+        assert risk_info.deletion_risk_flags.zero_usage_month
+        assert risk_info.deletion_risk_flags.no_active_workers
+        assert risk_info.is_critical

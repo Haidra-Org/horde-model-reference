@@ -1,6 +1,6 @@
-"""Caching layer for category audit results with Redis support.
+"""Caching layer for category deletion risk results with Redis support.
 
-Provides a singleton cache for CategoryAuditResponse that integrates with the backend
+Provides a singleton cache for CategoryDeletionRiskResponse that integrates with the backend
 invalidation system. Automatically invalidates when model reference data changes.
 """
 
@@ -9,51 +9,51 @@ from __future__ import annotations
 from loguru import logger
 
 from horde_model_reference import horde_model_reference_settings
-from horde_model_reference.analytics.audit_analysis import CategoryAuditResponse
 from horde_model_reference.analytics.base_cache import RedisCache
+from horde_model_reference.analytics.deletion_risk_analysis import CategoryDeletionRiskResponse
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
-class AuditCache(RedisCache[CategoryAuditResponse]):
-    """Singleton cache for category audit results.
+class DeletionRiskCache(RedisCache[CategoryDeletionRiskResponse]):
+    """Singleton cache for category deletion risk results.
 
     Integrates with existing backend invalidation system to automatically
-    clear audit results when model data changes. Uses Redis for distributed
+    clear deletion risk results when model data changes. Uses Redis for distributed
     caching when available, with in-memory fallback.
 
-    Inherits from RedisCache[CategoryAuditResponse] for common caching infrastructure.
+    Inherits from RedisCache[CategoryDeletionRiskResponse] for common caching infrastructure.
     """
 
-    _instance: AuditCache | None = None
+    _instance: DeletionRiskCache | None = None
 
     def _get_cache_key_prefix(self) -> str:
-        """Get the Redis key prefix for audit cache.
+        """Get the Redis key prefix for deletion risk cache.
 
         Returns:
             Redis key prefix string.
 
         """
-        return f"{horde_model_reference_settings.redis.key_prefix}:audit"
+        return f"{horde_model_reference_settings.redis.key_prefix}:deletion_risk"
 
     def _get_ttl(self) -> int:
-        """Get the TTL in seconds for audit cache entries.
+        """Get the TTL in seconds for deletion risk cache entries.
 
         Returns:
             TTL in seconds from settings.
 
         """
-        return horde_model_reference_settings.audit_cache_ttl
+        return horde_model_reference_settings.deletion_risk_cache_ttl
 
-    def _get_model_class(self) -> type[CategoryAuditResponse]:
+    def _get_model_class(self) -> type[CategoryDeletionRiskResponse]:
         """Get the Pydantic model class for deserialization.
 
         Returns:
-            CategoryAuditResponse class.
+            CategoryDeletionRiskResponse class.
 
         """
-        from horde_model_reference.analytics.audit_analysis import CategoryAuditResponse
+        from horde_model_reference.analytics.deletion_risk_analysis import CategoryDeletionRiskResponse
 
-        return CategoryAuditResponse
+        return CategoryDeletionRiskResponse
 
     def _register_invalidation_callback(self) -> None:
         """Register callback with ModelReferenceManager backend for automatic invalidation."""
@@ -63,15 +63,15 @@ class AuditCache(RedisCache[CategoryAuditResponse]):
             manager = ModelReferenceManager()
             if hasattr(manager.backend, "register_invalidation_callback"):
                 manager.backend.register_invalidation_callback(self._on_category_invalidated)
-                logger.info("AuditCache registered invalidation callback with backend")
+                logger.info("DeletionRiskCache registered invalidation callback with backend")
             else:
                 logger.warning(f"Backend {type(manager.backend).__name__} does not support invalidation callbacks")
         except Exception as e:
             logger.warning(f"Failed to register invalidation callback: {e}")
-            logger.info("Audit cache will rely on TTL-based expiration only")
+            logger.info("Deletion risk cache will rely on TTL-based expiration only")
 
     def _on_category_invalidated(self, category: MODEL_REFERENCE_CATEGORY) -> None:
-        """Invalidate audit cache when model reference data changes.
+        """Invalidate deletion risk cache when model reference data changes.
 
         Invalidates both grouped and ungrouped variants for the category.
 
@@ -79,5 +79,5 @@ class AuditCache(RedisCache[CategoryAuditResponse]):
             category: The category that was invalidated.
 
         """
-        logger.debug(f"Invalidating audit cache for category: {category}")
+        logger.debug(f"Invalidating deletion risk cache for category: {category}")
         self.invalidate(category, grouped=None)  # Invalidate both variants

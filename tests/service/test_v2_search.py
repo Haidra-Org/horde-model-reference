@@ -23,9 +23,9 @@ def primary_manager_for_search(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[ModelReferenceManager]:
     """PRIMARY manager seeded with test data for search tests."""
-    from horde_model_reference import horde_model_reference_settings
+    from horde_model_reference import CanonicalFormat, horde_model_reference_settings
 
-    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "v2")
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", CanonicalFormat.v2)
     manager = primary_manager_override_factory(get_model_reference_manager)
 
     backend = manager.backend

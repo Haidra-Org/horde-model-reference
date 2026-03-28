@@ -46,9 +46,9 @@ def primary_manager_for_api(
 
     Sets canonical_format to 'v2' to enable v2 write operations.
     """
-    from horde_model_reference import horde_model_reference_settings
+    from horde_model_reference import CanonicalFormat, horde_model_reference_settings
 
-    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", "v2")
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", CanonicalFormat.v2)
     manager = primary_manager_override_factory(get_model_reference_manager)
     yield manager
 

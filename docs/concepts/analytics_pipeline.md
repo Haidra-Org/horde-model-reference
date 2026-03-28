@@ -1,6 +1,6 @@
 # Analytics Pipeline
 
-The analytics subsystem computes aggregate statistics over model reference data, runs audit analysis, and parses text model names into structured families. Results are cached with Redis support and can be pre-populated by a background hydrator.
+The analytics subsystem computes aggregate statistics over model reference data, runs deletion risk analysis, and parses text model names into structured families. Results are cached with Redis support and can be pre-populated by a background hydrator.
 
 ## Data Flow
 
@@ -10,10 +10,10 @@ graph TD
     Stats --> SC[StatisticsCache]
     SC --> SE[Statistics Endpoints]
 
-    MR --> AA[Audit Analysis]
+    MR --> AA[Deletion Risk Analysis]
     Horde[Horde API Data] --> AA
-    AA --> AC[AuditCache]
-    AC --> AE[Audit Endpoints]
+    AA --> AC[DeletionRiskCache]
+    AC --> AE[Deletion Risk Endpoints]
 
     MR --> TMP[TextModelParser]
     TMP --> TMG[TextModelGrouping]
@@ -59,7 +59,7 @@ When cache hydration is enabled, the cache implements a stale-while-revalidate p
 ### Concrete Caches
 
 - **`StatisticsCache`** — caches `CategoryStatistics` with TTL from `statistics_cache_ttl` (default 300s)
-- **`AuditCache`** — caches `CategoryAuditResponse` with TTL from `audit_cache_ttl` (default 300s)
+- **`DeletionRiskCache`** — caches `CategoryDeletionRiskResponse` with TTL from `deletion_risk_cache_ttl` (default 300s)
 
 Both auto-invalidate when the backend signals a data change (e.g., after a model is created or deleted).
 
@@ -71,7 +71,7 @@ The hydration cycle iterates over supported categories (`image_generation`, `tex
 
 1. Fetches fresh Horde API data (model status, usage statistics)
 2. Merges with model reference records via `DataMerger`
-3. Computes audit analysis through `ModelAuditInfoFactory`
+3. Computes deletion risk analysis through `ModelDeletionRiskInfoFactory`
 4. Stores results in the appropriate cache
 
 Configuration via environment variables:
@@ -83,15 +83,15 @@ Configuration via environment variables:
 | `CACHE_HYDRATION_STALE_TTL_SECONDS` | 3600 | Max age before stale data is discarded |
 | `CACHE_HYDRATION_STARTUP_DELAY_SECONDS` | 5 | Delay before first hydration run |
 
-## Audit Analysis
+## Deletion Risk Analysis
 
-`audit_analysis.py` performs risk and usage analysis over model records enriched with Horde runtime data:
+`deletion_risk_analysis.py` performs risk and usage analysis over model records enriched with Horde runtime data:
 
 - **Deletion risk scoring** — flags models with no workers, zero usage, or downloads hosted outside preferred hosts
 - **Low usage detection** — configurable thresholds (different for image vs text models)
 - **Backend variation tracking** — for text models, tracks per-backend worker counts and usage
 
-`FilterPresets` provides named filter combinations for common audit queries (e.g., "at-risk models", "high usage", "no workers").
+`FilterPresets` provides named filter combinations for common deletion risk queries (e.g., "at-risk models", "high usage", "no workers").
 
 ## Text Model Pipeline
 

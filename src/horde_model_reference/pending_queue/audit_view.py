@@ -9,10 +9,12 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from horde_model_reference.audit import AuditDomain, AuditTrailReader
+from horde_model_reference import CanonicalFormat
+from horde_model_reference.audit import AuditTrailReader
 from horde_model_reference.audit.events import AuditEvent, AuditOperation
 from horde_model_reference.audit.replay import AuditReplayer
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.pending_queue.audit_events import PendingQueueAction
 from horde_model_reference.pending_queue.diff_utils import (
     FieldDiff,
     NetChangeType,
@@ -79,7 +81,7 @@ class PendingQueueAuditBatchDetail(PendingQueueAuditBatchSummary):
 class PendingQueueAuditBatchPage(BaseModel):
     """Cursor-based page of batch summaries."""
 
-    domain: AuditDomain
+    domain: CanonicalFormat
     batches: list[PendingQueueAuditBatchSummary]
     next_cursor: int | None = None
 
@@ -87,7 +89,7 @@ class PendingQueueAuditBatchPage(BaseModel):
 class PendingQueueAuditCurrentResponse(BaseModel):
     """Snapshot of currently pending (unapproved) changes."""
 
-    domain: AuditDomain
+    domain: CanonicalFormat
     pending_changes: list[PendingQueueAuditChange]
     total_pending: int
     generated_at: int
@@ -183,7 +185,7 @@ class PendingQueueAuditDataset:
             action = payload.get("action")
             change_id = _parse_change_id(event, payload)
             if action is None or change_id is None:
-                if action == "batch_split":
+                if action == PendingQueueAction.BATCH_SPLIT:
                     self._process_batch_split(payload, event)
                 continue
 
@@ -198,19 +200,19 @@ class PendingQueueAuditDataset:
                 )
             )
 
-            if action == "enqueue":
+            if action == PendingQueueAction.ENQUEUE:
                 self._process_enqueue(change, payload, event)
                 continue
-            if action == "approve":
+            if action == PendingQueueAction.APPROVE:
                 self._process_approve(change, payload, event)
                 continue
-            if action == "reject":
+            if action == PendingQueueAction.REJECT:
                 self._process_reject(change, payload, event)
                 continue
-            if action == "apply":
+            if action == PendingQueueAction.APPLY:
                 self._process_apply(change, payload, event)
                 continue
-            if action == "batch_split":
+            if action == PendingQueueAction.BATCH_SPLIT:
                 self._process_batch_split(payload, event)
 
     def _process_enqueue(self, change: _ChangeState, payload: dict[str, Any], event: AuditEvent) -> None:
@@ -364,7 +366,7 @@ class BatchNetChangeResponse(BaseModel):
 
     batch_id: int
     batch_title: str | None = None
-    domain: AuditDomain
+    domain: CanonicalFormat
     model_changes: list[ModelNetChange] = Field(default_factory=list)
     models_added: int = 0
     models_modified: int = 0
@@ -425,7 +427,7 @@ def _coerce_int(value: object) -> int | None:
     return None
 
 
-def load_pending_queue_audit_dataset(*, root_path: Path, domain: AuditDomain) -> PendingQueueAuditDataset:
+def load_pending_queue_audit_dataset(*, root_path: Path, domain: CanonicalFormat) -> PendingQueueAuditDataset:
     """Create a dataset by scanning audit segments for the pending queue category."""
     reader = AuditTrailReader(root_path=root_path)
     events = list(
@@ -440,7 +442,7 @@ def load_pending_queue_audit_dataset(*, root_path: Path, domain: AuditDomain) ->
 def compute_batch_net_changes(
     *,
     root_path: Path,
-    domain: AuditDomain,
+    domain: CanonicalFormat,
     batch_id: int,
 ) -> BatchNetChangeResponse | None:
     """Compute net changes for all models affected by a batch.
