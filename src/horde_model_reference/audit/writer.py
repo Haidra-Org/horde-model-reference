@@ -9,7 +9,8 @@ from threading import RLock
 
 from loguru import logger
 
-from horde_model_reference.audit.events import AuditDomain, AuditEvent, AuditOperation, AuditPayload
+from horde_model_reference import CanonicalFormat
+from horde_model_reference.audit.events import AuditEvent, AuditOperation, AuditPayload
 from horde_model_reference.util import atomic_write_json
 
 DEFAULT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
@@ -38,7 +39,7 @@ class AuditTrailWriter:
     def append_event(
         self,
         *,
-        domain: AuditDomain,
+        domain: CanonicalFormat,
         category: str,
         model_name: str,
         operation: AuditOperation,
@@ -80,7 +81,7 @@ class AuditTrailWriter:
             return 0
         return int(data.get("last_event_id", 0))
 
-    def _resolve_segment_path(self, *, domain: AuditDomain, category: str) -> Path:
+    def _resolve_segment_path(self, *, domain: CanonicalFormat, category: str) -> Path:
         category_dir: Path = self._root_path / domain.value / category
         category_dir.mkdir(parents=True, exist_ok=True)
         segments = sorted(category_dir.glob("audit-*.jsonl"))

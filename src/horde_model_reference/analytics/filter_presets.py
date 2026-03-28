@@ -1,4 +1,4 @@
-"""Filter presets for audit analysis.
+"""Filter presets for deletion risk analysis.
 
 Provides predefined filter presets to quickly identify models of interest
 (e.g., deletion candidates, zero usage models, models with missing data).
@@ -11,12 +11,12 @@ from collections.abc import Callable
 from loguru import logger
 from strenum import StrEnum
 
-from horde_model_reference.analytics.audit_analysis import ModelAuditInfo
 from horde_model_reference.analytics.constants import LOW_USAGE_THRESHOLD
+from horde_model_reference.analytics.deletion_risk_analysis import ModelDeletionRiskInfo
 
 
-class AuditFilterPreset(StrEnum):
-    """Predefined filter presets for audit analysis."""
+class DeletionRiskFilterPreset(StrEnum):
+    """Predefined Filter presets for deletion risk analysis."""
 
     DELETION_CANDIDATES = "deletion_candidates"
     """Models that are candidates for deletion (any flags, very low usage, or no workers)."""
@@ -40,7 +40,7 @@ class AuditFilterPreset(StrEnum):
     """Models with very low usage (< 0.1% of category total)."""
 
 
-def filter_deletion_candidates(model: ModelAuditInfo) -> bool:
+def filter_deletion_candidates(model: ModelDeletionRiskInfo) -> bool:
     """Check if model is a deletion candidate.
 
     A model is a deletion candidate if it has:
@@ -58,7 +58,7 @@ def filter_deletion_candidates(model: ModelAuditInfo) -> bool:
     return model.at_risk or model.usage_percentage_of_category < LOW_USAGE_THRESHOLD or model.worker_count == 0
 
 
-def filter_zero_usage(model: ModelAuditInfo) -> bool:
+def filter_zero_usage(model: ModelDeletionRiskInfo) -> bool:
     """Check if model has zero monthly usage.
 
     Args:
@@ -71,7 +71,7 @@ def filter_zero_usage(model: ModelAuditInfo) -> bool:
     return model.usage_month == 0
 
 
-def filter_no_workers(model: ModelAuditInfo) -> bool:
+def filter_no_workers(model: ModelDeletionRiskInfo) -> bool:
     """Check if model has no active workers.
 
     Args:
@@ -84,7 +84,7 @@ def filter_no_workers(model: ModelAuditInfo) -> bool:
     return model.worker_count == 0
 
 
-def filter_missing_data(model: ModelAuditInfo) -> bool:
+def filter_missing_data(model: ModelDeletionRiskInfo) -> bool:
     """Check if model is missing critical data.
 
     A model is missing data if it lacks:
@@ -101,7 +101,7 @@ def filter_missing_data(model: ModelAuditInfo) -> bool:
     return model.deletion_risk_flags.missing_description or model.deletion_risk_flags.missing_baseline
 
 
-def filter_host_issues(model: ModelAuditInfo) -> bool:
+def filter_host_issues(model: ModelDeletionRiskInfo) -> bool:
     """Check if model has file hosting issues.
 
     Issues include:
@@ -125,7 +125,7 @@ def filter_host_issues(model: ModelAuditInfo) -> bool:
     )
 
 
-def filter_critical(model: ModelAuditInfo) -> bool:
+def filter_critical(model: ModelDeletionRiskInfo) -> bool:
     """Check if model is in critical state.
 
     Critical state = zero month usage AND no active workers.
@@ -140,7 +140,7 @@ def filter_critical(model: ModelAuditInfo) -> bool:
     return model.is_critical
 
 
-def filter_low_usage(model: ModelAuditInfo) -> bool:
+def filter_low_usage(model: ModelDeletionRiskInfo) -> bool:
     """Check if model has very low usage.
 
     Low usage = less than 0.1% of category's total monthly usage.
@@ -155,18 +155,21 @@ def filter_low_usage(model: ModelAuditInfo) -> bool:
     return model.deletion_risk_flags.low_usage
 
 
-PRESET_FILTERS: dict[AuditFilterPreset, Callable[[ModelAuditInfo], bool]] = {
-    AuditFilterPreset.DELETION_CANDIDATES: filter_deletion_candidates,
-    AuditFilterPreset.ZERO_USAGE: filter_zero_usage,
-    AuditFilterPreset.NO_WORKERS: filter_no_workers,
-    AuditFilterPreset.MISSING_DATA: filter_missing_data,
-    AuditFilterPreset.HOST_ISSUES: filter_host_issues,
-    AuditFilterPreset.CRITICAL: filter_critical,
-    AuditFilterPreset.LOW_USAGE: filter_low_usage,
+PRESET_FILTERS: dict[DeletionRiskFilterPreset, Callable[[ModelDeletionRiskInfo], bool]] = {
+    DeletionRiskFilterPreset.DELETION_CANDIDATES: filter_deletion_candidates,
+    DeletionRiskFilterPreset.ZERO_USAGE: filter_zero_usage,
+    DeletionRiskFilterPreset.NO_WORKERS: filter_no_workers,
+    DeletionRiskFilterPreset.MISSING_DATA: filter_missing_data,
+    DeletionRiskFilterPreset.HOST_ISSUES: filter_host_issues,
+    DeletionRiskFilterPreset.CRITICAL: filter_critical,
+    DeletionRiskFilterPreset.LOW_USAGE: filter_low_usage,
 }
 
 
-def apply_preset_filter(models: list[ModelAuditInfo], preset: str | AuditFilterPreset) -> list[ModelAuditInfo]:
+def apply_preset_filter(
+    models: list[ModelDeletionRiskInfo],
+    preset: str | DeletionRiskFilterPreset,
+) -> list[ModelDeletionRiskInfo]:
     """Apply a preset filter to a list of models.
 
     Args:
@@ -182,9 +185,9 @@ def apply_preset_filter(models: list[ModelAuditInfo], preset: str | AuditFilterP
     """
     if isinstance(preset, str):
         try:
-            preset_enum = AuditFilterPreset(preset)
+            preset_enum = DeletionRiskFilterPreset(preset)
         except ValueError as e:
-            valid_presets = ", ".join(p.value for p in AuditFilterPreset)
+            valid_presets = ", ".join(p.value for p in DeletionRiskFilterPreset)
             raise ValueError(f"Unknown preset: '{preset}'. Valid presets: {valid_presets}") from e
     else:
         preset_enum = preset
@@ -209,31 +212,31 @@ def get_available_presets() -> list[dict[str, str]]:
     """
     return [
         {
-            "name": AuditFilterPreset.DELETION_CANDIDATES.value,
+            "name": DeletionRiskFilterPreset.DELETION_CANDIDATES.value,
             "description": "Models that are candidates for deletion (any flags, very low usage, or no workers)",
         },
         {
-            "name": AuditFilterPreset.ZERO_USAGE.value,
+            "name": DeletionRiskFilterPreset.ZERO_USAGE.value,
             "description": "Models with zero monthly usage",
         },
         {
-            "name": AuditFilterPreset.NO_WORKERS.value,
+            "name": DeletionRiskFilterPreset.NO_WORKERS.value,
             "description": "Models with no active workers",
         },
         {
-            "name": AuditFilterPreset.MISSING_DATA.value,
+            "name": DeletionRiskFilterPreset.MISSING_DATA.value,
             "description": "Models missing critical data (description or baseline)",
         },
         {
-            "name": AuditFilterPreset.HOST_ISSUES.value,
+            "name": DeletionRiskFilterPreset.HOST_ISSUES.value,
             "description": "Models with file hosting issues (non-preferred hosts, multiple hosts, or unknown hosts)",
         },
         {
-            "name": AuditFilterPreset.CRITICAL.value,
+            "name": DeletionRiskFilterPreset.CRITICAL.value,
             "description": "Models in critical state (zero month usage AND no workers)",
         },
         {
-            "name": AuditFilterPreset.LOW_USAGE.value,
+            "name": DeletionRiskFilterPreset.LOW_USAGE.value,
             "description": "Models with very low usage (< 0.1% of category total)",
         },
     ]

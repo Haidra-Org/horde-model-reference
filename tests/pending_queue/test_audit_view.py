@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from horde_model_reference.audit.events import AuditDomain, AuditEvent, AuditOperation, AuditPayload
+from horde_model_reference import CanonicalFormat
+from horde_model_reference.audit.events import AuditEvent, AuditOperation, AuditPayload
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.pending_queue.audit_view import PendingQueueAuditDataset
 from horde_model_reference.pending_queue.models import PendingChangeStatus
@@ -17,7 +18,7 @@ def _event(
     model_name = str(change_id) if change_id is not None else "queue"
     return AuditEvent.new(
         event_id=event_id,
-        domain=AuditDomain.LEGACY,
+        domain=CanonicalFormat.LEGACY,
         category="pending_queue",
         model_name=model_name,
         operation=AuditOperation.UPDATE,

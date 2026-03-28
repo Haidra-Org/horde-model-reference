@@ -7,10 +7,19 @@ from typing import Any
 
 from loguru import logger
 
-from horde_model_reference import CanonicalFormat, horde_model_reference_settings
+from horde_model_reference import horde_model_reference_settings
 from horde_model_reference.audit import AuditTrailWriter
-from horde_model_reference.audit.events import AuditDomain, AuditOperation, AuditPayload
+from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.pending_queue.audit_events import (
+    ApplyEvent,
+    ApproveEvent,
+    BatchSplitEvent,
+    EnqueueEvent,
+    PurgeEvent,
+    RejectEvent,
+    _PendingQueueEventBase,
+)
 from horde_model_reference.pending_queue.models import (
     BatchSplitInfo,
     MarkAppliedResult,
@@ -25,12 +34,6 @@ from horde_model_reference.pending_queue.models import (
 from horde_model_reference.pending_queue.store import PendingQueueStore, assert_pending
 
 _QUEUE_CATEGORY = "pending_queue"
-
-
-def _pending_queue_audit_domain() -> AuditDomain:
-    """Return the audit domain that matches the active canonical format."""
-    canonical = horde_model_reference_settings.canonical_format
-    return AuditDomain.LEGACY if canonical == CanonicalFormat.LEGACY else AuditDomain.V2
 
 
 class PendingQueueService:
@@ -70,13 +73,12 @@ class PendingQueueService:
         persisted = self._store.enqueue_change(record)
         self._write_audit_event(
             logical_user_id=requestor_id,
-            action="enqueue",
-            payload={
-                "change_id": persisted.change_id,
-                "operation": operation.value,
-                "category": category.value,
-                "model": model_name,
-            },
+            event=EnqueueEvent(
+                change_id=persisted.change_id,
+                operation=operation,
+                category=category,
+                model_name=model_name,
+            ),
         )
         return persisted
 
@@ -110,14 +112,13 @@ class PendingQueueService:
         for record in removed:
             self._write_audit_event(
                 logical_user_id=purged_by,
-                action="purge",
-                payload={
-                    "change_id": record.change_id,
-                    "category": record.category.value,
-                    "model": record.model_name,
-                    "requested_by": record.requested_by,
-                    "purged_by_username": purged_username,
-                },
+                event=PurgeEvent(
+                    change_id=record.change_id,
+                    category=record.category,
+                    model_name=record.model_name,
+                    requested_by=record.requested_by,
+                    purged_by_username=purged_username,
+                ),
             )
 
         return removed
@@ -198,23 +199,21 @@ class PendingQueueService:
         for record in approved_records:
             self._write_audit_event(
                 logical_user_id=approver_id,
-                action="approve",
-                payload={
-                    "change_id": record.change_id,
-                    "batch_id": batch_id,
-                    "batch_title": batch_title,
-                },
+                event=ApproveEvent(
+                    change_id=record.change_id,
+                    batch_id=batch_id,
+                    batch_title=batch_title,
+                ),
             )
         for record in rejected_records:
             self._write_audit_event(
                 logical_user_id=approver_id,
-                action="reject",
-                payload={
-                    "change_id": record.change_id,
-                    "batch_id": batch_id,
-                    "batch_title": batch_title,
-                    "reason": reject_reason,
-                },
+                event=RejectEvent(
+                    change_id=record.change_id,
+                    batch_id=batch_id,
+                    batch_title=batch_title,
+                    reason=reject_reason,
+                ),
             )
 
         return PendingBatchResult(
@@ -267,12 +266,11 @@ class PendingQueueService:
         persisted = self._store.save_many([updated])[0]
         self._write_audit_event(
             logical_user_id=applied_by,
-            action="apply",
-            payload={
-                "change_id": persisted.change_id,
-                "batch_id": persisted.batch_id,
-                "job_id": job_id,
-            },
+            event=ApplyEvent(
+                change_id=persisted.change_id,
+                batch_id=persisted.batch_id,
+                job_id=job_id,
+            ),
         )
 
         # Handle partial batch application: reassign remaining APPROVED changes to new batch
@@ -333,13 +331,11 @@ class PendingQueueService:
         # Emit audit event for the batch split
         self._write_audit_event(
             logical_user_id=applied_by,
-            action="batch_split",
-            payload={
-                "original_batch_id": original_batch_id,
-                "new_batch_id": new_batch_id,
-                "reassigned_change_ids": reassigned_change_ids,
-                "reason": "partial_apply",
-            },
+            event=BatchSplitEvent(
+                original_batch_id=original_batch_id,
+                new_batch_id=new_batch_id,
+                reassigned_change_ids=reassigned_change_ids,
+            ),
         )
 
         return BatchSplitInfo(
@@ -391,18 +387,19 @@ class PendingQueueService:
                 logger.error("Failed to revert stuck change %d: %s", record.change_id, exc)
         return reverted
 
-    def _write_audit_event(self, *, logical_user_id: str, action: str, payload: dict[str, Any]) -> None:
+    def _write_audit_event(self, *, logical_user_id: str, event: _PendingQueueEventBase) -> None:
         if not self._audit_writer:
             return
-        audit_payload = AuditPayload.from_create({"action": action, **payload})
+        audit_payload = event.to_audit_payload()
+        payload_dict = event.to_audit_dict()
         try:
             self._audit_writer.append_event(
-                domain=_pending_queue_audit_domain(),
+                domain=horde_model_reference_settings.canonical_format,
                 category=_QUEUE_CATEGORY,
-                model_name=str(payload.get("change_id", "queue")),
+                model_name=str(payload_dict.get("change_id", "queue")),
                 operation=AuditOperation.UPDATE,
                 logical_user_id=logical_user_id,
                 payload=audit_payload,
             )
         except Exception as exc:  # pragma: no cover - defensive
-            logger.warning("Unable to emit pending queue audit event: %s", exc)
+            logger.warning("Unable to emit pending queue audit event: {}", exc)

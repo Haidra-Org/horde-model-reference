@@ -4,19 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, overload
 
 from pydantic import BaseModel, Field
 from strenum import StrEnum
 
 from horde_model_reference import CanonicalFormat
 
-
-class AuditDomain(StrEnum):
-    """Supported domains for audit events."""
-
-    LEGACY = CanonicalFormat.LEGACY
-    V2 = CanonicalFormat.v2
+# Type alias for anything accepted as a record snapshot.
+RecordLike = Mapping[str, Any] | BaseModel
 
 
 class AuditOperation(StrEnum):
@@ -44,20 +40,44 @@ class AuditPayload(BaseModel):
         description="Sparse representation of changed fields for updates",
     )
 
+    @overload
     @staticmethod
-    def from_create(record: Mapping[str, Any]) -> AuditPayload:
+    def from_create(record: Mapping[str, Any]) -> AuditPayload: ...
+
+    @overload
+    @staticmethod
+    def from_create(record: BaseModel) -> AuditPayload: ...
+
+    @staticmethod
+    def from_create(record: RecordLike) -> AuditPayload:
         """Build payload for create operations using the new record snapshot."""
-        return AuditPayload(after=_coerce_mapping(record))
+        return AuditPayload(after=_coerce_record(record))
+
+    @overload
+    @staticmethod
+    def from_delete(record: Mapping[str, Any]) -> AuditPayload: ...
+
+    @overload
+    @staticmethod
+    def from_delete(record: BaseModel) -> AuditPayload: ...
 
     @staticmethod
-    def from_delete(record: Mapping[str, Any]) -> AuditPayload:
+    def from_delete(record: RecordLike) -> AuditPayload:
         """Build payload for delete operations using the removed record snapshot."""
-        return AuditPayload(before=_coerce_mapping(record))
+        return AuditPayload(before=_coerce_record(record))
+
+    @overload
+    @staticmethod
+    def from_update(before: Mapping[str, Any], after: Mapping[str, Any]) -> AuditPayload: ...
+
+    @overload
+    @staticmethod
+    def from_update(before: BaseModel, after: BaseModel) -> AuditPayload: ...
 
     @staticmethod
-    def from_update(before: Mapping[str, Any], after: Mapping[str, Any]) -> AuditPayload:
+    def from_update(before: RecordLike, after: RecordLike) -> AuditPayload:
         """Build payload for update operations using a sparse delta representation."""
-        return AuditPayload(delta=_compute_delta(before, after))
+        return AuditPayload(delta=_compute_delta(_coerce_record(before), _coerce_record(after)))
 
 
 class AuditEvent(BaseModel):
@@ -65,7 +85,7 @@ class AuditEvent(BaseModel):
 
     event_id: int
     timestamp: int = Field(description="Unix timestamp (UTC) when the event was recorded")
-    domain: AuditDomain
+    domain: CanonicalFormat
     category: str
     model_name: str
     operation: AuditOperation
@@ -77,7 +97,7 @@ class AuditEvent(BaseModel):
     def new(
         *,
         event_id: int,
-        domain: AuditDomain,
+        domain: CanonicalFormat,
         category: str,
         model_name: str,
         operation: AuditOperation,
@@ -100,18 +120,18 @@ class AuditEvent(BaseModel):
         )
 
 
-def _coerce_mapping(record: Mapping[str, Any]) -> dict[str, Any]:
+def _coerce_record(record: RecordLike) -> dict[str, Any]:
+    if isinstance(record, BaseModel):
+        return record.model_dump(mode="json")
     return {key: record[key] for key in record}
 
 
-def _compute_delta(before: Mapping[str, Any], after: Mapping[str, Any]) -> dict[str, AuditFieldChange]:
+def _compute_delta(before: dict[str, Any], after: dict[str, Any]) -> dict[str, AuditFieldChange]:
     delta: dict[str, AuditFieldChange] = {}
-    before_dict = _coerce_mapping(before)
-    after_dict = _coerce_mapping(after)
-    keys = set(before_dict) | set(after_dict)
+    keys = set(before) | set(after)
     for key in keys:
-        old_value = before_dict.get(key)
-        new_value = after_dict.get(key)
+        old_value = before.get(key)
+        new_value = after.get(key)
         if old_value != new_value:
             delta[key] = AuditFieldChange(old=old_value, new=new_value)
     return delta

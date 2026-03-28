@@ -62,7 +62,7 @@ class RouteNames(StrEnum):
     delete_model = auto()
     get_models_with_stats = auto()
     get_category_statistics = auto()
-    get_category_audit = auto()
+    get_category_deletion_risk = auto()
 
     # V1 metadata routes
     get_legacy_last_updated = auto()

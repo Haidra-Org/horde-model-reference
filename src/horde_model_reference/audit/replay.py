@@ -8,7 +8,8 @@ from typing import Any
 
 from loguru import logger
 
-from horde_model_reference.audit.events import AuditDomain, AuditEvent, AuditOperation, AuditPayload
+from horde_model_reference import CanonicalFormat
+from horde_model_reference.audit.events import AuditEvent, AuditOperation, AuditPayload
 from horde_model_reference.audit.reader import AuditTrailReader
 
 
@@ -31,7 +32,7 @@ class AuditReplayer:
     def reconstruct_state(
         self,
         *,
-        domain: AuditDomain,
+        domain: CanonicalFormat,
         category: str,
         model_names: Collection[str] | None = None,
         min_event_id: int | None = None,

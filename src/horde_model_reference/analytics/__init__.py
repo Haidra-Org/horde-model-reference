@@ -1,14 +1,14 @@
 """Analytics module for model reference data.
 
-Provides statistics calculation, audit analysis, and text model parsing functionality.
+Provides statistics calculation, deletion risk analysis, and text model parsing functionality.
 """
 
-from horde_model_reference.analytics.audit_analysis import (
-    CategoryAuditResponse,
-    CategoryAuditSummary,
+from horde_model_reference.analytics.deletion_risk_analysis import (
+    CategoryDeletionRiskResponse,
+    CategoryDeletionRiskSummary,
     DeletionRiskFlags,
-    ModelAuditInfo,
-    ModelAuditInfoFactory,
+    ModelDeletionRiskInfo,
+    ModelDeletionRiskInfoFactory,
 )
 from horde_model_reference.analytics.statistics import (
     BaselineStats,
@@ -31,13 +31,13 @@ from horde_model_reference.analytics.text_model_parser import (
 
 __all__ = [
     "BaselineStats",
-    "CategoryAuditResponse",
-    "CategoryAuditSummary",
+    "CategoryDeletionRiskResponse",
+    "CategoryDeletionRiskSummary",
     "CategoryStatistics",
     "DeletionRiskFlags",
     "DownloadStats",
-    "ModelAuditInfo",
-    "ModelAuditInfoFactory",
+    "ModelDeletionRiskInfo",
+    "ModelDeletionRiskInfoFactory",
     "ParsedTextModelName",
     "StatisticsCache",
     "TagStats",

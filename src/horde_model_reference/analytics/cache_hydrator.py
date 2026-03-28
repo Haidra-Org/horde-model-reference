@@ -1,4 +1,4 @@
-"""Background cache hydration for audit and statistics caches.
+"""Background cache hydration for deletion risk and statistics caches.
 
 Proactively refreshes caches on a timer to ensure clients always receive
 fast cached responses instead of waiting for slow Horde API fetches.
@@ -13,14 +13,14 @@ from typing import Literal
 from loguru import logger
 
 from horde_model_reference import ModelReferenceManager, horde_model_reference_settings
-from horde_model_reference.analytics.audit_analysis import CategoryAuditResponse
+from horde_model_reference.analytics.deletion_risk_analysis import CategoryDeletionRiskResponse
 from horde_model_reference.analytics.statistics import CategoryStatistics
 from horde_model_reference.integrations.horde_api_integration import HordeAPIIntegration
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
 class CacheHydrator:
-    """Background service that proactively refreshes audit and statistics caches.
+    """Background service that proactively refreshes deletion risk and statistics caches.
 
     Runs on a configurable interval to ensure caches remain warm. When hydration
     is enabled, clients always receive fast cached responses while fresh data
@@ -136,10 +136,10 @@ class CacheHydrator:
                 continue
 
     async def _hydrate_all_caches(self) -> None:
-        """Hydrate all audit and statistics caches for supported categories."""
+        """Hydrate all deletion risk and statistics caches for supported categories."""
         logger.debug("Starting cache hydration cycle...")
 
-        # Categories that support audit/statistics
+        # Categories that support deletion risk/statistics
         supported_categories = [
             MODEL_REFERENCE_CATEGORY.image_generation,
             MODEL_REFERENCE_CATEGORY.text_generation,
@@ -156,7 +156,7 @@ class CacheHydrator:
                     if not self._running:
                         break
 
-                    await self._hydrate_audit_cache(
+                    await self._hydrate_deletion_risk_cache(
                         category,
                         grouped=grouped,
                         include_backend_variations=include_backend_variations,
@@ -166,7 +166,7 @@ class CacheHydrator:
                     break
 
                 if category == MODEL_REFERENCE_CATEGORY.text_generation and self._running:
-                    await self._hydrate_audit_cache(
+                    await self._hydrate_deletion_risk_cache(
                         category,
                         grouped=False,
                         include_backend_variations=True,
@@ -183,14 +183,14 @@ class CacheHydrator:
 
         logger.debug("Cache hydration cycle completed")
 
-    async def _hydrate_audit_cache(
+    async def _hydrate_deletion_risk_cache(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         *,
         grouped: bool,
         include_backend_variations: bool,
     ) -> None:
-        """Hydrate audit cache for a specific category and configuration.
+        """Hydrate deletion risk cache for a specific category and configuration.
 
         Args:
             category: The model reference category.
@@ -198,47 +198,47 @@ class CacheHydrator:
             include_backend_variations: Whether to include backend variations.
 
         """
-        from horde_model_reference.analytics.audit_cache import AuditCache
+        from horde_model_reference.analytics.deletion_risk_cache import DeletionRiskCache
 
-        cache = AuditCache()
+        cache = DeletionRiskCache()
 
         logger.debug(
-            f"Hydrating audit cache: {category.value}, grouped={grouped}, "
+            f"Hydrating deletion risk cache: {category.value}, grouped={grouped}, "
             f"backend_variations={include_backend_variations}"
         )
 
         try:
-            # Compute fresh audit data
-            audit_response = await self._compute_audit_response(
+            # Compute fresh deletion risk data
+            risk_response = await self._compute_deletion_risk_response(
                 category, grouped=grouped, include_backend_variations=include_backend_variations
             )
 
-            if audit_response:
+            if risk_response:
                 # Store in cache (this updates both Redis and in-memory)
                 cache.set(
                     category,
-                    audit_response,
+                    risk_response,
                     grouped=grouped,
                     include_backend_variations=include_backend_variations,
                 )
                 logger.info(
-                    f"Hydrated audit cache: {category.value} "
+                    f"Hydrated deletion risk cache: {category.value} "
                     f"(grouped={grouped}, variations={include_backend_variations}, "
-                    f"models={audit_response.total_count})"
+                    f"models={risk_response.total_count})"
                 )
         except Exception as e:
-            logger.warning(f"Failed to hydrate audit cache for {category}: {e}")
+            logger.warning(f"Failed to hydrate deletion risk cache for {category}: {e}")
 
-    async def _compute_audit_response(
+    async def _compute_deletion_risk_response(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         *,
         grouped: bool,
         include_backend_variations: bool,
-    ) -> CategoryAuditResponse | None:
-        """Compute fresh audit response data.
+    ) -> CategoryDeletionRiskResponse | None:
+        """Compute fresh deletion risk response data.
 
-        This mirrors the logic in the audit endpoint but is designed for
+        This mirrors the logic in the deletion risk endpoint but is designed for
         background execution without HTTP context.
 
         Args:
@@ -247,11 +247,11 @@ class CacheHydrator:
             include_backend_variations: Whether to include backend variations.
 
         Returns:
-            CategoryAuditResponse if successful, None on error.
+            CategoryDeletionRiskResponse if successful, None on error.
 
         """
-        from horde_model_reference.analytics.audit_analysis import ModelAuditInfoFactory
-        from horde_model_reference.analytics.text_model_grouping import apply_text_model_grouping_to_audit
+        from horde_model_reference.analytics.deletion_risk_analysis import ModelDeletionRiskInfoFactory
+        from horde_model_reference.analytics.text_model_grouping import apply_text_model_grouping_to_risk_response
         from horde_model_reference.integrations.data_merger import merge_category_with_horde_data
 
         manager = ModelReferenceManager()
@@ -292,9 +292,9 @@ class CacheHydrator:
             stats.usage_stats.month for stats in model_statistics.values() if stats.usage_stats
         )
 
-        # Create audit response
-        factory = ModelAuditInfoFactory.create_default()
-        audit_response = factory.create_audit_response(
+        # Create deletion risk response
+        factory = ModelDeletionRiskInfoFactory.create_default()
+        risk_response = factory.create_deletion_risk_response(
             model_records,
             model_statistics,
             category_total_month_usage,
@@ -304,9 +304,9 @@ class CacheHydrator:
 
         # Apply text model grouping if requested
         if grouped and is_text_category:
-            audit_response = apply_text_model_grouping_to_audit(audit_response)
+            risk_response = apply_text_model_grouping_to_risk_response(risk_response)
 
-        return audit_response
+        return risk_response
 
     async def _hydrate_statistics_cache(
         self,

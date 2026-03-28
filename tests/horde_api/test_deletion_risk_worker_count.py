@@ -27,7 +27,7 @@ def test_audit_endpoint_includes_worker_counts(api_client: TestClient) -> None:
     - At least some popular models should have workers (not all zero)
     - no_active_workers flag should be False for models with workers
     """
-    response = api_client.get("/model_references/statistics/image_generation/audit")
+    response = api_client.get("/model_references/statistics/image_generation/deletion-risk")
 
     assert response.status_code == 200
     data = response.json()
@@ -107,7 +107,7 @@ def test_audit_endpoint_worker_count_consistency(api_client: TestClient) -> None
     - worker_count field
     - no_active_workers deletion risk flag
     """
-    response = api_client.get("/model_references/statistics/image_generation/audit")
+    response = api_client.get("/model_references/statistics/image_generation/deletion-risk")
 
     assert response.status_code == 200
     data = response.json()

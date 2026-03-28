@@ -1,6 +1,6 @@
-"""Audit endpoints for the v2 model reference API.
+"""Deletion risk analysis endpoints for the v2 model reference API.
 
-Provides endpoints to retrieve model audit information including deletion risk analysis.
+Provides endpoints to retrieve model deletion risk information.
 """
 
 from typing import Annotated, Literal
@@ -9,14 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from loguru import logger
 
 from horde_model_reference import ModelReferenceManager
-from horde_model_reference.analytics.audit_analysis import (
-    CategoryAuditResponse,
-    CategoryAuditSummary,
-    ModelAuditInfoFactory,
+from horde_model_reference.analytics.deletion_risk_analysis import (
+    CategoryDeletionRiskResponse,
+    CategoryDeletionRiskSummary,
+    ModelDeletionRiskInfoFactory,
 )
-from horde_model_reference.analytics.audit_cache import AuditCache
+from horde_model_reference.analytics.deletion_risk_cache import DeletionRiskCache
 from horde_model_reference.analytics.filter_presets import apply_preset_filter
-from horde_model_reference.analytics.text_model_grouping import apply_text_model_grouping_to_audit
+from horde_model_reference.analytics.text_model_grouping import apply_text_model_grouping_to_risk_response
 from horde_model_reference.integrations.data_merger import merge_category_with_horde_data
 from horde_model_reference.integrations.horde_api_integration import HordeAPIIntegration
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
@@ -40,46 +40,46 @@ def get_horde_api_integration() -> HordeAPIIntegration:
     return HordeAPIIntegration()
 
 
-def get_audit_cache() -> AuditCache:
-    """Dependency to get the AuditCache singleton."""
-    return AuditCache()
+def get_deletion_risk_cache() -> DeletionRiskCache:
+    """Dependency to get the DeletionRiskCache singleton."""
+    return DeletionRiskCache()
 
 
-audit_route_subpath = f"/{{{PathVariables.model_category_name}}}/audit"
-"""/{model_category_name}/audit"""
+deletion_risk_route_subpath = f"/{{{PathVariables.model_category_name}}}/deletion-risk"
+"""/{model_category_name}/deletion-risk"""
 route_registry.register_route(
     v2_prefix,
-    RouteNames.get_category_audit,
-    audit_route_subpath,
+    RouteNames.get_category_deletion_risk,
+    deletion_risk_route_subpath,
 )
 
 
 @router.get(
-    audit_route_subpath,
-    summary="Get audit analysis for a model category",
-    operation_id="read_v2_category_audit",
-    response_model=CategoryAuditResponse,
+    deletion_risk_route_subpath,
+    summary="Get deletion risk analysis for a model category",
+    operation_id="read_v2_category_deletion_risk",
+    response_model=CategoryDeletionRiskResponse,
     responses={
         200: {
-            "description": "Category audit analysis retrieved successfully",
-            "model": CategoryAuditResponse,
+            "description": "Category deletion risk analysis retrieved successfully",
+            "model": CategoryDeletionRiskResponse,
         },
         400: {
-            "description": "Invalid category or unsupported category for audit",
+            "description": "Invalid category or unsupported for deletion risk analysis",
         },
         404: {
             "description": "Category not found",
         },
         500: {
-            "description": "Internal server error fetching Horde API data or computing audit",
+            "description": "Internal server error fetching Horde API data or computing deletion risk",
         },
     },
 )
-async def get_category_audit(
+async def get_category_deletion_risk(
     model_category_name: MODEL_REFERENCE_CATEGORY,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
     horde_api: Annotated[HordeAPIIntegration, Depends(get_horde_api_integration)],
-    audit_cache: Annotated[AuditCache, Depends(get_audit_cache)],
+    risk_cache: Annotated[DeletionRiskCache, Depends(get_deletion_risk_cache)],
     group_text_models: bool = Query(default=False, description="Group text models by base name (strips quantization)"),
     include_backend_variations: bool = Query(
         default=False,
@@ -98,8 +98,8 @@ async def get_category_audit(
     ),
     limit: int | None = Query(default=None, ge=1, description="Maximum number of models to return (None = all)"),
     offset: int = Query(default=0, ge=0, description="Number of models to skip (for pagination)"),
-) -> CategoryAuditResponse:
-    """Get comprehensive audit analysis for a model reference category.
+) -> CategoryDeletionRiskResponse:
+    """Get comprehensive deletion risk analysis for a model reference category.
 
     Analyzes all models in the category to identify deletion risks including:
     - Missing or invalid download URLs
@@ -108,15 +108,15 @@ async def get_category_audit(
     - Zero active workers
     - Low or no recent usage
 
-    Returns both per-model audit information and aggregate summary statistics.
-    Audit results are cached (default 300s TTL) and automatically invalidated
+    Returns both per-model risk information and aggregate summary statistics.
+    Results are cached (default 300s TTL) and automatically invalidated
     when model data changes.
 
     Args:
-        model_category_name: The model reference category to audit.
+        model_category_name: The model reference category to analyze.
         manager: The model reference manager (injected).
         horde_api: The Horde API integration (injected).
-        audit_cache: The audit cache (injected).
+        risk_cache: The deletion risk cache (injected).
         group_text_models: Group text models by base name (strips quantization info).
         include_backend_variations: Include per-backend breakdown for text models (ungrouped view).
         preset: Optional preset filter to apply (deletion_candidates, zero_usage, etc.).
@@ -124,7 +124,7 @@ async def get_category_audit(
         offset: Number of models to skip (for pagination).
 
     Returns:
-        CategoryAuditResponse with per-model audit info and summary.
+        CategoryDeletionRiskResponse with per-model risk info and summary.
 
     Raises:
         HTTPException: 400 for unsupported categories or invalid preset, 404 if not found, 500 for errors.
@@ -136,51 +136,51 @@ async def get_category_audit(
     effective_include_backend_variations = include_backend_variations and is_text_category and not group_text_models
 
     logger.debug(
-        f"Audit request for category: {model_category_name}, "
+        f"Deletion risk request for category: {model_category_name}, "
         f"group_text_models={group_text_models}, include_backend_variations={effective_include_backend_variations}, "
         f"preset={preset}, limit={limit}, offset={offset}"
     )
 
     # Try cache first (uses grouped parameter and backend_variations, but not with preset filter)
     if not preset:
-        cached_audit = audit_cache.get(
+        cached_response = risk_cache.get(
             model_category_name,
             grouped=group_text_models,
             include_backend_variations=effective_include_backend_variations,
         )
-        if cached_audit:
+        if cached_response:
             logger.debug(
-                f"Returning cached audit for {model_category_name} "
+                f"Returning cached deletion risk for {model_category_name} "
                 f"(grouped={group_text_models}, backend_variations={effective_include_backend_variations})"
             )
             # Apply pagination to cached results if requested
             if limit is not None or offset > 0:
-                total_models = len(cached_audit.models)
+                total_models = len(cached_response.models)
                 end_index = offset + limit if limit is not None else None
-                paginated_models = cached_audit.models[offset:end_index]
+                paginated_models = cached_response.models[offset:end_index]
 
                 # Create new response with paginated models
-                cached_audit = CategoryAuditResponse(
-                    category=cached_audit.category,
-                    category_total_month_usage=cached_audit.category_total_month_usage,
+                cached_response = CategoryDeletionRiskResponse(
+                    category=cached_response.category,
+                    category_total_month_usage=cached_response.category_total_month_usage,
                     total_count=total_models,
                     returned_count=len(paginated_models),
                     offset=offset,
                     limit=limit,
                     models=paginated_models,
-                    summary=cached_audit.summary,  # Summary reflects all models, not just page
+                    summary=cached_response.summary,  # Summary reflects all models, not just page
                 )
-            return cached_audit
+            return cached_response
 
     # Only support categories that have Horde API data
     if model_category_name not in [
         MODEL_REFERENCE_CATEGORY.image_generation,
         MODEL_REFERENCE_CATEGORY.text_generation,
     ]:
-        logger.warning(f"Audit not supported for category: {model_category_name}")
+        logger.warning(f"Deletion risk analysis not supported for category: {model_category_name}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Audit analysis is only supported for image_generation and text_generation categories",
+            detail="Deletion risk analysis is only supported for image_generation and text_generation categories",
         )
 
     # Get model names from reference
@@ -220,7 +220,7 @@ async def get_category_audit(
     try:
         status_data = await horde_api.get_model_status_indexed(model_type)
         stats_data = await horde_api.get_model_stats_indexed(model_type)
-        # Don't fetch workers for audit (not needed)
+        # Don't fetch workers for deletion risk analysis (not needed)
     except Exception as e:
         logger.exception(f"Error fetching Horde API data for {model_type}: {e}")
         raise HTTPException(
@@ -235,7 +235,7 @@ async def get_category_audit(
             model_names=model_names,
             horde_status=status_data,
             horde_stats=stats_data,
-            workers=None,  # Not needed for audit
+            workers=None,  # Not needed for deletion risk analysis
             include_backend_variations=effective_include_backend_variations,
         )
     except Exception as e:
@@ -250,11 +250,11 @@ async def get_category_audit(
         stats.usage_stats.month for stats in model_statistics.values() if stats.usage_stats
     )
 
-    # Analyze models for audit and create response using factory method
-    logger.debug(f"Analyzing {len(model_records)} models for audit")
+    # Analyze models and create response using factory method
+    logger.debug(f"Analyzing {len(model_records)} models for deletion risk")
     try:
-        factory = ModelAuditInfoFactory.create_default()
-        audit_response = factory.create_audit_response(
+        factory = ModelDeletionRiskInfoFactory.create_default()
+        risk_response = factory.create_deletion_risk_response(
             model_records,
             model_statistics,
             category_total_month_usage,
@@ -262,7 +262,7 @@ async def get_category_audit(
             include_backend_variations=effective_include_backend_variations,
         )
     except Exception as e:
-        logger.exception(f"Error analyzing models for audit: {e}")
+        logger.exception(f"Error analyzing models for deletion risk: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to analyze models: {e!s}",
@@ -270,37 +270,37 @@ async def get_category_audit(
 
     # Cache the base response (before preset filtering, before grouping)
     if not preset:
-        audit_cache.set(
+        risk_cache.set(
             model_category_name,
-            audit_response,
+            risk_response,
             grouped=group_text_models,
             include_backend_variations=effective_include_backend_variations,
         )
         logger.debug(
-            f"Cached audit results for {model_category_name} "
+            f"Cached deletion risk results for {model_category_name} "
             f"(grouped={group_text_models}, backend_variations={effective_include_backend_variations})"
         )
 
     # Apply text model grouping if requested
     if group_text_models:
         logger.debug(f"Applying text model grouping for {model_category_name}")
-        audit_response = apply_text_model_grouping_to_audit(audit_response)
+        risk_response = apply_text_model_grouping_to_risk_response(risk_response)
 
     # Apply preset filter if requested
     if preset:
         try:
-            logger.debug(f"Applying preset filter '{preset}' to {len(audit_response.models)} models")
-            filtered_models = apply_preset_filter(audit_response.models, preset)
+            logger.debug(f"Applying preset filter '{preset}' to {len(risk_response.models)} models")
+            filtered_models = apply_preset_filter(risk_response.models, preset)
 
-            audit_response = CategoryAuditResponse(
-                category=audit_response.category,
-                category_total_month_usage=audit_response.category_total_month_usage,
-                total_count=audit_response.total_count,  # Preserve original total
+            risk_response = CategoryDeletionRiskResponse(
+                category=risk_response.category,
+                category_total_month_usage=risk_response.category_total_month_usage,
+                total_count=risk_response.total_count,  # Preserve original total
                 returned_count=len(filtered_models),
                 offset=0,
                 limit=None,
                 models=filtered_models,
-                summary=CategoryAuditSummary.from_audit_models(filtered_models),
+                summary=CategoryDeletionRiskSummary.from_risk_models(filtered_models),
             )
             logger.debug(f"Preset filter reduced to {len(filtered_models)} models")
         except ValueError as e:
@@ -312,25 +312,25 @@ async def get_category_audit(
 
     # Apply pagination if requested
     if limit is not None or offset > 0:
-        total_models = len(audit_response.models)
+        total_models = len(risk_response.models)
         end_index = offset + limit if limit is not None else None
-        paginated_models = audit_response.models[offset:end_index]
+        paginated_models = risk_response.models[offset:end_index]
 
-        audit_response = CategoryAuditResponse(
-            category=audit_response.category,
-            category_total_month_usage=audit_response.category_total_month_usage,
+        risk_response = CategoryDeletionRiskResponse(
+            category=risk_response.category,
+            category_total_month_usage=risk_response.category_total_month_usage,
             total_count=total_models,
             returned_count=len(paginated_models),
             offset=offset,
             limit=limit,
             models=paginated_models,
-            summary=audit_response.summary,  # Summary reflects all models, not just page
+            summary=risk_response.summary,  # Summary reflects all models, not just page
         )
 
     logger.info(
-        f"Audit completed for {model_category_name}: "
-        f"{audit_response.returned_count} of {audit_response.total_count} models returned, "
-        f"{audit_response.summary.models_at_risk} at risk, avg risk score: {audit_response.summary.average_risk_score}"
+        f"Deletion risk analysis completed for {model_category_name}: "
+        f"{risk_response.returned_count} of {risk_response.total_count} models returned, "
+        f"{risk_response.summary.models_at_risk} at risk, avg risk score: {risk_response.summary.average_risk_score}"
     )
 
-    return audit_response
+    return risk_response

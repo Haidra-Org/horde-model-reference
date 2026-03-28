@@ -14,33 +14,33 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
-from horde_model_reference.analytics.audit_analysis import (
-    CategoryAuditResponse,
-    CategoryAuditSummary,
+from horde_model_reference.analytics.cache_hydrator import CacheHydrator, get_cache_hydrator
+from horde_model_reference.analytics.deletion_risk_analysis import (
+    CategoryDeletionRiskResponse,
+    CategoryDeletionRiskSummary,
     DeletionRiskFlags,
-    ModelAuditInfo,
+    ModelDeletionRiskInfo,
     UsageTrend,
 )
-from horde_model_reference.analytics.audit_cache import AuditCache
-from horde_model_reference.analytics.cache_hydrator import CacheHydrator, get_cache_hydrator
+from horde_model_reference.analytics.deletion_risk_cache import DeletionRiskCache
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
-def create_mock_audit_response(
+def create_mock_risk_response(
     category: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.image_generation,
     total_models: int = 5,
-) -> CategoryAuditResponse:
-    """Create a mock CategoryAuditResponse for testing.
+) -> CategoryDeletionRiskResponse:
+    """Create a mock CategoryDeletionRiskResponse for testing.
 
     Args:
         category: The model reference category.
         total_models: Number of models in the response.
 
     Returns:
-        A CategoryAuditResponse with mock data.
+        A CategoryDeletionRiskResponse with mock data.
     """
     models = [
-        ModelAuditInfo(
+        ModelDeletionRiskInfo(
             name=f"test_model_{i}",
             category=category,
             deletion_risk_flags=DeletionRiskFlags(),
@@ -59,9 +59,9 @@ def create_mock_audit_response(
         for i in range(total_models)
     ]
 
-    summary = CategoryAuditSummary.from_audit_models(models)
+    summary = CategoryDeletionRiskSummary.from_risk_models(models)
 
-    return CategoryAuditResponse(
+    return CategoryDeletionRiskResponse(
         category=category,
         category_total_month_usage=sum(m.usage_month for m in models),
         total_count=total_models,
@@ -345,9 +345,9 @@ class TestCacheHydratorHydration:
         prev_hydrator = CacheHydrator._instance
         CacheHydrator._instance = None
 
-        # Reset AuditCache
-        prev_audit = AuditCache._instance
-        AuditCache._instance = None
+        # Reset DeletionRiskCache
+        prev_risk_cache = DeletionRiskCache._instance
+        DeletionRiskCache._instance = None
 
         try:
             yield
@@ -357,15 +357,15 @@ class TestCacheHydratorHydration:
                 CacheHydrator._instance._shutdown_event.set()
             CacheHydrator._instance = prev_hydrator
 
-            if AuditCache._instance is not None:
+            if DeletionRiskCache._instance is not None:
                 with contextlib.suppress(Exception):
-                    AuditCache._instance.clear_all()
-            AuditCache._instance = prev_audit
+                    DeletionRiskCache._instance.clear_all()
+            DeletionRiskCache._instance = prev_risk_cache
 
     @pytest.mark.asyncio
-    async def test_hydrate_audit_cache_stores_response(self) -> None:
-        """Test that _hydrate_audit_cache stores computed response in cache."""
-        mock_response = create_mock_audit_response(
+    async def test_hydrate_deletion_risk_cache_stores_response(self) -> None:
+        """Test that _hydrate_deletion_risk_cache stores computed response in cache."""
+        mock_response = create_mock_risk_response(
             category=MODEL_REFERENCE_CATEGORY.image_generation,
             total_models=3,
         )
@@ -373,16 +373,16 @@ class TestCacheHydratorHydration:
         hydrator = CacheHydrator()
 
         with (
-            patch.object(hydrator, "_compute_audit_response", return_value=mock_response) as mock_compute,
+            patch.object(hydrator, "_compute_deletion_risk_response", return_value=mock_response) as mock_compute,
             patch("horde_model_reference.analytics.cache_hydrator.horde_model_reference_settings") as mock_settings,
         ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
-            mock_settings.audit_cache_ttl = 300
+            mock_settings.deletion_risk_cache_ttl = 300
             mock_settings.cache_hydration_enabled = False  # Don't need hydration running
 
-            await hydrator._hydrate_audit_cache(
+            await hydrator._hydrate_deletion_risk_cache(
                 MODEL_REFERENCE_CATEGORY.image_generation,
                 grouped=False,
                 include_backend_variations=False,
@@ -395,7 +395,7 @@ class TestCacheHydratorHydration:
             )
 
             # Verify cache was populated
-            cache = AuditCache()
+            cache = DeletionRiskCache()
             cached = cache.get(
                 MODEL_REFERENCE_CATEGORY.image_generation,
                 grouped=False,
@@ -406,22 +406,22 @@ class TestCacheHydratorHydration:
             assert cached.total_count == 3
 
     @pytest.mark.asyncio
-    async def test_hydrate_audit_cache_handles_none_response(self) -> None:
-        """Test that _hydrate_audit_cache handles None compute response gracefully."""
+    async def test_hydrate_deletion_risk_cache_handles_none_response(self) -> None:
+        """Test that _hydrate_deletion_risk_cache handles None compute response gracefully."""
         hydrator = CacheHydrator()
 
         with (
-            patch.object(hydrator, "_compute_audit_response", return_value=None),
+            patch.object(hydrator, "_compute_deletion_risk_response", return_value=None),
             patch("horde_model_reference.analytics.cache_hydrator.horde_model_reference_settings") as mock_settings,
         ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
-            mock_settings.audit_cache_ttl = 300
+            mock_settings.deletion_risk_cache_ttl = 300
             mock_settings.cache_hydration_enabled = False
 
             # Should not raise
-            await hydrator._hydrate_audit_cache(
+            await hydrator._hydrate_deletion_risk_cache(
                 MODEL_REFERENCE_CATEGORY.image_generation,
                 grouped=False,
                 include_backend_variations=False,
@@ -432,7 +432,7 @@ class TestCacheHydratorHydration:
         """Test that _hydrate_all_caches hydrates all cache variants."""
         hydrator = CacheHydrator()
 
-        with patch.object(hydrator, "_hydrate_audit_cache", new_callable=AsyncMock) as mock_hydrate:
+        with patch.object(hydrator, "_hydrate_deletion_risk_cache", new_callable=AsyncMock) as mock_hydrate:
             hydrator._running = True  # Simulate running state
 
             await hydrator._hydrate_all_caches()
@@ -485,7 +485,7 @@ class TestCacheHydratorHydration:
             if call_count == 1:
                 hydrator._running = False
 
-        with patch.object(hydrator, "_hydrate_audit_cache", side_effect=counting_hydrate):
+        with patch.object(hydrator, "_hydrate_deletion_risk_cache", side_effect=counting_hydrate):
             hydrator._running = True
 
             await hydrator._hydrate_all_caches()
@@ -498,33 +498,33 @@ class TestStaleWhileRevalidate:
     """Tests for stale-while-revalidate behavior in RedisCache."""
 
     @pytest.fixture(autouse=True)
-    def reset_audit_cache(self) -> Generator[None]:
-        """Reset AuditCache singleton between tests."""
-        previous = AuditCache._instance
-        AuditCache._instance = None
+    def reset_deletion_risk_cache(self) -> Generator[None]:
+        """Reset DeletionRiskCache singleton between tests."""
+        previous = DeletionRiskCache._instance
+        DeletionRiskCache._instance = None
         try:
             yield
         finally:
-            if AuditCache._instance is not None:
+            if DeletionRiskCache._instance is not None:
                 with contextlib.suppress(Exception):
-                    AuditCache._instance.clear_all()
-            AuditCache._instance = previous
+                    DeletionRiskCache._instance.clear_all()
+            DeletionRiskCache._instance = previous
 
     def test_get_returns_stale_data_when_hydration_enabled(self) -> None:
         """Test that get() returns stale data when hydration is enabled."""
         with (
             patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
-            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+            patch("horde_model_reference.analytics.deletion_risk_cache.horde_model_reference_settings", mock_settings),
         ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
-            mock_settings.audit_cache_ttl = 1  # 1 second TTL
+            mock_settings.deletion_risk_cache_ttl = 1  # 1 second TTL
             mock_settings.cache_hydration_enabled = True
             mock_settings.cache_hydration_stale_ttl_seconds = 3600  # 1 hour stale TTL
 
-            cache = AuditCache()
-            mock_response = create_mock_audit_response()
+            cache = DeletionRiskCache()
+            mock_response = create_mock_risk_response()
 
             cache.set(MODEL_REFERENCE_CATEGORY.image_generation, mock_response)
 
@@ -540,17 +540,17 @@ class TestStaleWhileRevalidate:
         """Test that get() returns None when stale TTL is exceeded."""
         with (
             patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
-            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+            patch("horde_model_reference.analytics.deletion_risk_cache.horde_model_reference_settings", mock_settings),
         ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
-            mock_settings.audit_cache_ttl = 1  # 1 second TTL
+            mock_settings.deletion_risk_cache_ttl = 1  # 1 second TTL
             mock_settings.cache_hydration_enabled = True
             mock_settings.cache_hydration_stale_ttl_seconds = 2  # 2 second stale TTL
 
-            cache = AuditCache()
-            mock_response = create_mock_audit_response()
+            cache = DeletionRiskCache()
+            mock_response = create_mock_risk_response()
 
             cache.set(MODEL_REFERENCE_CATEGORY.image_generation, mock_response)
 
@@ -565,17 +565,17 @@ class TestStaleWhileRevalidate:
         """Test that get(allow_stale=False) respects normal TTL even with hydration enabled."""
         with (
             patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
-            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+            patch("horde_model_reference.analytics.deletion_risk_cache.horde_model_reference_settings", mock_settings),
         ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
-            mock_settings.audit_cache_ttl = 1  # 1 second TTL
+            mock_settings.deletion_risk_cache_ttl = 1  # 1 second TTL
             mock_settings.cache_hydration_enabled = True
             mock_settings.cache_hydration_stale_ttl_seconds = 3600
 
-            cache = AuditCache()
-            mock_response = create_mock_audit_response()
+            cache = DeletionRiskCache()
+            mock_response = create_mock_risk_response()
 
             cache.set(MODEL_REFERENCE_CATEGORY.image_generation, mock_response)
 
@@ -590,17 +590,17 @@ class TestStaleWhileRevalidate:
         """Test that get() defaults to normal TTL behavior when hydration is disabled."""
         with (
             patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
-            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+            patch("horde_model_reference.analytics.deletion_risk_cache.horde_model_reference_settings", mock_settings),
         ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
-            mock_settings.audit_cache_ttl = 1
+            mock_settings.deletion_risk_cache_ttl = 1
             mock_settings.cache_hydration_enabled = False
             mock_settings.cache_hydration_stale_ttl_seconds = 3600
 
-            cache = AuditCache()
-            mock_response = create_mock_audit_response()
+            cache = DeletionRiskCache()
+            mock_response = create_mock_risk_response()
 
             cache.set(MODEL_REFERENCE_CATEGORY.image_generation, mock_response)
 
@@ -615,16 +615,16 @@ class TestStaleWhileRevalidate:
         """Test that is_fresh() returns True within TTL."""
         with (
             patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
-            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+            patch("horde_model_reference.analytics.deletion_risk_cache.horde_model_reference_settings", mock_settings),
         ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
-            mock_settings.audit_cache_ttl = 300
+            mock_settings.deletion_risk_cache_ttl = 300
             mock_settings.cache_hydration_enabled = False
 
-            cache = AuditCache()
-            mock_response = create_mock_audit_response()
+            cache = DeletionRiskCache()
+            mock_response = create_mock_risk_response()
 
             cache.set(MODEL_REFERENCE_CATEGORY.image_generation, mock_response)
 
@@ -634,16 +634,16 @@ class TestStaleWhileRevalidate:
         """Test that is_fresh() returns False after TTL expires."""
         with (
             patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
-            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+            patch("horde_model_reference.analytics.deletion_risk_cache.horde_model_reference_settings", mock_settings),
         ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
-            mock_settings.audit_cache_ttl = 1
+            mock_settings.deletion_risk_cache_ttl = 1
             mock_settings.cache_hydration_enabled = False
 
-            cache = AuditCache()
-            mock_response = create_mock_audit_response()
+            cache = DeletionRiskCache()
+            mock_response = create_mock_risk_response()
 
             cache.set(MODEL_REFERENCE_CATEGORY.image_generation, mock_response)
 
@@ -656,15 +656,15 @@ class TestStaleWhileRevalidate:
         """Test that is_fresh() returns False for missing entries."""
         with (
             patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_settings,
-            patch("horde_model_reference.analytics.audit_cache.horde_model_reference_settings", mock_settings),
+            patch("horde_model_reference.analytics.deletion_risk_cache.horde_model_reference_settings", mock_settings),
         ):
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_settings.redis = mock_redis
-            mock_settings.audit_cache_ttl = 300
+            mock_settings.deletion_risk_cache_ttl = 300
             mock_settings.cache_hydration_enabled = False
 
-            cache = AuditCache()
+            cache = DeletionRiskCache()
 
             assert cache.is_fresh(MODEL_REFERENCE_CATEGORY.image_generation) is False
 
@@ -709,8 +709,8 @@ class TestCacheHydrationIntegration:
         prev_hydrator = CacheHydrator._instance
         CacheHydrator._instance = None
 
-        prev_audit = AuditCache._instance
-        AuditCache._instance = None
+        prev_risk_cache = DeletionRiskCache._instance
+        DeletionRiskCache._instance = None
 
         try:
             yield
@@ -720,14 +720,14 @@ class TestCacheHydrationIntegration:
                 CacheHydrator._instance._shutdown_event.set()
             CacheHydrator._instance = prev_hydrator
 
-            if AuditCache._instance is not None:
+            if DeletionRiskCache._instance is not None:
                 with contextlib.suppress(Exception):
-                    AuditCache._instance.clear_all()
-            AuditCache._instance = prev_audit
+                    DeletionRiskCache._instance.clear_all()
+            DeletionRiskCache._instance = prev_risk_cache
 
     @pytest.mark.asyncio
-    async def test_compute_audit_response_with_mocked_dependencies(self) -> None:
-        """Test _compute_audit_response with fully mocked dependencies."""
+    async def test_compute_deletion_risk_response_with_mocked_dependencies(self) -> None:
+        """Test _compute_deletion_risk_response with fully mocked dependencies."""
         from horde_model_reference import KNOWN_IMAGE_GENERATION_BASELINE
         from horde_model_reference.integrations.horde_api_models import (
             IndexedHordeModelStats,
@@ -769,7 +769,7 @@ class TestCacheHydrationIntegration:
                 return_value=mock_horde_api,
             ),
         ):
-            result = await hydrator._compute_audit_response(
+            result = await hydrator._compute_deletion_risk_response(
                 MODEL_REFERENCE_CATEGORY.image_generation,
                 grouped=False,
                 include_backend_variations=False,
@@ -784,13 +784,13 @@ class TestCacheHydrationIntegration:
     @pytest.mark.asyncio
     async def test_full_hydration_cycle_with_mocks(self) -> None:
         """Test a full hydration cycle with mocked external services."""
-        mock_response = create_mock_audit_response()
+        mock_response = create_mock_risk_response()
 
         hydrator = CacheHydrator()
 
-        # Mock _compute_audit_response to return our mock response
+        # Mock _compute_deletion_risk_response to return our mock response
         with (
-            patch.object(hydrator, "_compute_audit_response", return_value=mock_response),
+            patch.object(hydrator, "_compute_deletion_risk_response", return_value=mock_response),
             patch("horde_model_reference.analytics.cache_hydrator.horde_model_reference_settings") as mock_settings,
             patch("horde_model_reference.analytics.base_cache.horde_model_reference_settings") as mock_base_settings,
         ):
@@ -801,7 +801,7 @@ class TestCacheHydrationIntegration:
             mock_redis = Mock()
             mock_redis.use_redis = False
             mock_base_settings.redis = mock_redis
-            mock_base_settings.audit_cache_ttl = 300
+            mock_base_settings.deletion_risk_cache_ttl = 300
             mock_base_settings.cache_hydration_enabled = True
             mock_base_settings.cache_hydration_stale_ttl_seconds = 3600
 
@@ -811,7 +811,7 @@ class TestCacheHydrationIntegration:
             hydrator._running = False
 
             # Verify all caches are populated
-            cache = AuditCache()
+            cache = DeletionRiskCache()
 
             # Image generation caches
             assert cache.get(MODEL_REFERENCE_CATEGORY.image_generation, grouped=False) is not None
