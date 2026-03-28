@@ -11,7 +11,6 @@ import asyncio
 import contextlib
 import json
 import threading
-import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from threading import RLock
@@ -19,6 +18,7 @@ from typing import Any, override
 
 import httpx
 from loguru import logger
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential
 
 try:
     import redis.asyncio
@@ -187,18 +187,18 @@ class RedisBackend(ModelReferenceBackend):
         *args: str | int | float | None,
         **kwargs: str | int | float | None,
     ) -> str | bool | int | bytes | None:
-        """Retry a Redis operation with exponential backoff."""
-        for attempt in range(self._redis_settings.retry_max_attempts):
-            try:
-                return operation(*args, **kwargs)
-            except redis.ConnectionError as e:
-                if attempt == self._redis_settings.retry_max_attempts - 1:
-                    logger.error(f"Redis operation failed after {attempt + 1} attempts: {e}")
-                    raise
-                wait_time = self._redis_settings.retry_backoff_seconds * (2**attempt)
-                logger.warning(f"Redis connection error, retrying in {wait_time}s: {e}")
-                time.sleep(wait_time)
-        return None
+        """Retry a Redis operation with full-jitter exponential backoff."""
+
+        @retry(
+            stop=stop_after_attempt(self._redis_settings.retry_max_attempts),
+            wait=wait_random_exponential(min=self._redis_settings.retry_backoff_seconds, max=30),
+            retry=retry_if_exception_type(redis.ConnectionError),
+            reraise=True,
+        )
+        def _execute() -> str | bool | bytes | int | None:
+            return operation(*args, **kwargs)
+
+        return _execute()
 
     @override
     def fetch_category(

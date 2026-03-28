@@ -8,7 +8,6 @@ when the PRIMARY API is unavailable.
 from __future__ import annotations
 
 import asyncio
-import time
 from pathlib import Path
 from typing import Any, cast, override
 
@@ -17,9 +16,11 @@ import httpx
 import requests
 import ujson
 from loguru import logger
+from tenacity import RetryError
 
 from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
+from horde_model_reference.http_retry import http_retry_async, http_retry_sync
 from horde_model_reference.legacy.convert_all_legacy_dbs import (
     convert_all_legacy_model_references,
     convert_legacy_database_by_category,
@@ -620,52 +621,35 @@ class GitHubBackend(ReplicaBackendBase):
                 target_file_path.touch(exist_ok=True)
                 return target_file_path
 
-            for attempt in range(1, self.retry_max_attempts + 1):
-                if attempt > 1:
-                    logger.debug(
-                        f"Retrying download of {category} in {self.retry_backoff_seconds}s "
-                        f"(attempt {attempt}/{self.retry_max_attempts})"
-                    )
-                    time.sleep(self.retry_backoff_seconds)
+            try:
+                for attempt in http_retry_sync(
+                    max_attempts=self.retry_max_attempts,
+                    min_wait=self.retry_backoff_seconds,
+                    extra_exceptions=(ujson.JSONDecodeError, OSError, ValueError),
+                ):
+                    with attempt:
+                        response = requests.get(target_url, timeout=30)
 
-                response = requests.get(target_url, timeout=30)
+                        if response.status_code != 200:
+                            raise OSError(f"Failed to download {category}: HTTP {response.status_code}")
 
-                if response.status_code != 200:
-                    logger.error(f"Failed to download {category}: HTTP {response.status_code}")
-                    if attempt == self.retry_max_attempts:
-                        return None
-                    continue
+                        # Handle CSV format for text_generation category
+                        if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                            target_file_path.parent.mkdir(parents=True, exist_ok=True)
+                            with open(target_file_path, "wb") as f:
+                                f.write(response.content)
 
-                # Handle CSV format for text_generation category
-                if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                    # Save CSV directly to disk
-                    target_file_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(target_file_path, "wb") as f:
-                        f.write(response.content)
-
-                    # Parse CSV to dict for caching
-                    try:
-                        data = self._read_legacy_csv_to_dict(target_file_path)
-                        raw_json_str = ujson.dumps(data, escape_forward_slashes=False, indent=4)
-                    except Exception as e:
-                        logger.error(f"Failed to parse {category} CSV: {e}")
-                        if attempt == self.retry_max_attempts:
-                            return None
-                        continue
-                else:
-                    # Handle JSON format for other categories
-                    try:
-                        data = ujson.loads(response.content)
-                    except ujson.JSONDecodeError:
-                        logger.error(f"Failed to parse {category} as JSON")
-                        if attempt == self.retry_max_attempts:
-                            return None
-                        continue
-
-                    target_file_path.parent.mkdir(parents=True, exist_ok=True)
-                    raw_json_str = response.content.decode("utf-8")
-                    with open(target_file_path, "wb") as f:
-                        f.write(response.content)
+                            try:
+                                data = self._read_legacy_csv_to_dict(target_file_path)
+                                raw_json_str = ujson.dumps(data, escape_forward_slashes=False, indent=4)
+                            except Exception as e:
+                                raise ValueError(f"Failed to parse {category} CSV: {e}") from e
+                        else:
+                            data = ujson.loads(response.content)
+                            target_file_path.parent.mkdir(parents=True, exist_ok=True)
+                            raw_json_str = response.content.decode("utf-8")
+                            with open(target_file_path, "wb") as f:
+                                f.write(response.content)
 
                 self._times_downloaded[category] += 1
                 if self._times_downloaded[category] > 1:
@@ -674,13 +658,16 @@ class GitHubBackend(ReplicaBackendBase):
                 logger.info(f"Downloaded {category} to {target_file_path}")
                 self._references_paths_cache[category] = target_file_path
 
-                # Store in base class cache
                 self._store_legacy_in_cache(category, data, raw_json_str)
                 logger.debug(f"Populated legacy cache for {category} after download")
 
                 return target_file_path
 
-            return None
+            except (RetryError, OSError, ujson.JSONDecodeError, ValueError):
+                logger.warning(f"Failed to download {category} after {self.retry_max_attempts} attempts")
+                return None
+
+        return None
 
     async def _download_legacy_async(
         self,
@@ -729,69 +716,40 @@ class GitHubBackend(ReplicaBackendBase):
             logger.debug(f"No known GitHub URL for {category}")
             return None
 
-        for attempt in range(1, self.retry_max_attempts + 1):
-            if attempt > 1:
-                logger.debug(
-                    f"Retrying download of {category} in {self.retry_backoff_seconds}s "
-                    f"(attempt {attempt}/{self.retry_max_attempts})"
-                )
-                await asyncio.sleep(self.retry_backoff_seconds)
+        try:
+            async for attempt in http_retry_async(
+                max_attempts=self.retry_max_attempts,
+                min_wait=self.retry_backoff_seconds,
+                extra_exceptions=(ujson.JSONDecodeError, OSError, ValueError),
+            ):
+                with attempt:
+                    if httpx_client is not None:
+                        response = await httpx_client.get(target_url)
+                    else:
+                        async with httpx.AsyncClient() as client:
+                            response = await client.get(target_url)
 
-            if httpx_client is not None:
-                response = await httpx_client.get(target_url)
-            else:
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(target_url)
+                    if response.status_code != 200:
+                        raise OSError(f"Failed to download {category}: HTTP {response.status_code}")
 
-            if response.status_code != 200:
-                logger.error(f"Failed to download {category}: HTTP {response.status_code}")
-                if attempt == self.retry_max_attempts:
-                    return None
-                continue
+                    content = response.content
+                    target_file_path.parent.mkdir(parents=True, exist_ok=True)
 
-            content = response.content
-            target_file_path.parent.mkdir(parents=True, exist_ok=True)
+                    if category == MODEL_REFERENCE_CATEGORY.text_generation:
+                        async with aiofiles.open(target_file_path, "wb") as f:
+                            await f.write(content)
 
-            # Handle CSV format for text_generation category
-            if category == MODEL_REFERENCE_CATEGORY.text_generation:
-                # Save CSV directly to disk
-                try:
-                    async with aiofiles.open(target_file_path, "wb") as f:
-                        await f.write(content)
-                except Exception as e:
-                    logger.error(f"Failed to write {category} CSV: {e}")
-                    if attempt == self.retry_max_attempts:
-                        return None
-                    continue
+                        try:
+                            data = self._read_legacy_csv_to_dict(target_file_path)
+                            content_str = ujson.dumps(data, escape_forward_slashes=False, indent=4)
+                        except Exception as e:
+                            raise ValueError(f"Failed to parse {category} CSV: {e}") from e
+                    else:
+                        data = ujson.loads(content)
+                        content_str = content.decode("utf-8")
 
-                # Parse CSV to dict for caching
-                try:
-                    data = self._read_legacy_csv_to_dict(target_file_path)
-                    content_str = ujson.dumps(data, escape_forward_slashes=False, indent=4)
-                except Exception as e:
-                    logger.error(f"Failed to parse {category} CSV: {e}")
-                    if attempt == self.retry_max_attempts:
-                        return None
-                    continue
-            else:
-                # Handle JSON format for other categories
-                try:
-                    data = ujson.loads(content)
-                    content_str = content.decode("utf-8")
-                except ujson.JSONDecodeError:
-                    logger.error(f"Failed to parse {category} as JSON")
-                    if attempt == self.retry_max_attempts:
-                        return None
-                    continue
-
-                try:
-                    async with aiofiles.open(target_file_path, "wb") as f:
-                        await f.write(content)
-                except Exception as e:
-                    logger.error(f"Failed to write {category}: {e}")
-                    if attempt == self.retry_max_attempts:
-                        return None
-                    continue
+                        async with aiofiles.open(target_file_path, "wb") as f:
+                            await f.write(content)
 
             self._times_downloaded[category] += 1
             if self._times_downloaded[category] > 1:
@@ -800,10 +758,11 @@ class GitHubBackend(ReplicaBackendBase):
             logger.info(f"Downloaded {category} to {target_file_path}")
             self._references_paths_cache[category] = target_file_path
 
-            # Store in base class cache
             self._store_legacy_in_cache(category, data, content_str)
             logger.debug(f"Populated legacy cache for {category} after async download")
 
             return target_file_path
 
-        return None
+        except (RetryError, OSError, ujson.JSONDecodeError, ValueError):
+            logger.warning(f"Failed to download {category} after {self.retry_max_attempts} attempts")
+            return None

@@ -275,8 +275,12 @@ class CacheHydrator:
         )
 
         # Fetch Horde API data (force refresh to get latest)
-        status_data = await horde_api.get_model_status_indexed(model_type, force_refresh=True)
-        stats_data = await horde_api.get_model_stats_indexed(model_type, force_refresh=True)
+        try:
+            status_data = await horde_api.get_model_status_indexed(model_type, force_refresh=True)
+            stats_data = await horde_api.get_model_stats_indexed(model_type, force_refresh=True)
+        except Exception as e:
+            logger.warning(f"Cache hydration skipped for {category}: Horde API unavailable ({e})")
+            return None
 
         # Merge with model reference data
         model_statistics = merge_category_with_horde_data(
