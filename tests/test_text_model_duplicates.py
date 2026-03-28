@@ -14,7 +14,7 @@ class TestGetVariantNames:
         variants = TextModelDuplicateManager.get_variant_names("ReadyArt/Broken-Tutu-24B")
         assert "aphrodite/ReadyArt/Broken-Tutu-24B" in variants
         assert "koboldcpp/Broken-Tutu-24B" in variants
-        assert "koboldcpp/ReadyArt/Broken-Tutu-24B" in variants
+        assert len(variants) == 2
 
     def test_author_slash_model_excludes_base(self) -> None:
         variants = TextModelDuplicateManager.get_variant_names("ReadyArt/Broken-Tutu-24B")

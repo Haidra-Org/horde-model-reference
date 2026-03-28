@@ -7,7 +7,13 @@ from collections.abc import Callable
 
 import httpx
 from loguru import logger
+from tenacity import RetryError
 
+from horde_model_reference.http_retry import (
+    RetryableHTTPStatusError,
+    http_retry_sync,
+    is_retryable_status_code,
+)
 from horde_model_reference.sync.config import github_sync_settings
 
 
@@ -30,7 +36,7 @@ class WatchModeManager:
         """Initialize the watch mode manager.
 
         Args:
-            api_url: Base URL of PRIMARY API (e.g., https://stablehorde.net/api).
+            api_url: Base URL of PRIMARY API (e.g., https://models.aihorde.net/api).
             sync_callback: Function to call when changes are detected. Should return exit code (0 for success).
             interval_seconds: Polling interval in seconds (default: from settings).
             initial_delay_seconds: Initial delay before starting watch loop (default: from settings).
@@ -63,10 +69,13 @@ class WatchModeManager:
         endpoint = f"{self.api_url}/model_references/v1/metadata/last_updated"
 
         try:
-            with httpx.Client(timeout=30.0) as client:
-                response = client.get(endpoint)
-                response.raise_for_status()
-                data = response.json()
+            for attempt in http_retry_sync(max_attempts=3, min_wait=1.0, max_wait=15.0):
+                with attempt, httpx.Client(timeout=30.0) as client:
+                    response = client.get(endpoint)
+                    if is_retryable_status_code(response.status_code):
+                        raise RetryableHTTPStatusError(response)
+                    response.raise_for_status()
+                    data = response.json()
 
             timestamp: int | None = data.get("last_updated")
             if timestamp is None:
@@ -76,14 +85,14 @@ class WatchModeManager:
 
             return timestamp
 
+        except (RetryError, RetryableHTTPStatusError) as e:
+            logger.error(f"Failed to fetch metadata after retries: {e}")
+            raise
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error fetching metadata: {e.response.status_code} - {e}")
             raise
         except httpx.HTTPError as e:
             logger.error(f"Network error fetching metadata: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"Unexpected error fetching metadata: {e}")
             raise
 
     def check_for_changes(self) -> bool:

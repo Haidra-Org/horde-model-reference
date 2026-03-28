@@ -47,7 +47,7 @@ class TextModelDuplicateManager:
 
         Example:
             >>> TextModelDuplicateManager.get_variant_names("ReadyArt/Broken-Tutu-24B")
-            ['aphrodite/ReadyArt/Broken-Tutu-24B', 'koboldcpp/Broken-Tutu-24B', 'koboldcpp/ReadyArt_Broken-Tutu-24B']
+            ['aphrodite/ReadyArt/Broken-Tutu-24B', 'koboldcpp/Broken-Tutu-24B']
 
         """
         all_variants = get_model_name_variants(base_name)
@@ -65,7 +65,7 @@ class TextModelDuplicateManager:
 
         Example:
             >>> TextModelDuplicateManager.get_all_names("Author/Model-7B")
-            ['Author/Model-7B', 'aphrodite/Author/Model-7B', 'koboldcpp/Model-7B', 'koboldcpp/Author_Model-7B']
+            ['Author/Model-7B', 'aphrodite/Author/Model-7B', 'koboldcpp/Model-7B']
 
         """
         return get_model_name_variants(base_name)

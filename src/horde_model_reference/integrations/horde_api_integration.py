@@ -15,7 +15,14 @@ from typing import TYPE_CHECKING
 
 import httpx
 from loguru import logger
+from tenacity import RetryError
 
+from horde_model_reference.http_retry import (
+    RetryableHTTPStatusError,
+    horde_api_circuit_breaker,
+    http_retry_async,
+    is_retryable_status_code,
+)
 from horde_model_reference.integrations.horde_api_models import (
     HordeModelState,
     HordeModelStatsResponse,
@@ -29,6 +36,10 @@ from horde_model_reference.integrations.horde_api_models import (
 
 if TYPE_CHECKING:
     import redis
+
+
+class HordeAPIDegradedError(Exception):
+    """Raised when the AI Horde API circuit breaker is open and requests are short-circuited."""
 
 
 class HordeAPIIntegration:
@@ -215,7 +226,14 @@ class HordeAPIIntegration:
 
         # Fetch from Horde API
         logger.debug(f"Fetching from Horde API: {cache_key}")
-        data = await self._fetch_status_from_api(model_type, min_count, model_state)
+        try:
+            data = await self._fetch_status_from_api(model_type, min_count, model_state)
+        except (HordeAPIDegradedError, RetryError, httpx.HTTPError) as e:
+            stale = self._get_stale_status(model_type)
+            if stale is not None:
+                logger.warning(f"AI Horde degraded, serving stale status cache for {model_type}: {e}")
+                return stale
+            raise
 
         # Store in cache
         self._store_status_in_cache(cache_key, model_type, data)
@@ -228,7 +246,7 @@ class HordeAPIIntegration:
         min_count: int | None = None,
         model_state: HordeModelState = "known",
     ) -> list[HordeModelStatus]:
-        """Fetch model status from Horde API.
+        """Fetch model status from Horde API with retry and circuit breaker.
 
         Args:
             model_type: Type of models to fetch
@@ -239,19 +257,36 @@ class HordeAPIIntegration:
             List of model status objects
 
         Raises:
-            httpx.HTTPError: On network or HTTP errors
+            HordeAPIDegradedError: When the circuit breaker is open
+            httpx.HTTPError: On non-retryable HTTP errors
+            RetryError: When all retry attempts are exhausted
 
         """
+        if not horde_api_circuit_breaker.should_allow_request():
+            raise HordeAPIDegradedError(
+                f"AI Horde API circuit breaker is open (retry in {horde_api_circuit_breaker.seconds_until_retry:.0f}s)"
+            )
+
         url = f"{self._base_url}/status/models"
         params: dict[str, str] = {"type": model_type, "model_state": model_state}
         if min_count is not None:
             params["min_count"] = str(min_count)
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
+        try:
+            async for attempt in http_retry_async(max_attempts=3, min_wait=1.0, max_wait=15.0):
+                with attempt:
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
+                        response = await client.get(url, params=params)
+                        if is_retryable_status_code(response.status_code):
+                            raise RetryableHTTPStatusError(response)
+                        response.raise_for_status()
+                        data = response.json()
+
+            horde_api_circuit_breaker.record_success()
             return [HordeModelStatus.model_validate(item) for item in data]
+        except (RetryError, RetryableHTTPStatusError, httpx.HTTPError):
+            horde_api_circuit_breaker.record_failure()
+            raise
 
     def _store_status_in_cache(
         self,
@@ -317,7 +352,14 @@ class HordeAPIIntegration:
 
         # Fetch from Horde API
         logger.debug(f"Fetching from Horde API: {cache_key}")
-        data = await self._fetch_stats_from_api(model_type, model_state)
+        try:
+            data = await self._fetch_stats_from_api(model_type, model_state)
+        except (HordeAPIDegradedError, RetryError, httpx.HTTPError) as e:
+            stale = self._get_stale_stats(model_type)
+            if stale is not None:
+                logger.warning(f"AI Horde degraded, serving stale stats cache for {model_type}: {e}")
+                return stale
+            raise
 
         # Store in cache
         self._store_stats_in_cache(cache_key, model_type, data)
@@ -329,7 +371,7 @@ class HordeAPIIntegration:
         model_type: HordeModelType,
         model_state: HordeModelState = "known",
     ) -> HordeModelStatsResponse:
-        """Fetch model stats from Horde API.
+        """Fetch model stats from Horde API with retry and circuit breaker.
 
         Args:
             model_type: Type of models to fetch
@@ -339,18 +381,35 @@ class HordeAPIIntegration:
             Model statistics response
 
         Raises:
-            httpx.HTTPError: On network or HTTP errors
+            HordeAPIDegradedError: When the circuit breaker is open
+            httpx.HTTPError: On non-retryable HTTP errors
+            RetryError: When all retry attempts are exhausted
 
         """
+        if not horde_api_circuit_breaker.should_allow_request():
+            raise HordeAPIDegradedError(
+                f"AI Horde API circuit breaker is open (retry in {horde_api_circuit_breaker.seconds_until_retry:.0f}s)"
+            )
+
         endpoint = "stats/img/models" if model_type == "image" else "stats/text/models"
         url = f"{self._base_url}/{endpoint}"
         params = {"model_state": model_state}
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
+        try:
+            async for attempt in http_retry_async(max_attempts=3, min_wait=1.0, max_wait=15.0):
+                with attempt:
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
+                        response = await client.get(url, params=params)
+                        if is_retryable_status_code(response.status_code):
+                            raise RetryableHTTPStatusError(response)
+                        response.raise_for_status()
+                        data = response.json()
+
+            horde_api_circuit_breaker.record_success()
             return HordeModelStatsResponse.model_validate(data)
+        except (RetryError, RetryableHTTPStatusError, httpx.HTTPError):
+            horde_api_circuit_breaker.record_failure()
+            raise
 
     def _store_stats_in_cache(
         self,
@@ -414,7 +473,14 @@ class HordeAPIIntegration:
 
         # Fetch from Horde API
         logger.debug(f"Fetching from Horde API: {cache_key}")
-        data = await self._fetch_workers_from_api(model_type)
+        try:
+            data = await self._fetch_workers_from_api(model_type)
+        except (HordeAPIDegradedError, RetryError, httpx.HTTPError) as e:
+            stale = self._get_stale_workers(model_type)
+            if stale is not None:
+                logger.warning(f"AI Horde degraded, serving stale workers cache for {model_type}: {e}")
+                return stale
+            raise
 
         # Store in cache
         self._store_workers_in_cache(cache_key, model_type, data)
@@ -425,7 +491,7 @@ class HordeAPIIntegration:
         self,
         model_type: HordeModelType | None = None,
     ) -> list[HordeWorker]:
-        """Fetch workers from Horde API.
+        """Fetch workers from Horde API with retry and circuit breaker.
 
         Args:
             model_type: Type of workers to fetch (or None for all)
@@ -434,20 +500,37 @@ class HordeAPIIntegration:
             List of worker objects
 
         Raises:
-            httpx.HTTPError: On network or HTTP errors
+            HordeAPIDegradedError: When the circuit breaker is open
+            httpx.HTTPError: On non-retryable HTTP errors
+            RetryError: When all retry attempts are exhausted
 
         """
+        if not horde_api_circuit_breaker.should_allow_request():
+            raise HordeAPIDegradedError(
+                f"AI Horde API circuit breaker is open (retry in {horde_api_circuit_breaker.seconds_until_retry:.0f}s)"
+            )
+
         url = f"{self._base_url}/workers"
-        params = {}
+        params: dict[str, str] = {}
         if model_type is not None:
             params["type"] = model_type
 
-        async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-            logger.debug(f"Fetched {len(data)} workers from {url} with params {params}")
+        try:
+            async for attempt in http_retry_async(max_attempts=3, min_wait=1.0, max_wait=15.0):
+                with attempt:
+                    async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
+                        response = await client.get(url, params=params)
+                        if is_retryable_status_code(response.status_code):
+                            raise RetryableHTTPStatusError(response)
+                        response.raise_for_status()
+                        data = response.json()
+                        logger.debug(f"Fetched {len(data)} workers from {url} with params {params}")
+
+            horde_api_circuit_breaker.record_success()
             return [HordeWorker.model_validate(item) for item in data]
+        except (RetryError, RetryableHTTPStatusError, httpx.HTTPError):
+            horde_api_circuit_breaker.record_failure()
+            raise
 
     def _store_workers_in_cache(
         self,
@@ -472,6 +555,23 @@ class HordeAPIIntegration:
             self._workers_cache[model_type] = data
             self._cache_timestamps[cache_key] = time.time()
             logger.debug(f"Stored in memory cache: {cache_key}")
+
+    # -- Stale cache fallbacks (used when circuit breaker is open) --
+
+    def _get_stale_status(self, model_type: HordeModelType) -> list[HordeModelStatus] | None:
+        """Return in-memory status cache regardless of TTL, or None if empty."""
+        with self._lock:
+            return self._status_cache.get(model_type)
+
+    def _get_stale_stats(self, model_type: HordeModelType) -> HordeModelStatsResponse | None:
+        """Return in-memory stats cache regardless of TTL, or None if empty."""
+        with self._lock:
+            return self._stats_cache.get(model_type)
+
+    def _get_stale_workers(self, model_type: HordeModelType | None) -> list[HordeWorker] | None:
+        """Return in-memory workers cache regardless of TTL, or None if empty."""
+        with self._lock:
+            return self._workers_cache.get(model_type)
 
     async def get_combined_data(
         self,

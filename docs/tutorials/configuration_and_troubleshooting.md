@@ -9,7 +9,7 @@ All settings use the `HORDE_MODEL_REFERENCE_` prefix. Most consumers only need a
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CACHE_TTL_SECONDS` | `60` | How long (seconds) cached data stays valid before re-checking the backend |
-| `PRIMARY_API_URL` | `https://stablehorde.net/api/model_references/` | URL of the PRIMARY server to fetch from. Set to empty to use GitHub only |
+| `PRIMARY_API_URL` | `https://models.aihorde.net/` | URL of the PRIMARY server to fetch from. Set to empty to use GitHub only |
 | `ENABLE_GITHUB_FALLBACK` | `True` | Whether to fall back to GitHub if the PRIMARY API is unreachable |
 | `PRIMARY_API_TIMEOUT` | `10` | Timeout (seconds) for PRIMARY API requests |
 
@@ -17,7 +17,7 @@ Set them via environment variables or a `.env` file:
 
 ```bash
 export HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS=120
-export HORDE_MODEL_REFERENCE_PRIMARY_API_URL="https://aihorde.net/api/model_references/"
+export HORDE_MODEL_REFERENCE_PRIMARY_API_URL="https://models.aihorde.net/"
 ```
 
 ## Data Flow

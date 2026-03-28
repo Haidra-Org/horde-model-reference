@@ -114,7 +114,7 @@ class HordeGitHubSyncSettings(BaseSettings):
     """Suppress pydantic meta warnings about unknown fields, for example, for use in scripts."""
 
     primary_api_url: str | None = None
-    """PRIMARY instance v1 API base URL (e.g., https://stablehorde.net/api). Required for sync to work."""
+    """PRIMARY instance v1 API base URL (e.g., https://models.aihorde.net/). Required for sync to work."""
 
     primary_api_timeout: int = 30
     """Timeout in seconds for HTTP requests to PRIMARY API."""
@@ -174,7 +174,7 @@ github_text_repo, and github_branch settings."""
                 logger.error(
                     "PRIMARY API URL is not configured. "
                     "Set HORDE_GITHUB_SYNC_PRIMARY_API_URL to enable sync operations. "
-                    "Example: export HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://stablehorde.net/api"
+                    "Example: export HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://models.aihorde.net/"
                 )
 
             if not self.github_token and not self.dry_run:

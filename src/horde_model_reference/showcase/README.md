@@ -1,5 +1,5 @@
 # Image Grid Template
-Create image grids to showcase model capabilities to users of [Stable Horde](https://stablehorde.net/)
+Create image grids to showcase model capabilities to users of [Stable Horde](https://aihorde.net/)
 ## Template
 
 ```

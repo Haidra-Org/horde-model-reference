@@ -1028,7 +1028,7 @@ class GitHubSyncClient:
 
         """
         date_str = datetime.now().strftime("%Y-%m-%d")
-        return f"Sync {category} from PRIMARY instance - {date_str}"
+        return f"Auto Sync {category} from horde_model_reference service - {date_str}"
 
     def _generate_pr_body(
         self,
@@ -1046,9 +1046,9 @@ class GitHubSyncClient:
 
         """
         lines = [
-            "## Automated Sync from PRIMARY Instance",
+            "## Automated Sync from horde_model_reference service",
             "",
-            f"This PR synchronizes the `{category}` model references from the PRIMARY instance.",
+            f"This PR synchronizes the `{category}` model references from the horde_model_reference service.",
             "",
             "### Changes Summary",
             "",
@@ -1097,7 +1097,7 @@ class GitHubSyncClient:
         lines.append("")
         lines.append(
             "Please review the changes carefully before merging. "
-            "If you notice any issues, contact the PRIMARY instance administrator."
+            "If you notice any issues, contact the horde_model_reference service administrator."
         )
 
         return "\n".join(lines)

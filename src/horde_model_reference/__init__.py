@@ -323,9 +323,9 @@ class HordeModelReferenceSettings(BaseSettings):
     redis: RedisSettings = RedisSettings()
     """Redis settings for distributed caching. Only used in PRIMARY mode for multi-worker deployments."""
 
-    primary_api_url: str | None = "https://stablehorde.net/api/model_references/"
+    primary_api_url: str | None = "https://models.aihorde.net/"
     """URL of PRIMARY server API for REPLICA clients to fetch model references from. \
-If None, REPLICA clients will only use GitHub. Example: https://stablehorde.net/api/model_references/"""
+If None, REPLICA clients will only use GitHub. Example: https://models.aihorde.net/"""
 
     primary_api_timeout: int = 10
     """Timeout in seconds for HTTP requests to PRIMARY API."""
