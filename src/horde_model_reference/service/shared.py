@@ -232,8 +232,14 @@ def _fallback_allowed_users(context: Literal["requestor", "approver"]) -> set[st
 
 def _queue_requestor_allowlist() -> set[str]:
     settings = horde_model_reference_settings.pending_queue
+
+    logger.debug("Building requestor allowlist from settings")
+
     allowlist = _normalize_ids(settings.requestor_ids)
     allowlist.update(_normalize_ids(settings.approver_ids))
+
+    logger.debug(f"Combined requestor allowlist (including approvers): {allowlist}")
+
     if allowlist:
         return allowlist
     return _fallback_allowed_users("requestor")
@@ -241,7 +247,13 @@ def _queue_requestor_allowlist() -> set[str]:
 
 def _queue_approver_allowlist() -> set[str]:
     settings = horde_model_reference_settings.pending_queue
+
+    logger.debug("Building approver allowlist from settings")
+
     allowlist = _normalize_ids(settings.approver_ids)
+
+    logger.debug(f"Approver allowlist: {allowlist}")
+
     if allowlist:
         return allowlist
     return _fallback_allowed_users("approver")

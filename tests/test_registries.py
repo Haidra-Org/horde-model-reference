@@ -413,11 +413,11 @@ class TestTextBackendPrefixFunctions:
             assert len(variants) == len(set(variants)), f"Duplicates in variants for {name!r}: {variants}"
 
     def test_variants_with_org_prefix(self) -> None:
-        """Name with org prefix should produce aphrodite, koboldcpp (short), and koboldcpp (sanitized) variants."""
+        """Name with org prefix should produce aphrodite, koboldcpp (short), and canonical variants."""
         variants = get_model_name_variants("ReadyArt/Broken-Tutu-24B")
         assert "aphrodite/ReadyArt/Broken-Tutu-24B" in variants
         assert "koboldcpp/Broken-Tutu-24B" in variants
-        assert "koboldcpp/ReadyArt/Broken-Tutu-24B" in variants
+        assert "ReadyArt/Broken-Tutu-24B" in variants
 
     def test_variants_without_org_prefix(self) -> None:
         """Name without org prefix should not produce a spurious sanitized variant."""

@@ -414,9 +414,19 @@ Allows service to fully initialize before background tasks begin."""
         logger.debug(f"CORS allowed origins: {v}")
         return v
 
+    @field_validator("primary_api_url")
+    def validate_primary_api_url(cls, v: str | None) -> str | None:
+        if v is not None:
+            logger.debug(f"primary_api_url: {v}")
+        return v
+
     @model_validator(mode="after")
     def validate_mode_configuration(self) -> HordeModelReferenceSettings:
         """Validate that settings are appropriate for the configured replication mode."""
+        logger.debug(
+            f"Validating settings for replicate_mode={self.replicate_mode} and "
+            f"canonical_format={self.canonical_format}"
+        )
         if self.replicate_mode == ReplicateMode.REPLICA and self.redis.use_redis is True:
             logger.warning(
                 "Redis settings detected in REPLICA mode. "
