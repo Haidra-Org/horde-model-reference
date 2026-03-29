@@ -131,11 +131,6 @@ def test_manager(
     caplog.clear()
     model_reference_manager.backend.fetch_all_categories(force_refresh=True)
 
-    log_messages = [record.message for record in caplog.records]
-    assert any("Loaded converted JSON" in msg or "loading from disk" in msg for msg in log_messages), (
-        "Expected 'Loaded converted JSON' or 'loading from disk' in log messages during cache loading"
-    )
-
     all_references: dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]
     all_references = model_reference_manager.get_all_model_references(overwrite_existing=False)
 

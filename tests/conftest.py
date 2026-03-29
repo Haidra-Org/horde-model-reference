@@ -9,6 +9,14 @@ from typing import Any
 os.environ["TESTS_ONGOING"] = "1"
 os.environ["AI_HORDE_TESTING"] = "True"
 os.environ["HORDE_MODEL_REFERENCE_REPLICATE_MODE"] = "PRIMARY"
+if "HORDE_MODEL_REFERENCE_PRIMARY_API_URL" not in os.environ:
+    os.environ["HORDE_MODEL_REFERENCE_PRIMARY_API_URL"] = "http://localhost:19800"
+    print("Set HORDE_MODEL_REFERENCE_PRIMARY_API_URL to http://localhost:19800 for tests (was not set in environment)")
+else:
+    print(
+        f"HORDE_MODEL_REFERENCE_PRIMARY_API_URL is set to {os.environ['HORDE_MODEL_REFERENCE_PRIMARY_API_URL']} "
+        "in environment"
+    )
 # Set to legacy so v1 CRUD routes are registered at import time
 # v2 tests will override this via fixtures
 os.environ["HORDE_MODEL_REFERENCE_CANONICAL_FORMAT"] = "LEGACY"
