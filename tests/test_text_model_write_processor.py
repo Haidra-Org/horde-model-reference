@@ -41,15 +41,13 @@ class TestGetModelNameVariants:
         variants = get_model_name_variants("Author/Model")
         assert variants[0] == "Author/Model"
 
-    def test_author_model_produces_five_variants(self) -> None:
+    def test_author_model_produces_three_variants(self) -> None:
         variants = get_model_name_variants("ReadyArt/Broken-Tutu-24B")
-        assert len(variants) == 5
+        assert len(variants) == 3
         assert variants == [
             "ReadyArt/Broken-Tutu-24B",
-            "aphrodite/Broken-Tutu-24B",
             "aphrodite/ReadyArt/Broken-Tutu-24B",
             "koboldcpp/Broken-Tutu-24B",
-            "koboldcpp/ReadyArt/Broken-Tutu-24B",
         ]
 
     def test_simple_name_produces_three_variants(self) -> None:
