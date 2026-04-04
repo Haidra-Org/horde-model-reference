@@ -127,8 +127,8 @@ class TestTextModelGroup:
         assert llama_record.text_model_group == "Llama-3"
         assert llama_quant_record.text_model_group == "Llama-3"
 
-        # Mistral should have its own group
-        assert mistral_record.text_model_group == "Mistral-v0.1"
+        # Mistral should have its own group (version stripped from base name)
+        assert mistral_record.text_model_group == "Mistral"
 
     def test_grouping_logic_matches_parser(self) -> None:
         """Test that the grouping logic matches the parser function."""
@@ -143,7 +143,7 @@ class TestTextModelGroup:
 
         # Verify grouping structure
         assert "Llama-3" in grouped
-        assert "Mistral-v0.1" in grouped
+        assert "Mistral" in grouped
 
         assert grouped["Llama-3"].base_name == "Llama-3"
         assert len(grouped["Llama-3"].variants) == 3
@@ -153,5 +153,5 @@ class TestTextModelGroup:
             "Llama-3-70B-Instruct",
         }
 
-        assert grouped["Mistral-v0.1"].base_name == "Mistral-v0.1"
-        assert len(grouped["Mistral-v0.1"].variants) == 1
+        assert grouped["Mistral"].base_name == "Mistral"
+        assert len(grouped["Mistral"].variants) == 1

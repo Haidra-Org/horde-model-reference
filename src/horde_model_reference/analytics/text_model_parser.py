@@ -8,7 +8,7 @@ like base name, size, variant, and quantization. Useful for grouping model varia
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
 
 from loguru import logger
@@ -20,10 +20,11 @@ class ParsedTextModelName:
 
     Attributes:
         original_name: The original model name as provided.
-        base_name: The base model name without size/variant/quant info.
-        size: Model size if detected (e.g., "7B", "13B", "70B").
+        base_name: The base model name without size/variant/quant/version info.
+        size: Model size if detected (e.g., "7B", "13B", "70B", "7B1").
         variant: Model variant if detected (e.g., "Instruct", "Chat", "Code").
         quant: Quantization type if detected (e.g., "Q4", "Q8", "GGUF").
+        version: Model version if detected (e.g., "v0.1", "v2.1").
         normalized_name: A normalized version of the name for comparison.
 
     """
@@ -33,13 +34,22 @@ class ParsedTextModelName:
     size: str | None = None
     variant: str | None = None
     quant: str | None = None
+    version: str | None = None
     normalized_name: str | None = None
 
 
 # Common text model size patterns
+# Uses lookahead/lookbehind instead of \b because underscore is a word character
+# in regex, so \b won't fire at boundaries like `Eclipse_12B`.
 SIZE_PATTERNS = [
-    r"\b(\d+\.?\d*[BMK])\b",  # 7B, 13B, 70B, 1.5B, 3.5K, etc.
-    r"\b(\d+x\d+[BMK])\b",  # MoE models: 8x7B, 8x22B
+    r"(?<![a-zA-Z])(\d+\.?\d*[BMK]\d*)(?![a-zA-Z])",  # 7B, 13B, 1.5B, 7B1 (trailing digits), etc.
+    r"(?<![a-zA-Z])(\d+x\d+[BMK])(?![a-zA-Z])",  # MoE models: 8x7B, 8x22B
+]
+
+# Version patterns (v-prefixed version strings like v0.1, v2.1, V0.420)
+VERSION_PATTERNS = [
+    r"(?<![a-zA-Z0-9])([vV]\d+(?:\.\d+)+)(?![a-zA-Z0-9])",  # v2.1, V0.420 (with dots)
+    r"(?<![a-zA-Z0-9])([vV]\d+)(?![a-zA-Z0-9.])",  # v2, V1 (standalone, not followed by dot)
 ]
 
 # Common variant indicators
@@ -88,6 +98,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
     size = None
     variant = None
     quant = None
+    version = None
 
     # Extract size
     for pattern in SIZE_PATTERNS:
@@ -96,6 +107,15 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
             size = match.group(1).upper()
             name_parts = name_parts[: match.start()] + name_parts[match.end() :]
             logger.trace(f"Extracted size: {size}")
+            break
+
+    # Extract version (after size so v-prefixed versions aren't confused with sizes)
+    for pattern in VERSION_PATTERNS:
+        match = re.search(pattern, name_parts, re.IGNORECASE)
+        if match:
+            version = match.group(1)
+            name_parts = name_parts[: match.start()] + name_parts[match.end() :]
+            logger.trace(f"Extracted version: {version}")
             break
 
     # Extract quantization
@@ -116,10 +136,11 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
             logger.trace(f"Extracted variant: {variant}")
             break
 
-    # Clean up base name
+    # Clean up base name — collapse repeated separators and strip edges
     base_name = name_parts
     for sep in SEPARATORS:
-        base_name = base_name.replace(sep + sep, sep)
+        while sep + sep in base_name:
+            base_name = base_name.replace(sep + sep, sep)
 
     base_name = base_name.strip("-_ .")
 
@@ -137,6 +158,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
         size=size,
         variant=variant,
         quant=quant,
+        version=version,
         normalized_name=normalized,
     )
 
@@ -332,3 +354,202 @@ def get_model_variant(model_name: str) -> str | None:
     """
     parsed = parse_text_model_name(model_name)
     return parsed.variant
+
+
+@dataclass
+class NameFormatSchema:
+    """Describes the naming convention inferred from a group of models.
+
+    Used by compose_name to produce names consistent with existing group members.
+    """
+
+    separator: str = "-"
+    part_order: list[str] = field(default_factory=lambda: ["base", "size", "variant", "version", "quant"])
+    author_included: bool = False
+    common_author: str | None = None
+    template: str = "{base}-{size}"
+
+
+def _detect_separator(names: list[str]) -> str:
+    """Detect the dominant separator in model names (ignoring separators within quant tokens)."""
+    hyphen_count = 0
+    underscore_count = 0
+
+    for name in names:
+        cleaned = name
+        for pattern in QUANT_PATTERNS:
+            cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE)
+
+        hyphen_count += cleaned.count("-")
+        underscore_count += cleaned.count("_")
+
+    return "_" if underscore_count > hyphen_count else "-"
+
+
+def _detect_part_order(original: str, parsed: ParsedTextModelName) -> list[str]:
+    """Detect the order of parts in a model name by their position in the original string."""
+    parts: dict[str, str] = {}
+    if parsed.base_name:
+        parts["base"] = parsed.base_name
+    if parsed.size:
+        parts["size"] = parsed.size
+    if parsed.variant:
+        parts["variant"] = parsed.variant
+    if parsed.version:
+        parts["version"] = parsed.version
+    if parsed.quant:
+        parts["quant"] = parsed.quant
+
+    positions: dict[str, int] = {}
+    original_lower = original.lower()
+    for part_name, part_value in parts.items():
+        pos = original_lower.find(part_value.lower())
+        if pos >= 0:
+            positions[part_name] = pos
+
+    return [name for name, _ in sorted(positions.items(), key=lambda x: x[1])]
+
+
+def infer_name_format(member_names: list[str]) -> NameFormatSchema:
+    """Infer the naming convention from existing group members.
+
+    Analyzes separators, part ordering, and author inclusion across
+    all member names to produce a schema that can drive consistent
+    name composition for new variations.
+
+    Args:
+        member_names: List of model names belonging to the same group.
+
+    Returns:
+        NameFormatSchema describing the group's naming convention.
+
+    """
+    if not member_names:
+        return NameFormatSchema()
+
+    # Separate author prefixes
+    authors: set[str] = set()
+    names_without_author: list[str] = []
+    for name in member_names:
+        if "/" in name:
+            author, _, rest = name.partition("/")
+            authors.add(author)
+            names_without_author.append(rest)
+        else:
+            names_without_author.append(name)
+
+    author_included = len(authors) > 0
+    common_author = authors.pop() if len(authors) == 1 else None
+
+    separator = _detect_separator(names_without_author)
+
+    # Detect part order from the most-complete member (most extracted parts)
+    parsed_members = [parse_text_model_name(n) for n in names_without_author]
+    richest = max(
+        zip(names_without_author, parsed_members, strict=False),
+        key=lambda pair: sum(1 for v in [pair[1].size, pair[1].variant, pair[1].version, pair[1].quant] if v),
+    )
+    part_order = _detect_part_order(richest[0], richest[1])
+
+    # Build human-readable template
+    template_parts: list[str] = []
+    if author_included:
+        template_parts.append("{author}/")
+    for i, part in enumerate(part_order):
+        if i == 0:
+            template_parts.append(f"{{{part}}}")
+        else:
+            template_parts.append(f"{separator}{{{part}}}")
+    template = "".join(template_parts)
+
+    return NameFormatSchema(
+        separator=separator,
+        part_order=part_order,
+        author_included=author_included,
+        common_author=common_author,
+        template=template,
+    )
+
+
+@dataclass
+class TextModelGroupSummary:
+    """Aggregated metadata for a group of text model variants."""
+
+    group_name: str
+    member_count: int
+    available_sizes: list[str]
+    available_quants: list[str]
+    common_baseline: str | None
+    any_nsfw: bool
+    any_has_description: bool
+    merged_tags: list[str]
+    name_format: NameFormatSchema
+
+
+def compute_group_summaries(
+    models_dict: dict[str, dict[str, object]],
+) -> dict[str, TextModelGroupSummary]:
+    """Compute aggregated summaries for each text model group.
+
+    Expects models_dict entries to already have ``text_model_group`` set.
+    Parses each model name to extract sizes, quants, etc. and aggregates
+    metadata fields (baseline, nsfw, tags, description) across members.
+
+    Args:
+        models_dict: Mapping of model_name → model_data dicts (mutated legacy JSON).
+
+    Returns:
+        Mapping of group_name → TextModelGroupSummary.
+
+    """
+    # Group model names by their text_model_group value
+    groups: dict[str, list[str]] = {}
+    for model_name, model_data in models_dict.items():
+        group = str(model_data.get("text_model_group", model_name))
+        if group not in groups:
+            groups[group] = []
+        groups[group].append(model_name)
+
+    summaries: dict[str, TextModelGroupSummary] = {}
+    for group_name, member_names in groups.items():
+        parsed = [parse_text_model_name(name) for name in member_names]
+
+        sizes: set[str] = set()
+        quants: set[str] = set()
+        baselines: set[str] = set()
+        any_nsfw = False
+        any_has_description = False
+        merged_tags: set[str] = set()
+
+        for p, mname in zip(parsed, member_names, strict=False):
+            mdata = models_dict[mname]
+            if p.size:
+                sizes.add(p.size)
+            if p.quant:
+                quants.add(p.quant)
+            baseline = mdata.get("baseline")
+            if baseline:
+                baselines.add(str(baseline))
+            if mdata.get("nsfw"):
+                any_nsfw = True
+            if mdata.get("description"):
+                any_has_description = True
+            tags = mdata.get("tags")
+            if isinstance(tags, list):
+                merged_tags.update(str(t) for t in tags)
+
+        format_schema = infer_name_format(member_names)
+
+        summaries[group_name] = TextModelGroupSummary(
+            group_name=group_name,
+            member_count=len(member_names),
+            available_sizes=sorted(sizes),
+            available_quants=sorted(quants),
+            common_baseline=baselines.pop() if len(baselines) == 1 else None,
+            any_nsfw=any_nsfw,
+            any_has_description=any_has_description,
+            merged_tags=sorted(merged_tags),
+            name_format=format_schema,
+        )
+
+    return summaries

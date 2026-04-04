@@ -23,8 +23,6 @@ from tenacity import (
     wait_random_exponential,
 )
 
-# -- Retryable exception classification --
-
 TRANSIENT_HTTP_EXCEPTIONS: tuple[type[Exception], ...] = (
     httpx.TimeoutException,
     httpx.ConnectError,
@@ -50,9 +48,6 @@ class RetryableHTTPStatusError(Exception):
         super().__init__(f"HTTP {response.status_code} from {response.url}")
 
 
-# -- Structured retry logging --
-
-
 def _log_retry(retry_state: RetryCallState) -> None:
     """Emit a structured log line before each retry attempt."""
     outcome = retry_state.outcome
@@ -65,9 +60,6 @@ def _log_retry(retry_state: RetryCallState) -> None:
         wait=wait,
         error=str(exc) if exc else "unknown",
     )
-
-
-# -- Sync and async retry helpers --
 
 
 def http_retry_sync(
@@ -136,9 +128,6 @@ def http_retry_async(
     )
 
 
-# -- Circuit breaker for external AI Horde API --
-
-
 @dataclass
 class _CircuitState:
     """Internal mutable state for the circuit breaker."""
@@ -174,8 +163,6 @@ class HordeAPICircuitBreaker:
         self._failure_threshold = failure_threshold
         self._cooldown_seconds = cooldown_seconds
         self._state = _CircuitState()
-
-    # -- Public queries --
 
     @property
     def is_degraded(self) -> bool:
@@ -216,8 +203,6 @@ class HordeAPICircuitBreaker:
                 return True
             return False
 
-    # -- Lifecycle hooks --
-
     def record_success(self) -> None:
         """Record a successful request, closing the circuit if it was open."""
         with self._state.lock:
@@ -249,8 +234,6 @@ class HordeAPICircuitBreaker:
                 "consecutive_failures": self._state.consecutive_failures,
                 "seconds_until_retry": round(self.seconds_until_retry, 1) if self.seconds_until_retry else None,
             }
-
-    # -- Internal --
 
     def _cooldown_elapsed(self) -> bool:
         return (time.monotonic() - self._state.last_failure_time) >= self._cooldown_seconds

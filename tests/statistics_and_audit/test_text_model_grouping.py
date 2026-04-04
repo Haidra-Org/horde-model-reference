@@ -379,8 +379,8 @@ class TestGroupRiskModels:
         )
         result = group_risk_models([model])
         assert len(result) == 1
-        # Backend and author prefixes should be stripped
-        assert result[0].name == "Fiendish_LLAMA_3B"
+        # Backend and author prefixes should be stripped, size extracted
+        assert result[0].name == "Fiendish_LLAMA"
 
     def test_group_normalizes_size_in_name(self) -> None:
         """Models with size info should have it stripped from base name."""

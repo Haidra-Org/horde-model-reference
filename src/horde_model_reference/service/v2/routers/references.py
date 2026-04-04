@@ -161,6 +161,14 @@ async def _queue_model_record_request(
                 ),
             )
 
+    # Auto-set text_model_group if not provided for text_generation models
+    if category == MODEL_REFERENCE_CATEGORY.text_generation:
+        from horde_model_reference.analytics.text_model_parser import get_base_model_name
+
+        if isinstance(model_record, TextGenerationModelRecord) and model_record.text_model_group is None:
+            computed_group = get_base_model_name(model_name)
+            model_record = model_record.model_copy(update={"text_model_group": computed_group})
+
     model_exists = _check_model_exists(manager, category, model_name)
 
     if operation is AuditOperation.CREATE and model_exists:

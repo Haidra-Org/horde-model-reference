@@ -7,6 +7,7 @@ from horde_model_reference.analytics.text_model_parser import (
     get_model_size,
     get_model_variant,
     group_text_models_by_base,
+    infer_name_format,
     is_quantized_variant,
     normalize_model_name,
     parse_text_model_name,
@@ -60,16 +61,18 @@ class TestParseTextModelName:
         """Test parsing Mistral model names."""
         parsed = parse_text_model_name("Mistral-7B-v0.1")
 
-        assert parsed.base_name == "Mistral-v0.1"
+        assert parsed.base_name == "Mistral"
         assert parsed.size == "7B"
+        assert parsed.version == "v0.1"
 
     def test_parse_mixtral_moe(self) -> None:
         """Test parsing Mixtral MoE model names."""
         parsed = parse_text_model_name("Mixtral-8x7B-Instruct-v0.1")
 
-        assert parsed.base_name == "Mixtral--v0.1"
+        assert parsed.base_name == "Mixtral"
         assert parsed.size == "8X7B"
         assert parsed.variant == "Instruct"
+        assert parsed.version == "v0.1"
 
     def test_parse_gemma_model(self) -> None:
         """Test parsing Gemma model names."""
@@ -157,9 +160,10 @@ class TestParseTextModelName:
         """Test parsing models with legacy GGUF quantization formats like Q*_0, Q*_1."""
         # Test Q8_0 format
         parsed = parse_text_model_name("Lumimaid-v0.2-8B-Q8_0")
-        assert parsed.base_name == "Lumimaid-v0.2"
+        assert parsed.base_name == "Lumimaid"
         assert parsed.size == "8B"
         assert parsed.quant == "Q8_0"
+        assert parsed.version == "v0.2"
 
         # Test Q4_0 format
         parsed = parse_text_model_name("Llama-3-8B-Q4_0")
@@ -173,6 +177,51 @@ class TestParseTextModelName:
         assert parsed.size == "7B"
         assert parsed.quant == "Q5_1"
 
+    def test_parse_trailing_digit_size(self) -> None:
+        """Test parsing sizes with trailing digits like 7b1 (semantically 7.1B)."""
+        parsed = parse_text_model_name("bloomz-7b1")
+        assert parsed.base_name == "bloomz"
+        assert parsed.size == "7B1"
+        assert parsed.variant is None
+        assert parsed.quant is None
+
+    def test_parse_underscore_before_size(self) -> None:
+        """Test that underscores before size tokens don't block extraction."""
+        parsed = parse_text_model_name("Angelic_Eclipse_12B")
+        assert parsed.base_name == "Angelic_Eclipse"
+        assert parsed.size == "12B"
+
+    def test_parse_version_string(self) -> None:
+        """Test extraction of v-prefixed version strings."""
+        parsed = parse_text_model_name("Behemoth-X-123B-v2.1")
+        assert parsed.base_name == "Behemoth-X"
+        assert parsed.size == "123B"
+        assert parsed.version == "v2.1"
+        assert parsed.variant is None
+
+    def test_parse_uppercase_version(self) -> None:
+        """Test extraction of uppercase V-prefixed version strings."""
+        parsed = parse_text_model_name("Captain-Eris_Violet-V0.420-12B")
+        assert parsed.base_name == "Captain-Eris_Violet"
+        assert parsed.size == "12B"
+        assert parsed.version == "V0.420"
+
+    def test_parse_version_not_plain_number(self) -> None:
+        """Test that plain numbers (like '2' in 'Llama-2') are NOT treated as versions."""
+        parsed = parse_text_model_name("Llama-2-7B-Instruct")
+        assert parsed.base_name == "Llama-2"
+        assert parsed.size == "7B"
+        assert parsed.variant == "Instruct"
+        assert parsed.version is None
+
+    def test_parse_date_code_stays_in_base(self) -> None:
+        """Test that bare date codes without v-prefix stay in the base name (Phase 1 limitation)."""
+        parsed = parse_text_model_name("Devstral-2-123B-Instruct-2512")
+        assert parsed.size == "123B"
+        assert parsed.variant == "Instruct"
+        assert parsed.version is None
+        assert "2512" in parsed.base_name
+
 
 class TestGetBaseModelName:
     """Tests for get_base_model_name function."""
@@ -180,7 +229,7 @@ class TestGetBaseModelName:
     def test_get_base_from_full_name(self) -> None:
         """Test extracting base name from full model name."""
         assert get_base_model_name("Llama-3-8B-Instruct-Q4_K_M") == "Llama-3"
-        assert get_base_model_name("Mistral-7B-v0.1") == "Mistral-v0.1"
+        assert get_base_model_name("Mistral-7B-v0.1") == "Mistral"
         assert get_base_model_name("Gemma-2B-Instruct") == "Gemma"
 
     def test_get_base_from_simple_name(self) -> None:
@@ -191,26 +240,25 @@ class TestGetBaseModelName:
     def test_get_base_strips_backend_prefix(self) -> None:
         """Test that backend prefixes (koboldcpp/, aphrodite/) are stripped."""
         assert get_base_model_name("koboldcpp/Llama-3-8B-Instruct") == "Llama-3"
-        assert get_base_model_name("aphrodite/Mistral-7B-v0.1") == "Mistral-v0.1"
+        assert get_base_model_name("aphrodite/Mistral-7B-v0.1") == "Mistral"
 
     def test_get_base_strips_author_prefix(self) -> None:
         """Test that author prefixes are stripped."""
         assert get_base_model_name("ReadyArt/Broken-Tutu-24B") == "Broken-Tutu"
-        assert get_base_model_name("sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == "StrawberryLemonade-L3-v1.2"
+        assert get_base_model_name("sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == "StrawberryLemonade-L3"
 
     def test_get_base_strips_both_backend_and_author_prefixes(self) -> None:
         """Test that both backend and author prefixes are stripped."""
         assert (
-            get_base_model_name("koboldcpp/sophosympatheia/StrawberryLemonade-L3-70B-v1.2")
-            == "StrawberryLemonade-L3-v1.2"
+            get_base_model_name("koboldcpp/sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == "StrawberryLemonade-L3"
         )
         assert get_base_model_name("aphrodite/ReadyArt/Broken-Tutu-24B") == "Broken-Tutu"
-        assert get_base_model_name("aphrodite/NeverSleep/Lumimaid-v0.2-8B") == "Lumimaid-v0.2"
+        assert get_base_model_name("aphrodite/NeverSleep/Lumimaid-v0.2-8B") == "Lumimaid"
 
     def test_get_base_consistent_across_variations(self) -> None:
         """Test that all variations of a model name return the same base name."""
         # All these should return the same base name
-        expected = "StrawberryLemonade-L3-v1.2"
+        expected = "StrawberryLemonade-L3"
         assert get_base_model_name("StrawberryLemonade-L3-70B-v1.2") == expected
         assert get_base_model_name("sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == expected
         assert get_base_model_name("koboldcpp/sophosympatheia/StrawberryLemonade-L3-70B-v1.2") == expected
@@ -281,7 +329,7 @@ class TestGroupTextModelsByBase:
 
         assert len(grouped) == 3
         assert "Llama-3" in grouped
-        assert "Mistral-v0.1" in grouped
+        assert "Mistral" in grouped
         assert "Gemma" in grouped
 
     def test_group_mixed_models(self) -> None:
@@ -298,7 +346,7 @@ class TestGroupTextModelsByBase:
         assert len(grouped) == 3
         assert len(grouped["Llama-3"].variants) == 2
         assert len(grouped["Llama-2"].variants) == 1
-        assert len(grouped["Mistral-v0.1"].variants) == 2
+        assert len(grouped["Mistral"].variants) == 2
 
     def test_group_lumimaid_variants(self) -> None:
         """Test grouping Lumimaid model variants with different quantizations."""
@@ -310,9 +358,9 @@ class TestGroupTextModelsByBase:
         grouped = group_text_models_by_base(models)
 
         assert len(grouped) == 1
-        assert "Lumimaid-v0.2" in grouped
-        assert len(grouped["Lumimaid-v0.2"].variants) == 3
-        assert all(model in grouped["Lumimaid-v0.2"].variants for model in models)
+        assert "Lumimaid" in grouped
+        assert len(grouped["Lumimaid"].variants) == 3
+        assert all(model in grouped["Lumimaid"].variants for model in models)
 
 
 class TestIsQuantizedVariant:
@@ -388,3 +436,42 @@ class TestGetModelVariant:
         """Test returns None when variant not found."""
         assert get_model_variant("Llama-3-8B") is None
         assert get_model_variant("Mistral-7B") is None
+
+
+class TestInferNameFormat:
+    """Tests for infer_name_format function."""
+
+    def test_infer_empty_list(self) -> None:
+        """Test inference from an empty list returns defaults."""
+        schema = infer_name_format([])
+        assert schema.separator == "-"
+        assert schema.author_included is False
+
+    def test_infer_hyphen_separated(self) -> None:
+        """Test inference detects hyphen separator."""
+        schema = infer_name_format(["Llama-3-8B-Instruct", "Llama-3-70B-Instruct"])
+        assert schema.separator == "-"
+        assert "base" in schema.part_order
+        assert "size" in schema.part_order
+
+    def test_infer_underscore_separated(self) -> None:
+        """Test inference detects underscore separator."""
+        schema = infer_name_format(["Angelic_Eclipse_12B", "Angelic_Eclipse_24B"])
+        assert schema.separator == "_"
+
+    def test_infer_author_detection(self) -> None:
+        """Test inference detects common author prefix."""
+        schema = infer_name_format(["Qwen/Qwen3-0.6B", "Qwen/Qwen3-1.5B"])
+        assert schema.author_included is True
+        assert schema.common_author == "Qwen"
+
+    def test_infer_version_in_part_order(self) -> None:
+        """Test that version appears in part_order when present in members."""
+        schema = infer_name_format(["Mistral-7B-v0.1", "Mistral-13B-v0.1"])
+        assert "version" in schema.part_order
+
+    def test_infer_template_generation(self) -> None:
+        """Test that a human-readable template is generated."""
+        schema = infer_name_format(["Llama-3-8B-Instruct"])
+        assert "{base}" in schema.template
+        assert "{size}" in schema.template

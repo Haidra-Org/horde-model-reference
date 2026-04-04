@@ -9,7 +9,7 @@ from haidra_core.service_base import ContainsMessage
 
 import horde_model_reference.service.v1.routers.create_update as v1_router_create_update
 from horde_model_reference import ModelReferenceManager
-from horde_model_reference.analytics.text_model_parser import get_base_model_name
+from horde_model_reference.analytics.text_model_parser import compute_group_summaries, get_base_model_name
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.service.shared import (
     RouteNames,
@@ -140,6 +140,30 @@ async def read_legacy_text_generation_reference(
             for model_name, model_data in models_dict.items():
                 base_name = get_base_model_name(model_name)
                 model_data["text_model_group"] = base_name
+
+            # Compute aggregated summaries for each group and embed in each member
+            summaries = compute_group_summaries(models_dict)
+            for model_name, model_data in models_dict.items():
+                group = str(model_data.get("text_model_group", model_name))
+                summary = summaries.get(group)
+                if summary:
+                    model_data["text_model_group_summary"] = {
+                        "member_count": summary.member_count,
+                        "available_sizes": summary.available_sizes,
+                        "available_quants": summary.available_quants,
+                        "common_baseline": summary.common_baseline,
+                        "any_nsfw": summary.any_nsfw,
+                        "any_has_description": summary.any_has_description,
+                        "merged_tags": summary.merged_tags,
+                        "name_format": {
+                            "separator": summary.name_format.separator,
+                            "part_order": summary.name_format.part_order,
+                            "author_included": summary.name_format.author_included,
+                            "common_author": summary.name_format.common_author,
+                            "template": summary.name_format.template,
+                        },
+                    }
+
             raw_json_string = json.dumps(models_dict)
         except (json.JSONDecodeError, AttributeError) as e:
             # If parsing fails, log and return original response
