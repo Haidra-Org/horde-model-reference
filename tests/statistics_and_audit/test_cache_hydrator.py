@@ -154,7 +154,7 @@ class TestCacheHydratorStartStop:
             hydrator = CacheHydrator()
 
             # Mock _hydrate_all_caches to prevent actual API calls
-            hydrator._hydrate_all_caches = AsyncMock()  # type: ignore[method-assign]
+            hydrator._hydrate_all_caches = AsyncMock()  # type: ignore
 
             await hydrator.start()
 
@@ -173,7 +173,7 @@ class TestCacheHydratorStartStop:
             mock_settings.cache_hydration_startup_delay_seconds = 0
 
             hydrator = CacheHydrator()
-            hydrator._hydrate_all_caches = AsyncMock()  # type: ignore[method-assign]
+            hydrator._hydrate_all_caches = AsyncMock()  # type: ignore
 
             await hydrator.start()
             task1 = hydrator._task
@@ -196,7 +196,7 @@ class TestCacheHydratorStartStop:
             mock_settings.cache_hydration_startup_delay_seconds = 0
 
             hydrator = CacheHydrator()
-            hydrator._hydrate_all_caches = AsyncMock()  # type: ignore[method-assign]
+            hydrator._hydrate_all_caches = AsyncMock()  # type: ignore
 
             await hydrator.start()
             assert hydrator.is_running is True
@@ -243,7 +243,7 @@ class TestCacheHydratorHydrationLoop:
 
             hydrator = CacheHydrator()
             hydrate_mock = AsyncMock()
-            hydrator._hydrate_all_caches = hydrate_mock  # type: ignore[method-assign]
+            hydrator._hydrate_all_caches = hydrate_mock  # type: ignore
 
             await hydrator.start()
 
@@ -269,7 +269,7 @@ class TestCacheHydratorHydrationLoop:
 
             hydrator = CacheHydrator()
             hydrate_mock = AsyncMock()
-            hydrator._hydrate_all_caches = hydrate_mock  # type: ignore[method-assign]
+            hydrator._hydrate_all_caches = hydrate_mock  # type: ignore
 
             await hydrator.start()
 
@@ -323,7 +323,7 @@ class TestCacheHydratorHydrationLoop:
 
             hydrator = CacheHydrator()
             hydrate_mock = AsyncMock()
-            hydrator._hydrate_all_caches = hydrate_mock  # type: ignore[method-assign]
+            hydrator._hydrate_all_caches = hydrate_mock  # type: ignore
 
             await hydrator.start()
             await asyncio.sleep(0.1)  # Let it start
