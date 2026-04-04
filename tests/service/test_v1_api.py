@@ -553,7 +553,7 @@ class TestLegacyFormatWriteRestriction:
         """Backend should reject legacy writes when canonical_format='v2'."""
         previous_format = horde_model_reference_settings.canonical_format
         try:
-            horde_model_reference_settings.canonical_format = "v2"
+            horde_model_reference_settings.canonical_format = CanonicalFormat.v2
             assert v1_canonical_manager.backend.supports_legacy_writes() is False
         finally:
             horde_model_reference_settings.canonical_format = previous_format
@@ -862,7 +862,7 @@ class TestTextGenerationEndpoint:
         assert "test-model-8B-v1" in data
         assert "text_model_group" in data["test-model-8B-v1"]
         # The base name should be computed from the model name (removing size and version)
-        assert data["test-model-8B-v1"]["text_model_group"] == "test-model-v1"
+        assert data["test-model-8B-v1"]["text_model_group"] == "test-model"
 
     def test_get_text_generation_explicit_false(
         self,

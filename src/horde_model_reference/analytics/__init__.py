@@ -19,7 +19,10 @@ from horde_model_reference.analytics.statistics import (
 )
 from horde_model_reference.analytics.statistics_cache import StatisticsCache
 from horde_model_reference.analytics.text_model_parser import (
+    NameFormatSchema,
     ParsedTextModelName,
+    TextModelGroupSummary,
+    compute_group_summaries,
     get_base_model_name,
     get_model_size,
     get_model_variant,
@@ -38,10 +41,13 @@ __all__ = [
     "DownloadStats",
     "ModelDeletionRiskInfo",
     "ModelDeletionRiskInfoFactory",
+    "NameFormatSchema",
     "ParsedTextModelName",
     "StatisticsCache",
     "TagStats",
+    "TextModelGroupSummary",
     "calculate_category_statistics",
+    "compute_group_summaries",
     "get_base_model_name",
     "get_model_size",
     "get_model_variant",
