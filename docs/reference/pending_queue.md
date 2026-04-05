@@ -41,23 +41,23 @@ Routers are included before category routes (`/{model_category_name}`) to avoid 
 | Setting | Description |
 |---------|-------------|
 | `HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY` | Queue is ignored in REPLICA mode. |
-| `HORDE_MODEL_REFERENCE_PENDING_QUEUE_ENABLED=true` | Enables `PendingQueueService` construction. |
-| `HORDE_MODEL_REFERENCE_PENDING_QUEUE_REQUESTOR_IDS` | Allow-list of Horde user ids that can submit changes (comma-separated or JSON array). |
-| `HORDE_MODEL_REFERENCE_PENDING_QUEUE_APPROVER_IDS` | Allow-list of ids that can approve/apply changes. Should superset requestors. |
-| `HORDE_MODEL_REFERENCE_PENDING_QUEUE_ROOT_PATH_OVERRIDE` | Optional absolute path for queue storage. Defaults to `<cache_home>/pending_queue`. Required when multiple deployments share disk. |
+| `HORDE_MODEL_REFERENCE_PENDING_QUEUE__ENABLED=true` | Enables `PendingQueueService` construction. |
+| `HORDE_MODEL_REFERENCE_PENDING_QUEUE__REQUESTOR_IDS` | Allow-list of Horde user ids that can submit changes (JSON array). |
+| `HORDE_MODEL_REFERENCE_PENDING_QUEUE__APPROVER_IDS` | Allow-list of ids that can approve/apply changes. Should superset requestors. |
+| `HORDE_MODEL_REFERENCE_PENDING_QUEUE__ROOT_PATH_OVERRIDE` | Optional absolute path for queue storage. Defaults to `<cache_home>/pending_queue`. Required when multiple deployments share disk. |
 | `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` | Determines which API is writable (`v2` or `legacy`). |
 
-> **Development fallback:** If either allow-list is left empty, the service automatically falls back to the built-in `allowed_users` list defined in `src/horde_model_reference/service/shared.py`. This keeps local environments usable with the default approver IDs (`["1", "6572"]`) but production deployments **must** set `HORDE_MODEL_REFERENCE_PENDING_QUEUE_REQUESTOR_IDS` and `HORDE_MODEL_REFERENCE_PENDING_QUEUE_APPROVER_IDS` explicitly. Removing the fallback IDs or leaving them unset in production will cause every queue request to be rejected with `401 Invalid API key`.
+> **Development fallback:** If either allow-list is left empty, the service automatically falls back to the built-in `allowed_users` list defined in `src/horde_model_reference/service/shared.py`. This keeps local environments usable with the default approver IDs (`["1", "6572"]`) but production deployments **must** set `HORDE_MODEL_REFERENCE_PENDING_QUEUE__REQUESTOR_IDS` and `HORDE_MODEL_REFERENCE_PENDING_QUEUE__APPROVER_IDS` explicitly. Removing the fallback IDs or leaving them unset in production will cause every queue request to be rejected with `401 Invalid API key`.
 
 Recommended production layout:
 
 ```ini
 HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
 HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=v2
-HORDE_MODEL_REFERENCE_PENDING_QUEUE_ENABLED=true
-HORDE_MODEL_REFERENCE_PENDING_QUEUE_REQUESTOR_IDS="12345,67890"
-HORDE_MODEL_REFERENCE_PENDING_QUEUE_APPROVER_IDS="12345,67890,54321"
-HORDE_MODEL_REFERENCE_PENDING_QUEUE_ROOT_PATH_OVERRIDE=/var/lib/horde/pending_queue
+HORDE_MODEL_REFERENCE_PENDING_QUEUE__ENABLED=true
+HORDE_MODEL_REFERENCE_PENDING_QUEUE__REQUESTOR_IDS=["12345","67890"]
+HORDE_MODEL_REFERENCE_PENDING_QUEUE__APPROVER_IDS=["12345","67890","54321"]
+HORDE_MODEL_REFERENCE_PENDING_QUEUE__ROOT_PATH_OVERRIDE=/var/lib/horde/pending_queue
 ```
 
 ### Storage Isolation

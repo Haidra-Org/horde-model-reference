@@ -151,7 +151,7 @@ Example to rebuild the current state for a subset of models:
 python scripts/audit_replay.py image_generation --output state -m my_model -m other_model --pretty
 ```
 
-These utilities operate entirely on the JSONL segments and do not require the service to be running, making them suitable for offline investigations or recovery workflows. Configure audit behavior via the `HORDE_MODEL_REFERENCE_AUDIT_*` environment variables (e.g. `AUDIT_MAX_SEGMENT_BYTES`, `AUDIT_ROOT_PATH_OVERRIDE`), and see [Audit Trail Best Practices](audit_trail.md) for operational tips.
+These utilities operate entirely on the JSONL segments and do not require the service to be running, making them suitable for offline investigations or recovery workflows. Configure audit behavior via the `HORDE_MODEL_REFERENCE_AUDIT__*` environment variables (e.g. `AUDIT__MAX_SEGMENT_BYTES`, `AUDIT__ROOT_PATH_OVERRIDE`), and see [Audit Trail Best Practices](audit_trail.md) for operational tips.
 
 ## Pending Queue Apply Workflow
 
@@ -161,14 +161,14 @@ For an operator-focused playbook (storage layout, canonical format behavior, rou
 
 ### Deployment Constraints and Storage Isolation
 
-- Enable the workflow by setting `HORDE_MODEL_REFERENCE_PENDING_QUEUE_ENABLED=true` while `HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY`. REPLICA nodes ignore the queue entirely and always treat v2 APIs as read-only.
-- Queue persistence defaults to `<cache_home>/pending_queue`, but production deployments should configure `HORDE_MODEL_REFERENCE_PENDING_QUEUE_ROOT_PATH_OVERRIDE` (or adjust `...RELATIVE_SUBDIR`) so each deployment, environment, or test run has a dedicated directory. This mirrors the test fixture override that prevents cross-talk between suites.
+- Enable the workflow by setting `HORDE_MODEL_REFERENCE_PENDING_QUEUE__ENABLED=true` while `HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY`. REPLICA nodes ignore the queue entirely and always treat v2 APIs as read-only.
+- Queue persistence defaults to `<cache_home>/pending_queue`, but production deployments should configure `HORDE_MODEL_REFERENCE_PENDING_QUEUE__ROOT_PATH_OVERRIDE` (or adjust `...RELATIVE_SUBDIR`) so each deployment, environment, or test run has a dedicated directory. This mirrors the test fixture override that prevents cross-talk between suites.
 - Pending queue files are distinct from audit trail logs. Never co-locate `pending_queue` data under the audit path; the audit JSONL stream remains the only canonical record of applied operations.
 
 ### Auth Lists and Workflow Roles
 
-- Requestors submit batches via the write APIs once their Horde user id appears in `HORDE_MODEL_REFERENCE_PENDING_QUEUE_REQUESTOR_IDS`. Approvers must include the requestor IDs and are configured with `...APPROVER_IDS` so approval permissions are a superset of submission permissions.
-- Provide these list settings as JSON arrays (e.g. `['user_a','user_b']`) or comma-delimited strings when using environment variables, matching Pydantic's parsing rules for nested settings.
+- Requestors submit batches via the write APIs once their Horde user id appears in `HORDE_MODEL_REFERENCE_PENDING_QUEUE__REQUESTOR_IDS`. Approvers must include the requestor IDs and are configured with `...APPROVER_IDS` so approval permissions are a superset of submission permissions.
+- Provide these list settings as JSON arrays (e.g. `["user_a","user_b"]`) when using environment variables. Use `__` (double underscore) to separate nesting levels from the field name when setting nested model fields via environment variables.
 - Because PRIMARY mode is the authoritative source, always double-check that queue approvers can reach the deployment that owns the filesystem backend; REPLICA nodes cannot apply or approve changes.
 
 ### HTTP Apply Workflow
