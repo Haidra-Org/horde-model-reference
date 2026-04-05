@@ -48,7 +48,7 @@ Set the following environment variables (all prefixed with `HORDE_MODEL_REFERENC
 | `AUDIT_RELATIVE_SUBDIR` | Folder name under the cache home for audit logs. | `audit` |
 | `AUDIT_ROOT_PATH_OVERRIDE` | Absolute path to store audit logs (bypasses relative subdir). | _unset_ |
 
-Example: `HORDE_MODEL_REFERENCE_AUDIT_MAX_SEGMENT_BYTES=1048576` rotates each megabyte, while `HORDE_MODEL_REFERENCE_AUDIT_ROOT_PATH_OVERRIDE=/var/log/horde-audit` stores logs outside the cache root.
+Example: `HORDE_MODEL_REFERENCE_AUDIT__MAX_SEGMENT_BYTES=1048576` rotates each megabyte, while `HORDE_MODEL_REFERENCE_AUDIT__ROOT_PATH_OVERRIDE=/var/log/horde-audit` stores logs outside the cache root.
 
 ## Writing Events
 

@@ -163,8 +163,8 @@ Tests automatically set the following environment variables (via conftest.py):
 
 The following critical environment variables are automatically **cleared** before tests to ensure isolation:
 
-- `HORDE_MODEL_REFERENCE_REDIS_USE_REDIS`
-- `HORDE_MODEL_REFERENCE_REDIS_URL`
+- `HORDE_MODEL_REFERENCE_REDIS__USE_REDIS`
+- `HORDE_MODEL_REFERENCE_REDIS__URL`
 - `HORDE_MODEL_REFERENCE_PRIMARY_API_URL`
 - `HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS`
 - `HORDE_MODEL_REFERENCE_MAKE_FOLDERS`

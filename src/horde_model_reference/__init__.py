@@ -279,7 +279,7 @@ class HordeModelReferenceSettings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="HORDE_MODEL_REFERENCE_",
-        env_nested_delimiter="_",
+        env_nested_delimiter="__",
         nested_model_default_partial_update=True,
         use_attribute_docstrings=True,
     )
@@ -446,7 +446,7 @@ Allows service to fully initialize before background tasks begin."""
             logger.info(
                 "PRIMARY mode without Redis: Single-worker deployment assumed. "
                 "For multi-worker PRIMARY deployments, configure Redis for distributed caching "
-                "via HORDE_MODEL_REFERENCE_REDIS_URL."
+                "via HORDE_MODEL_REFERENCE_REDIS__URL."
             )
 
         if self.replicate_mode == ReplicateMode.REPLICA and self.github_seed_enabled:

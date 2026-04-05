@@ -65,7 +65,7 @@ The `prefetch_strategy` parameter controls when model data is fetched from the b
 | Strategy | Behavior | Best For |
 | -------- | -------- | -------- |
 | `LAZY` (default) | Defers fetching until you first access data | Scripts, CLIs, most consumers |
-| `SYNC` | Fetches all categories immediately during init | Latency-sensitive services that can block on startup |
+| `SYNC` | Fetches all categories immediately during init | Latency-sensitive services that are OK with blocking on startup |
 | `ASYNC` | Schedules a background async fetch if an event loop is running | FastAPI / async services |
 | `DEFERRED` | Creates a handle you trigger later via `handle.run_sync()` or `await handle.run_async()` | Fine-grained startup control |
 | `NONE` | No automatic fetching at all; you call cache helpers manually | Testing, custom orchestration |
@@ -110,8 +110,6 @@ When you call `manager.get_model_reference(category)`:
 3. In REPLICA mode (the default), the backend fetches JSON from the PRIMARY API (`aihorde.net`), falling back to GitHub if the PRIMARY is unavailable
 4. The raw JSON is validated and converted into typed Pydantic model records
 5. Results are cached with a TTL (default 60 seconds)
-
-You rarely need to think about this flow -- just create the manager and query.
 
 ## Next Steps
 
