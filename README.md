@@ -33,8 +33,14 @@
         - [Fetching Model References](#fetching-model-references)
         - [Checking Model Availability](#checking-model-availability)
         - [Using with AI-Horde Worker](#using-with-ai-horde-worker)
+        - [Querying Models](#querying-models)
         - [Accessing via REST API](#accessing-via-rest-api)
     - [Documentation](#documentation)
+        - [Getting Started](#getting-started)
+        - [Deployment \& Operations](#deployment--operations)
+        - [Architecture Reference](#architecture-reference)
+        - [Operations](#operations)
+        - [Other](#other)
     - [Contributing](#contributing)
     - [Support \& Community](#support--community)
     - [License](#license)
@@ -117,13 +123,13 @@ The JSON files are available directly from the PRIMARY server:
 
 ```bash
 # Get all image generation models
-curl https://aihorde.net/api/model_references/v2/image_generation
+curl https://models.aihorde.net/api/model_references/v2/image_generation
 
 # Get specific model
-curl https://aihorde.net/api/model_references/v2/image_generation/stable_diffusion_xl
+curl https://models.aihorde.net/api/model_references/v2/image_generation/stable_diffusion_xl
 
 # List all categories
-curl https://aihorde.net/api/model_references/v2/model_categories
+curl https://models.aihorde.net/api/model_references/v2/model_categories
 ```
 
 Or clone the legacy GitHub repositories:
