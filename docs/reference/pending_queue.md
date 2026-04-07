@@ -83,9 +83,9 @@ The pending queue system produces **two categories of audit events** that serve 
 
 **Purpose**: Tracks the approval workflow lifecycle. Enables reconstruction of queue state from audit logs alone via `PendingQueueAuditReader`.
 
-**Domain**: Matches the canonical format (`LEGACY` or `V2`)  
-**Category**: Always `pending_queue`  
-**Model Name**: Change ID (stringified)  
+**Domain**: Matches the canonical format (`LEGACY` or `V2`)
+**Category**: Always `pending_queue`
+**Model Name**: Change ID (stringified)
 **Operation**: Always `UPDATE` (lifecycle transition)
 
 ## Batch ID Semantics
@@ -142,10 +142,10 @@ This ensures the partially-applied batch is "closed" and won't receive new appro
 
 When a pending change is **applied**, `FileSystemBackend.update_model()`/`delete_model()` automatically writes a separate audit event:
 
-**Purpose**: Records the actual mutation to model metadata, independent of approval workflow.  
-**Category**: Target model category (e.g., `image_generation`, `text_generation`)  
-**Model Name**: The model being changed  
-**Operation**: `CREATE`, `UPDATE`, or `DELETE`  
+**Purpose**: Records the actual mutation to model metadata, independent of approval workflow.
+**Category**: Target model category (e.g., `image_generation`, `text_generation`)
+**Model Name**: The model being changed
+**Operation**: `CREATE`, `UPDATE`, or `DELETE`
 **Payload**: Snapshot or delta of model changes
 
 ### Why Two Categories?
