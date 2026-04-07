@@ -81,7 +81,7 @@ export HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=v2
 # - v1 API is read-only (serves converted data)
 
 # legacy format (for backward compatibility)
-export HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy
+export HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=LEGACY
 # - v1 API has CRUD operations
 # - v2 API is read-only (serves converted data)
 ```

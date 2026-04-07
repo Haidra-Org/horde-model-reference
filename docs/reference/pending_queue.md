@@ -6,7 +6,7 @@ The pending queue lets PRIMARY deployments gate write operations behind a two-pe
 
 Key properties:
 
-- Works for both canonical formats by routing writes through the authoritative API version (v2 by default, v1 when `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy`).
+- Works for both canonical formats by routing writes through the authoritative API version (v2 by default, v1 when `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=LEGACY`).
 - Persists staged changes under a dedicated directory so test runs, staging, and production never share queue data.
 - Emits all audit trail events inside `PendingQueueService`, ensuring HTTP routers never double-log.
 
@@ -15,7 +15,7 @@ Key properties:
 The environment variable `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` determines which API version can write:
 
 - `canonical_format = "v2"` (default): `/model_references/v2` POST/PUT/DELETE endpoints enqueue changes and `/model_references/v2/pending_queue/*` routes allow operators to inspect, approve, and apply them. The legacy `/v1` API becomes read-only.
-- `canonical_format = "legacy"`: `/model_references/v1` CRUD routes switch to queue-first semantics while `/model_references/v2` is read-only. Applying a change calls `FileSystemBackend.update_model_legacy`/`delete_model_legacy` so legacy JSON artifacts stay authoritative.
+- `canonical_format = "LEGACY"`: `/model_references/v1` CRUD routes switch to queue-first semantics while `/model_references/v2` is read-only. Applying a change calls `FileSystemBackend.update_model_legacy`/`delete_model_legacy` so legacy JSON artifacts stay authoritative.
 
 Changing canonical format at runtime is strongly discouraged if pending entries exist. Each queue record stores the payload produced by whichever API enqueued it, so applying to the wrong canonical backend can fail validation.
 
@@ -26,7 +26,7 @@ FastAPI exposes identical queue endpoints under both API versions so operators h
 | Prefix | Purpose | Notes |
 |--------|---------|-------|
 | `/model_references/v2/pending_queue` | V2 canonical mode | Enabled when PRIMARY backend supports v2 writes and the queue service is configured. |
-| `/model_references/v1/pending_queue` | Legacy canonical mode | Enabled when legacy writes are canonical (PRIMARY + `canonical_format="legacy"`). |
+| `/model_references/v1/pending_queue` | Legacy canonical mode | Enabled when legacy writes are canonical (PRIMARY + `canonical_format="LEGACY"`). |
 
 Routers are included before category routes (`/{model_category_name}`) to avoid 422 collisions. Each endpoint enforces:
 
@@ -175,7 +175,7 @@ When a pending change is **applied**, `FileSystemBackend.update_model()`/`delete
 ## Authentication & Authorization Flow
 
 - `authenticate_queue_requestor` and `authenticate_queue_approver` (in `src/horde_model_reference/service/shared.py`) call the AI Horde API (`v2/find_user`) and match user ids against the configured allow-lists. Requestors inherit approver access so they can promote their own changes if desired.
-- The legacy v1 CRUD routers use the same helpers once canonical format switches to `"legacy"`, eliminating the bespoke `allowed_users` list.
+- The legacy v1 CRUD routers use the same helpers once canonical format switches to `"LEGACY"`, eliminating the bespoke `allowed_users` list.
 - All queue endpoints return HTTP 401 when the header is missing/invalid, 503 when pending queue is disabled, and 400/404 for validation and existence errors.
 
 ## Operational Guidance

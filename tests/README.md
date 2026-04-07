@@ -159,7 +159,7 @@ Tests automatically set the following environment variables (via conftest.py):
 - `TESTS_ONGOING=1` - Marks test environment
 - `AI_HORDE_TESTING=True` - Enables test-specific isolation logic
 - `HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY` - Sets PRIMARY mode for tests
-- `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy` - Default format (v1 tests override to v2)
+- `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=LEGACY` - Default format (v1 tests override to v2)
 
 The following critical environment variables are automatically **cleared** before tests to ensure isolation:
 
