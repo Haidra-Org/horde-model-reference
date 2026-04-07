@@ -1,0 +1,10 @@
+failure-threshold: error
+format: tty
+ignored:
+  - DL3008
+override:
+  error:
+    - DL3015
+trustedRegistries:
+  - docker.io
+  - ://registry.com
