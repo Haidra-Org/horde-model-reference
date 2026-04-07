@@ -16,7 +16,7 @@ repos:
     rev: 'v1.19.1'
     hooks:
     -   id: mypy
-        args: [src/ --strict, --disallow-untyped-defs, --warn-unused-configs]
+        args: [--strict, --disallow-untyped-defs, --warn-unused-configs]
         additional_dependencies:
             - aiofiles
             - fastapi[standard]
