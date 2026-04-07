@@ -36,7 +36,12 @@ class PendingChangeStatus(StrEnum):
 class PendingChangeRecord(BaseModel):
     """Single pending change tracked by the queue."""
 
-    change_id: int
+    change_id: int = Field(
+        description="Unique monotonic identifier for this change, allocated by PendingQueueStore. "
+        "Callers should pass 0 as a sentinel when constructing new records; the store replaces it "
+        "with the next available ID in enqueue_change(). After persistence, this is the canonical "
+        "identifier used to approve, reject, apply, and audit-trail this change.",
+    )
     category: MODEL_REFERENCE_CATEGORY
     model_name: str
     operation: AuditOperation
@@ -47,7 +52,13 @@ class PendingChangeRecord(BaseModel):
     status: PendingChangeStatus = PendingChangeStatus.PENDING
     notes: str | None = None
 
-    batch_id: int | None = None
+    batch_id: int | None = Field(
+        default=None,
+        description="Groups approved changes for atomic application. Allocated by the store's "
+        "separate batch-ID counter when changes are approved. Multiple changes can share a "
+        "batch_id. After partial application, remaining approved changes are reassigned to a "
+        "new batch_id (see PendingQueueService._handle_partial_batch_apply).",
+    )
     batch_title: str | None = None
 
     approved_by: str | None = None
@@ -62,7 +73,12 @@ class PendingChangeRecord(BaseModel):
     applied_at: int | None = None
     applied_by: str | None = None
     applied_username: str | None = None
-    applied_job_id: str | None = None
+    applied_job_id: str | None = Field(
+        default=None,
+        description="Reservation token set during the APPLYING phase to prevent concurrent "
+        "apply attempts on the same change. This is a caller-supplied string (typically a UUID), "
+        "not a store-allocated integer like change_id or batch_id.",
+    )
 
     updated_at: int = Field(default_factory=lambda: int(datetime.now(tz=UTC).timestamp()))
 

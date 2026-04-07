@@ -1291,13 +1291,13 @@ class ModelReferenceManager:
         )
 
     @overload
-    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery: ...
+    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery: ...  # type: ignore[overload-overlap]
 
     @overload
-    def query(self, category: Literal["text_generation"]) -> TextModelQuery: ...
+    def query(self, category: Literal["text_generation"]) -> TextModelQuery: ...  # type: ignore[overload-overlap]
 
     @overload
-    def query(self, category: Literal["controlnet"]) -> ControlNetQuery: ...
+    def query(self, category: Literal["controlnet"]) -> ControlNetQuery: ...  # type: ignore[overload-overlap]
 
     @overload
     def query(
