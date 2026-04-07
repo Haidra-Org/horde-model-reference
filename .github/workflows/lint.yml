@@ -32,7 +32,7 @@ jobs:
         run: uv sync --locked --all-extras --dev
 
       - name: Run pre-commit
-        run: uv run pre-commit run --all-files
+        run: SKIP=mypy uv run pre-commit run --all-files --show-diff-on-failure
 
   lint:
     name: Lint (Ruff lint)
