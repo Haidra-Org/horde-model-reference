@@ -92,7 +92,7 @@ When implementing CRUD operations in the frontend, route to the appropriate API 
 ```typescript
 createModel(category: string, modelData: LegacyRecordUnion): Observable<PendingChangeRecord> {
   const canonicalFormat = this.backendCapabilities().canonicalFormat;
-  
+
   if (canonicalFormat === 'legacy') {
     // Use category-specific v1 endpoint
     return this.v1Service.createLegacyBlipModel(modelData);
@@ -150,11 +150,11 @@ The canonical format should not be changed while the system is in production wit
 
 **Symptom:** All create/update/delete operations fail with "Service Unavailable".
 
-**Cause:** 
+**Cause:**
 - Backend is in REPLICA mode, OR
 - Using the wrong API version for the canonical format
 
-**Solution:** 
+**Solution:**
 1. Check `/replicate_mode` response
 2. Ensure you're using the API matching the canonical format
 3. Only PRIMARY mode backends support writes

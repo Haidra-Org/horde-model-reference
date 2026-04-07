@@ -68,10 +68,12 @@ class _InMemoryReplicaBackend(ModelReferenceBackend):
         httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
     ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
-        self.async_calls.append({
-            "httpx_client": httpx_client,
-            "force_refresh": force_refresh,
-        })
+        self.async_calls.append(
+            {
+                "httpx_client": httpx_client,
+                "force_refresh": force_refresh,
+            }
+        )
         return self.fetch_all_categories(force_refresh=force_refresh)
 
     def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
@@ -1246,11 +1248,13 @@ class TestGetPopularModels:
             replicate_mode=ReplicateMode.REPLICA,
         )
 
-        mock_status = IndexedHordeModelStatus([
-            HordeModelStatus(name="model_a", count=2, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-            HordeModelStatus(name="model_b", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-            HordeModelStatus(name="model_c", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-        ])
+        mock_status = IndexedHordeModelStatus(
+            [
+                HordeModelStatus(name="model_a", count=2, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+                HordeModelStatus(name="model_b", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+                HordeModelStatus(name="model_c", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            ]
+        )
         mock_stats = IndexedHordeModelStats(HordeModelStatsResponse(day={}, month={}, total={}))
         mock_workers = IndexedHordeWorkers([])
 
