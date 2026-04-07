@@ -55,10 +55,11 @@ LABEL org.opencontainers.image.title="Horde Model Reference" \
 
 # Install runtime dependencies
 # Note: git is required for the GitHub sync service
+# hadolint ignore=DL3008 -- curl is unpinned to avoid repeated CI breakage from Debian repo churn
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl=8.14.1-2 \
+    curl \ 
     git=1:2.47.3-0+deb13u1 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*  
 
 # Create non-root user and data directory
 RUN useradd --system --no-log-init -m -u 1000 horde && \
