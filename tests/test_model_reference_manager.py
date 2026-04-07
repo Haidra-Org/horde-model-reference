@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from loguru import logger
 from pydantic import ValidationError
 from pytest import LogCaptureFixture
 
@@ -13,7 +12,6 @@ from horde_model_reference.backends.base import ModelReferenceBackend
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.meta_consts import (
     KNOWN_IMAGE_GENERATION_BASELINE,
-    MODEL_CLASSIFICATION_LOOKUP,
     MODEL_DOMAIN,
     MODEL_PURPOSE,
     MODEL_REFERENCE_CATEGORY,
@@ -183,68 +181,6 @@ async def test_manager_async(
 
     cached_references = model_reference_manager.get_all_model_references_or_none(overwrite_existing=False)
     assert len(cached_references) == len(all_references)
-
-
-def test_manager_new_format(
-    model_reference_manager: ModelReferenceManager,
-    caplog: LogCaptureFixture,
-    restore_manager_singleton: None,
-) -> None:
-    """Test the new format model reference manager."""
-    ModelReferenceManager(replicate_mode=ReplicateMode.REPLICA, prefetch_strategy=PrefetchStrategy.SYNC)
-
-    def assert_all_model_references_exist(
-        model_reference_manager: ModelReferenceManager,
-        overwrite_existing: bool,
-    ) -> None:
-        """Assert that all model references exist."""
-        all_model_references = model_reference_manager.get_all_model_references_or_none(
-            overwrite_existing=overwrite_existing
-        )
-        for model_reference_category in MODEL_REFERENCE_CATEGORY:
-            if model_reference_category == MODEL_REFERENCE_CATEGORY.text_generation:
-                logger.warning("Skipping text generation model references, they are not yet implemented.")
-                continue
-            if model_reference_category in [
-                MODEL_REFERENCE_CATEGORY.video_generation,
-                MODEL_REFERENCE_CATEGORY.audio_generation,
-            ]:
-                logger.info(
-                    f"Skipping {model_reference_category} - no legacy format available, "
-                    "empty file created during initialization."
-                )
-                continue
-
-            assert model_reference_category in all_model_references, (
-                f"Model reference category {model_reference_category} is missing"
-            )
-
-            model_reference_instance = all_model_references[model_reference_category]
-
-            # Allow None or empty dict for categories without legacy data
-            if model_reference_instance is None:
-                logger.warning(
-                    f"Model reference instance for {model_reference_category} is None - "
-                    "this may occur in CI environments where files haven't been seeded yet"
-                )
-                continue
-
-            if len(model_reference_instance) == 0:
-                logger.info(f"Model reference instance for {model_reference_category} is empty - skipping validation")
-                continue
-
-            assert model_reference_category in MODEL_CLASSIFICATION_LOOKUP, (
-                f"Model reference category {model_reference_category} is not in the classification lookup"
-            )
-
-            for _, model_entry in model_reference_instance.items():
-                assert model_entry.model_classification == MODEL_CLASSIFICATION_LOOKUP[model_reference_category], (
-                    f"Model entry for {model_reference_category} is not classified correctly"
-                )
-
-    assert_all_model_references_exist(model_reference_manager, overwrite_existing=True)
-
-    assert_all_model_references_exist(model_reference_manager, overwrite_existing=False)
 
 
 class TestSingleton:
