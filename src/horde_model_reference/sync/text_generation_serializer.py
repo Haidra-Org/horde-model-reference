@@ -53,19 +53,17 @@ LegacyRecordDict = dict[str, Any]
 # An empty string means "PRIMARY says this is empty", not "unknown/missing".
 # Fields NOT in this set (like instruct_format) are CSV-only metadata that
 # PRIMARY may not carry — empty PRIMARY values fall back to existing CSV.
-_PRIMARY_AUTHORITATIVE_FIELDS: frozenset[str] = frozenset(
-    {
-        "name",
-        "parameters_bn",
-        "display_name",
-        "url",
-        "baseline",
-        "description",
-        "style",
-        "tags",
-        "settings",
-    }
-)
+_PRIMARY_AUTHORITATIVE_FIELDS: frozenset[str] = frozenset({
+    "name",
+    "parameters_bn",
+    "display_name",
+    "url",
+    "baseline",
+    "description",
+    "style",
+    "tags",
+    "settings",
+})
 
 
 @dataclass(frozen=True)

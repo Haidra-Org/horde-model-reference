@@ -46,7 +46,6 @@ route_registry.register_route(
 
 @router.delete(
     delete_model_route_subpath,
-    status_code=status.HTTP_204_NO_CONTENT,
     responses={
         204: {
             "description": "Model deleted successfully",
@@ -60,6 +59,7 @@ route_registry.register_route(
     },
     summary="Delete a legacy model entry.",
     operation_id="delete_legacy_model",
+    response_model=None,
 )
 async def delete_legacy_model(
     model_category_name: MODEL_REFERENCE_CATEGORY,
