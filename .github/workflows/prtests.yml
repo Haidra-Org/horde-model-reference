@@ -114,7 +114,7 @@ jobs:
       - name: Start fastapi server
         env:
           HORDE_MODEL_REFERENCE_REPLICATE_MODE: PRIMARY
-          HORDE_MODEL_REFERENCE_CANONICAL_FORMAT: legacy
+          HORDE_MODEL_REFERENCE_CANONICAL_FORMAT: LEGACY
           HORDE_MODEL_REFERENCE_PRIMARY_API_URL: http://localhost:19800/api
           HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED: True
         run: |
@@ -163,7 +163,7 @@ jobs:
       - name: Start fastapi server with redis backend
         env:
           HORDE_MODEL_REFERENCE_REPLICATE_MODE: PRIMARY
-          HORDE_MODEL_REFERENCE_CANONICAL_FORMAT: legacy
+          HORDE_MODEL_REFERENCE_CANONICAL_FORMAT: LEGACY
           HORDE_MODEL_REFERENCE_REDIS__URL: redis://localhost:6379/0
           HORDE_MODEL_REFERENCE_PRIMARY_API_URL: http://localhost:19800/api
           HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED: True
