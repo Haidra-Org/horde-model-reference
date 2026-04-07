@@ -150,7 +150,7 @@ class BatchUpdateResponse(BaseModel):
 
     updated_count: int
     batch_id: str
-    pending_change_ids: list[str]
+    pending_change_ids: list[int]
 
 
 def _get_all_text_models(manager: ModelReferenceManager) -> dict[str, dict[str, Any]]:
@@ -505,7 +505,7 @@ async def update_group_common_fields(
 
     batch_id = str(uuid.uuid4())
     queue_service = require_pending_queue_service(manager)
-    pending_ids: list[str] = []
+    pending_ids: list[int] = []
 
     for model_name, existing_data in canonical_members:
         # Merge updates into the existing model data
@@ -522,7 +522,7 @@ async def update_group_common_fields(
             notes=f"Batch group update for '{group_name}'",
             request_metadata={"route": "update_group_common_fields", "batch_id": batch_id},
         )
-        pending_ids.append(change.id)
+        pending_ids.append(change.change_id)
 
     logger.info(
         f"Queued {len(pending_ids)} pending changes for group '{group_name}' "

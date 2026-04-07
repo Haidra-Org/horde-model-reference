@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from haidra_core.service_base import ContainsMessage, ContainsStatus
+from haidra_core.service_base import ContainsMessage
 from loguru import logger
 from pydantic import BaseModel
 
@@ -27,7 +27,7 @@ from horde_model_reference.http_retry import horde_api_circuit_breaker
 from horde_model_reference.service.shared import statistics_prefix, v1_prefix, v2_prefix
 
 
-class AIHordeStatus(ContainsStatus):
+class AIHordeStatus(BaseModel):
     """Status of the external AI Horde API connection."""
 
     degraded: bool

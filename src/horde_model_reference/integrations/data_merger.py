@@ -44,7 +44,7 @@ class CombinedModelStatistics(BaseModel):
     """Horde usage statistics and data for a model, aggregated from multiple sources."""
 
     # Horde runtime fields
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def worker_count(self) -> int:
         """Number of workers serving this model.
