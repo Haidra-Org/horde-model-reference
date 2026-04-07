@@ -55,9 +55,9 @@ jobs:
           - "3.13"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v8.0.0
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
@@ -68,32 +68,6 @@ jobs:
       - name: Check that query fields have not drifted
         run: uv run python scripts/verify_query_fields.py
 
-  query_fields_drift:
-    env:
-      AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
-      TESTS_ONGOING: "1"
-      AI_HORDE_TESTING: "1"
-      HORDELIB_CI_ONGOING: "1"
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version:
-          - "3.12"
-          - "3.13"
-
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-          enable-cache: true
-
-      - name: Install the project
-        run: uv sync --locked --all-extras --dev
-
-      - name: Check that query fields have not drifted
-        run: uv run python scripts/verify_query_fields.py
 
   build:
     env:
