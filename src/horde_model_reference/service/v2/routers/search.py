@@ -102,13 +102,13 @@ def _apply_generic_filters(
 
         if isinstance(q, TextModelQuery):
             if backend is not None:
-                q = q.for_backend(backend)
+                q = q.for_backend(backend)  # type: ignore[assignment]
             if exclude_backend_variations:
-                q = q.exclude_backend_variations()
+                q = q.exclude_backend_variations()  # type: ignore[assignment]
             if quantized is True:
-                q = q.only_quantized()
+                q = q.only_quantized()  # type: ignore[assignment]
             elif quantized is False:
-                q = q.exclude_quantized()
+                q = q.exclude_quantized()  # type: ignore[assignment]
 
     if sort_by is not None:
         try:
@@ -200,24 +200,25 @@ def search_all(
     q = manager.query_all()
 
     if nsfw is not None:
-        q = q.filter(lambda r, _v=nsfw: getattr(r, "nsfw", None) == _v)
+        nsfw_val = nsfw
+        q = q.filter(lambda r: getattr(r, "nsfw", None) == nsfw_val)
 
     if name_contains is not None:
         lower_q = name_contains.lower()
         q = q.filter(lambda r: lower_q in r.name.lower())
 
     if tags_any is not None:
-        _tag_set = set(tags_any)
-        q = q.filter(lambda r, _ts=_tag_set: bool(_ts & set(getattr(r, "tags", None) or [])))
+        tag_set_any = set(tags_any)
+        q = q.filter(lambda r: bool(tag_set_any & set(getattr(r, "tags", None) or [])))
 
     if tags_all is not None:
-        _tag_set_all = set(tags_all)
-        q = q.filter(lambda r, _ts=_tag_set_all: _ts <= set(getattr(r, "tags", None) or []))
+        tag_set_all = set(tags_all)
+        q = q.filter(lambda r: tag_set_all <= set(getattr(r, "tags", None) or []))
 
     if tags_none is not None:
-        _tag_set_none = set(tags_none)
+        tag_set_none = set(tags_none)
         q = q.filter(
-            lambda r, _ts=_tag_set_none: not bool(_ts & set(getattr(r, "tags", None) or [])),
+            lambda r: not bool(tag_set_none & set(getattr(r, "tags", None) or [])),
         )
 
     if sort_by is not None:

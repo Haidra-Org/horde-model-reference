@@ -210,7 +210,7 @@ async def _delete_legacy_model(
     model_name: str,
     apikey: str,
     route_name: str,
-) -> JSONResponse:
+) -> JSONResponse | Response:
     """Delete a legacy model record.
 
     When pending queue is enabled, this enqueues the deletion and returns HTTP 202.

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Response, status
 from fastapi.responses import JSONResponse
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY, ModelReferenceManager
@@ -66,7 +66,7 @@ async def delete_legacy_model(
     model_name: str,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
     apikey: Annotated[str, Depends(header_auth_scheme)],
-) -> JSONResponse:
+) -> JSONResponse | Response:
     """Delete a model from a legacy model reference category.
 
     When pending queue is enabled, this enqueues the deletion and returns HTTP 202.

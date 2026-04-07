@@ -88,7 +88,7 @@ class FieldRef:
         """The underlying field name string."""
         return self._field_name
 
-    def __eq__(self, other: Any) -> Predicate:  # noqa # type: ignore : It's idiomatic for __eq__ to return a non-bool in this DSL context
+    def __eq__(self, other: Any) -> Predicate:  # type: ignore # noqa It's idiomatic for __eq__ to return a non-bool in this DSL context
         """Return a predicate that tests field equality to *other*."""
         field = self._field_name
         if isinstance(other, FieldRef):
@@ -96,7 +96,7 @@ class FieldRef:
             return Predicate(lambda r: getattr(r, field, None) == getattr(r, other_field, None))
         return Predicate(lambda r: getattr(r, field, None) == other)
 
-    def __ne__(self, other: Any) -> Predicate:  # noqa # type: ignore : It's idiomatic for __ne__ to return a non-bool in this DSL context
+    def __ne__(self, other: Any) -> Predicate:  # type: ignore # noqa It's idiomatic for __ne__ to return a non-bool in this DSL context
         """Return a predicate that tests field inequality to *other*."""
         field = self._field_name
         if isinstance(other, FieldRef):
