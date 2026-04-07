@@ -93,7 +93,7 @@ Create a `.env` file:
 ```bash
 HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
 HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
-HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy
+HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=LEGACY
 ```
 
 Or use `.env.primary.example` as a template:
@@ -120,13 +120,13 @@ fastapi dev src/horde_model_reference/service/app.py --port 19800
 # Linux/macOS
 export HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY
 export HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true
-export HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy
+export HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=LEGACY
 fastapi dev src/horde_model_reference/service/app.py --port 19800
 
 # Windows PowerShell
 $env:HORDE_MODEL_REFERENCE_REPLICATE_MODE="PRIMARY"
 $env:HORDE_MODEL_REFERENCE_MAKE_FOLDERS="true"
-$env:HORDE_MODEL_REFERENCE_CANONICAL_FORMAT="legacy"
+$env:HORDE_MODEL_REFERENCE_CANONICAL_FORMAT="LEGACY"
 fastapi dev src/horde_model_reference/service/app.py --port 19800
 ```
 

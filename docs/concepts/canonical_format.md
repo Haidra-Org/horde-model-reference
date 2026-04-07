@@ -12,7 +12,7 @@ This is controlled by the `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` environment v
 
 ```bash
 # Legacy format (default) - v1 API has write access
-HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy
+HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=LEGACY
 
 # V2 format - v2 API has write access
 HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=v2
@@ -76,7 +76,7 @@ detectBackendCapabilities(): Observable<BackendCapabilities> {
 - **Path pattern:** `/model_references/v1/{category}`
 - **Model format:** Category-specific record types (e.g., `LegacyStableDiffusionRecord`, `LegacyBlipRecord`)
 - **Endpoints:** Category-specific create/update/delete methods
-- **Write access:** When `canonical_format=legacy` and `replicate_mode=PRIMARY`
+- **Write access:** When `canonical_format=LEGACY` and `replicate_mode=PRIMARY`
 
 ### V2 API
 
