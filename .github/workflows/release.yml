@@ -30,7 +30,7 @@ jobs:
         use_github_release_notes: true
 
     - name: "✔️ Checkout"
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 

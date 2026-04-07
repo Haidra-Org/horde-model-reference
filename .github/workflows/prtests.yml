@@ -33,11 +33,9 @@ jobs:
           - "3.13"
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
+      - uses: actions/checkout@v6
       - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v8.0.0
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
@@ -48,17 +46,16 @@ jobs:
       - name: Check that no extra fields are present
         run: uv run pytest -k "test_validate_stable_diffusion_model_reference" # Enabled by HORDELIB_CI_ONGOING
 
-  build:
+  query_fields_drift:
     env:
       AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
       TESTS_ONGOING: "1"
       AI_HORDE_TESTING: "1"
+      HORDELIB_CI_ONGOING: "1"
     runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version:
-          - "3.10"
-          - "3.11"
           - "3.12"
           - "3.13"
 
@@ -75,6 +72,34 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
 
+      - name: Check that query fields have not drifted
+        run: uv run python scripts/verify_query_fields.py
+
+  build:
+    env:
+      AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
+      TESTS_ONGOING: "1"
+      AI_HORDE_TESTING: "1"
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv and set the python version
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Install the project
+        run: uv sync --locked --all-extras --dev
+
       - name: Run tests
         run: uv run pytest tests -m "not integration"
 
@@ -82,10 +107,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v8.0.0
         with:
           python-version: "3.12"
 
@@ -131,10 +156,10 @@ jobs:
           - 6379:6379
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v8.0.0
         with:
           python-version: "3.12"
 
