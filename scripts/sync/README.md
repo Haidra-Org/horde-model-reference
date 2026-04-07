@@ -930,7 +930,7 @@ Test coverage includes:
 Set the `HORDE_GITHUB_SYNC_PRIMARY_API_URL` environment variable:
 
 ```bash
-export HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://aihorde.net/api"
+export HORDE_GITHUB_SYNC_PRIMARY_API_URL="https://models.aihorde.net/api/"
 ```
 
 #### "GitHub token is not configured"
