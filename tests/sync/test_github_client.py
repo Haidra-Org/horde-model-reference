@@ -27,7 +27,7 @@ def sample_diff() -> ModelReferenceDiff:
 
 @pytest.fixture
 def sample_primary_data() -> dict[str, dict[str, Any]]:
-    """Simple primary data for testing."""
+    """Return a simple primary data for testing."""
     return {
         "model1": {"name": "model1", "description": "modified"},
     }
