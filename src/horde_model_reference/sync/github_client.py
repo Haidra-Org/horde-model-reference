@@ -226,7 +226,13 @@ class GitHubSyncClient:
                     primary_data,
                     text_generation_artifacts=text_generation_artifacts,
                 )
-                self._commit_changes(category, diff)
+                has_changes = self._commit_changes(category, diff)
+                if not has_changes:
+                    logger.warning(
+                        f"Skipping PR creation for {category}: comparator detected "
+                        f"{diff.total_changes()} changes but no actual file changes were produced."
+                    )
+                    return None
                 self._push_branch(branch_name)
                 pr_url = self._create_pull_request(
                     category, diff, repo_owner_and_name, branch_name, github_repo_settings
@@ -296,7 +302,14 @@ class GitHubSyncClient:
                         text_generation_artifacts=artifacts,
                     )
 
-                self._commit_multi_category_changes(categories_data)
+                has_changes = self._commit_multi_category_changes(categories_data)
+                if not has_changes:
+                    total = sum(diff.total_changes() for diff, _, _ in categories_data.values())
+                    logger.warning(
+                        f"Skipping PR creation for multi-category sync: comparator detected "
+                        f"{total} changes but no actual file changes were produced."
+                    )
+                    return None
                 self._push_branch(branch_name)
                 pr_url = self._create_multi_category_pull_request(
                     categories_data, repo_name, branch_name, github_repo_settings
@@ -765,7 +778,7 @@ class GitHubSyncClient:
         self,
         category: MODEL_REFERENCE_CATEGORY,
         diff: ModelReferenceDiff,
-    ) -> None:
+    ) -> bool:
         """Commit the changes to the repository.
 
         Uses --no-gpg-sign to bypass GPG signing requirements for automated commits.
@@ -775,6 +788,9 @@ class GitHubSyncClient:
             category (MODEL_REFERENCE_CATEGORY): The category being synced.
             diff: The diff summary for generating commit message.
 
+        Returns:
+            True if changes were committed, False if there were no changes to commit.
+
         """
         if not self._current_repo:
             raise RuntimeError("No repository cloned")
@@ -782,14 +798,19 @@ class GitHubSyncClient:
         self._current_repo.git.add(".")
 
         if not self._current_repo.is_dirty():
-            logger.warning("No changes to commit")
-            return
+            logger.warning(
+                f"No actual file changes for {category} despite comparator detecting "
+                f"{diff.total_changes()} differences. This indicates the comparison "
+                "produced false positives (e.g. due to JSON parser inconsistencies)."
+            )
+            return False
 
         commit_message = self._generate_commit_message(category, diff)
         logger.debug(f"Committing with message:\n{commit_message}")
 
         self._current_repo.git.commit("-m", commit_message, "--no-gpg-sign")
         logger.debug("Changes committed successfully")
+        return True
 
     def _push_branch(self, branch_name: str) -> None:
         """Push the branch to the remote repository.
@@ -1129,7 +1150,7 @@ class GitHubSyncClient:
             MODEL_REFERENCE_CATEGORY,
             tuple[ModelReferenceDiff, dict[str, dict[str, Any]], TextGenerationSyncArtifacts | None],
         ],
-    ) -> None:
+    ) -> bool:
         """Commit changes for multiple categories.
 
         Uses --no-gpg-sign to bypass GPG signing requirements for automated commits.
@@ -1138,6 +1159,9 @@ class GitHubSyncClient:
         Args:
             categories_data: Dict mapping categories to (diff, primary_data, artifacts) tuples.
 
+        Returns:
+            True if changes were committed, False if there were no changes to commit.
+
         """
         if not self._current_repo:
             raise RuntimeError("No repository cloned")
@@ -1145,14 +1169,20 @@ class GitHubSyncClient:
         self._current_repo.git.add(".")
 
         if not self._current_repo.is_dirty():
-            logger.warning("No changes to commit")
-            return
+            total = sum(diff.total_changes() for diff, _, _ in categories_data.values())
+            logger.warning(
+                f"No actual file changes despite comparator detecting {total} total "
+                "differences across categories. This indicates the comparison "
+                "produced false positives (e.g. due to JSON parser inconsistencies)."
+            )
+            return False
 
         commit_message = self._generate_multi_category_commit_message(categories_data)
         logger.debug(f"Committing with message:\n{commit_message}")
 
         self._current_repo.git.commit("-m", commit_message, "--no-gpg-sign")
         logger.debug("Changes committed successfully")
+        return True
 
     def _generate_multi_category_commit_message(
         self,
