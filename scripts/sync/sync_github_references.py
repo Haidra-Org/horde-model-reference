@@ -77,12 +77,12 @@ logger.add(
 )
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY, horde_model_reference_settings  # noqa: E402
-from horde_model_reference.backends.github_backend import GitHubBackend  # noqa: E402
 from horde_model_reference.http_retry import (  # noqa: E402
     RetryableHTTPStatusError,
     http_retry_sync,
     is_retryable_status_code,
 )
+from horde_model_reference.path_consts import horde_model_reference_paths  # noqa: E402
 from horde_model_reference.sync import (  # noqa: E402
     GitHubSyncClient,
     ModelReferenceComparator,
@@ -102,13 +102,17 @@ if github_sync_settings.verbose_logging:
 
 
 class GithubSynchronizer:
-    """Helper class for syncing model references from PRIMARY to GitHub."""
+    """Helper class for syncing model references from PRIMARY to GitHub.
 
-    backend: GitHubBackend
+    Fetches data from both PRIMARY (v1 API) and GitHub (raw file URLs)
+    using httpx with json.loads() for both sides, ensuring comparison
+    consistency. Previous versions used GitHubBackend (which parses with
+    ujson), causing false-positive diffs when ujson and json produced
+    different Python representations for the same JSON.
+    """
 
     def __init__(self) -> None:
-        """Initialize the synchronizer with a GitHub backend."""
-        self.backend = GitHubBackend()
+        """Initialize the synchronizer."""
 
     def fetch_primary_data(
         self,
@@ -153,31 +157,49 @@ class GithubSynchronizer:
         self,
         *,
         category: MODEL_REFERENCE_CATEGORY,
+        timeout: int = 30,
     ) -> dict[str, dict[str, Any]]:
-        """Fetch model reference data from GitHub legacy repos.
+        """Fetch model reference data directly from GitHub raw file URLs.
+
+        Downloads the legacy JSON file for the category from its GitHub
+        repository using httpx, ensuring the same JSON parser (json.loads)
+        is used as for PRIMARY data. This avoids false-positive comparison
+        diffs that arise when different JSON parsers (e.g. ujson vs json)
+        produce different Python representations for the same JSON bytes.
 
         Args:
             category (MODEL_REFERENCE_CATEGORY): The category to fetch.
+            timeout: HTTP request timeout in seconds.
 
         Returns:
             Dictionary of model records in legacy format.
 
         Raises:
-            Exception: If the fetch fails.
+            ValueError: If the category has no known GitHub URL.
+            httpx.HTTPError: If the request fails.
         """
         logger.debug(f"Fetching GitHub data for {category}")
 
+        github_url = horde_model_reference_paths.legacy_image_model_github_urls.get(category)
+        if github_url is None:
+            github_url = horde_model_reference_paths.legacy_text_model_github_urls.get(category)
+
+        if not github_url:
+            raise ValueError(f"No known GitHub URL for category {category}")
+
         try:
-            data: dict[str, Any] | None = self.backend.get_legacy_json(category)
+            for attempt in http_retry_sync(max_attempts=3, min_wait=1.0, max_wait=15.0):
+                with attempt, httpx.Client(timeout=timeout) as client:
+                    response = client.get(github_url)
+                    if is_retryable_status_code(response.status_code):
+                        raise RetryableHTTPStatusError(response)
+                    response.raise_for_status()
+                    data: dict[str, dict[str, Any]] = response.json()
 
-            if data is None:
-                logger.warning(f"No data found for category {category} in GitHub")
-                raise ValueError(f"No data for category {category}")
-
-            logger.debug(f"Fetched {len(data)} models for {category} from GitHub")
+            logger.debug(f"Fetched {len(data)} models for {category} from GitHub ({github_url})")
             return data
 
-        except Exception as e:
+        except (RetryError, httpx.HTTPError) as e:
             logger.error(f"Failed to fetch GitHub data for {category}: {e}")
             raise
 
@@ -480,7 +502,11 @@ def run_sync_once() -> int:
                         text_generation_artifacts=artifacts,
                     )
 
-                    results[str(category)] = (True, pr_url)
+                    if pr_url is None:
+                        results[str(category)] = (True, None)
+                        logger.warning(f"No actual file changes for {category} (false positive diff)")
+                    else:
+                        results[str(category)] = (True, pr_url)
 
                 else:
                     category_names = ", ".join(str(cat) for cat in categories_data)
@@ -492,7 +518,10 @@ def run_sync_once() -> int:
                     )
 
                     for category in categories_data:
-                        results[str(category)] = (True, pr_url)
+                        if pr_url is None:
+                            results[str(category)] = (True, None)
+                        else:
+                            results[str(category)] = (True, pr_url)
 
             except Exception as e:
                 logger.error(f"Failed to create PR for {repo_owner_and_name}: {e}")
