@@ -233,9 +233,7 @@ class TestFetchGithubDataUrlResolution:
         fake_cat.value = "nonexistent_category"
 
         with (
-            patch(
-                "scripts.sync.sync_github_references.horde_model_reference_paths"
-            ) as mock_paths,
+            patch("scripts.sync.sync_github_references.horde_model_reference_paths") as mock_paths,
         ):
             mock_paths.legacy_image_model_github_urls = {}
             mock_paths.legacy_text_model_github_urls = {}
