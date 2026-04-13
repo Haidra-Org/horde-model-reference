@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
@@ -11,7 +12,7 @@ from horde_model_reference.pending_queue.models import PendingChangeRecord, Pend
 from horde_model_reference.pending_queue.store import PendingQueueStore
 
 
-def _make_record(change_id: int, batch_id: int | None = None) -> dict:
+def _make_record(change_id: int, batch_id: int | None = None) -> dict[str, Any]:
     return PendingChangeRecord(
         change_id=change_id,
         category=MODEL_REFERENCE_CATEGORY.image_generation,

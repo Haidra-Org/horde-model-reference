@@ -655,12 +655,12 @@ def restore_manager_singleton() -> Generator[None]:
         ModelReferenceManager._instance = previous
 
 
-def pytest_collection_modifyitems(items) -> None:  # noqa: ANN001
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     """Modify test items to ensure test modules run in a given order."""
     MODULES_TO_RUN_FIRST: list[str] = []
     MODULES_TO_RUN_LAST: list[str] = []
 
-    module_mapping = {item: item.module.__name__ for item in items}
+    module_mapping = {item: item.module.__name__ for item in items}  # type: ignore[attr-defined]
 
     sorted_items = []
 

@@ -70,7 +70,7 @@ def _convert_py_reference(
     data: dict[str, Any] = {}
 
     for csv_row in csv_rows:
-        row = dict(csv_row)
+        row: dict[str, Any] = dict(csv_row)
         name = row.pop("name")
         model_name = name.split("/")[1] if "/" in name else name
 

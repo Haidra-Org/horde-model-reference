@@ -13,6 +13,12 @@ import pytest
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.sync import GitHubSyncClient, ModelReferenceDiff
+from horde_model_reference.sync.text_generation_serializer import TextGenerationSyncArtifacts
+
+_CategoriesData = dict[
+    MODEL_REFERENCE_CATEGORY,
+    tuple[ModelReferenceDiff, dict[str, dict[str, Any]], TextGenerationSyncArtifacts | None],
+]
 
 
 @pytest.fixture
@@ -82,8 +88,9 @@ class TestCommitMultiCategoryReturnValue:
         diff = ModelReferenceDiff(category=MODEL_REFERENCE_CATEGORY.image_generation)
         diff.modified_models = {"m1": {"name": "m1"}}
 
-        categories_data = {
-            MODEL_REFERENCE_CATEGORY.image_generation: (diff, {"m1": {"name": "m1"}}, None),
+        primary_data: dict[str, dict[str, Any]] = {"m1": {"name": "m1"}}
+        categories_data: _CategoriesData = {
+            MODEL_REFERENCE_CATEGORY.image_generation: (diff, primary_data, None),
         }
 
         result = client._commit_multi_category_changes(categories_data)
@@ -101,8 +108,9 @@ class TestCommitMultiCategoryReturnValue:
         diff = ModelReferenceDiff(category=MODEL_REFERENCE_CATEGORY.image_generation)
         diff.modified_models = {"m1": {"name": "m1"}}
 
-        categories_data = {
-            MODEL_REFERENCE_CATEGORY.image_generation: (diff, {"m1": {"name": "m1"}}, None),
+        primary_data: dict[str, dict[str, Any]] = {"m1": {"name": "m1"}}
+        categories_data: _CategoriesData = {
+            MODEL_REFERENCE_CATEGORY.image_generation: (diff, primary_data, None),
         }
 
         result = client._commit_multi_category_changes(categories_data)
@@ -164,8 +172,9 @@ class TestSyncMultipleCategoriesSkipsPROnFalsePositive:
         diff = ModelReferenceDiff(category=MODEL_REFERENCE_CATEGORY.image_generation)
         diff.modified_models = {"m1": {"name": "m1"}}
 
-        categories_data = {
-            MODEL_REFERENCE_CATEGORY.image_generation: (diff, {"m1": {"name": "m1"}}, None),
+        primary_data: dict[str, dict[str, Any]] = {"m1": {"name": "m1"}}
+        categories_data: _CategoriesData = {
+            MODEL_REFERENCE_CATEGORY.image_generation: (diff, primary_data, None),
         }
 
         mock_repo_settings = MagicMock()
