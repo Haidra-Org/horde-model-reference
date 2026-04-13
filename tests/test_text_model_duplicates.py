@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from horde_model_reference.text_model_duplicates import TextModelDuplicateManager
 
 
@@ -61,7 +63,7 @@ class TestGenerateDuplicates:
             assert variant_record["name"] == variant_name
 
     def test_duplicates_are_deep_copies(self) -> None:
-        record = {"name": "Author/Model-7B", "parameters": 7_000_000_000, "tags": ["chat"]}
+        record: dict[str, Any] = {"name": "Author/Model-7B", "parameters": 7_000_000_000, "tags": ["chat"]}
         dupes = TextModelDuplicateManager.generate_duplicates("Author/Model-7B", record)
         # Mutating the original should not affect duplicates
         record["tags"].append("mutated")
@@ -101,7 +103,7 @@ class TestFindExistingVariants:
     """Tests for TextModelDuplicateManager.find_existing_variants."""
 
     def test_finds_present_variants(self) -> None:
-        data = {
+        data: dict[str, Any] = {
             "Author/Model": {},
             "aphrodite/Author/Model": {},
             "koboldcpp/Model": {},
@@ -111,6 +113,6 @@ class TestFindExistingVariants:
         assert "koboldcpp/Model" in found
 
     def test_missing_variants_not_returned(self) -> None:
-        data = {"Author/Model": {}}
+        data: dict[str, Any] = {"Author/Model": {}}
         found = TextModelDuplicateManager.find_existing_variants("Author/Model", data)
         assert found == []
