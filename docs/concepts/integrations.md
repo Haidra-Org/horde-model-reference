@@ -18,11 +18,11 @@ graph LR
 
 `HordeAPIIntegration` is a singleton that fetches and caches three types of runtime data from AI-Horde:
 
-| Endpoint | Data | Indexed By |
-|----------|------|------------|
-| `/v2/status/models` | Worker counts, queue depth, ETA, performance | Model name |
-| `/v2/stats/models` | Usage counts (day, month, total) | Model name |
-| `/v2/workers` | Worker details (online status, trust, uptime) | Worker ID |
+| Endpoint            | Data                                          | Indexed By |
+| ------------------- | --------------------------------------------- | ---------- |
+| `/v2/status/models` | Worker counts, queue depth, ETA, performance  | Model name |
+| `/v2/stats/models`  | Usage counts (day, month, total)              | Model name |
+| `/v2/workers`       | Worker details (online status, trust, uptime) | Worker ID  |
 
 Each response type is modeled as Pydantic classes (`HordeModelStatus`, `HordeModelStatsResponse`, `HordeWorker`) and indexed into dictionaries keyed by model name for efficient lookup.
 
@@ -62,13 +62,13 @@ For each model name, the function:
 
 The result is a `CombinedModelStatistics` per model, containing:
 
-| Field | Source |
-|-------|--------|
-| `worker_count` | Computed from worker summaries or status count |
-| `queued_jobs`, `performance`, `eta` | Horde model status |
-| `usage_stats` (day, month, total) | Horde stats endpoint |
-| `worker_summaries` | Horde workers endpoint (optional) |
-| `backend_variations` | Per-backend breakdown for text models |
+| Field                               | Source                                         |
+| ----------------------------------- | ---------------------------------------------- |
+| `worker_count`                      | Computed from worker summaries or status count |
+| `queued_jobs`, `performance`, `eta` | Horde model status                             |
+| `usage_stats` (day, month, total)   | Horde stats endpoint                           |
+| `worker_summaries`                  | Horde workers endpoint (optional)              |
+| `backend_variations`                | Per-backend breakdown for text models          |
 
 ## Backend Variations
 
@@ -87,4 +87,4 @@ The statistics and audit analytics endpoints follow the same pattern:
 The [Analytics Pipeline](analytics_pipeline.md) page covers the computation and caching layers in detail.
 
 !!! warning
-    The Horde API data reflects a point-in-time snapshot. Worker counts and usage stats can change rapidly. The caching TTL represents a trade-off between freshness and API load — production deployments should enable cache hydration to keep data warm without hammering the Horde API on every request.
+The Horde API data reflects a point-in-time snapshot. Worker counts and usage stats can change rapidly. The caching TTL represents a trade-off between freshness and API load — production deployments should enable cache hydration to keep data warm without hammering the Horde API on every request.

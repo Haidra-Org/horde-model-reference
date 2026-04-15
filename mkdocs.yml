@@ -1,34 +1,34 @@
 site_name: horde_model_reference Documentation
 
 plugins:
-- search
-- mermaid2:
-    version: '10.1.0'
-    arguments:
-        theme: 'dark'
+  - search
+  - mermaid2:
+      version: "10.1.0"
+      arguments:
+        theme: "dark"
         themeVariables:
-            darkMode: true
-            fontSize: 24
-            primaryColor: '#ff0000'
+          darkMode: true
+          fontSize: 24
+          primaryColor: "#ff0000"
 
-- awesome-pages
-- autorefs
-- mkdocstrings:
-    default_handler: python_xref
-    handlers:
-      python_xref:
-        paths: [src]
-        inventories:
-        - https://docs.python.org/3/objects.inv
-        options:
-          members_order: source
-          docstring_section_style: list
-          show_if_no_docstring: true
-          separate_signature: true
-          show_signature_annotations: true
-          inherited_members: true
-          relative_crossrefs: true
-          filters: []
+  - awesome-pages
+  - autorefs
+  - mkdocstrings:
+      default_handler: python_xref
+      handlers:
+        python_xref:
+          paths: [src]
+          inventories:
+            - https://docs.python.org/3/objects.inv
+          options:
+            members_order: source
+            docstring_section_style: list
+            show_if_no_docstring: true
+            separate_signature: true
+            show_signature_annotations: true
+            inherited_members: true
+            relative_crossrefs: true
+            filters: []
 
 markdown_extensions:
   - pymdownx.highlight:

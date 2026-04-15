@@ -7,16 +7,16 @@ We recommend App authentication in production. You can use personal access token
 ## Prerequisites
 
 1. A GitHub App with the following permissions:
-   - Repository permissions:
-     - Contents: Read and write
-     - Pull requests: Read and write
+    - Repository permissions:
+        - Contents: Read and write
+        - Pull requests: Read and write
 
 2. The app installed to your organization/repository
 
 3. The following information:
-   - App ID (from GitHub App settings)
-   - Installation ID (from the installation URL)
-   - Private key (downloaded `.pem` file)
+    - App ID (from GitHub App settings)
+    - Installation ID (from the installation URL)
+    - Private key (downloaded `.pem` file)
 
 ## Environment Variables
 
@@ -124,16 +124,16 @@ except Exception as e:
 version: '3.8'
 
 services:
-  horde-github-sync:
-    image: horde-model-reference:latest
-    environment:
-      - HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://models.aihorde.net
-      - GITHUB_APP_ID=123456
-      - GITHUB_APP_INSTALLATION_ID=12345678
-      - GITHUB_APP_PRIVATE_KEY_PATH=/secrets/github-app-key.pem
-    volumes:
-      - ./secrets/github-app-key.pem:/secrets/github-app-key.pem:ro
-    command: python scripts/sync/sync_github_references.py
+    horde-github-sync:
+        image: horde-model-reference:latest
+        environment:
+            - HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://models.aihorde.net
+            - GITHUB_APP_ID=123456
+            - GITHUB_APP_INSTALLATION_ID=12345678
+            - GITHUB_APP_PRIVATE_KEY_PATH=/secrets/github-app-key.pem
+        volumes:
+            - ./secrets/github-app-key.pem:/secrets/github-app-key.pem:ro
+        command: python scripts/sync/sync_github_references.py
 ```
 
 ### Kubernetes Secret
@@ -142,16 +142,16 @@ services:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: github-app-credentials
+    name: github-app-credentials
 type: Opaque
 stringData:
-  app-id: "123456"
-  installation-id: "12345678"
-  private-key: |
-    -----BEGIN RSA PRIVATE KEY-----
-    MIIEpAIBAAKCAQEA...
-    ...your private key content...
-    -----END RSA PRIVATE KEY-----
+    app-id: '123456'
+    installation-id: '12345678'
+    private-key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIEpAIBAAKCAQEA...
+        ...your private key content...
+        -----END RSA PRIVATE KEY-----
 ```
 
 ### Kubernetes Deployment
@@ -160,39 +160,39 @@ stringData:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: horde-github-sync
+    name: horde-github-sync
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: horde-github-sync
-  template:
-    metadata:
-      labels:
-        app: horde-github-sync
-    spec:
-      containers:
-      - name: sync
-        image: horde-model-reference:latest
-        command: ["python", "scripts/sync/sync_github_references.py"]
-        env:
-        - name: HORDE_GITHUB_SYNC_PRIMARY_API_URL
-          value: "https://models.aihorde.net/"
-        - name: GITHUB_APP_ID
-          valueFrom:
-            secretKeyRef:
-              name: github-app-credentials
-              key: app-id
-        - name: GITHUB_APP_INSTALLATION_ID
-          valueFrom:
-            secretKeyRef:
-              name: github-app-credentials
-              key: installation-id
-        - name: GITHUB_APP_PRIVATE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: github-app-credentials
-              key: private-key
+    replicas: 1
+    selector:
+        matchLabels:
+            app: horde-github-sync
+    template:
+        metadata:
+            labels:
+                app: horde-github-sync
+        spec:
+            containers:
+                - name: sync
+                  image: horde-model-reference:latest
+                  command: ['python', 'scripts/sync/sync_github_references.py']
+                  env:
+                      - name: HORDE_GITHUB_SYNC_PRIMARY_API_URL
+                        value: 'https://models.aihorde.net/'
+                      - name: GITHUB_APP_ID
+                        valueFrom:
+                            secretKeyRef:
+                                name: github-app-credentials
+                                key: app-id
+                      - name: GITHUB_APP_INSTALLATION_ID
+                        valueFrom:
+                            secretKeyRef:
+                                name: github-app-credentials
+                                key: installation-id
+                      - name: GITHUB_APP_PRIVATE_KEY
+                        valueFrom:
+                            secretKeyRef:
+                                name: github-app-credentials
+                                key: private-key
 ```
 
 ## GitHub Actions
@@ -202,38 +202,38 @@ For GitHub Actions, you can use the built-in `GITHUB_TOKEN` or create a GitHub A
 ```yaml
 name: Sync from PRIMARY
 on:
-  schedule:
-    - cron: '0 */6 * * *'
-  workflow_dispatch:
+    schedule:
+        - cron: '0 */6 * * *'
+    workflow_dispatch:
 
 jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
+    sync:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+            - uses: actions/setup-python@v4
+              with:
+                  python-version: '3.10'
 
-      - name: Install dependencies
-        run: pip install -e ".[sync]"
+            - name: Install dependencies
+              run: pip install -e ".[sync]"
 
-      # Option 1: Use GitHub App (recommended)
-      - name: Run sync with GitHub App
-        env:
-          HORDE_GITHUB_SYNC_PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
-          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
-          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
-          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-        run: python scripts/sync/sync_github_references.py
+            # Option 1: Use GitHub App (recommended)
+            - name: Run sync with GitHub App
+              env:
+                  HORDE_GITHUB_SYNC_PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
+                  GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
+                  GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+                  GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+              run: python scripts/sync/sync_github_references.py
 
-      # Option 2: Use personal access token
-      # - name: Run sync with token
-      #   env:
-      #     HORDE_GITHUB_SYNC_PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
-      #     GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-      #   run: python scripts/sync/sync_github_references.py
+            # Option 2: Use personal access token
+            # - name: Run sync with token
+            #   env:
+            #     HORDE_GITHUB_SYNC_PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
+            #     GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+            #   run: python scripts/sync/sync_github_references.py
 ```
 
 ## Troubleshooting
@@ -241,6 +241,7 @@ jobs:
 ### "GitHub App settings are not fully configured"
 
 Ensure all three environment variables are set:
+
 - `GITHUB_APP_ID`
 - `GITHUB_APP_INSTALLATION_ID`
 - `GITHUB_APP_PRIVATE_KEY` or `GITHUB_APP_PRIVATE_KEY_PATH`

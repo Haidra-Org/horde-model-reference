@@ -61,14 +61,14 @@ results = manager.query("image_generation").where(nsfw=False).to_list()
 
 Append `__operator` to the field name:
 
-| Operator | Meaning |
-|----------|---------|
-| `__gt` | Greater than |
-| `__gte` | Greater than or equal |
-| `__lt` | Less than |
-| `__lte` | Less than or equal |
-| `__ne` | Not equal |
-| `__in` | Value is in a collection |
+| Operator     | Meaning                         |
+| ------------ | ------------------------------- |
+| `__gt`       | Greater than                    |
+| `__gte`      | Greater than or equal           |
+| `__lt`       | Less than                       |
+| `__lte`      | Less than or equal              |
+| `__ne`       | Not equal                       |
+| `__in`       | Value is in a collection        |
 | `__contains` | Collection field contains value |
 
 ```python
@@ -179,12 +179,12 @@ manager.query("image_generation").offset(5).limit(10).to_list()
 
 Every query chain ends with a terminal operation:
 
-| Method | Returns | Description |
-|--------|---------|-------------|
-| `.to_list()` | `list[T]` | All matching records |
-| `.first()` | `T \| None` | First match, or `None` |
-| `.count()` | `int` | Number of matches |
-| `.distinct(field)` | `list[object]` | Unique values of a field |
+| Method             | Returns                   | Description                    |
+| ------------------ | ------------------------- | ------------------------------ |
+| `.to_list()`       | `list[T]`                 | All matching records           |
+| `.first()`         | `T \| None`               | First match, or `None`         |
+| `.count()`         | `int`                     | Number of matches              |
+| `.distinct(field)` | `list[object]`            | Unique values of a field       |
 | `.group_by(field)` | `dict[Hashable, list[T]]` | Records grouped by field value |
 
 ```python

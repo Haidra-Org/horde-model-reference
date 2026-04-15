@@ -8,13 +8,13 @@ Automated tool for keeping GitHub legacy model reference repositories in sync wi
 - [Architecture](#architecture)
 - [Installation](#installation)
 - [Operating Modes](#operating-modes)
-  - [One-Shot Mode](#one-shot-mode)
-  - [Watch Mode](#watch-mode)
+    - [One-Shot Mode](#one-shot-mode)
+    - [Watch Mode](#watch-mode)
 - [Configuration](#configuration)
-  - [Docker Configuration](#docker-configuration-recommended)
-  - [Non-Docker Configuration](#non-docker-configuration)
-  - [GitHub Authentication](#github-authentication)
-  - [Optional Settings](#optional-settings)
+    - [Docker Configuration](#docker-configuration-recommended)
+    - [Non-Docker Configuration](#non-docker-configuration)
+    - [GitHub Authentication](#github-authentication)
+    - [Optional Settings](#optional-settings)
 - [Usage](#usage)
 - [Deployment](#deployment)
 - [Components](#components)
@@ -63,10 +63,10 @@ PRIMARY (v1 API) ────► Comparator ◄──── GitHub (legacy repos
 - Ensure your environment variables are set correctly before running the sync service.
 - **Git Identity Configuration**: The user running the sync service must have git identity configured for commits to work:
 
-  ```bash
-  git config --global user.name "Your Name"
-  git config --global user.email "your.email@example.com"
-  ```
+    ```bash
+    git config --global user.name "Your Name"
+    git config --global user.email "your.email@example.com"
+    ```
 
 - **If running the sync service on the same host as the PRIMARY instance**
     - You must set a different `AIWORKER_CACHE_HOME` for each or it will never detect changes. You should always set this variable when using the sync service.
@@ -156,11 +156,11 @@ python scripts/sync/sync_github_references.py --watch --watch-interval 30 --dry-
 
 **Watch mode configuration options:**
 
-| CLI Argument | Environment Variable | Default | Description |
-|--------------|---------------------|---------|-------------|
-| `--watch` | `HORDE_GITHUB_SYNC_WATCH_MODE` | `false` | Enable watch mode |
-| `--watch-interval` | `HORDE_GITHUB_SYNC_WATCH_INTERVAL_SECONDS` | `60` | Polling interval in seconds |
-| `--watch-startup-sync` | `HORDE_GITHUB_SYNC_WATCH_ENABLE_STARTUP_SYNC` | `false` | Run sync on startup |
+| CLI Argument           | Environment Variable                          | Default | Description                 |
+| ---------------------- | --------------------------------------------- | ------- | --------------------------- |
+| `--watch`              | `HORDE_GITHUB_SYNC_WATCH_MODE`                | `false` | Enable watch mode           |
+| `--watch-interval`     | `HORDE_GITHUB_SYNC_WATCH_INTERVAL_SECONDS`    | `60`    | Polling interval in seconds |
+| `--watch-startup-sync` | `HORDE_GITHUB_SYNC_WATCH_ENABLE_STARTUP_SYNC` | `false` | Run sync on startup         |
 
 **Example watch mode output:**
 
@@ -224,8 +224,8 @@ Edit the `github-sync` service in your docker-compose file and uncomment:
 
 ```yaml
 volumes:
-  - github-sync-data:/data
-  - ./github-app-key.pem:/app/github-app-key.pem:ro  # Uncomment this line
+    - github-sync-data:/data
+    - ./github-app-key.pem:/app/github-app-key.pem:ro # Uncomment this line
 ```
 
 **6. Start with sync enabled:**
@@ -309,13 +309,13 @@ export GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----EN
 
 1. Go to your organization settings → Developer settings → GitHub Apps → New GitHub App
 2. Configure the app:
-   - Set a name (e.g., "Horde Model Reference Sync")
-   - Set Homepage URL (your repo URL)
-   - Uncheck "Active" under Webhook (not needed)
-   - Set permissions:
-     - Repository permissions:
-       - Contents: Read and write
-       - Pull requests: Read and write
+    - Set a name (e.g., "Horde Model Reference Sync")
+    - Set Homepage URL (your repo URL)
+    - Uncheck "Active" under Webhook (not needed)
+    - Set permissions:
+        - Repository permissions:
+            - Contents: Read and write
+            - Pull requests: Read and write
 3. Generate a private key and download the `.pem` file
 4. Install the app to your organization/repository
 5. Note the App ID (from app settings) and Installation ID (from installation URL)
@@ -648,38 +648,38 @@ Create `.github/workflows/sync-from-primary.yml`:
 ```yaml
 name: Sync from PRIMARY
 on:
-  schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
-  workflow_dispatch:  # Manual trigger
+    schedule:
+        - cron: '0 */6 * * *' # Every 6 hours
+    workflow_dispatch: # Manual trigger
 
 jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
+    sync:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
+            - uses: actions/setup-python@v4
+              with:
+                  python-version: '3.10'
 
-      - name: Install dependencies
-        run: pip install -e ".[sync]"
+            - name: Install dependencies
+              run: pip install -e ".[sync]"
 
-      # Option 1: Use GitHub App (recommended)
-      - name: Run sync with GitHub App
-        env:
-          HORDE_GITHUB_SYNC_PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
-          GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
-          GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
-          GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
-        run: python scripts/sync/sync_github_references.py
+            # Option 1: Use GitHub App (recommended)
+            - name: Run sync with GitHub App
+              env:
+                  HORDE_GITHUB_SYNC_PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
+                  GITHUB_APP_ID: ${{ secrets.GITHUB_APP_ID }}
+                  GITHUB_APP_INSTALLATION_ID: ${{ secrets.GITHUB_APP_INSTALLATION_ID }}
+                  GITHUB_APP_PRIVATE_KEY: ${{ secrets.GITHUB_APP_PRIVATE_KEY }}
+              run: python scripts/sync/sync_github_references.py
 
-      # Option 2: Use personal access token
-      # - name: Run sync with token
-      #   env:
-      #     HORDE_GITHUB_SYNC_PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
-      #     GITHUB_TOKEN: ${{ secrets.GH_PAT }}
-      #   run: python scripts/sync/sync_github_references.py
+            # Option 2: Use personal access token
+            # - name: Run sync with token
+            #   env:
+            #     HORDE_GITHUB_SYNC_PRIMARY_API_URL: ${{ secrets.PRIMARY_API_URL }}
+            #     GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+            #   run: python scripts/sync/sync_github_references.py
 ```
 
 ### Systemd Service and Timer
@@ -750,24 +750,24 @@ For long-running containers using watch mode:
 version: '3.8'
 
 services:
-  horde-github-sync:
-    image: horde-model-reference:latest
-    environment:
-      - HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://models.aihorde.net/api
-      - GITHUB_APP_ID=123456
-      - GITHUB_APP_INSTALLATION_ID=12345678
-      - GITHUB_APP_PRIVATE_KEY_PATH=/secrets/github-app-key.pem
-      - HORDE_GITHUB_SYNC_WATCH_MODE=true
-      - HORDE_GITHUB_SYNC_WATCH_INTERVAL_SECONDS=300
-      - HORDE_GITHUB_SYNC_WATCH_ENABLE_STARTUP_SYNC=true
-    volumes:
-      - ./github-app-key.pem:/secrets/github-app-key.pem:ro
-      - github-sync-data:/data
-    command: python scripts/sync/sync_github_references.py --watch
-    restart: unless-stopped
+    horde-github-sync:
+        image: horde-model-reference:latest
+        environment:
+            - HORDE_GITHUB_SYNC_PRIMARY_API_URL=https://models.aihorde.net/api
+            - GITHUB_APP_ID=123456
+            - GITHUB_APP_INSTALLATION_ID=12345678
+            - GITHUB_APP_PRIVATE_KEY_PATH=/secrets/github-app-key.pem
+            - HORDE_GITHUB_SYNC_WATCH_MODE=true
+            - HORDE_GITHUB_SYNC_WATCH_INTERVAL_SECONDS=300
+            - HORDE_GITHUB_SYNC_WATCH_ENABLE_STARTUP_SYNC=true
+        volumes:
+            - ./github-app-key.pem:/secrets/github-app-key.pem:ro
+            - github-sync-data:/data
+        command: python scripts/sync/sync_github_references.py --watch
+        restart: unless-stopped
 
 volumes:
-  github-sync-data:
+    github-sync-data:
 ```
 
 ### Kubernetes Deployment (Watch Mode)
@@ -778,15 +778,15 @@ volumes:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: github-app-credentials
+    name: github-app-credentials
 type: Opaque
 stringData:
-  app-id: "123456"
-  installation-id: "12345678"
-  private-key: |
-    -----BEGIN RSA PRIVATE KEY-----
-    MIIEpAIBAAKCAQEA...
-    -----END RSA PRIVATE KEY-----
+    app-id: '123456'
+    installation-id: '12345678'
+    private-key: |
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIEpAIBAAKCAQEA...
+        -----END RSA PRIVATE KEY-----
 ```
 
 **Deployment:**
@@ -795,41 +795,48 @@ stringData:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: horde-github-sync
+    name: horde-github-sync
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: horde-github-sync
-  template:
-    metadata:
-      labels:
-        app: horde-github-sync
-    spec:
-      containers:
-      - name: sync
-        image: horde-model-reference:latest
-        command: ["python", "scripts/sync/sync_github_references.py", "--watch", "--watch-interval", "300"]
-        env:
-        - name: HORDE_GITHUB_SYNC_PRIMARY_API_URL
-          value: "https://models.aihorde.net/"
-        - name: GITHUB_APP_ID
-          valueFrom:
-            secretKeyRef:
-              name: github-app-credentials
-              key: app-id
-        - name: GITHUB_APP_INSTALLATION_ID
-          valueFrom:
-            secretKeyRef:
-              name: github-app-credentials
-              key: installation-id
-        - name: GITHUB_APP_PRIVATE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: github-app-credentials
-              key: private-key
-        - name: HORDE_GITHUB_SYNC_WATCH_ENABLE_STARTUP_SYNC
-          value: "true"
+    replicas: 1
+    selector:
+        matchLabels:
+            app: horde-github-sync
+    template:
+        metadata:
+            labels:
+                app: horde-github-sync
+        spec:
+            containers:
+                - name: sync
+                  image: horde-model-reference:latest
+                  command:
+                      [
+                          'python',
+                          'scripts/sync/sync_github_references.py',
+                          '--watch',
+                          '--watch-interval',
+                          '300',
+                      ]
+                  env:
+                      - name: HORDE_GITHUB_SYNC_PRIMARY_API_URL
+                        value: 'https://models.aihorde.net/'
+                      - name: GITHUB_APP_ID
+                        valueFrom:
+                            secretKeyRef:
+                                name: github-app-credentials
+                                key: app-id
+                      - name: GITHUB_APP_INSTALLATION_ID
+                        valueFrom:
+                            secretKeyRef:
+                                name: github-app-credentials
+                                key: installation-id
+                      - name: GITHUB_APP_PRIVATE_KEY
+                        valueFrom:
+                            secretKeyRef:
+                                name: github-app-credentials
+                                key: private-key
+                      - name: HORDE_GITHUB_SYNC_WATCH_ENABLE_STARTUP_SYNC
+                        value: 'true'
 ```
 
 ## Components
@@ -1010,9 +1017,9 @@ Ensure all three environment variables are set:
 2. Check that metadata tracking is enabled (canonical backend required)
 3. Ensure the metadata endpoint returns valid timestamps:
 
-   ```bash
-   curl http://localhost:19800/model_references/v1/metadata/last_updated
-   ```
+    ```bash
+    curl http://localhost:19800/model_references/v1/metadata/last_updated
+    ```
 
 #### Connection Errors
 
@@ -1041,9 +1048,9 @@ If you're hitting GitHub rate limits:
 3. Use `--categories` to filter synced categories
 4. Check your rate limit status:
 
-   ```bash
-   curl -H "Authorization: token YOUR_TOKEN" https://api.github.com/rate_limit
-   ```
+    ```bash
+    curl -H "Authorization: token YOUR_TOKEN" https://api.github.com/rate_limit
+    ```
 
 ### Testing and Debugging
 

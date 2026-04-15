@@ -24,55 +24,55 @@ GenericModelRecord
 
 Every record shares these base fields:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | `str` | Model name (also the dict key) |
-| `description` | `str \| None` | Short description |
-| `version` | `str \| None` | Model version |
-| `record_type` | `str \| MODEL_REFERENCE_CATEGORY` | Category discriminator |
-| `model_classification` | `ModelClassification` | Domain + purpose |
-| `config` | `GenericModelRecordConfig` | Download info |
-| `metadata` | `GenericModelRecordMetadata` | Timestamps, authorship |
-| `finetune_series` | `FineTuneSeriesInfo \| None` | Fine-tune lineage (e.g., "Pony", "Illustrious") |
+| Field                  | Type                              | Description                                     |
+| ---------------------- | --------------------------------- | ----------------------------------------------- |
+| `name`                 | `str`                             | Model name (also the dict key)                  |
+| `description`          | `str \| None`                     | Short description                               |
+| `version`              | `str \| None`                     | Model version                                   |
+| `record_type`          | `str \| MODEL_REFERENCE_CATEGORY` | Category discriminator                          |
+| `model_classification` | `ModelClassification`             | Domain + purpose                                |
+| `config`               | `GenericModelRecordConfig`        | Download info                                   |
+| `metadata`             | `GenericModelRecordMetadata`      | Timestamps, authorship                          |
+| `finetune_series`      | `FineTuneSeriesInfo \| None`      | Fine-tune lineage (e.g., "Pony", "Illustrious") |
 
 ## Key Fields by Category
 
 ### Image Generation
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `baseline` | `KNOWN_IMAGE_GENERATION_BASELINE \| str` | Base architecture (e.g., `stable_diffusion_1`, `stable_diffusion_xl`, `flux_1`) |
-| `nsfw` | `bool` | Whether the model is NSFW |
-| `inpainting` | `bool \| None` | Whether it's an inpainting model |
-| `style` | `MODEL_STYLE \| None` | Visual style category |
-| `tags` | `list[str]` | Searchable tags |
-| `trigger` | `list[str]` | Trigger words for activation |
-| `size_on_disk_bytes` | `int \| None` | File size |
-| `homepage` | `str \| None` | Link to model homepage |
-| `min_bridge_version` | `int \| None` | Minimum AI-Horde-Worker version required |
+| Field                | Type                                     | Description                                                                     |
+| -------------------- | ---------------------------------------- | ------------------------------------------------------------------------------- |
+| `baseline`           | `KNOWN_IMAGE_GENERATION_BASELINE \| str` | Base architecture (e.g., `stable_diffusion_1`, `stable_diffusion_xl`, `flux_1`) |
+| `nsfw`               | `bool`                                   | Whether the model is NSFW                                                       |
+| `inpainting`         | `bool \| None`                           | Whether it's an inpainting model                                                |
+| `style`              | `MODEL_STYLE \| None`                    | Visual style category                                                           |
+| `tags`               | `list[str]`                              | Searchable tags                                                                 |
+| `trigger`            | `list[str]`                              | Trigger words for activation                                                    |
+| `size_on_disk_bytes` | `int \| None`                            | File size                                                                       |
+| `homepage`           | `str \| None`                            | Link to model homepage                                                          |
+| `min_bridge_version` | `int \| None`                            | Minimum AI-Horde-Worker version required                                        |
 
 ### Text Generation
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `baseline` | `str \| None` | Base architecture |
-| `parameters_count` | `int` | Parameter count (aliased from `parameters` in JSON) |
-| `nsfw` | `bool` | Whether the model is NSFW |
-| `display_name` | `str \| None` | Human-friendly display name |
-| `instruct_format` | `str \| None` | Instruction template (ChatML, Mistral, etc.) |
-| `text_model_group` | `str \| None` | Base model group for variant grouping |
-| `tags` | `list[str] \| None` | Searchable tags |
+| Field              | Type                | Description                                         |
+| ------------------ | ------------------- | --------------------------------------------------- |
+| `baseline`         | `str \| None`       | Base architecture                                   |
+| `parameters_count` | `int`               | Parameter count (aliased from `parameters` in JSON) |
+| `nsfw`             | `bool`              | Whether the model is NSFW                           |
+| `display_name`     | `str \| None`       | Human-friendly display name                         |
+| `instruct_format`  | `str \| None`       | Instruction template (ChatML, Mistral, etc.)        |
+| `text_model_group` | `str \| None`       | Base model group for variant grouping               |
+| `tags`             | `list[str] \| None` | Searchable tags                                     |
 
 ### ControlNet
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field              | Type                              | Description                  |
+| ------------------ | --------------------------------- | ---------------------------- |
 | `controlnet_style` | `CONTROLNET_STYLE \| str \| None` | Purpose (canny, depth, etc.) |
 
 ### CLIP
 
-| Field | Type | Description |
-|-------|------|-------------|
+| Field             | Type          | Description                 |
+| ----------------- | ------------- | --------------------------- |
 | `pretrained_name` | `str \| None` | Pretrained model identifier |
 
 ## Type Narrowing

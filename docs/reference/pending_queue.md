@@ -23,10 +23,10 @@ Changing canonical format at runtime is strongly discouraged if pending entries 
 
 FastAPI exposes identical queue endpoints under both API versions so operators have a predictable surface area:
 
-| Prefix | Purpose | Notes |
-|--------|---------|-------|
-| `/model_references/v2/pending_queue` | V2 canonical mode | Enabled when PRIMARY backend supports v2 writes and the queue service is configured. |
-| `/model_references/v1/pending_queue` | Legacy canonical mode | Enabled when legacy writes are canonical (PRIMARY + `canonical_format="LEGACY"`). |
+| Prefix                               | Purpose               | Notes                                                                                |
+| ------------------------------------ | --------------------- | ------------------------------------------------------------------------------------ |
+| `/model_references/v2/pending_queue` | V2 canonical mode     | Enabled when PRIMARY backend supports v2 writes and the queue service is configured. |
+| `/model_references/v1/pending_queue` | Legacy canonical mode | Enabled when legacy writes are canonical (PRIMARY + `canonical_format="LEGACY"`).    |
 
 Routers are included before category routes (`/{model_category_name}`) to avoid 422 collisions. Each endpoint enforces:
 
@@ -38,14 +38,14 @@ Routers are included before category routes (`/{model_category_name}`) to avoid 
 
 > File paths follow `src/horde_model_reference/__init__.py` settings unless overridden.
 
-| Setting | Description |
-|---------|-------------|
-| `HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY` | Queue is ignored in REPLICA mode. |
-| `HORDE_MODEL_REFERENCE_PENDING_QUEUE__ENABLED=true` | Enables `PendingQueueService` construction. |
-| `HORDE_MODEL_REFERENCE_PENDING_QUEUE__REQUESTOR_IDS` | Allow-list of Horde user ids that can submit changes (JSON array). |
-| `HORDE_MODEL_REFERENCE_PENDING_QUEUE__APPROVER_IDS` | Allow-list of ids that can approve/apply changes. Should superset requestors. |
+| Setting                                                   | Description                                                                                                                        |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY`            | Queue is ignored in REPLICA mode.                                                                                                  |
+| `HORDE_MODEL_REFERENCE_PENDING_QUEUE__ENABLED=true`       | Enables `PendingQueueService` construction.                                                                                        |
+| `HORDE_MODEL_REFERENCE_PENDING_QUEUE__REQUESTOR_IDS`      | Allow-list of Horde user ids that can submit changes (JSON array).                                                                 |
+| `HORDE_MODEL_REFERENCE_PENDING_QUEUE__APPROVER_IDS`       | Allow-list of ids that can approve/apply changes. Should superset requestors.                                                      |
 | `HORDE_MODEL_REFERENCE_PENDING_QUEUE__ROOT_PATH_OVERRIDE` | Optional absolute path for queue storage. Defaults to `<cache_home>/pending_queue`. Required when multiple deployments share disk. |
-| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` | Determines which API is writable (`v2` or `legacy`). |
+| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT`                  | Determines which API is writable (`v2` or `legacy`).                                                                               |
 
 > **Development fallback:** If either allow-list is left empty, the service automatically falls back to the built-in `allowed_users` list defined in `src/horde_model_reference/service/shared.py`. This keeps local environments usable with the default approver IDs (`["1", "6572"]`) but production deployments **must** set `HORDE_MODEL_REFERENCE_PENDING_QUEUE__REQUESTOR_IDS` and `HORDE_MODEL_REFERENCE_PENDING_QUEUE__APPROVER_IDS` explicitly. Removing the fallback IDs or leaving them unset in production will cause every queue request to be rejected with `401 Invalid API key`.
 
@@ -73,12 +73,12 @@ The pending queue system produces **two categories of audit events** that serve 
 
 `PendingQueueService` writes audit events for every queue state transition:
 
-| Action | When | Audit Payload |
-|--------|------|---------------|
-| `enqueue` | Change submitted | Request metadata, user ID, payload |
-| `approve` | Batch approved | Batch ID, approver ID, change IDs |
-| `reject` | Batch rejected | Batch ID, approver ID, reason, change IDs |
-| `apply` | Change written to backend | Change ID, batch ID, job ID |
+| Action        | When                                | Audit Payload                                          |
+| ------------- | ----------------------------------- | ------------------------------------------------------ |
+| `enqueue`     | Change submitted                    | Request metadata, user ID, payload                     |
+| `approve`     | Batch approved                      | Batch ID, approver ID, change IDs                      |
+| `reject`      | Batch rejected                      | Batch ID, approver ID, reason, change IDs              |
+| `apply`       | Change written to backend           | Change ID, batch ID, job ID                            |
 | `batch_split` | Partial apply triggers reassignment | Original batch ID, new batch ID, reassigned change IDs |
 
 **Purpose**: Tracks the approval workflow lifecycle. Enables reconstruction of queue state from audit logs alone via `PendingQueueAuditReader`.
@@ -102,12 +102,12 @@ At any point in time, there is **at most one "open" batch** — the batch contai
 
 ### Batch Lifecycle
 
-| Event | Batch ID Behavior |
-|-------|-------------------|
-| First approval (no open batch) | New batch ID allocated (`last_batch_id + 1`) |
-| Subsequent approvals | Join existing open batch (same batch ID) |
-| Full batch apply | Batch closes; next approval creates new batch |
-| **Partial batch apply** | Remaining APPROVED changes reassigned to new batch ID |
+| Event                          | Batch ID Behavior                                     |
+| ------------------------------ | ----------------------------------------------------- |
+| First approval (no open batch) | New batch ID allocated (`last_batch_id + 1`)          |
+| Subsequent approvals           | Join existing open batch (same batch ID)              |
+| Full batch apply               | Batch closes; next approval creates new batch         |
+| **Partial batch apply**        | Remaining APPROVED changes reassigned to new batch ID |
 
 ### Partial Application and Batch Splits
 
@@ -159,18 +159,18 @@ When a pending change is **applied**, `FileSystemBackend.update_model()`/`delete
 ## Request Lifecycle
 
 1. **Requestor submits change** via `/model_references/vX/...` POST/PUT/DELETE. The router:
-   - Authenticates the Horde API key against the requestor allow-list.
-   - Validates create/update/delete constraints.
-   - Calls `PendingQueueService.enqueue_change`, storing metadata such as `request_metadata.route` and `payload`.
-   - Emits audit event: `action="enqueue"`, `category="pending_queue"`.
-   - Returns HTTP 202 with the serialized `PendingChangeRecord`.
+    - Authenticates the Horde API key against the requestor allow-list.
+    - Validates create/update/delete constraints.
+    - Calls `PendingQueueService.enqueue_change`, storing metadata such as `request_metadata.route` and `payload`.
+    - Emits audit event: `action="enqueue"`, `category="pending_queue"`.
+    - Returns HTTP 202 with the serialized `PendingChangeRecord`.
 2. **Approver reviews queue** using `/pending_queue/changes`, `/changes/{id}`, and `/batches`. Batch requests accept `approved_ids`, `rejected_ids`, plus optional `reject_reason`.
-   - Emits audit event: `action="approve"|"reject"`, `category="pending_queue"`.
+    - Emits audit event: `action="approve"|"reject"`, `category="pending_queue"`.
 3. **Apply operation** (automation or operator) calls `POST /pending_queue/changes/{id}/apply` for single changes or `POST /pending_queue/apply` with `{ "change_ids": [...], "job_id": "..." }` for ordered bulk operations. Application stops on first backend error and reports the failure in-line.
 4. **Backend write + cache invalidation** happen inside `pending_queue/apply.py`. For v2 canonical deployments, the helper calls `backend.update_model`/`delete_model`. For legacy canonical deployments, it calls `backend.update_model_legacy`/`delete_model_legacy`. In both cases:
-   - Emits audit event: `action="apply"`, `category="pending_queue"`.
-   - Backend emits audit event: `category=<model_category>`, `operation=CREATE|UPDATE|DELETE`.
-   - Filesystem backend triggers `mark_stale()` so cached JSON reloads on the next request.
+    - Emits audit event: `action="apply"`, `category="pending_queue"`.
+    - Backend emits audit event: `category=<model_category>`, `operation=CREATE|UPDATE|DELETE`.
+    - Filesystem backend triggers `mark_stale()` so cached JSON reloads on the next request.
 
 ## Authentication & Authorization Flow
 
@@ -188,13 +188,13 @@ When a pending change is **applied**, `FileSystemBackend.update_model()`/`delete
 
 ## File References
 
-| Area | Files |
-|------|-------|
-| Settings & paths | `src/horde_model_reference/__init__.py`, `src/horde_model_reference/path_consts.py` |
-| Pending queue service | `src/horde_model_reference/pending_queue/{models.py,service.py,apply.py}` |
-| Router logic | `src/horde_model_reference/service/v1/routers/create_update.py`, `src/horde_model_reference/service/v2/routers/{references,pending_queue}.py`, `src/horde_model_reference/service/shared.py` |
-| Tests | `tests/service/test_v2_api.py`, `tests/pending_queue/test_service.py`, `tests/pending_queue/test_apply.py`, fixtures in `tests/conftest.py` |
-| Docs referencing queue | `docs/pending_queue_plan.md`, `docs/model_reference_backend.md`, `docs/primary_deployments.md` |
+| Area                   | Files                                                                                                                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Settings & paths       | `src/horde_model_reference/__init__.py`, `src/horde_model_reference/path_consts.py`                                                                                                          |
+| Pending queue service  | `src/horde_model_reference/pending_queue/{models.py,service.py,apply.py}`                                                                                                                    |
+| Router logic           | `src/horde_model_reference/service/v1/routers/create_update.py`, `src/horde_model_reference/service/v2/routers/{references,pending_queue}.py`, `src/horde_model_reference/service/shared.py` |
+| Tests                  | `tests/service/test_v2_api.py`, `tests/pending_queue/test_service.py`, `tests/pending_queue/test_apply.py`, fixtures in `tests/conftest.py`                                                  |
+| Docs referencing queue | `docs/pending_queue_plan.md`, `docs/model_reference_backend.md`, `docs/primary_deployments.md`                                                                                               |
 
 ## Related Documentation
 

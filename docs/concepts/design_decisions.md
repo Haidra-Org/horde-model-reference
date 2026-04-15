@@ -4,7 +4,7 @@ This page explains user-visible design trade-offs so you know what to expect whe
 
 ## Singleton Manager
 
-`ModelReferenceManager` is a singleton. The first instantiation locks in all configuration (backend, prefetch strategy, etc.). Subsequent calls with the same parameters return the existing instance; calls with *different* parameters raise `RuntimeError`.
+`ModelReferenceManager` is a singleton. The first instantiation locks in all configuration (backend, prefetch strategy, etc.). Subsequent calls with the same parameters return the existing instance; calls with _different_ parameters raise `RuntimeError`.
 
 **Why:** The manager owns caches, backend connections, and download state. Multiple instances with conflicting settings would lead to race conditions, duplicate downloads, and inconsistent cached data.
 
@@ -14,10 +14,10 @@ This page explains user-visible design trade-offs so you know what to expect whe
 
 Methods named `*_or_none` return `None` on failure instead of raising it. The name means "the return type includes `None`, so you must handle that case."
 
-| Method | Returns | On failure |
-| ------ | ------- | ---------- |
-| `get_model_reference(cat)` | `dict[str, GenericModelRecord]` | Raises `RuntimeError` |
-| `get_model_reference_or_none(cat)` | `dict[str, GenericModelRecord] \| None` | Returns `None` |
+| Method                             | Returns                                 | On failure            |
+| ---------------------------------- | --------------------------------------- | --------------------- |
+| `get_model_reference(cat)`         | `dict[str, GenericModelRecord]`         | Raises `RuntimeError` |
+| `get_model_reference_or_none(cat)` | `dict[str, GenericModelRecord] \| None` | Returns `None`        |
 
 **Why:** Some consumers (workers) want guaranteed data and prefer exceptions. Others (dashboards) want graceful degradation. Both patterns are supported.
 
@@ -41,6 +41,7 @@ The library provides parallel sync and async method sets (`get_model_reference` 
 `get_model_reference()` returns `dict[str, GenericModelRecord]` even though the actual records are specialized subclasses (e.g., `ImageGenerationModelRecord`). This is because the method accepts any category.
 
 **Workarounds:**
+
 - Use the typed properties: `manager.image_generation_models` returns `dict[str, ImageGenerationModelRecord]`
 - Use `isinstance()` checks for type narrowing
 - Use the query API, which is fully typed per category

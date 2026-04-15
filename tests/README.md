@@ -105,7 +105,6 @@ pytest -m integration
 pytest -m "not integration"
 ```
 
-
 ## Audit Analysis Tests
 
 ### Golden Models
@@ -174,6 +173,7 @@ The following critical environment variables are automatically **cleared** befor
 
 - `tests/test_data_results/` - Test output directory (logs, generated files)
 -
+
 ## Writing New Tests
 
 ### Unit Tests
@@ -187,7 +187,6 @@ def test_some_functionality():
     result = instance.do_something()
     assert result == expected_value
 ```
-
 
 ### Integration Tests (Live)
 

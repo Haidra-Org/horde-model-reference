@@ -39,12 +39,12 @@ Analytics results are expensive to compute (they require fetching Horde API data
 
 `base_cache.py` provides `RedisCache[T]`, a generic abstract base for singleton caches. Subclasses implement four methods:
 
-| Method | Purpose |
-|--------|---------|
-| `_get_cache_key_prefix()` | Redis key namespace (e.g., `horde:stats`) |
-| `_get_ttl()` | Cache entry TTL in seconds |
-| `_get_model_class()` | Pydantic model class for deserialization |
-| `_register_invalidation_callback()` | Hook into backend invalidation signals |
+| Method                              | Purpose                                   |
+| ----------------------------------- | ----------------------------------------- |
+| `_get_cache_key_prefix()`           | Redis key namespace (e.g., `horde:stats`) |
+| `_get_ttl()`                        | Cache entry TTL in seconds                |
+| `_get_model_class()`                | Pydantic model class for deserialization  |
+| `_register_invalidation_callback()` | Hook into backend invalidation signals    |
 
 The cache checks Redis first (if available), then falls back to an in-memory dict with timestamp tracking. Thread safety is provided by `RLock`.
 
@@ -76,12 +76,12 @@ The hydration cycle iterates over supported categories (`image_generation`, `tex
 
 Configuration via environment variables:
 
-| Setting | Default | Purpose |
-|---------|---------|---------|
-| `CACHE_HYDRATION_ENABLED` | `False` | Enable background hydration |
-| `CACHE_HYDRATION_INTERVAL_SECONDS` | 240 | Refresh interval (should be < cache TTLs) |
-| `CACHE_HYDRATION_STALE_TTL_SECONDS` | 3600 | Max age before stale data is discarded |
-| `CACHE_HYDRATION_STARTUP_DELAY_SECONDS` | 5 | Delay before first hydration run |
+| Setting                                 | Default | Purpose                                   |
+| --------------------------------------- | ------- | ----------------------------------------- |
+| `CACHE_HYDRATION_ENABLED`               | `False` | Enable background hydration               |
+| `CACHE_HYDRATION_INTERVAL_SECONDS`      | 240     | Refresh interval (should be < cache TTLs) |
+| `CACHE_HYDRATION_STALE_TTL_SECONDS`     | 3600    | Max age before stale data is discarded    |
+| `CACHE_HYDRATION_STARTUP_DELAY_SECONDS` | 5       | Delay before first hydration run          |
 
 ## Deletion Risk Analysis
 

@@ -4,7 +4,7 @@ The Horde Model Reference is the authoritative source for AI model metadata in t
 
 ## Getting Started
 
-*I want to learn by doing.*
+_I want to learn by doing._
 
 - [Getting Started](tutorials/getting_started.md) -- Install, run your first query, understand the singleton pattern and prefetch strategies
 - [Querying Models](tutorials/querying_models.md) -- Filter, sort, and aggregate models with the fluent query API
@@ -13,7 +13,7 @@ The Horde Model Reference is the authoritative source for AI model metadata in t
 
 ## Concepts
 
-*I want to understand how the system works.*
+_I want to understand how the system works._
 
 - [Architecture Overview](concepts/architecture_overview.md) -- Three usage modes, backbone modules, subsystem map
 - [Request Lifecycle](concepts/request_lifecycle.md) -- How the FastAPI service processes read and write requests end-to-end
@@ -25,7 +25,7 @@ The Horde Model Reference is the authoritative source for AI model metadata in t
 
 ## Reference
 
-*I need to look something up.*
+_I need to look something up._
 
 - [Model Reference Backend](reference/model_reference_backend.md) -- Backend ABC, capability checks, implementation checklist
 - [Model Reference Records](reference/model_reference_records.md) -- Record hierarchy, validation, registration pattern
