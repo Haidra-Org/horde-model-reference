@@ -1,62 +1,61 @@
 repos:
--   repo: https://github.com/pre-commit/pre-commit-hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-    -   id: check-yaml
+      - id: check-yaml
         exclude: "^mkdocs.yml$"
-    -   id: check-json
-    -   id: end-of-file-fixer
-    -   id: trailing-whitespace
--   repo: https://github.com/astral-sh/ruff-pre-commit
+      - id: check-json
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.14.2
     hooks:
-    -    id: ruff-check
-    -    id: ruff-format
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: 'v1.20.0'
+      - id: ruff-check
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: "v1.20.0"
     hooks:
-    -   id: mypy
+      - id: mypy
         args: [--strict, --disallow-untyped-defs, --warn-unused-configs]
         additional_dependencies:
-            - aiofiles
-            - fastapi[standard]
-            - fakeredis
-            - gitpython
-            - haidra-core
-            - httpx
-            - loguru
-            - lxml-stubs
-            - pydantic
-            - pydantic-settings
-            - PyGithub
-            - pytest
-            - pytest-httpx
-            - pytest-recording
-            - redis[hiredis]
-            - settings-doc
-            - strenum
-            - tenacity
-            - typing-extensions
-            - ujson
-            - types-aiofiles
-            - types-openpyxl
-            - types-pygments
-            - types-pywin32
-            - types-redis
-            - types-requests
-            - types-tabulate
-            - types-ujson
-            - vcrpy
-
+          - aiofiles
+          - fastapi[standard]
+          - fakeredis
+          - gitpython
+          - haidra-core
+          - httpx
+          - loguru
+          - lxml-stubs
+          - pydantic
+          - pydantic-settings
+          - PyGithub
+          - pytest
+          - pytest-httpx
+          - pytest-recording
+          - redis[hiredis]
+          - settings-doc
+          - strenum
+          - tenacity
+          - typing-extensions
+          - ujson
+          - types-aiofiles
+          - types-openpyxl
+          - types-pygments
+          - types-pywin32
+          - types-redis
+          - types-requests
+          - types-tabulate
+          - types-ujson
+          - vcrpy
 
 ci:
-    autofix_commit_msg: |
-        [pre-commit.ci] auto fixes from pre-commit.com hooks
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
 
-        for more information, see https://pre-commit.ci
-    autofix_prs: true
-    autoupdate_branch: ''
-    autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
-    autoupdate_schedule: weekly
-    skip: []
-    submodules: true
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_branch: ""
+  autoupdate_commit_msg: "[pre-commit.ci] pre-commit autoupdate"
+  autoupdate_schedule: weekly
+  skip: []
+  submodules: true

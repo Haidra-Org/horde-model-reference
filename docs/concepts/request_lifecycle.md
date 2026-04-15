@@ -107,7 +107,7 @@ sequenceDiagram
 ```
 
 !!! note
-    Write endpoints return **202 Accepted** because changes are queued for approval rather than applied immediately. The pending queue workflow (propose → approve → apply) is documented in the [Pending Queue](../reference/pending_queue.md) reference.
+Write endpoints return **202 Accepted** because changes are queued for approval rather than applied immediately. The pending queue workflow (propose → approve → apply) is documented in the [Pending Queue](../reference/pending_queue.md) reference.
 
 ## Write Guard Checks
 
@@ -129,15 +129,15 @@ Write and pending-queue endpoints authenticate via the `apikey` header:
 
 ## Error Handling Patterns
 
-| Status | Meaning |
-|--------|---------|
-| 400 | Invalid request format or name mismatch |
-| 401 | Invalid or unauthorized API key |
-| 404 | Category or model not found |
-| 409 | Model already exists (POST create only) |
-| 422 | Pydantic validation errors |
-| 500 | Unexpected errors (file I/O, backend failures) |
-| 503 | Wrong mode (REPLICA attempting write) or wrong canonical format |
+| Status | Meaning                                                         |
+| ------ | --------------------------------------------------------------- |
+| 400    | Invalid request format or name mismatch                         |
+| 401    | Invalid or unauthorized API key                                 |
+| 404    | Category or model not found                                     |
+| 409    | Model already exists (POST create only)                         |
+| 422    | Pydantic validation errors                                      |
+| 500    | Unexpected errors (file I/O, backend failures)                  |
+| 503    | Wrong mode (REPLICA attempting write) or wrong canonical format |
 
 The 503 responses include descriptive messages explaining which configuration change is needed, making misconfiguration easy to diagnose.
 

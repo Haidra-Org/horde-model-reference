@@ -41,11 +41,11 @@ Recorded by `PendingQueueService` when the pending queue is enabled:
 
 Set the following environment variables (all prefixed with `HORDE_MODEL_REFERENCE_`) to tailor audit storage and rotation:
 
-| Variable | Description | Default |
-| --- | --- | --- |
-| `AUDIT_ENABLED` | Toggle audit writing entirely (PRIMARY mode only). | `true` |
-| `AUDIT_MAX_SEGMENT_BYTES` | Maximum JSONL segment size before rotation. | `5 MiB` |
-| `AUDIT_RELATIVE_SUBDIR` | Folder name under the cache home for audit logs. | `audit` |
+| Variable                   | Description                                                   | Default |
+| -------------------------- | ------------------------------------------------------------- | ------- |
+| `AUDIT_ENABLED`            | Toggle audit writing entirely (PRIMARY mode only).            | `true`  |
+| `AUDIT_MAX_SEGMENT_BYTES`  | Maximum JSONL segment size before rotation.                   | `5 MiB` |
+| `AUDIT_RELATIVE_SUBDIR`    | Folder name under the cache home for audit logs.              | `audit` |
 | `AUDIT_ROOT_PATH_OVERRIDE` | Absolute path to store audit logs (bypasses relative subdir). | _unset_ |
 
 Example: `HORDE_MODEL_REFERENCE_AUDIT__MAX_SEGMENT_BYTES=1048576` rotates each megabyte, while `HORDE_MODEL_REFERENCE_AUDIT__ROOT_PATH_OVERRIDE=/var/log/horde-audit` stores logs outside the cache root.
@@ -63,16 +63,16 @@ Example: `HORDE_MODEL_REFERENCE_AUDIT__MAX_SEGMENT_BYTES=1048576` rotates each m
 - **Integrity checks**: The replay CLI can spot malformed lines using `AuditTrailReader`'s validation. Periodically run `python scripts/audit_replay.py <category> --output events --pretty` and confirm there are no warnings in stdout/stderr.
 - **Reconstructing state**: To verify that log replay matches the current JSON source of truth, compare `state` output with on-disk category files:
 
-  ```bash
-  python scripts/audit_replay.py image_generation --output state --pretty > /tmp/replayed.json
-  diff -u <(jq -S . /tmp/replayed.json) <(jq -S . /path/to/legacy/image_generation.json)
-  ```
+    ```bash
+    python scripts/audit_replay.py image_generation --output state --pretty > /tmp/replayed.json
+    diff -u <(jq -S . /tmp/replayed.json) <(jq -S . /path/to/legacy/image_generation.json)
+    ```
 
 - **Selective investigations**: Filter to one model or range of event ids to answer "who changed this" questions quickly:
 
-  ```bash
-  python scripts/audit_replay.py image_generation -m my_model --start-event-id 4500 --pretty
-  ```
+    ```bash
+    python scripts/audit_replay.py image_generation -m my_model --start-event-id 4500 --pretty
+    ```
 
 ## Maintenance Guidance
 
@@ -83,11 +83,11 @@ Example: `HORDE_MODEL_REFERENCE_AUDIT__MAX_SEGMENT_BYTES=1048576` rotates each m
 
 ## Known Friction Points & Mitigations
 
-| Area | Friction | Suggested Mitigation |
-| --- | --- | --- |
-| Disk permissions | Audit root inherits the cache directory ownership, which can differ between local dev and containers. | Ensure `CACHE_HOME` is writable before starting PRIMARY workers; the writer will create missing directories but cannot fix permissions. |
-| Large replays | Reading multiple gigabytes of logs via the CLI can take time. | Narrow the query using `--start-event-id/--end-event-id` or per-model filters, and pipe through `jq` or `rg` for incremental inspection. |
-| Multi-process writers | Only a single process updates `audit/index.json`. Multiple PRIMARY writers would clobber event ids. | Deploy one write-capable API instance per shared storage location or switch to an external append-only store if true multi-writer support is required. |
-| Retention | Repository lacks automated pruning. | Schedule OS-level jobs (systemd timer, cron, or logrotate) to archive/compress segments and delete files beyond policy. Document the schedule in ops runbooks. |
+| Area                  | Friction                                                                                              | Suggested Mitigation                                                                                                                                           |
+| --------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Disk permissions      | Audit root inherits the cache directory ownership, which can differ between local dev and containers. | Ensure `CACHE_HOME` is writable before starting PRIMARY workers; the writer will create missing directories but cannot fix permissions.                        |
+| Large replays         | Reading multiple gigabytes of logs via the CLI can take time.                                         | Narrow the query using `--start-event-id/--end-event-id` or per-model filters, and pipe through `jq` or `rg` for incremental inspection.                       |
+| Multi-process writers | Only a single process updates `audit/index.json`. Multiple PRIMARY writers would clobber event ids.   | Deploy one write-capable API instance per shared storage location or switch to an external append-only store if true multi-writer support is required.         |
+| Retention             | Repository lacks automated pruning.                                                                   | Schedule OS-level jobs (systemd timer, cron, or logrotate) to archive/compress segments and delete files beyond policy. Document the schedule in ops runbooks. |
 
 By following the practices above, the audit trail remains trustworthy, replayable, and easy to reason about when debugging production incidents.

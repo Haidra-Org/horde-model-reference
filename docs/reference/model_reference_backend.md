@@ -19,7 +19,6 @@
     - `FileSystemBackend` - Reads/writes local filesystem files
     - `RedisBackend` - Uses Redis for distributed caching (PRIMARY mode)
 
-
 ## Implementation Checklist
 
 See [`ModelReferenceBackend`][horde_model_reference.backends.base.ModelReferenceBackend] for full details.
@@ -33,8 +32,8 @@ When creating a new backend implementation:
 - `fetch_all_categories()` - Sync batch fetching
 - `fetch_category_async()` - Async data fetching
 - `fetch_all_categories_async()` - Async batch fetching
-- `needs_refresh()` - Staleness detection *(auto-provided by `ReplicaBackendBase`)*
-- `_mark_stale_impl()` - Backend-specific staleness marking *(auto-provided by `ReplicaBackendBase`)*
+- `needs_refresh()` - Staleness detection _(auto-provided by `ReplicaBackendBase`)_
+- `_mark_stale_impl()` - Backend-specific staleness marking _(auto-provided by `ReplicaBackendBase`)_
 - `get_category_file_path()` - Return file path or None
 - `get_all_category_file_paths()` - Return all file paths
 - `get_legacy_json()` - Legacy format retrieval
@@ -191,36 +190,36 @@ When implementing a new backend, ensure you test:
 ### Core Functionality Tests
 
 1. **Fetch operations:**
-   - `fetch_category()` returns correct data
-   - `fetch_category()` returns `None` for unavailable categories
-   - `fetch_all_categories()` returns dict with all categories
-   - Async variants behave identically to sync variants
+    - `fetch_category()` returns correct data
+    - `fetch_category()` returns `None` for unavailable categories
+    - `fetch_all_categories()` returns dict with all categories
+    - Async variants behave identically to sync variants
 
 2. **Cache behavior:**
-   - First fetch populates cache
-   - Second fetch uses cached data (verify with call counters)
-   - `force_refresh=True` bypasses cache
-   - TTL expiration triggers refetch
-   - `mark_stale()` invalidates cache
+    - First fetch populates cache
+    - Second fetch uses cached data (verify with call counters)
+    - `force_refresh=True` bypasses cache
+    - TTL expiration triggers refetch
+    - `mark_stale()` invalidates cache
 
 3. **Helper methods (if using ReplicaBackendBase):**
-   - `has_cached_data()` returns `False` before first fetch, `True` after
-   - `should_fetch_data()` returns `True` when cache is invalid or stale
-   - `needs_refresh()` returns `False` for initial state, `True` for stale data
+    - `has_cached_data()` returns `False` before first fetch, `True` after
+    - `should_fetch_data()` returns `True` when cache is invalid or stale
+    - `needs_refresh()` returns `False` for initial state, `True` for stale data
 
 ### Write Operations Tests (if supported)
 
 1. **Update operations:**
-   - `update_model()` creates new model
-   - `update_model()` updates existing model
-   - Cache is invalidated after update
-   - Callbacks are notified after update
+    - `update_model()` creates new model
+    - `update_model()` updates existing model
+    - Cache is invalidated after update
+    - Callbacks are notified after update
 
 2. **Delete operations:**
-   - `delete_model()` removes existing model
-   - `delete_model()` raises `KeyError` for non-existent model
-   - Cache is invalidated after delete
-   - Callbacks are notified after delete
+    - `delete_model()` removes existing model
+    - `delete_model()` raises `KeyError` for non-existent model
+    - Cache is invalidated after delete
+    - Callbacks are notified after delete
 
 ### Semantic Correctness Tests
 
@@ -253,30 +252,30 @@ See `tests/test_replica_backend_base.py`, `tests/test_http_backend.py`, and `tes
 
 All backends must implement these methods from [`ModelReferenceBackend`][horde_model_reference.backends.base.ModelReferenceBackend]:
 
-| Method | Purpose |
-|--------|---------|
-| [`fetch_category()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_category] | Fetch single category data |
-| [`fetch_all_categories()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_all_categories] | Fetch all categories data |
-| [`fetch_category_async()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_category_async] | Async single category fetch |
-| [`fetch_all_categories_async()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_all_categories_async] | Async all categories fetch |
-| [`needs_refresh()`][horde_model_reference.backends.base.ModelReferenceBackend.needs_refresh] | Check if cached data is stale |
-| [`_mark_stale_impl()`][horde_model_reference.backends.base.ModelReferenceBackend._mark_stale_impl] | Backend-specific staleness marking |
-| [`get_category_file_path()`][horde_model_reference.backends.base.ModelReferenceBackend.get_category_file_path] | Get file path for category |
-| [`get_all_category_file_paths()`][horde_model_reference.backends.base.ModelReferenceBackend.get_all_category_file_paths] | Get all file paths |
-| [`get_legacy_json()`][horde_model_reference.backends.base.ModelReferenceBackend.get_legacy_json] | Get legacy format dict |
-| [`get_legacy_json_string()`][horde_model_reference.backends.base.ModelReferenceBackend.get_legacy_json_string] | Get legacy format string |
+| Method                                                                                                                   | Purpose                            |
+| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| [`fetch_category()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_category]                           | Fetch single category data         |
+| [`fetch_all_categories()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_all_categories]               | Fetch all categories data          |
+| [`fetch_category_async()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_category_async]               | Async single category fetch        |
+| [`fetch_all_categories_async()`][horde_model_reference.backends.base.ModelReferenceBackend.fetch_all_categories_async]   | Async all categories fetch         |
+| [`needs_refresh()`][horde_model_reference.backends.base.ModelReferenceBackend.needs_refresh]                             | Check if cached data is stale      |
+| [`_mark_stale_impl()`][horde_model_reference.backends.base.ModelReferenceBackend._mark_stale_impl]                       | Backend-specific staleness marking |
+| [`get_category_file_path()`][horde_model_reference.backends.base.ModelReferenceBackend.get_category_file_path]           | Get file path for category         |
+| [`get_all_category_file_paths()`][horde_model_reference.backends.base.ModelReferenceBackend.get_all_category_file_paths] | Get all file paths                 |
+| [`get_legacy_json()`][horde_model_reference.backends.base.ModelReferenceBackend.get_legacy_json]                         | Get legacy format dict             |
+| [`get_legacy_json_string()`][horde_model_reference.backends.base.ModelReferenceBackend.get_legacy_json_string]           | Get legacy format string           |
 
 > Inheriting from `ReplicaBackendBase` satisfies `needs_refresh()` and `_mark_stale_impl()` automatically, leaving only the fetch/file-path methods for you to implement.
 
 ### Optional Methods (Override If Needed)
 
-| Feature | Detection Method | Implementation Methods |
-|---------|------------------|----------------------|
-| **Writes** | [`supports_writes()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_writes] | [`update_model()`][horde_model_reference.backends.base.ModelReferenceBackend.update_model], [`delete_model()`][horde_model_reference.backends.base.ModelReferenceBackend.delete_model] |
+| Feature           | Detection Method                                                                                               | Implementation Methods                                                                                                                                                                                             |
+| ----------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Writes**        | [`supports_writes()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_writes]               | [`update_model()`][horde_model_reference.backends.base.ModelReferenceBackend.update_model], [`delete_model()`][horde_model_reference.backends.base.ModelReferenceBackend.delete_model]                             |
 | **Legacy Writes** | [`supports_legacy_writes()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_legacy_writes] | [`update_model_legacy()`][horde_model_reference.backends.base.ModelReferenceBackend.update_model_legacy], [`delete_model_legacy()`][horde_model_reference.backends.base.ModelReferenceBackend.delete_model_legacy] |
-| **Cache Warming** | [`supports_cache_warming()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_cache_warming] | [`warm_cache()`][horde_model_reference.backends.base.ModelReferenceBackend.warm_cache], [`warm_cache_async()`][horde_model_reference.backends.base.ModelReferenceBackend.warm_cache_async] |
-| **Health Checks** | [`supports_health_checks()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_health_checks] | [`health_check()`][horde_model_reference.backends.base.ModelReferenceBackend.health_check] |
-| **Statistics** | [`supports_statistics()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_statistics] | [`get_statistics()`][horde_model_reference.backends.base.ModelReferenceBackend.get_statistics] |
+| **Cache Warming** | [`supports_cache_warming()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_cache_warming] | [`warm_cache()`][horde_model_reference.backends.base.ModelReferenceBackend.warm_cache], [`warm_cache_async()`][horde_model_reference.backends.base.ModelReferenceBackend.warm_cache_async]                         |
+| **Health Checks** | [`supports_health_checks()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_health_checks] | [`health_check()`][horde_model_reference.backends.base.ModelReferenceBackend.health_check]                                                                                                                         |
+| **Statistics**    | [`supports_statistics()`][horde_model_reference.backends.base.ModelReferenceBackend.supports_statistics]       | [`get_statistics()`][horde_model_reference.backends.base.ModelReferenceBackend.get_statistics]                                                                                                                     |
 
 ### Recommended Approach
 
@@ -284,9 +283,9 @@ All backends must implement these methods from [`ModelReferenceBackend`][horde_m
 2. **Implement required abstract methods** using caching helpers like [`_fetch_with_cache()`][horde_model_reference.backends.replica_backend_base.ReplicaBackendBase._fetch_with_cache]
 3. **Override optional methods** only if needed
 4. **Follow implementation patterns** from existing backends:
-   - [`HTTPBackend`][horde_model_reference.backends.http_backend.HTTPBackend]
-   - [`FileSystemBackend`][horde_model_reference.backends.filesystem_backend.FileSystemBackend]
-   - [`GitHubBackend`][horde_model_reference.backends.github_backend.GitHubBackend]
-   - [`RedisBackend`][horde_model_reference.backends.redis_backend.RedisBackend]
+    - [`HTTPBackend`][horde_model_reference.backends.http_backend.HTTPBackend]
+    - [`FileSystemBackend`][horde_model_reference.backends.filesystem_backend.FileSystemBackend]
+    - [`GitHubBackend`][horde_model_reference.backends.github_backend.GitHubBackend]
+    - [`RedisBackend`][horde_model_reference.backends.redis_backend.RedisBackend]
 
 See the [ReplicaBackendBase documentation](replica_backend_base.md) for details on the caching infrastructure.

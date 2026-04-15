@@ -47,27 +47,27 @@ graph TD
 
 ## Subsystem Directory Map
 
-| Directory | Purpose |
-|-----------|---------|
-| `backends/` | Pluggable data-source backends (filesystem, Redis, GitHub, HTTP) |
-| `service/` | FastAPI app factory, v1/v2 routers, statistics and pending-queue endpoints |
-| `legacy/` | Legacy format download, conversion, and validation |
-| `audit/` | Append-only audit trail (events, writer, reader, replay) |
-| `pending_queue/` | Propose / approve / apply change queue |
-| `analytics/` | Statistics computation, caching, audit analysis, text model parsing |
-| `sync/` | GitHub synchronization (comparator, PR creation, watch mode) |
-| `integrations/` | AI-Horde public API client, runtime data merger |
+| Directory        | Purpose                                                                    |
+| ---------------- | -------------------------------------------------------------------------- |
+| `backends/`      | Pluggable data-source backends (filesystem, Redis, GitHub, HTTP)           |
+| `service/`       | FastAPI app factory, v1/v2 routers, statistics and pending-queue endpoints |
+| `legacy/`        | Legacy format download, conversion, and validation                         |
+| `audit/`         | Append-only audit trail (events, writer, reader, replay)                   |
+| `pending_queue/` | Propose / approve / apply change queue                                     |
+| `analytics/`     | Statistics computation, caching, audit analysis, text model parsing        |
+| `sync/`          | GitHub synchronization (comparator, PR creation, watch mode)               |
+| `integrations/`  | AI-Horde public API client, runtime data merger                            |
 
 ## Backend Selection
 
 The manager auto-selects a backend based on `REPLICATE_MODE` and Redis configuration:
 
-| Configuration | Backend |
-|---------------|---------|
-| PRIMARY without Redis | `FileSystemBackend` |
-| PRIMARY with Redis | `RedisBackend` wrapping `FileSystemBackend` |
-| REPLICA with `primary_api_url` | `HTTPBackend` (PRIMARY API + GitHub fallback) |
-| REPLICA without `primary_api_url` | `GitHubBackend` only |
+| Configuration                     | Backend                                       |
+| --------------------------------- | --------------------------------------------- |
+| PRIMARY without Redis             | `FileSystemBackend`                           |
+| PRIMARY with Redis                | `RedisBackend` wrapping `FileSystemBackend`   |
+| REPLICA with `primary_api_url`    | `HTTPBackend` (PRIMARY API + GitHub fallback) |
+| REPLICA without `primary_api_url` | `GitHubBackend` only                          |
 
 All backends implement the `ModelReferenceBackend` ABC. Capability checks like `supports_writes()` and `supports_legacy_writes()` let callers determine what operations are available at runtime.
 

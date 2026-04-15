@@ -6,10 +6,10 @@ The `text_generation` category is unique in the model reference system as it's t
 
 ## File Format Summary
 
-| Category | Legacy Format | V2 Format | Legacy Path | V2 Path |
-|----------|---------------|-----------|-------------|---------|
-| `text_generation` | **CSV** | JSON | `{base}/legacy/models.csv` | `{base}/text_generation.json` |
-| All others | JSON | JSON | `{base}/legacy/{category}.json` | `{base}/{category}.json` |
+| Category          | Legacy Format | V2 Format | Legacy Path                     | V2 Path                       |
+| ----------------- | ------------- | --------- | ------------------------------- | ----------------------------- |
+| `text_generation` | **CSV**       | JSON      | `{base}/legacy/models.csv`      | `{base}/text_generation.json` |
+| All others        | JSON          | JSON      | `{base}/legacy/{category}.json` | `{base}/{category}.json`      |
 
 ## CSV Structure
 
@@ -94,8 +94,8 @@ settings: dict[str, int | float | str | list[int] | list[float] | list[str] | bo
 
 ```json
 {
-    "nested": {"key": "value"},  // ❌ Nested dicts not allowed
-    "complex": {"another": {"level": "here"}}  // ❌ Nested dicts not allowed
+    "nested": { "key": "value" }, // ❌ Nested dicts not allowed
+    "complex": { "another": { "level": "here" } } // ❌ Nested dicts not allowed
 }
 ```
 

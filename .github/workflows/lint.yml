@@ -9,11 +9,11 @@ on:
     branches:
       - main
     paths:
-      - '**.py'
-      - 'pyproject.toml'
-      - 'uv.lock'
-      - '.github/workflows/lint.yml'
-      - '.pre-commit-config.yaml'
+      - "**.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/lint.yml"
+      - ".pre-commit-config.yaml"
 
 jobs:
   pre-commit:

@@ -32,16 +32,16 @@ The sync pipeline has four stages: **detect** changes via metadata polling, **co
 
 `HordeGitHubSyncSettings` controls sync behavior with the `HORDE_GITHUB_SYNC_` environment variable prefix:
 
-| Setting | Purpose |
-|---------|---------|
-| `primary_api_url` | PRIMARY instance v1 API base URL (required) |
-| `github_token` | Personal access token with repo write permissions |
-| `categories_to_sync` | Whitelist of categories (defaults to all) |
-| `min_changes_threshold` | Minimum changes needed to create a PR (default: 1) |
-| `dry_run` | Compare without creating PRs |
-| `watch_mode` | Enable continuous monitoring |
-| `watch_interval_seconds` | Polling interval (default: 60s) |
-| `target_clone_dir` | Persistent clone directory for reuse across runs |
+| Setting                  | Purpose                                            |
+| ------------------------ | -------------------------------------------------- |
+| `primary_api_url`        | PRIMARY instance v1 API base URL (required)        |
+| `github_token`           | Personal access token with repo write permissions  |
+| `categories_to_sync`     | Whitelist of categories (defaults to all)          |
+| `min_changes_threshold`  | Minimum changes needed to create a PR (default: 1) |
+| `dry_run`                | Compare without creating PRs                       |
+| `watch_mode`             | Enable continuous monitoring                       |
+| `watch_interval_seconds` | Polling interval (default: 60s)                    |
+| `target_clone_dir`       | Persistent clone directory for reuse across runs   |
 
 ## Authentication
 
@@ -72,7 +72,7 @@ The sync client handles the git workflow for publishing changes:
 5. **PR creation** — creates a pull request via the GitHub API, closes any existing sync PRs for the same category, and applies configured labels and reviewers.
 
 !!! tip
-    Use `target_clone_dir` in production to avoid re-cloning on every sync cycle. The client verifies repository identity (owner/repo from the remote URL) before reusing an existing clone, preventing data corruption from mismatched directories.
+Use `target_clone_dir` in production to avoid re-cloning on every sync cycle. The client verifies repository identity (owner/repo from the remote URL) before reusing an existing clone, preventing data corruption from mismatched directories.
 
 ## Watch Mode
 
