@@ -5,14 +5,14 @@ on:
     branches:
       - main
     paths:
-      - '**.py'
-      - '**.md'
-      - '**.json'
-      - '.github/workflows/maintests.yml'
-      - '.github/workflows/prtests.yml'
-      - '.github/workflows/release.yml'
-      - 'uv.lock'
-      - 'pyproject.toml'
+      - "**.py"
+      - "**.md"
+      - "**.json"
+      - ".github/workflows/maintests.yml"
+      - ".github/workflows/prtests.yml"
+      - ".github/workflows/release.yml"
+      - "uv.lock"
+      - "pyproject.toml"
 jobs:
   no_extra_fields:
     env:
@@ -68,7 +68,6 @@ jobs:
       - name: Check that query fields have not drifted
         run: uv run python scripts/verify_query_fields.py
 
-
   build:
     env:
       AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
@@ -91,7 +90,6 @@ jobs:
 
       - name: Install the project
         run: uv sync --locked --all-extras --dev
-
 
       - name: Run tests
         run: uv run pytest tests -m "not integration"

@@ -48,12 +48,12 @@ export HORDE_MODEL_REFERENCE_REDIS__USE_REDIS=true  # for multi-worker
 
 The package uses a pluggable backend system:
 
-| Backend | Mode | Purpose | Use Case |
-|---------|------|---------|----------|
-| **FileSystemBackend** | PRIMARY | Direct file I/O | Single-worker PRIMARY server |
-| **RedisBackend** | PRIMARY | Distributed cache wrapper | Multi-worker PRIMARY server |
-| **GitHubBackend** | REPLICA | GitHub downloads | REPLICA without PRIMARY API |
-| **HTTPBackend** | REPLICA | PRIMARY API + fallback | REPLICA with PRIMARY API (recommended) |
+| Backend               | Mode    | Purpose                   | Use Case                               |
+| --------------------- | ------- | ------------------------- | -------------------------------------- |
+| **FileSystemBackend** | PRIMARY | Direct file I/O           | Single-worker PRIMARY server           |
+| **RedisBackend**      | PRIMARY | Distributed cache wrapper | Multi-worker PRIMARY server            |
+| **GitHubBackend**     | REPLICA | GitHub downloads          | REPLICA without PRIMARY API            |
+| **HTTPBackend**       | REPLICA | PRIMARY API + fallback    | REPLICA with PRIMARY API (recommended) |
 
 **Backend Selection (Automatic):**
 

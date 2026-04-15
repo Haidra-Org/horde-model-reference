@@ -841,12 +841,12 @@ This ensures the next `fetch_category()` call reloads the modified data from dis
 
 ### Essential Helpers for Your Implementations
 
-| Helper Method | Purpose | When to Use |
-|---------------|---------|-------------|
-| `should_fetch_data(category)` | Check if data needs fetching | In `fetch_category()` to decide whether to fetch |
-| `_get_from_cache(category)` | Retrieve valid cached data | To return cached data after checking |
-| `_store_in_cache(category, data)` | Store fetched data | After loading data from disk/network |
-| `_invalidate_cache(category)` | Mark cache as invalid | On write operations or errors |
+| Helper Method                     | Purpose                      | When to Use                                      |
+| --------------------------------- | ---------------------------- | ------------------------------------------------ |
+| `should_fetch_data(category)`     | Check if data needs fetching | In `fetch_category()` to decide whether to fetch |
+| `_get_from_cache(category)`       | Retrieve valid cached data   | To return cached data after checking             |
+| `_store_in_cache(category, data)` | Store fetched data           | After loading data from disk/network             |
+| `_invalidate_cache(category)`     | Mark cache as invalid        | On write operations or errors                    |
 
 ### Standard Implementation Patterns
 

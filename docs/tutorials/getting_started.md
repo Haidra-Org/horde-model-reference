@@ -32,7 +32,7 @@ On first run the manager fetches model reference data from the PRIMARY server (`
 
 ## The Singleton Pattern
 
-`ModelReferenceManager` is a **singleton**. The first instantiation locks in its configuration (backend, base path, prefetch strategy). Any subsequent call to `ModelReferenceManager()` returns the same instance. Attempting to create a second instance with *different* parameters raises `RuntimeError`.
+`ModelReferenceManager` is a **singleton**. The first instantiation locks in its configuration (backend, base path, prefetch strategy). Any subsequent call to `ModelReferenceManager()` returns the same instance. Attempting to create a second instance with _different_ parameters raises `RuntimeError`.
 
 **Correct pattern** -- initialize once, reuse everywhere:
 
@@ -62,13 +62,13 @@ manager = ModelReferenceManager.get_instance()  # raises RuntimeError if not yet
 
 The `prefetch_strategy` parameter controls when model data is fetched from the backend:
 
-| Strategy | Behavior | Best For |
-| -------- | -------- | -------- |
-| `LAZY` (default) | Defers fetching until you first access data | Scripts, CLIs, most consumers |
-| `SYNC` | Fetches all categories immediately during init | Latency-sensitive services that are OK with blocking on startup |
-| `ASYNC` | Schedules a background async fetch if an event loop is running | FastAPI / async services |
-| `DEFERRED` | Creates a handle you trigger later via `handle.run_sync()` or `await handle.run_async()` | Fine-grained startup control |
-| `NONE` | No automatic fetching at all; you call cache helpers manually | Testing, custom orchestration |
+| Strategy         | Behavior                                                                                 | Best For                                                        |
+| ---------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `LAZY` (default) | Defers fetching until you first access data                                              | Scripts, CLIs, most consumers                                   |
+| `SYNC`           | Fetches all categories immediately during init                                           | Latency-sensitive services that are OK with blocking on startup |
+| `ASYNC`          | Schedules a background async fetch if an event loop is running                           | FastAPI / async services                                        |
+| `DEFERRED`       | Creates a handle you trigger later via `handle.run_sync()` or `await handle.run_async()` | Fine-grained startup control                                    |
+| `NONE`           | No automatic fetching at all; you call cache helpers manually                            | Testing, custom orchestration                                   |
 
 ```python
 from horde_model_reference import ModelReferenceManager, PrefetchStrategy

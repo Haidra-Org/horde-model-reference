@@ -9,10 +9,10 @@ on:
     branches:
       - main
     paths:
-      - 'Dockerfile'
-      - 'docker-compose*.yml'
-      - '.dockerignore'
-      - '.github/workflows/docker-validation.yml'
+      - "Dockerfile"
+      - "docker-compose*.yml"
+      - ".dockerignore"
+      - ".github/workflows/docker-validation.yml"
 
 permissions:
   security-events: write
@@ -253,11 +253,11 @@ jobs:
       - name: Run Trivy vulnerability scanner on Dockerfile
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          scan-type: 'config'
-          scan-ref: 'Dockerfile'
-          format: 'sarif'
-          output: 'trivy-dockerfile-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          scan-type: "config"
+          scan-ref: "Dockerfile"
+          format: "sarif"
+          output: "trivy-dockerfile-results.sarif"
+          severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy SARIF results
         if: always()
@@ -289,11 +289,11 @@ jobs:
       - name: Run Trivy vulnerability scanner on image
         uses: aquasecurity/trivy-action@0.35.0
         with:
-          scan-type: 'image'
-          image-ref: 'horde-model-reference:scan'
-          format: 'sarif'
-          output: 'trivy-image-results.sarif'
-          severity: 'CRITICAL,HIGH'
+          scan-type: "image"
+          image-ref: "horde-model-reference:scan"
+          format: "sarif"
+          output: "trivy-image-results.sarif"
+          severity: "CRITICAL,HIGH"
 
       - name: Upload Trivy image SARIF results
         if: always()

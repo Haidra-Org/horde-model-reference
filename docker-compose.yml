@@ -67,7 +67,13 @@ services:
       - "org.haidra.service=github-sync"
       - "org.haidra.mode=sync"
     # Use native watch mode instead of shell loop
-    command: ["/app/.venv/bin/python", "scripts/sync/sync_github_references.py", "--watch", "--watch-startup-sync"]
+    command:
+      [
+        "/app/.venv/bin/python",
+        "scripts/sync/sync_github_references.py",
+        "--watch",
+        "--watch-startup-sync",
+      ]
 
 volumes:
   model-data:

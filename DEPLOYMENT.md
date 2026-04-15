@@ -215,15 +215,15 @@ redis-cli ping
 
 See `.env.example` for all available options, or `.env.primary.example` for PRIMARY-specific configuration. Common settings:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `HORDE_MODEL_REFERENCE_REPLICATE_MODE` | `REPLICA` | Set to `PRIMARY` for server mode |
-| `HORDE_MODEL_REFERENCE_MAKE_FOLDERS` | `false` | Auto-create directories |
-| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` | `legacy` | Use legacy format (pre-v2 transition) |
-| `HORDE_MODEL_REFERENCE_REDIS__USE_REDIS` | `false` | Enable Redis (multi-worker) |
-| `HORDE_MODEL_REFERENCE_REDIS__URL` | `redis://localhost:6379/0` | Redis connection |
-| `HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS` | `60` | Cache lifetime |
-| `HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED` | `false` | Auto-seed on first start |
+| Variable                                    | Default                    | Description                           |
+| ------------------------------------------- | -------------------------- | ------------------------------------- |
+| `HORDE_MODEL_REFERENCE_REPLICATE_MODE`      | `REPLICA`                  | Set to `PRIMARY` for server mode      |
+| `HORDE_MODEL_REFERENCE_MAKE_FOLDERS`        | `false`                    | Auto-create directories               |
+| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT`    | `legacy`                   | Use legacy format (pre-v2 transition) |
+| `HORDE_MODEL_REFERENCE_REDIS__USE_REDIS`    | `false`                    | Enable Redis (multi-worker)           |
+| `HORDE_MODEL_REFERENCE_REDIS__URL`          | `redis://localhost:6379/0` | Redis connection                      |
+| `HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS`   | `60`                       | Cache lifetime                        |
+| `HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED` | `false`                    | Auto-seed on first start              |
 
 ---
 

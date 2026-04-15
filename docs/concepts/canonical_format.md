@@ -20,12 +20,12 @@ HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=v2
 
 ### Interaction with Replicate Mode
 
-| Setting | Replicate Mode | V1 API | V2 API |
-|---------|---------------|--------|--------|
-| `legacy` | PRIMARY | Read/Write | Read-Only |
-| `legacy` | REPLICA | Read-Only | Read-Only |
-| `v2` | PRIMARY | Read-Only | Read/Write |
-| `v2` | REPLICA | Read-Only | Read-Only |
+| Setting  | Replicate Mode | V1 API     | V2 API     |
+| -------- | -------------- | ---------- | ---------- |
+| `legacy` | PRIMARY        | Read/Write | Read-Only  |
+| `legacy` | REPLICA        | Read-Only  | Read-Only  |
+| `v2`     | PRIMARY        | Read-Only  | Read/Write |
+| `v2`     | REPLICA        | Read-Only  | Read-Only  |
 
 **Key Points:**
 
@@ -39,19 +39,19 @@ The `/replicate_mode` endpoint returns comprehensive backend configuration infor
 
 ```json
 {
-  "replicate_mode": "PRIMARY",
-  "canonical_format": "LEGACY",
-  "writable": true
+    "replicate_mode": "PRIMARY",
+    "canonical_format": "LEGACY",
+    "writable": true
 }
 ```
 
 ### Response Fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `replicate_mode` | `ReplicateMode` | Either `PRIMARY` or `REPLICA` |
-| `canonical_format` | `CanonicalFormat` | Either `LEGACY` or `V2` |
-| `writable` | `boolean` | Whether the backend accepts write operations |
+| Field              | Type              | Description                                  |
+| ------------------ | ----------------- | -------------------------------------------- |
+| `replicate_mode`   | `ReplicateMode`   | Either `PRIMARY` or `REPLICA`                |
+| `canonical_format` | `CanonicalFormat` | Either `LEGACY` or `V2`                      |
+| `writable`         | `boolean`         | Whether the backend accepts write operations |
 
 ### Usage in Frontend Clients
 
@@ -151,10 +151,12 @@ The canonical format should not be changed while the system is in production wit
 **Symptom:** All create/update/delete operations fail with "Service Unavailable".
 
 **Cause:**
+
 - Backend is in REPLICA mode, OR
 - Using the wrong API version for the canonical format
 
 **Solution:**
+
 1. Check `/replicate_mode` response
 2. Ensure you're using the API matching the canonical format
 3. Only PRIMARY mode backends support writes
@@ -169,10 +171,10 @@ The canonical format should not be changed while the system is in production wit
 
 ## Environment Variable Reference
 
-| Variable | Values | Default | Description |
-|----------|--------|---------|-------------|
-| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` | `legacy`, `v2` | `legacy` | Which API version is the source of truth |
-| `HORDE_MODEL_REFERENCE_REPLICATE_MODE` | `PRIMARY`, `REPLICA` | `PRIMARY` | Whether this instance accepts writes |
+| Variable                                 | Values               | Default   | Description                              |
+| ---------------------------------------- | -------------------- | --------- | ---------------------------------------- |
+| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` | `legacy`, `v2`       | `legacy`  | Which API version is the source of truth |
+| `HORDE_MODEL_REFERENCE_REPLICATE_MODE`   | `PRIMARY`, `REPLICA` | `PRIMARY` | Whether this instance accepts writes     |
 
 ## Related Documentation
 

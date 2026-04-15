@@ -8,14 +8,14 @@ on:
       - opened
       - synchronize
     paths:
-      - '**.py'
-      - '**.md'
-      - '**.json'
-      - '.github/workflows/maintests.yml'
-      - '.github/workflows/prtests.yml'
-      - '.github/workflows/release.yml'
-      - 'uv.lock'
-      - 'pyproject.toml'
+      - "**.py"
+      - "**.md"
+      - "**.json"
+      - ".github/workflows/maintests.yml"
+      - ".github/workflows/prtests.yml"
+      - ".github/workflows/release.yml"
+      - "uv.lock"
+      - "pyproject.toml"
 jobs:
   no_extra_fields:
     env:

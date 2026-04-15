@@ -6,12 +6,12 @@ This tutorial covers the environment variables consumers care about, how data fl
 
 All settings use the `HORDE_MODEL_REFERENCE_` prefix. Most consumers only need a few:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `CACHE_TTL_SECONDS` | `60` | How long (seconds) cached data stays valid before re-checking the backend |
-| `PRIMARY_API_URL` | `https://models.aihorde.net/` | URL of the PRIMARY server to fetch from. Set to empty to use GitHub only |
-| `ENABLE_GITHUB_FALLBACK` | `True` | Whether to fall back to GitHub if the PRIMARY API is unreachable |
-| `PRIMARY_API_TIMEOUT` | `10` | Timeout (seconds) for PRIMARY API requests |
+| Variable                 | Default                       | Description                                                               |
+| ------------------------ | ----------------------------- | ------------------------------------------------------------------------- |
+| `CACHE_TTL_SECONDS`      | `60`                          | How long (seconds) cached data stays valid before re-checking the backend |
+| `PRIMARY_API_URL`        | `https://models.aihorde.net/` | URL of the PRIMARY server to fetch from. Set to empty to use GitHub only  |
+| `ENABLE_GITHUB_FALLBACK` | `True`                        | Whether to fall back to GitHub if the PRIMARY API is unreachable          |
+| `PRIMARY_API_TIMEOUT`    | `10`                          | Timeout (seconds) for PRIMARY API requests                                |
 
 Set them via environment variables or a `.env` file:
 
@@ -58,6 +58,7 @@ In the typical consumer scenario (REPLICA mode), the manager fetches from the PR
 ### RuntimeError: Singleton Conflict
 
 **Symptom:**
+
 ```
 RuntimeError: ModelReferenceManager is a singleton and has already been instantiated
 with different settings.
@@ -75,12 +76,12 @@ with different settings.
 
 **Understanding safe vs. unsafe methods:**
 
-| Method | Returns | On failure |
-|--------|---------|------------|
-| `get_model_reference(cat)` | `dict[str, GenericModelRecord]` | Raises `RuntimeError` |
-| `get_model_reference_or_none(cat)` | `dict[str, GenericModelRecord] \| None` | Returns `None` |
-| `get_model(cat, name)` | `GenericModelRecord` | Raises `RuntimeError` |
-| `get_model_or_none(cat, name)` | `GenericModelRecord \| None` | Returns `None` |
+| Method                             | Returns                                 | On failure            |
+| ---------------------------------- | --------------------------------------- | --------------------- |
+| `get_model_reference(cat)`         | `dict[str, GenericModelRecord]`         | Raises `RuntimeError` |
+| `get_model_reference_or_none(cat)` | `dict[str, GenericModelRecord] \| None` | Returns `None`        |
+| `get_model(cat, name)`             | `GenericModelRecord`                    | Raises `RuntimeError` |
+| `get_model_or_none(cat, name)`     | `GenericModelRecord \| None`            | Returns `None`        |
 
 Use the non-`unsafe` variants when you need guaranteed data. Use `unsafe` variants when you want to handle missing data gracefully.
 
