@@ -1,2 +1,3 @@
-# _version
-::: horde_model_reference._version
+# \_version
+
+::: horde_model_reference.\_version
