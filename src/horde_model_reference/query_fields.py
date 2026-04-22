@@ -229,6 +229,7 @@ class TextFields(GenericFields):
     instruct_format: FieldRef = FieldRef("instruct_format")
     settings: FieldRef = FieldRef("settings")
     text_model_group: FieldRef = FieldRef("text_model_group")
+    name_schema_exception: FieldRef = FieldRef("name_schema_exception")
 
 
 class ControlNetFields(GenericFields):
