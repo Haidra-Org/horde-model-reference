@@ -359,11 +359,7 @@ class TestSchemaExtraParts:
 
 
 class TestRealWorldConsolidation:
-    """Verify that real model names from the AI Horde text reference
-    correctly group together after the Phase 3 parser improvements.
-
-    Each test documents *why* the models should share a group.
-    """
+    """Verify that real model names from the AI Horde text reference correctly group together."""
 
     def test_mistral_large_date_variants(self) -> None:
         """Mistral-Large-Instruct-2407 / -2411 differ only by release date.
@@ -391,7 +387,7 @@ class TestRealWorldConsolidation:
         assert base_no_size == base_with_size == "Mistral-Small"
 
     def test_glm4_multiple_sizes_same_date(self) -> None:
-        """GLM-4-32B-0414 and GLM-4-9B-0414 are size variants of GLM-4.
+        r"""GLM-4-32B-0414 and GLM-4-9B-0414 are size variants of GLM-4.
 
         The `-4` in `GLM-4` is a single digit — NOT a 4-digit date code.
         The 4-digit date pattern requires exactly 4 digits (`\\d{4}`), so
@@ -443,7 +439,7 @@ class TestRealWorldConsolidation:
         assert all(b == "Ministral-3" for b in bases)
 
     def test_deepseek_v2_5_with_date_code(self) -> None:
-        """DeepSeek-V2.5-1210 extracts version V2.5 and date 1210.
+        r"""DeepSeek-V2.5-1210 extracts version V2.5 and date 1210.
 
         `V2.5` matches the version pattern (`V\\d+\\.\\d+`). After version
         removal, `-1210` is a standalone 4-digit date code (December 2010
@@ -496,9 +492,7 @@ class TestRealWorldConsolidation:
 
 
 class TestRealWorldSeparation:
-    """Verify that models which are genuinely distinct do NOT accidentally
-    merge into the same group.
-    """
+    r"""Verify that models which are genuinely distinct do NOT accidentally merge into the same group."""
 
     def test_qwen3_moe_different_active_sizes(self) -> None:
         """Qwen3-A22B vs Qwen3-A3B are architecturally distinct MoE models.
@@ -679,7 +673,7 @@ class TestParserCornerCases:
         assert leading[0].value == "4.2.0"
 
     def test_moe_8x7b_extracted_as_size(self) -> None:
-        """Noromaid-v0.1-mixtral-8x7b-v3: MoE size `8x7b` is extracted.
+        r"""Noromaid-v0.1-mixtral-8x7b-v3: MoE size `8x7b` is extracted.
 
         The MoE size pattern `\\d+x\\d+[BMK]` matches `8x7b`. The first
         version pattern match is `v0.1`. After both are extracted, `v3`
@@ -718,7 +712,7 @@ class TestParserCornerCases:
         assert parsed.size == "33B"
 
     def test_fractional_size_extracted(self) -> None:
-        """Qwen2.5-Coder-0.5B: the fractional size `0.5B` is extracted.
+        r"""Qwen2.5-Coder-0.5B: the fractional size `0.5B` is extracted.
 
         The size regex `\\d+\\.?\\d*[BMK]` matches `0.5B`. The base after
         extraction should be `Qwen2.5-Coder`.
@@ -744,7 +738,7 @@ class TestParserCornerCases:
         assert date_extras[0].value == "0414"
 
     def test_underscore_separated_name(self) -> None:
-        """Pernicious_Prophecy_70B: underscore separators work like hyphens.
+        r"""Pernicious_Prophecy_70B: underscore separators work like hyphens.
 
         The size regex uses `(?<![a-zA-Z])` / `(?![a-zA-Z])` instead of
         `\\b` specifically to handle underscore boundaries. `70B` should
@@ -808,8 +802,7 @@ class TestParserCornerCases:
         assert parsed.base_name == "c4ai-command-r"
 
     def test_code_variant_not_confused_with_model_name(self) -> None:
-        """Qwen2.5-Coder-32B-Instruct: `Code` would match as variant but
-        `Coder` does not, because the variant pattern uses word boundaries.
+        r"""Qwen2.5-Coder-32B-Instruct: `Code` would match as variant but `Coder` does not; var. uses word boundaries.
 
         `\\bCode\\b` matches `Code` as a whole word. `Coder` has an `r`
         after `Code`, so the word boundary `\\b` fails. `Coder` correctly
@@ -833,7 +826,7 @@ class TestParserCornerCases:
         assert parsed.base_name == "BlueMethod"
 
     def test_version_with_many_dots(self) -> None:
-        """Captain-Eris_Violet-V0.420-12B: multi-digit version V0.420.
+        r"""Captain-Eris_Violet-V0.420-12B: multi-digit version V0.420.
 
         The version pattern matches `V\\d+(\\.\\d+)+`, so V0.420 is
         captured as a single version string.
