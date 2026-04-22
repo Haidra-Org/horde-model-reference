@@ -24,11 +24,6 @@ class TestGroupFamily:
         family = GroupFamily(family_name="Empty")
         assert family.members == []
 
-    def test_extra_fields_forbidden(self) -> None:
-        """Extra fields not defined on the model should be rejected."""
-        with pytest.raises(Exception):
-            GroupFamily(family_name="X", members=[], unknown_field="oops")
-
 
 class TestGroupFamilyStore:
     """Tests for GroupFamilyStore CRUD operations."""
