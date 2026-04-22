@@ -2,6 +2,10 @@
 
 Provides functionality to group text generation models by base name (stripping
 quantization information) and aggregate metrics across grouped variants.
+
+When a :class:`~horde_model_reference.group_aliases.GroupAliasStore` is
+provided, alias resolution is applied after base-name extraction so that
+explicitly aliased model families are collapsed into a single group.
 """
 
 from __future__ import annotations
@@ -16,6 +20,7 @@ from horde_model_reference.analytics.deletion_risk_analysis import (
     UsageTrend,
 )
 from horde_model_reference.analytics.text_model_parser import get_base_model_name
+from horde_model_reference.group_aliases import GroupAliasStore
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 
 
@@ -89,14 +94,22 @@ def merge_usage_trends(trends: list[UsageTrend], weights: list[int]) -> UsageTre
     )
 
 
-def group_risk_models(models: list[ModelDeletionRiskInfo]) -> list[ModelDeletionRiskInfo]:
+def group_risk_models(
+    models: list[ModelDeletionRiskInfo],
+    *,
+    alias_store: GroupAliasStore | None = None,
+) -> list[ModelDeletionRiskInfo]:
     """Group text model variants by base name and aggregate metrics.
 
     Combines multiple quantization variants (Q4_K_M, Q5_0, etc.) into a single
     model entry with aggregated metrics.
 
+    When *alias_store* is provided, the alias-resolved canonical name is used
+    as the group key so that explicitly aliased families are merged.
+
     Args:
         models: List of ModelDeletionRiskInfo objects to group.
+        alias_store: Optional alias store for resolving group names.
 
     Returns:
         List of grouped ModelDeletionRiskInfo objects with aggregated metrics.
@@ -110,6 +123,8 @@ def group_risk_models(models: list[ModelDeletionRiskInfo]) -> list[ModelDeletion
     grouped: dict[str, list[ModelDeletionRiskInfo]] = {}
     for model in models:
         base_name = get_base_model_name(model.name)
+        if alias_store is not None:
+            base_name = alias_store.resolve(base_name)
         if base_name not in grouped:
             grouped[base_name] = []
         grouped[base_name].append(model)
@@ -240,6 +255,8 @@ def recalculate_risk_summary(
 
 def apply_text_model_grouping_to_risk_response(
     risk_response: CategoryDeletionRiskResponse,
+    *,
+    alias_store: GroupAliasStore | None = None,
 ) -> CategoryDeletionRiskResponse:
     """Apply text model grouping to deletion risk response.
 
@@ -247,6 +264,7 @@ def apply_text_model_grouping_to_risk_response(
 
     Args:
         risk_response: Original CategoryDeletionRiskResponse.
+        alias_store: Optional alias store for resolving group names.
 
     Returns:
         New CategoryDeletionRiskResponse with grouped models and updated summary.
@@ -258,7 +276,7 @@ def apply_text_model_grouping_to_risk_response(
         logger.debug(f"Skipping grouping for non-text category: {risk_response.category}")
         return risk_response
 
-    grouped_models = group_risk_models(risk_response.models)
+    grouped_models = group_risk_models(risk_response.models, alias_store=alias_store)
     new_summary = recalculate_risk_summary(grouped_models, risk_response.category_total_month_usage)
 
     return CategoryDeletionRiskResponse(

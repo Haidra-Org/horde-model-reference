@@ -57,6 +57,15 @@ AUDIT_FOLDER_NAME: str = "audit"
 PENDING_QUEUE_FOLDER_NAME: str = "pending_queue"
 """Folder storing pending change queue persistence."""
 
+GROUP_SCHEMAS_FILENAME: str = "text_generation_group_schemas.json"
+"""Filename for persisted text model group naming schemas."""
+
+GROUP_ALIASES_FILENAME: str = "text_generation_group_aliases.json"
+"""Filename for persisted text model group alias mappings."""
+
+GROUP_FAMILIES_FILENAME: str = "text_generation_group_families.json"
+"""Filename for persisted related-group family associations."""
+
 
 class HordeModelReferencePaths:
     """A helper class to manage local and remote model reference paths."""
@@ -112,6 +121,21 @@ class HordeModelReferencePaths:
 
         subdir = horde_model_reference_settings.pending_queue.relative_subdir or PENDING_QUEUE_FOLDER_NAME
         return self.base_path.joinpath(subdir)
+
+    @property
+    def group_schemas_path(self) -> Path:
+        """Return the path to the text model group naming schemas file."""
+        return self.base_path.joinpath(GROUP_SCHEMAS_FILENAME)
+
+    @property
+    def group_aliases_path(self) -> Path:
+        """Return the path to the text model group alias mappings file."""
+        return self.base_path.joinpath(GROUP_ALIASES_FILENAME)
+
+    @property
+    def group_families_path(self) -> Path:
+        """Return the path to the related-group family associations file."""
+        return self.base_path.joinpath(GROUP_FAMILIES_FILENAME)
 
     log_folder: Path
 

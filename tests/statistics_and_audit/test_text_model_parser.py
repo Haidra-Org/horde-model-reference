@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from horde_model_reference.analytics.text_model_parser import (
+    ExtraPartType,
     get_base_model_name,
     get_model_size,
     get_model_variant,
@@ -214,13 +215,16 @@ class TestParseTextModelName:
         assert parsed.variant == "Instruct"
         assert parsed.version is None
 
-    def test_parse_date_code_stays_in_base(self) -> None:
-        """Test that bare date codes without v-prefix stay in the base name (Phase 1 limitation)."""
+    def test_parse_date_code_extracted_as_extra(self) -> None:
+        """Test that bare 4-digit date codes are extracted as DATE extras."""
         parsed = parse_text_model_name("Devstral-2-123B-Instruct-2512")
         assert parsed.size == "123B"
         assert parsed.variant == "Instruct"
         assert parsed.version is None
-        assert "2512" in parsed.base_name
+        assert parsed.base_name == "Devstral-2"
+        date_extras = [e for e in parsed.extras if e.inferred_type == ExtraPartType.DATE]
+        assert len(date_extras) == 1
+        assert date_extras[0].value == "2512"
 
 
 class TestGetBaseModelName:
