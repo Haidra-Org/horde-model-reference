@@ -386,23 +386,33 @@ def get_model_reference_manager() -> ModelReferenceManager:
     return ModelReferenceManager()
 
 
+def assert_primary_mode(manager: ModelReferenceManager) -> None:
+    """Ensure the backend is in PRIMARY mode (supports writes), regardless of canonical format.
+
+    Use for metadata-only write operations (schemas, aliases, families) that don't
+    modify model records and are not gated by the canonical format setting.
+    """
+    if not manager.backend.supports_writes():
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "This instance is in REPLICA mode and does not support write operations. "
+                "Only PRIMARY instances can modify data."
+            ),
+        )
+
+
 def assert_canonical_write_enabled(
     manager: ModelReferenceManager,
     *,
     canonical_format: CanonicalFormat,
 ) -> None:
     """Ensure that writes are attempted only when the canonical format allows them."""
+    assert_primary_mode(manager)
+
     backend = manager.backend
     expected_format = horde_model_reference_settings.canonical_format
     if canonical_format == CanonicalFormat.v2:
-        if not backend.supports_writes():
-            raise HTTPException(
-                status_code=503,
-                detail=(
-                    "This instance is in REPLICA mode and does not support write operations. "
-                    "Only PRIMARY instances can queue model changes."
-                ),
-            )
         if expected_format != canonical_format:
             raise HTTPException(
                 status_code=503,

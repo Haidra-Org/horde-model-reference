@@ -20,6 +20,9 @@ from horde_model_reference.backends import (
     HTTPBackend,
     ModelReferenceBackend,
 )
+from horde_model_reference.group_aliases import GroupAliasStore
+from horde_model_reference.group_families import GroupFamilyStore
+from horde_model_reference.group_schema_store import GroupSchemaStore
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, categories_managed_elsewhere
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
@@ -107,6 +110,9 @@ class ModelReferenceManager:
     _async_prefetch_task: asyncio.Task[None] | None = None
     _audit_writer: AuditTrailWriter | None = None
     _pending_queue_service: PendingQueueService | None = None
+    _group_alias_store: GroupAliasStore | None = None
+    _group_family_store: GroupFamilyStore | None = None
+    _group_schema_store: GroupSchemaStore | None = None
 
     _lock: RLock = RLock()
 
@@ -330,9 +336,22 @@ class ModelReferenceManager:
                     cls._instance._pending_queue_service = cls._build_pending_queue_service(
                         audit_writer=audit_writer,
                     )
+                    cls._instance._group_alias_store = GroupAliasStore(
+                        file_path=horde_model_reference_paths.group_aliases_path,
+                    )
+                    cls._instance._group_family_store = GroupFamilyStore(
+                        file_path=horde_model_reference_paths.group_families_path,
+                    )
+                    cls._instance._group_schema_store = GroupSchemaStore(
+                        file_path=horde_model_reference_paths.group_schemas_path,
+                        alias_store=cls._instance._group_alias_store,
+                    )
                 else:
                     cls._instance._audit_writer = None
                     cls._instance._pending_queue_service = None
+                    cls._instance._group_alias_store = None
+                    cls._instance._group_family_store = None
+                    cls._instance._group_schema_store = None
                 cls._instance._cached_records = {}
                 cls._instance._deferred_prefetch_handle = None
                 cls._instance._async_prefetch_task = None
@@ -485,6 +504,21 @@ class ModelReferenceManager:
     def pending_queue_service(self) -> PendingQueueService | None:
         """Return the pending queue service when queueing is enabled."""
         return self._pending_queue_service
+
+    @property
+    def group_alias_store(self) -> GroupAliasStore | None:
+        """Return the group alias store when in PRIMARY mode."""
+        return self._group_alias_store
+
+    @property
+    def group_family_store(self) -> GroupFamilyStore | None:
+        """Return the related-group family store when in PRIMARY mode."""
+        return self._group_family_store
+
+    @property
+    def group_schema_store(self) -> GroupSchemaStore | None:
+        """Return the group schema store when in PRIMARY mode."""
+        return self._group_schema_store
 
     @property
     def deferred_prefetch_handle(self) -> DeferredPrefetchHandle | None:
