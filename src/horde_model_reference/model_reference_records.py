@@ -364,6 +364,25 @@ class TextGenerationModelRecord(GenericModelRecord):
     settings: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
     text_model_group: str | None = None
     """The base model group name for grouping model variants together."""
+    name_schema_exception: str | None = None
+    """If set, this model does not follow the group's naming schema. The value is the reason."""
+
+
+class TextModelGroupNameSchema(BaseModel):
+    """Persisted naming convention for a text model group.
+
+    When saved, overrides the inferred schema from ``infer_name_format()``.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    separator: str = "-"
+    part_order: list[str] = Field(default_factory=lambda: ["base", "size", "variant", "version", "quant"])
+    author_included: bool = True
+    common_author: str | None = None
+    template: str | None = None
+    extra_parts: list[str] = Field(default_factory=list)
+    """Free-form labels for name segments outside the five primary categories (e.g., ``["date"]``)."""
 
 
 @register_record_type(MODEL_REFERENCE_CATEGORY.blip)

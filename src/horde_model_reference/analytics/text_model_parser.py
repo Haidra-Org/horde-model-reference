@@ -3,15 +3,57 @@
 Provides functions to parse text generation model names into structured components
 like base name, size, variant, and quantization. Useful for grouping model variants
 (e.g., different quant versions of the same base model).
+
+The parser recognises five *primary* parts (base, size, variant, version, quant) and
+an open-ended list of *extra* parts — name segments that do not fit any primary
+category (date suffixes, descriptive variant words, sub-model identifiers, etc.).
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from enum import auto
 from functools import lru_cache
+from typing import TYPE_CHECKING
 
 from loguru import logger
+from strenum import StrEnum
+
+if TYPE_CHECKING:
+    from horde_model_reference.group_aliases import GroupAliasStore
+
+
+class ExtraPartType(StrEnum):
+    """Classification of a name segment that does not fit any primary part category."""
+
+    DATE = auto()
+    """Calendar-style suffix such as ``08-2024`` or ``2024-03``."""
+
+    DESCRIPTOR = auto()
+    """A descriptive word that is not in the standard variant list (e.g., ``Transgression``, ``Unslop``)."""
+
+    LEADING_VERSION = auto()
+    """A dotted version string that appears *before* the base name (e.g., ``4.2.0-``)."""
+
+    UNKNOWN = auto()
+    """Could not be automatically classified."""
+
+
+@dataclass(frozen=True)
+class ExtraNamePart:
+    """A name segment that was not classified as a primary part.
+
+    Attributes:
+        value: The raw text of the segment.
+        position: Zero-based ordinal position within the separator-split name.
+        inferred_type: Best-guess classification, or ``UNKNOWN``.
+
+    """
+
+    value: str
+    position: int
+    inferred_type: ExtraPartType = ExtraPartType.UNKNOWN
 
 
 @dataclass
@@ -26,6 +68,7 @@ class ParsedTextModelName:
         quant: Quantization type if detected (e.g., "Q4", "Q8", "GGUF").
         version: Model version if detected (e.g., "v0.1", "v2.1").
         normalized_name: A normalized version of the name for comparison.
+        extras: Name segments that did not match any primary part category.
 
     """
 
@@ -36,6 +79,7 @@ class ParsedTextModelName:
     quant: str | None = None
     version: str | None = None
     normalized_name: str | None = None
+    extras: list[ExtraNamePart] = field(default_factory=list)
 
 
 # Common text model size patterns
@@ -55,6 +99,7 @@ VERSION_PATTERNS = [
 # Common variant indicators
 VARIANT_PATTERNS = [
     r"\b(Instruct|Chat|Code|Base|Uncensored|Finetune|FT)\b",
+    r"\b(Thinking|Reasoning)\b",
     r"\b(turbo|preview|latest)\b",
 ]
 
@@ -67,6 +112,16 @@ QUANT_PATTERNS = [
     r"\b(fp16|fp32|int8|int4)\b",
 ]
 
+# Date-like suffixes that model authors append (e.g., "08-2024", "03-2025", "2024-03")
+DATE_PATTERNS = [
+    r"(?<![a-zA-Z0-9])(\d{2}-\d{4})(?![a-zA-Z0-9])",  # MM-YYYY (e.g., 08-2024)
+    r"(?<![a-zA-Z0-9])(\d{4}-\d{2})(?![a-zA-Z0-9])",  # YYYY-MM (e.g., 2024-08)
+    r"(?<![a-zA-Z0-9])(\d{4})(?![a-zA-Z0-9])",  # Standalone 4-digit date code (YYMM/MMDD: 2407, 0414)
+]
+
+# Dotted version string that appears *before* the base name (e.g., "4.2.0-Broken-Tutu")
+LEADING_VERSION_PATTERN = r"^(\d+\.\d+(?:\.\d+)?)[_\-]"
+
 # Separators to normalize
 SEPARATORS = ["-", "_", " ", "."]
 
@@ -75,21 +130,29 @@ SEPARATORS = ["-", "_", " ", "."]
 def parse_text_model_name(model_name: str) -> ParsedTextModelName:
     """Parse a text model name into structured components.
 
-    Attempts to extract base name, size, variant, and quantization information
-    from a model name using regex patterns.
+    Attempts to extract base name, size, variant, quantization, version,
+    and *extra* segments from a model name using regex patterns.
+
+    Extraction order: leading version → size → version → quant → variant → date.
+    Segments that remain after all primary extractions are classified as extras.
 
     Args:
         model_name: The full model name to parse.
 
     Returns:
-        ParsedTextModelName with extracted components.
+        ParsedTextModelName with extracted components and extras.
 
     Example:
         >>> parsed = parse_text_model_name("Llama-3-8B-Instruct-Q4_K_M")
-        >>> print(parsed.base_name)  # "Llama-3"
-        >>> print(parsed.size)  # "8B"
-        >>> print(parsed.variant)  # "Instruct"
-        >>> print(parsed.quant)  # "Q4_K_M"
+        >>> parsed.base_name
+        'Llama-3'
+        >>> parsed.size
+        '8B'
+        >>> parsed = parse_text_model_name("c4ai-command-r-08-2024")
+        >>> parsed.base_name
+        'c4ai-command-r'
+        >>> parsed.extras[0].inferred_type
+        <ExtraPartType.DATE: 'date'>
 
     """
     logger.trace(f"Parsing text model name: {model_name}")
@@ -99,8 +162,23 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
     variant = None
     quant = None
     version = None
+    extras: list[ExtraNamePart] = []
 
-    # Extract size
+    # --- Extract leading dotted-version (e.g., "4.2.0-Broken-Tutu") ---
+    leading_match = re.match(LEADING_VERSION_PATTERN, name_parts)
+    if leading_match:
+        leading_ver = leading_match.group(1)
+        extras.append(
+            ExtraNamePart(
+                value=leading_ver,
+                position=0,
+                inferred_type=ExtraPartType.LEADING_VERSION,
+            ),
+        )
+        name_parts = name_parts[leading_match.end() :]
+        logger.trace(f"Extracted leading version extra: {leading_ver}")
+
+    # --- Extract size ---
     for pattern in SIZE_PATTERNS:
         match = re.search(pattern, name_parts, re.IGNORECASE)
         if match:
@@ -109,7 +187,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
             logger.trace(f"Extracted size: {size}")
             break
 
-    # Extract version (after size so v-prefixed versions aren't confused with sizes)
+    # --- Extract version (after size so v-prefixed versions aren't confused with sizes) ---
     for pattern in VERSION_PATTERNS:
         match = re.search(pattern, name_parts, re.IGNORECASE)
         if match:
@@ -118,7 +196,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
             logger.trace(f"Extracted version: {version}")
             break
 
-    # Extract quantization
+    # --- Extract quantization ---
     for pattern in QUANT_PATTERNS:
         match = re.search(pattern, name_parts, re.IGNORECASE)
         if match:
@@ -127,13 +205,29 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
             logger.trace(f"Extracted quant: {quant}")
             break
 
-    # Extract variant
+    # --- Extract variant ---
     for pattern in VARIANT_PATTERNS:
         match = re.search(pattern, name_parts, re.IGNORECASE)
         if match:
             variant = match.group(1)
             name_parts = name_parts[: match.start()] + name_parts[match.end() :]
             logger.trace(f"Extracted variant: {variant}")
+            break
+
+    # --- Extract date suffixes as extras ---
+    for pattern in DATE_PATTERNS:
+        match = re.search(pattern, name_parts)
+        if match:
+            date_value = match.group(1)
+            extras.append(
+                ExtraNamePart(
+                    value=date_value,
+                    position=_count_separators_before(model_name, match.start()),
+                    inferred_type=ExtraPartType.DATE,
+                ),
+            )
+            name_parts = name_parts[: match.start()] + name_parts[match.end() :]
+            logger.trace(f"Extracted date extra: {date_value}")
             break
 
     # Clean up base name — collapse repeated separators and strip edges
@@ -160,7 +254,18 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
         quant=quant,
         version=version,
         normalized_name=normalized,
+        extras=extras,
     )
+
+
+def _count_separators_before(text: str, position: int) -> int:
+    """Count how many separator-delimited segments occur before *position* in *text*."""
+    prefix = text[:position]
+    count = 0
+    for char in prefix:
+        if char in "-_. ":
+            count += 1
+    return count
 
 
 @lru_cache(maxsize=2048)
@@ -246,13 +351,18 @@ class TextModelGroup:
 
 def group_text_models_by_base(
     model_names: list[str],
+    *,
+    alias_store: GroupAliasStore | None = None,
 ) -> dict[str, TextModelGroup]:
     """Group text model names by their base model.
 
     Groups variants of the same model together based on extracted base names.
+    When *alias_store* is provided, alias-resolved canonical names are used
+    as group keys.
 
     Args:
         model_names: List of model names to group.
+        alias_store: Optional alias store for resolving group names.
 
     Returns:
         Dictionary mapping base names to lists of full model names.
@@ -276,6 +386,8 @@ def group_text_models_by_base(
 
     for model_name in model_names:
         base_name = get_base_model_name(model_name)
+        if alias_store is not None:
+            base_name = alias_store.resolve(base_name)
 
         if base_name not in grouped:
             grouped[base_name] = []
@@ -361,6 +473,10 @@ class NameFormatSchema:
     """Describes the naming convention inferred from a group of models.
 
     Used by compose_name to produce names consistent with existing group members.
+
+    ``extra_parts`` lists labels for name segments that do not fit any primary
+    category (e.g., ``["date"]``).  The labels are free-form strings that help
+    admins understand what the segment represents.
     """
 
     separator: str = "-"
@@ -368,6 +484,7 @@ class NameFormatSchema:
     author_included: bool = False
     common_author: str | None = None
     template: str = "{base}-{size}"
+    extra_parts: list[str] = field(default_factory=list)
 
 
 def _detect_separator(names: list[str]) -> str:
@@ -387,7 +504,11 @@ def _detect_separator(names: list[str]) -> str:
 
 
 def _detect_part_order(original: str, parsed: ParsedTextModelName) -> list[str]:
-    """Detect the order of parts in a model name by their position in the original string."""
+    """Detect the order of parts in a model name by their position in the original string.
+
+    Includes extra-part labels (prefixed with ``extra:``) so that the inferred
+    template reflects the full name structure.
+    """
     parts: dict[str, str] = {}
     if parsed.base_name:
         parts["base"] = parsed.base_name
@@ -399,6 +520,9 @@ def _detect_part_order(original: str, parsed: ParsedTextModelName) -> list[str]:
         parts["version"] = parsed.version
     if parsed.quant:
         parts["quant"] = parsed.quant
+    for extra in parsed.extras:
+        label = f"extra:{extra.inferred_type.value}"
+        parts[label] = extra.value
 
     positions: dict[str, int] = {}
     original_lower = original.lower()
@@ -447,9 +571,19 @@ def infer_name_format(member_names: list[str]) -> NameFormatSchema:
     parsed_members = [parse_text_model_name(n) for n in names_without_author]
     richest = max(
         zip(names_without_author, parsed_members, strict=False),
-        key=lambda pair: sum(1 for v in [pair[1].size, pair[1].variant, pair[1].version, pair[1].quant] if v),
+        key=lambda pair: (
+            sum(1 for v in [pair[1].size, pair[1].variant, pair[1].version, pair[1].quant] if v) + len(pair[1].extras)
+        ),
     )
     part_order = _detect_part_order(richest[0], richest[1])
+
+    # Collect unique extra-part labels across all members
+    seen_extra_labels: list[str] = []
+    for pm in parsed_members:
+        for extra in pm.extras:
+            label = extra.inferred_type.value
+            if label not in seen_extra_labels:
+                seen_extra_labels.append(label)
 
     # Build human-readable template
     template_parts: list[str] = []
@@ -468,6 +602,7 @@ def infer_name_format(member_names: list[str]) -> NameFormatSchema:
         author_included=author_included,
         common_author=common_author,
         template=template,
+        extra_parts=seen_extra_labels,
     )
 
 
