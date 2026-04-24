@@ -423,13 +423,18 @@ Allows service to fully initialize before background tasks begin."""
     @field_validator("replicate_mode", mode="before")
     def validate_replicate_mode(cls, v: str | ReplicateMode) -> ReplicateMode:
         if isinstance(v, str):
-            return ReplicateMode(v.upper())
+            v_lower = v.lower()
+            if v_lower in [rm.value.lower() for rm in ReplicateMode]:
+                return ReplicateMode(v.upper())
+            return ReplicateMode(v)
         return v
 
     @field_validator("canonical_format", mode="before")
     def validate_canonical_format(cls, v: str | CanonicalFormat) -> CanonicalFormat:
         if isinstance(v, str):
-            return CanonicalFormat(v.upper())
+            if v.lower() == CanonicalFormat.LEGACY.value.lower():
+                return CanonicalFormat.LEGACY
+            return CanonicalFormat(v)
         return v
 
     @model_validator(mode="after")
