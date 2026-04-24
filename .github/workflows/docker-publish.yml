@@ -1,0 +1,261 @@
+# SPDX-FileCopyrightText: 2026 Tazlin
+#
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+name: Docker image publish
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'src/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - '.github/workflows/docker-publish.yml'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -----------------------------------------------------------
+  # Build the Docker image and push to GHCR on main / tags.
+  # PRs only build (no push) so the image can be validated.
+  #
+  # IMPORTANT: The image MUST be built with --build-arg EXTRA_DEPS=redis
+  # to include the redis[hiredis] extra.  Without it, multi-worker PRIMARY
+  # deployments fail with ImportError on startup.
+  # -----------------------------------------------------------
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    outputs:
+      image-digest: ${{ steps.build.outputs.digest }}
+      image-tags: ${{ steps.meta.outputs.tags }}
+      image-version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: EXTRA_DEPS=redis
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate artifact attestation
+        if: github.event_name != 'pull_request'
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  # -----------------------------------------------------------
+  # Validate the image starts and responds to the health check.
+  #
+  # Runs in PRIMARY mode with GitHub seeding enabled so the
+  # service downloads real model data and exercises the full
+  # startup path (no Postgres dependency, service uses file
+  # system as its primary storage backend).
+  #
+  # Tested variants in this job:
+  #   1. Single-worker PRIMARY (default CMD / fastapi run)
+  #   2. Multi-worker PRIMARY + Redis (uvicorn --workers 2)
+  #
+  # Both must pass /api/heartbeat before the job succeeds.
+  # -----------------------------------------------------------
+  validate:
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    permissions:
+      contents: read
+      packages: read
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # -- For pushes: pull the published image by digest ------
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull published image
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE_NAME_LC: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          IMAGE="$(echo "$IMAGE_NAME_LC" | tr '[:upper:]' '[:lower:]')@${{ needs.build-and-push.outputs.image-digest }}"
+          docker pull "$IMAGE"
+          docker tag "$IMAGE" horde-model-reference:validate
+          echo "Pulled $IMAGE"
+
+      # -- For PRs: rebuild from GHA cache ---------------------
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        if: github.event_name == 'pull_request'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Rebuild from cache for validation
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: horde-model-reference:validate
+          build-args: EXTRA_DEPS=redis
+          cache-from: type=gha
+
+      # -- Variant 1: Single-worker PRIMARY --------------------
+      - name: Start single-worker PRIMARY container
+        run: |
+          docker run -d --name hmr-validate-single \
+            --network host \
+            -e HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY \
+            -e HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true \
+            -e HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED=true \
+            -e HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=v2 \
+            -e OTEL_SDK_DISABLED=true \
+            horde-model-reference:validate
+
+      - name: Wait for single-worker PRIMARY heartbeat
+        run: |
+          timeout=90
+          while ! curl -sf http://localhost:19800/api/heartbeat > /dev/null 2>&1; do
+            timeout=$((timeout - 2))
+            if [ "$timeout" -le 0 ]; then
+              echo "::error::Single-worker PRIMARY failed heartbeat within timeout"
+              docker logs hmr-validate-single
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "Single-worker PRIMARY: heartbeat OK"
+
+      - name: Assert single-worker PRIMARY mode response
+        run: |
+          response=$(curl -sf http://localhost:19800/api/replicate_mode)
+          echo "replicate_mode response: $response"
+          echo "$response" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          assert d.get('replicate_mode') == 'PRIMARY', f'Expected PRIMARY, got: {d}'
+          assert d.get('writable') is True, f'Expected writable=true, got: {d}'
+          print('PASS: replicate_mode=PRIMARY, writable=true')
+          "
+
+      - name: Stop single-worker container
+        run: docker stop hmr-validate-single && docker rm hmr-validate-single
+
+      # -- Variant 2: Multi-worker PRIMARY + Redis -------------
+      - name: Start multi-worker PRIMARY container (2 workers + Redis)
+        run: |
+          docker run -d --name hmr-validate-multi \
+            --network host \
+            -e HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY \
+            -e HORDE_MODEL_REFERENCE_MAKE_FOLDERS=true \
+            -e HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED=true \
+            -e HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=v2 \
+            -e HORDE_MODEL_REFERENCE_REDIS__USE_REDIS=true \
+            -e HORDE_MODEL_REFERENCE_REDIS__URL=redis://localhost:6379/0 \
+            -e HORDE_MODEL_REFERENCE_REDIS__USE_PUBSUB=true \
+            -e OTEL_SDK_DISABLED=true \
+            horde-model-reference:validate \
+            /app/.venv/bin/python -m uvicorn \
+              horde_model_reference.service.app:app \
+              --host 0.0.0.0 --port 19800 --workers 2
+
+      - name: Wait for multi-worker PRIMARY heartbeat
+        run: |
+          timeout=90
+          while ! curl -sf http://localhost:19800/api/heartbeat > /dev/null 2>&1; do
+            timeout=$((timeout - 2))
+            if [ "$timeout" -le 0 ]; then
+              echo "::error::Multi-worker PRIMARY failed heartbeat within timeout"
+              docker logs hmr-validate-multi
+              exit 1
+            fi
+            sleep 2
+          done
+          echo "Multi-worker PRIMARY: heartbeat OK"
+
+      - name: Assert multi-worker PRIMARY mode response
+        run: |
+          response=$(curl -sf http://localhost:19800/api/replicate_mode)
+          echo "replicate_mode response: $response"
+          echo "$response" | python3 -c "
+          import json, sys
+          d = json.load(sys.stdin)
+          assert d.get('replicate_mode') == 'PRIMARY', f'Expected PRIMARY, got: {d}'
+          assert d.get('writable') is True, f'Expected writable=true, got: {d}'
+          print('PASS: replicate_mode=PRIMARY, writable=true (multi-worker + Redis)')
+          "
+
+      - name: Stop multi-worker container
+        run: docker stop hmr-validate-multi && docker rm hmr-validate-multi
+
+      # -- Always dump logs on failure -------------------------
+      - name: Dump container logs on failure
+        if: failure()
+        run: |
+          docker logs hmr-validate-single 2>&1 || true
+          docker logs hmr-validate-multi 2>&1 || true

@@ -14,6 +14,7 @@ Deploy a Horde Model Reference PRIMARY server using Docker or Python directly.
         - [Single-Worker Setup](#single-worker-setup)
     - [Docker Deployment](#docker-deployment)
         - [Single-Worker Docker Setup](#single-worker-docker-setup)
+        - [Multi-Worker Docker Setup](#multi-worker-docker-setup)
     - [Optional: GitHub Sync Service](#optional-github-sync-service)
     - [Verification](#verification)
     - [Configuration Reference](#configuration-reference)
@@ -138,6 +139,10 @@ fastapi dev src/horde_model_reference/service/app.py --port 19800
 
 For development, testing, or low-traffic production use.
 
+> **Note:** The published Docker image is built with `--build-arg EXTRA_DEPS=redis`
+> to include `redis[hiredis]`.  If you build locally for multi-worker use, ensure
+> you pass the same build arg: `docker build --build-arg EXTRA_DEPS=redis .`
+
 **1. (Optional) Configure environment variables:**
 
 Create a `.env.primary` file if you need custom settings:
@@ -177,6 +182,30 @@ docker-compose restart
 
 ---
 
+### Multi-Worker Docker Setup
+
+For production PRIMARY deployments that need horizontal scale beyond a single
+uvicorn worker, use `docker-compose.redis.yml` which bundles a Redis sidecar:
+
+```bash
+# Build with redis extra (required for multi-worker)
+docker build --build-arg EXTRA_DEPS=redis -t horde-model-reference:local .
+
+# Start with Redis
+docker compose -f docker-compose.redis.yml up -d
+```
+
+The `docker-compose.redis.yml` file sets:
+- `HORDE_MODEL_REFERENCE_REDIS__USE_REDIS=true`
+- `HORDE_MODEL_REFERENCE_REDIS__URL=redis://redis:6379/0`
+- `HORDE_MODEL_REFERENCE_REDIS__USE_PUBSUB=true` (pub/sub cache invalidation)
+- Uvicorn with `--workers 2` (adjust to taste)
+
+**Important:** Do not set `workers > 1` without Redis.  Without Redis,
+cache-invalidation pub/sub is silently skipped and workers serve stale data.
+
+---
+
 ## Optional: GitHub Sync Service
 
 Automatically sync model references to GitHub legacy repositories. See [SYNC_README.md](scripts/sync/README.md) for setup instructions.
@@ -189,12 +218,16 @@ Automatically sync model references to GitHub legacy repositories. See [SYNC_REA
 
 ```bash
 curl http://localhost:19800/api/heartbeat
-# Expected: {"status":"ok"}
+# Expected:
+# {"status":"ok","ai_horde":{"degraded":false,"consecutive_failures":0,"seconds_until_retry":null}}
 ```
 
 **View API documentation:**
 
-Open <http://localhost:19800/docs> in your browser
+Open <http://localhost:19800/docs> in your browser (direct access).
+
+When the service runs behind a reverse proxy with path prefix `/api`, the docs
+UI is available at <http://localhost:19800/api/docs>.
 
 **Test model references:**
 
@@ -219,11 +252,12 @@ See `.env.example` for all available options, or `.env.primary.example` for PRIM
 | ------------------------------------------- | -------------------------- | ------------------------------------- |
 | `HORDE_MODEL_REFERENCE_REPLICATE_MODE`      | `REPLICA`                  | Set to `PRIMARY` for server mode      |
 | `HORDE_MODEL_REFERENCE_MAKE_FOLDERS`        | `false`                    | Auto-create directories               |
-| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT`    | `legacy`                   | Use legacy format (pre-v2 transition) |
+| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT`    | `v2`                       | Canonical format: `v2` (default) or `LEGACY` |
 | `HORDE_MODEL_REFERENCE_REDIS__USE_REDIS`    | `false`                    | Enable Redis (multi-worker)           |
 | `HORDE_MODEL_REFERENCE_REDIS__URL`          | `redis://localhost:6379/0` | Redis connection                      |
 | `HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS`   | `60`                       | Cache lifetime                        |
 | `HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED` | `false`                    | Auto-seed on first start              |
+| `HORDE_MODEL_REFERENCE_CORS_ALLOWED_ORIGINS`| *(empty / disabled)*       | JSON list of allowed CORS origins, e.g. `["https://aihorde.net"]` |
 
 ---
 
@@ -237,7 +271,9 @@ docker-compose logs horde-model-reference  # Docker
 # or check terminal output for non-Docker
 
 # Common fixes:
-# - Port conflict: Add PORT=9000 to .env
+# - Port conflict: pass a different port as a CLI argument, e.g.
+#     fastapi run ... --port 9800
+#   (There is no PORT env var — the port is a CLI argument, not a config key.)
 # - Missing files: Enable HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED=true
 ```
 
@@ -285,6 +321,29 @@ docker-compose -f docker-compose.redis.yml ps
 - Use shared Redis for all instances
 - Share model files via NFS/S3
 - Use load balancer for traffic distribution
+
+**Write-Pending Queue (PRIMARY only):**
+
+By default, the service enables an in-memory write-pending queue
+(`HORDE_MODEL_REFERENCE_PENDING_QUEUE_ENABLED=true`) that serializes concurrent
+model-update writes.  Disable only if you have a single writer and need to
+minimize latency for write operations.
+
+**Automated Deployment (Ansible):**
+
+The [Haidra-Org/deployments](https://github.com/Haidra-Org/deployments) repository
+contains the `horde_model_reference` Ansible role that automates this deployment:
+
+```bash
+# Quick start
+ansible-playbook examples/horde_model_reference.yml -i inventory.yml
+```
+
+The role handles directory creation, `.env` templating, Docker Compose
+orchestration, health-check gating, and optional HAProxy conf.d routing for
+`models.aihorde.net` / `models.stablehorde.net`.
+
+---
 
 **Support:**
 
