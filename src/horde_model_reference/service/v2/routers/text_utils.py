@@ -148,6 +148,7 @@ class ComposeNameRequest(BaseModel):
     quant: str | None = None
     separator: str | None = None
     part_order: list[str] | None = None
+    extra_parts: dict[str, str] | None = None
 
 
 class ComposeNameResponse(BaseModel):
@@ -156,6 +157,8 @@ class ComposeNameResponse(BaseModel):
     composed_name: str
     already_exists: bool
     suggested_group: str
+    template: str
+    rendered_example: str
 
 
 class CommonFieldsUpdateRequest(BaseModel):
@@ -301,11 +304,18 @@ def _compose_name_from_parts(
     author: str | None = None,
     separator: str = "-",
     part_order: list[str] | None = None,
+    extra_parts: dict[str, str] | None = None,
 ) -> str:
     """Compose a model name from structured parts.
 
     When part_order is provided, parts are arranged in that order, using separator.
     Otherwise uses default: [author/]base{sep}size[{sep}variant][{sep}version][{sep}quant]
+
+    If part_order is provided but does not include "base", base_name is defensively
+    prepended so callers cannot accidentally drop the base segment.
+
+    extra_parts keys are typically prefixed with "extra:" (e.g. "extra:date") so they
+    can be referenced by position in part_order alongside the standard parts.
     """
     available_parts = {
         "base": base_name,
@@ -317,9 +327,15 @@ def _compose_name_from_parts(
         available_parts["version"] = version
     if quant:
         available_parts["quant"] = quant
+    if extra_parts:
+        for k, v in extra_parts.items():
+            if v:
+                available_parts[k] = v
 
     if part_order:
         ordered = [available_parts[p] for p in part_order if p in available_parts]
+        if "base" not in part_order and base_name:
+            ordered.insert(0, base_name)
     else:
         ordered = [base_name, size]
         if variant:
@@ -328,12 +344,76 @@ def _compose_name_from_parts(
             ordered.append(version)
         if quant:
             ordered.append(quant)
+        if extra_parts:
+            for v in extra_parts.values():
+                if v:
+                    ordered.append(v)
 
     model_name = separator.join(ordered)
 
     if author:
         return f"{author}/{model_name}"
     return model_name
+
+
+def _build_template_and_example(
+    base_name: str,
+    size: str,
+    variant: str | None,
+    version: str | None,
+    quant: str | None,
+    author: str | None,
+    separator: str,
+    part_order: list[str] | None,
+    extra_parts: dict[str, str] | None,
+) -> tuple[str, str]:
+    """Build a human-readable template string and a rendered example name.
+
+    The template uses ``{placeholder}`` tokens reflecting the full effective part
+    order (including optional parts the user has not filled in yet). The rendered
+    example substitutes the supplied values and matches the composed_name exactly,
+    omitting parts whose values are missing.
+    """
+    if part_order:
+        effective_template = list(part_order)
+        if "base" not in effective_template and base_name:
+            effective_template.insert(0, "base")
+    else:
+        effective_template = ["base", "size"]
+        if variant:
+            effective_template.append("variant")
+        if version:
+            effective_template.append("version")
+        if quant:
+            effective_template.append("quant")
+        if extra_parts:
+            for k, v in extra_parts.items():
+                if v:
+                    effective_template.append(k)
+
+    template_body = separator.join(f"{{{p}}}" for p in effective_template)
+    template = f"{{author}}/{template_body}" if author else template_body
+
+    supplied_values: dict[str, str] = {
+        "base": base_name,
+        "size": size,
+    }
+    if variant:
+        supplied_values["variant"] = variant
+    if version:
+        supplied_values["version"] = version
+    if quant:
+        supplied_values["quant"] = quant
+    if extra_parts:
+        for k, v in extra_parts.items():
+            if v:
+                supplied_values[k] = v
+
+    example_parts = [supplied_values[p] for p in effective_template if p in supplied_values]
+    rendered_body = separator.join(example_parts)
+    rendered_example = f"{author}/{rendered_body}" if author else rendered_body
+
+    return template, rendered_example
 
 
 @router.get(
@@ -581,6 +661,7 @@ def compose_name(
 
     Checks whether the composed name already exists in the text_generation category.
     """
+    separator = request.separator or "-"
     composed = _compose_name_from_parts(
         base_name=request.base_name,
         size=request.size,
@@ -588,8 +669,21 @@ def compose_name(
         version=request.version,
         quant=request.quant,
         author=request.author,
-        separator=request.separator or "-",
+        separator=separator,
         part_order=request.part_order,
+        extra_parts=request.extra_parts,
+    )
+
+    template, rendered_example = _build_template_and_example(
+        base_name=request.base_name,
+        size=request.size,
+        variant=request.variant,
+        version=request.version,
+        quant=request.quant,
+        author=request.author,
+        separator=separator,
+        part_order=request.part_order,
+        extra_parts=request.extra_parts,
     )
 
     all_models = _get_all_text_models(manager)
@@ -601,6 +695,8 @@ def compose_name(
         composed_name=composed,
         already_exists=already_exists,
         suggested_group=suggested_group,
+        template=template,
+        rendered_example=rendered_example,
     )
 
 

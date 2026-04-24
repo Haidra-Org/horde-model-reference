@@ -247,6 +247,138 @@ class TestComposeName:
         assert data["composed_name"] == "Qwen3-0.6B"
         assert data["already_exists"] is True
 
+    def test_compose_base_missing_from_part_order(
+        self, api_client: TestClient, text_group_manager: ModelReferenceManager
+    ) -> None:
+        """If part_order omits 'base', base_name must still be included (defensive fix)."""
+        resp = api_client.post(
+            f"{_V2}/text_generation/compose_name",
+            json={
+                "author": "authortest",
+                "base_name": "test",
+                "size": "8B",
+                "version": "v1",
+                "part_order": ["size", "variant", "version", "quant"],
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["composed_name"] == "authortest/test-8B-v1"
+
+    def test_compose_base_in_part_order(
+        self, api_client: TestClient, text_group_manager: ModelReferenceManager
+    ) -> None:
+        """If part_order includes 'base', normal behavior is preserved."""
+        resp = api_client.post(
+            f"{_V2}/text_generation/compose_name",
+            json={
+                "base_name": "test",
+                "size": "8B",
+                "version": "v1",
+                "part_order": ["base", "size", "variant", "version", "quant"],
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["composed_name"] == "test-8B-v1"
+
+    def test_compose_extra_parts_in_order(
+        self, api_client: TestClient, text_group_manager: ModelReferenceManager
+    ) -> None:
+        """extra_parts placed according to part_order position."""
+        resp = api_client.post(
+            f"{_V2}/text_generation/compose_name",
+            json={
+                "base_name": "Llama",
+                "size": "8B",
+                "quant": "Q4_K_M",
+                "extra_parts": {"extra:date": "2024-08"},
+                "part_order": ["base", "size", "extra:date", "quant"],
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["composed_name"] == "Llama-8B-2024-08-Q4_K_M"
+
+    def test_compose_extra_parts_no_order(
+        self, api_client: TestClient, text_group_manager: ModelReferenceManager
+    ) -> None:
+        """extra_parts without part_order are appended after standard parts."""
+        resp = api_client.post(
+            f"{_V2}/text_generation/compose_name",
+            json={
+                "base_name": "Llama",
+                "size": "8B",
+                "extra_parts": {"extra:date": "2024-08"},
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["composed_name"] == "Llama-8B-2024-08"
+
+    def test_compose_response_template_with_author(
+        self, api_client: TestClient, text_group_manager: ModelReferenceManager
+    ) -> None:
+        """Response template prefixes {author}/ when author is provided."""
+        resp = api_client.post(
+            f"{_V2}/text_generation/compose_name",
+            json={
+                "author": "Qwen",
+                "base_name": "Qwen3",
+                "size": "14B",
+                "variant": "Instruct",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["template"] == "{author}/{base}-{size}-{variant}"
+        assert data["rendered_example"] == "Qwen/Qwen3-14B-Instruct"
+
+    def test_compose_response_template_no_author(
+        self, api_client: TestClient, text_group_manager: ModelReferenceManager
+    ) -> None:
+        """Response template has no author prefix when author is omitted."""
+        resp = api_client.post(
+            f"{_V2}/text_generation/compose_name",
+            json={"base_name": "Qwen3", "size": "14B"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["template"] == "{base}-{size}"
+        assert data["rendered_example"] == "Qwen3-14B"
+
+    def test_compose_response_rendered_example_matches_composed(
+        self, api_client: TestClient, text_group_manager: ModelReferenceManager
+    ) -> None:
+        """rendered_example matches composed_name when all values are supplied."""
+        resp = api_client.post(
+            f"{_V2}/text_generation/compose_name",
+            json={
+                "author": "authortest",
+                "base_name": "test",
+                "size": "8B",
+                "version": "v1",
+                "part_order": ["size", "variant", "version", "quant"],
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["rendered_example"] == data["composed_name"]
+
+    def test_compose_backward_compat_no_extras(
+        self, api_client: TestClient, text_group_manager: ModelReferenceManager
+    ) -> None:
+        """Requests without extra_parts continue to work unchanged."""
+        resp = api_client.post(
+            f"{_V2}/text_generation/compose_name",
+            json={"base_name": "Qwen3", "size": "14B", "variant": "Instruct"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["composed_name"] == "Qwen3-14B-Instruct"
+        assert "template" in data
+        assert "rendered_example" in data
+
 
 class TestDistinctBaselines:
     """Tests for the distinct baseline values endpoint."""
