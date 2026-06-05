@@ -19,7 +19,7 @@ from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.pending_queue.models import PendingChangeStatus
 from horde_model_reference.service.shared import PathVariables, RouteNames, route_registry, v1_prefix
 
-from ..helpers import ALL_MODEL_CATEGORIES
+from ..helpers import ALL_MODEL_CATEGORIES  # pyrefly: ignore [missing-import]
 
 # Note: The v1_canonical_manager fixture is now defined in conftest.py
 # It provides a PRIMARY mode manager with canonical_format='LEGACY' for v1 API tests

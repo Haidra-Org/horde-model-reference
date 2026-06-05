@@ -85,10 +85,11 @@ class TestCacheHydratorSingleton:
             yield
         finally:
             # Stop any running hydrator before restoring
-            if CacheHydrator._instance is not None and CacheHydrator._instance._running:
+            cache_hydrator_instance = CacheHydrator.get_instance()
+            if cache_hydrator_instance is not None and cache_hydrator_instance._running:
                 # Can't await in sync cleanup, just mark as stopped
-                CacheHydrator._instance._running = False
-                CacheHydrator._instance._shutdown_event.set()
+                cache_hydrator_instance._running = False
+                cache_hydrator_instance._shutdown_event.set()
             CacheHydrator._instance = previous
 
     def test_singleton_pattern(self) -> None:
@@ -126,9 +127,10 @@ class TestCacheHydratorStartStop:
         try:
             yield
         finally:
-            if CacheHydrator._instance is not None and CacheHydrator._instance._running:
-                CacheHydrator._instance._running = False
-                CacheHydrator._instance._shutdown_event.set()
+            cache_hydrator_instance = CacheHydrator.get_instance()
+            if cache_hydrator_instance is not None and cache_hydrator_instance._running:
+                cache_hydrator_instance._running = False
+                cache_hydrator_instance._shutdown_event.set()
             CacheHydrator._instance = previous
 
     @pytest.mark.asyncio
@@ -203,7 +205,7 @@ class TestCacheHydratorStartStop:
 
             await hydrator.stop()
 
-            assert hydrator.is_running is False
+            assert hydrator.get_instance().is_running is False
             assert hydrator._task is None
 
     @pytest.mark.asyncio
@@ -214,7 +216,7 @@ class TestCacheHydratorStartStop:
         # Should not raise
         await hydrator.stop()
 
-        assert hydrator.is_running is False
+        assert hydrator.get_instance().is_running is False
 
 
 class TestCacheHydratorHydrationLoop:
@@ -228,9 +230,10 @@ class TestCacheHydratorHydrationLoop:
         try:
             yield
         finally:
-            if CacheHydrator._instance is not None and CacheHydrator._instance._running:
-                CacheHydrator._instance._running = False
-                CacheHydrator._instance._shutdown_event.set()
+            cache_hydrator_instance = CacheHydrator.get_instance()
+            if cache_hydrator_instance is not None and cache_hydrator_instance._running:
+                cache_hydrator_instance._running = False
+                cache_hydrator_instance._shutdown_event.set()
             CacheHydrator._instance = previous
 
     @pytest.mark.asyncio
@@ -352,9 +355,10 @@ class TestCacheHydratorHydration:
         try:
             yield
         finally:
-            if CacheHydrator._instance is not None and CacheHydrator._instance._running:
-                CacheHydrator._instance._running = False
-                CacheHydrator._instance._shutdown_event.set()
+            cache_hydrator_instance = CacheHydrator.get_instance()
+            if cache_hydrator_instance is not None and cache_hydrator_instance._running:
+                cache_hydrator_instance._running = False
+                cache_hydrator_instance._shutdown_event.set()
             CacheHydrator._instance = prev_hydrator
 
             if DeletionRiskCache._instance is not None:
@@ -715,9 +719,10 @@ class TestCacheHydrationIntegration:
         try:
             yield
         finally:
-            if CacheHydrator._instance is not None and CacheHydrator._instance._running:
-                CacheHydrator._instance._running = False
-                CacheHydrator._instance._shutdown_event.set()
+            cache_hydrator_instance = CacheHydrator.get_instance()
+            if cache_hydrator_instance is not None and cache_hydrator_instance._running:
+                cache_hydrator_instance._running = False
+                cache_hydrator_instance._shutdown_event.set()
             CacheHydrator._instance = prev_hydrator
 
             if DeletionRiskCache._instance is not None:
