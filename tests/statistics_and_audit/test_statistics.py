@@ -156,7 +156,7 @@ class TestCategoryStatistics:
 
     def test_calculate_statistics_multiple_models(self) -> None:
         """Test statistics calculation with multiple models."""
-        models = {
+        models: dict[str, Any] = {
             "model1": {
                 "name": "model1",
                 "baseline": "stable_diffusion_xl",
@@ -236,7 +236,7 @@ class TestCategoryStatistics:
 
     def test_calculate_statistics_text_generation(self) -> None:
         """Test statistics calculation for text generation models."""
-        models = {
+        models: dict[str, Any] = {
             "llama": {
                 "name": "llama",
                 "baseline": "llama-2",
@@ -271,7 +271,7 @@ class TestCategoryStatistics:
 
     def test_calculate_statistics_handles_missing_fields(self) -> None:
         """Test statistics calculation handles models with missing fields gracefully."""
-        models = {
+        models: dict[str, Any] = {
             "minimal_model": {
                 "name": "minimal_model",
             }

@@ -299,7 +299,7 @@ def detect_families(
                 prefix_to_groups[prefix].add(group_name)
 
     # Deduplicate: longest prefix wins, claim its members
-    sorted_prefixes = sorted(prefix_to_groups.keys(), key=len, reverse=True)
+    sorted_prefixes: list[str] = sorted(prefix_to_groups.keys(), key=len, reverse=True)
     claimed: set[str] = set()
     result: dict[str, list[str]] = {}
 

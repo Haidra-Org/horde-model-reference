@@ -11,15 +11,15 @@ stripping incoming duplicates, validating base records, and re-generating duplic
 from __future__ import annotations
 
 from loguru import logger
+from pydantic import JsonValue
 
 from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 from horde_model_reference.text_model_duplicates import TextModelDuplicateManager
 from horde_model_reference.text_model_write_processor import TextModelWriteProcessor
 
-# Re-export type aliases for backwards compatibility with callers
-type SettingsValue = int | float | str | list[int] | list[float] | list[str] | bool
+type SettingsValue = JsonValue
 type SettingsDict = dict[str, SettingsValue]
-type LegacyRecordValue = str | int | float | bool | list[int] | list[float] | list[str] | SettingsDict | None
+type LegacyRecordValue = JsonValue
 type LegacyRecordDict = dict[str, LegacyRecordValue]
 type GenerationParamsDict = dict[str, int | float | str | bool | list[int]]
 type GenerationDefaultsDict = dict[str, LegacyRecordValue]

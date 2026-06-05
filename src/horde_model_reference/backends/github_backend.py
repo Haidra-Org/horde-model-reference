@@ -8,6 +8,7 @@ when the PRIMARY API is unavailable.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Coroutine
 from pathlib import Path
 from typing import Any, cast, override
 
@@ -259,7 +260,7 @@ class GitHubBackend(ReplicaBackendBase):
 
         async with lock:
             # Download all that need refresh
-            tasks = []
+            tasks: list[Coroutine[Any, Any, Path | None]] = []
             categories_to_download = []
             for category in MODEL_REFERENCE_CATEGORY:
                 # Use helper to determine if we need to fetch
@@ -621,6 +622,8 @@ class GitHubBackend(ReplicaBackendBase):
                 target_file_path.touch(exist_ok=True)
                 return target_file_path
 
+            data = None
+            raw_json_str = None
             try:
                 for attempt in http_retry_sync(
                     max_attempts=self.retry_max_attempts,
@@ -650,6 +653,9 @@ class GitHubBackend(ReplicaBackendBase):
                             raw_json_str = response.content.decode("utf-8")
                             with open(target_file_path, "wb") as f:
                                 f.write(response.content)
+
+                if data is None or raw_json_str is None:
+                    raise ValueError(f"Failed to download {category}: No data retrieved")
 
                 self._times_downloaded[category] += 1
                 if self._times_downloaded[category] > 1:
@@ -716,6 +722,9 @@ class GitHubBackend(ReplicaBackendBase):
             logger.debug(f"No known GitHub URL for {category}")
             return None
 
+        data = None
+        content_str = None
+
         try:
             async for attempt in http_retry_async(
                 max_attempts=self.retry_max_attempts,
@@ -750,6 +759,9 @@ class GitHubBackend(ReplicaBackendBase):
 
                         async with aiofiles.open(target_file_path, "wb") as f:
                             await f.write(content)
+
+            if data is None or content_str is None:
+                raise ValueError(f"Failed to download {category}: No data retrieved")
 
             self._times_downloaded[category] += 1
             if self._times_downloaded[category] > 1:

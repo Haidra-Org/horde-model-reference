@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar, Self
 from urllib.parse import urlparse
 
 from loguru import logger
@@ -139,15 +140,15 @@ class HordeModelReferencePaths:
 
     log_folder: Path
 
-    _instance: HordeModelReferencePaths | None = None
+    _instance: ClassVar[Self | None] = None
     _initialized: bool = False
 
     def __new__(
-        cls: type[HordeModelReferencePaths],
+        cls: type[Self],
         model_reference_settings: HordeModelReferenceSettings,
         cache_home: str | Path,
         log_folder: str | Path | None,
-    ) -> HordeModelReferencePaths:
+    ) -> Self:
         """Create a singleton instance of HordeModelReferencePaths, if it doesn't already exist."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)

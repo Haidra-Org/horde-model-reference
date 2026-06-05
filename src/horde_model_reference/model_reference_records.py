@@ -243,7 +243,7 @@ kind_policy_registry.register(
 class ImageGenerationModelRecord(GenericModelRecord):
     """A model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.image_generation
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.image_generation
     """Discriminator field identifying this as an image generation model record."""
 
     model_classification: ModelClassification = Field(
@@ -316,7 +316,7 @@ class ImageGenerationModelRecord(GenericModelRecord):
 class ControlNetModelRecord(GenericModelRecord):
     """A ControlNet model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.controlnet
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.controlnet
     """Discriminator field identifying this as a ControlNet model record."""
 
     model_classification: ModelClassification = Field(
@@ -345,7 +345,7 @@ class ControlNetModelRecord(GenericModelRecord):
 class TextGenerationModelRecord(GenericModelRecord):
     """A text generation model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.text_generation
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.text_generation
     """Discriminator field identifying this as a text generation model record."""
 
     model_classification: ModelClassification = Field(
@@ -389,7 +389,7 @@ class TextModelGroupNameSchema(BaseModel):
 class BlipModelRecord(GenericModelRecord):
     """A BLIP model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.blip
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.blip
     """Discriminator field identifying this as a BLIP model record."""
 
     model_classification: ModelClassification = Field(
@@ -401,7 +401,7 @@ class BlipModelRecord(GenericModelRecord):
 class ClipModelRecord(GenericModelRecord):
     """A CLIP model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.clip
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.clip
     """Discriminator field identifying this as a CLIP model record."""
 
     model_classification: ModelClassification = Field(
@@ -416,7 +416,7 @@ class ClipModelRecord(GenericModelRecord):
 class CodeformerModelRecord(GenericModelRecord):
     """A Codeformer model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.codeformer
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.codeformer
     """Discriminator field identifying this as a Codeformer model record."""
 
     model_classification: ModelClassification = Field(
@@ -428,7 +428,7 @@ class CodeformerModelRecord(GenericModelRecord):
 class EsrganModelRecord(GenericModelRecord):
     """An ESRGAN model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.esrgan
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.esrgan
     """Discriminator field identifying this as an ESRGAN model record."""
 
     model_classification: ModelClassification = Field(
@@ -440,7 +440,7 @@ class EsrganModelRecord(GenericModelRecord):
 class GfpganModelRecord(GenericModelRecord):
     """A GFPGAN model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.gfpgan
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.gfpgan
     """Discriminator field identifying this as a GFPGAN model record."""
 
     model_classification: ModelClassification = Field(
@@ -452,7 +452,7 @@ class GfpganModelRecord(GenericModelRecord):
 class SafetyCheckerModelRecord(GenericModelRecord):
     """A safety checker model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.safety_checker
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.safety_checker
     """Discriminator field identifying this as a safety checker model record."""
 
     model_classification: ModelClassification = Field(
@@ -464,7 +464,7 @@ class SafetyCheckerModelRecord(GenericModelRecord):
 class VideoGenerationModelRecord(GenericModelRecord):
     """A video generation model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.video_generation
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.video_generation
     """Discriminator field identifying this as a video generation model record."""
 
     model_classification: ModelClassification = Field(
@@ -483,7 +483,7 @@ class VideoGenerationModelRecord(GenericModelRecord):
 class AudioGenerationModelRecord(GenericModelRecord):
     """An audio generation model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.audio_generation
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.audio_generation
     """Discriminator field identifying this as an audio generation model record."""
 
     model_classification: ModelClassification = Field(
@@ -502,12 +502,72 @@ class AudioGenerationModelRecord(GenericModelRecord):
 class MiscellaneousModelRecord(GenericModelRecord):
     """A miscellaneous model entry in the model reference."""
 
-    record_type: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.miscellaneous
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.miscellaneous
     """Discriminator field identifying this as a miscellaneous model record."""
 
     model_classification: ModelClassification = Field(
         default_factory=lambda: _classification_for(MODEL_REFERENCE_CATEGORY.miscellaneous),
     )
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.lora)
+class LoraModelRecord(GenericModelRecord):
+    """A LoRA model entry in the model reference.
+
+    LoRA records are ``managed_elsewhere`` in canonical data: the horde itself does
+    not host them, so they are typically supplied by third-party providers (see
+    :mod:`horde_model_reference.providers`). This built-in type is provided as a
+    convenient default; providers may subclass and register their own type instead.
+    """
+
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.lora
+    """Discriminator field identifying this as a LoRA model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: _classification_for(MODEL_REFERENCE_CATEGORY.lora),
+    )
+
+    baseline: str | None = None
+    """The baseline (e.g., ``stable_diffusion_xl``) this LoRA is intended for."""
+    nsfw: bool = False
+    """Whether the LoRA is NSFW or not."""
+    tags: list[NormalizedTag] | None = None
+    """Any tags associated with the LoRA which may be useful for searching."""
+    trigger: list[str] | None = None
+    """A list of trigger words or phrases which activate the LoRA."""
+    homepage: str | None = None
+    """A link to the LoRA's homepage."""
+    showcases: list[str] | None = None
+    """Links to any showcases illustrating the LoRA's effect."""
+
+
+@register_record_type(MODEL_REFERENCE_CATEGORY.ti)
+class TextualInversionModelRecord(GenericModelRecord):
+    """A textual inversion (embedding) model entry in the model reference.
+
+    Like :class:`LoraModelRecord`, textual inversions are ``managed_elsewhere`` and
+    are normally supplied by third-party providers.
+    """
+
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.ti
+    """Discriminator field identifying this as a textual inversion model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: _classification_for(MODEL_REFERENCE_CATEGORY.ti),
+    )
+
+    baseline: str | None = None
+    """The baseline (e.g., ``stable_diffusion_1``) this embedding is intended for."""
+    nsfw: bool = False
+    """Whether the embedding is NSFW or not."""
+    tags: list[NormalizedTag] | None = None
+    """Any tags associated with the embedding which may be useful for searching."""
+    trigger: list[str] | None = None
+    """A list of trigger words or phrases which activate the embedding."""
+    homepage: str | None = None
+    """A link to the embedding's homepage."""
+    showcases: list[str] | None = None
+    """Links to any showcases illustrating the embedding's effect."""
 
 
 for category in MODEL_REFERENCE_CATEGORY:
@@ -545,9 +605,11 @@ __all__ = [
     "GenericModelRecordMetadata",
     "GfpganModelRecord",
     "ImageGenerationModelRecord",
+    "LoraModelRecord",
     "MiscellaneousModelRecord",
     "SafetyCheckerModelRecord",
     "TextGenerationModelRecord",
+    "TextualInversionModelRecord",
     "VideoGenerationModelRecord",
     "get_record_type_for_category",
     "register_record_type",

@@ -178,7 +178,8 @@ def extract_tags(record: dict[str, Any], style: str | None, params_bn: float) ->
     Returns:
         Comma-separated tag string.
     """
-    tags = record.get("tags", [])
+    tags: list[str] = record.get("tags", [])
+
     if not tags:
         return ""
 

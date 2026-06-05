@@ -102,13 +102,13 @@ def _apply_generic_filters(
 
         if isinstance(q, TextModelQuery):
             if backend is not None:
-                q = q.for_backend(backend)  # type: ignore[assignment]
+                q = q.for_backend(backend)
             if exclude_backend_variations:
-                q = q.exclude_backend_variations()  # type: ignore[assignment]
+                q = q.exclude_backend_variations()
             if quantized is True:
-                q = q.only_quantized()  # type: ignore[assignment]
+                q = q.only_quantized()
             elif quantized is False:
-                q = q.exclude_quantized()  # type: ignore[assignment]
+                q = q.exclude_quantized()
 
     if sort_by is not None:
         try:

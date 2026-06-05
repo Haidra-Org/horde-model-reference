@@ -287,8 +287,16 @@
     "description": "A model entry in the model reference.",
     "properties": {
         "record_type": {
-            "$ref": "#/$defs/MODEL_REFERENCE_CATEGORY",
-            "default": "image_generation"
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/MODEL_REFERENCE_CATEGORY"
+                },
+                {
+                    "type": "string"
+                }
+            ],
+            "default": "image_generation",
+            "title": "Record Type"
         },
         "name": {
             "title": "Name",

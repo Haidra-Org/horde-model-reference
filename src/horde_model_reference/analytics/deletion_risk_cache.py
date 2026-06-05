@@ -6,6 +6,8 @@ invalidation system. Automatically invalidates when model reference data changes
 
 from __future__ import annotations
 
+from typing import ClassVar
+
 from loguru import logger
 
 from horde_model_reference import horde_model_reference_settings
@@ -24,7 +26,7 @@ class DeletionRiskCache(RedisCache[CategoryDeletionRiskResponse]):
     Inherits from RedisCache[CategoryDeletionRiskResponse] for common caching infrastructure.
     """
 
-    _instance: DeletionRiskCache | None = None
+    _instance: ClassVar[DeletionRiskCache | None] = None
 
     def _get_cache_key_prefix(self) -> str:
         """Get the Redis key prefix for deletion risk cache.

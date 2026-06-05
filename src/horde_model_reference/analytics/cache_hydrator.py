@@ -45,7 +45,7 @@ class CacheHydrator:
 
     _instance: CacheHydrator | None = None
     _task: asyncio.Task[None] | None
-    _running: bool
+    _running: bool = False
     _shutdown_event: asyncio.Event
 
     def __new__(cls) -> CacheHydrator:
@@ -61,6 +61,11 @@ class CacheHydrator:
     def is_running(self) -> bool:
         """Check if hydration is currently running."""
         return self._running
+
+    @classmethod
+    def get_instance(cls) -> CacheHydrator:
+        """Get the singleton CacheHydrator instance."""
+        return cls()
 
     async def start(self) -> None:
         """Start the background hydration task.
