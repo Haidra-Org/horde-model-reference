@@ -14,7 +14,7 @@ import threading
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from threading import RLock
-from typing import Any, override
+from typing import Any, cast, override
 
 import httpx
 from loguru import logger
@@ -52,7 +52,7 @@ class RedisBackend(ModelReferenceBackend):
     _lock: RLock
     _sync_redis: redis.Redis[bytes]
 
-    _pubsub: redis.client.PubSub
+    _pubsub: redis.client.PubSub | None
     _pubsub_thread: threading.Thread | None
     _pubsub_running: bool
 
@@ -98,6 +98,7 @@ class RedisBackend(ModelReferenceBackend):
 
         self._pubsub_running = False
         self._pubsub_thread: threading.Thread | None = None
+        self._pubsub = None
         if redis_settings.use_pubsub:
             self._setup_pubsub()
 
@@ -150,7 +151,13 @@ class RedisBackend(ModelReferenceBackend):
         """Listen for cache invalidation events from other workers."""
         logger.debug("Redis pub/sub listener started")
         try:
-            messages = self._pubsub.listen()  # type: ignore[no-untyped-call]
+            if self._pubsub is None:
+                raise RuntimeError("PubSub is not initialized")
+
+            messages: Iterable[dict[str, Any]] = cast(
+                Iterable[dict[str, Any]],
+                self._pubsub.listen(),
+            )
             if not isinstance(messages, Iterable):
                 raise ValueError("Expected iterable from pubsub.listen()")
             for message in messages:
@@ -715,13 +722,11 @@ class RedisBackend(ModelReferenceBackend):
 
     def __del__(self) -> None:
         """Clean up Redis connections on deletion."""
-        if hasattr(self, "_pubsub_running"):
-            self._pubsub_running = False
+        self._pubsub_running = False
 
-        if hasattr(self, "_pubsub"):
+        if self._pubsub is not None:
             with contextlib.suppress(Exception):
                 self._pubsub.close()
 
-        if hasattr(self, "_sync_redis"):
-            with contextlib.suppress(Exception):
-                self._sync_redis.close()
+        with contextlib.suppress(Exception):
+            self._sync_redis.close()

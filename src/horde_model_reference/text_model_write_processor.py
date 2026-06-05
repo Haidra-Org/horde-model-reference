@@ -19,14 +19,14 @@ from importlib import resources
 from pathlib import Path
 
 from loguru import logger
+from pydantic import JsonValue
 
 from horde_model_reference.text_backend_names import validate_not_backend_prefixed
 
-# Type aliases (shared with LegacyTextValidator)
-type SettingsValue = int | float | str | list[int] | list[float] | list[str] | bool
+type SettingsValue = JsonValue
 type SettingsDict = dict[str, SettingsValue]
-type LegacyRecordValue = str | int | float | bool | list[int] | list[float] | list[str] | SettingsDict | None
-type LegacyRecordDict = dict[str, LegacyRecordValue]
+type LegacyRecordValue = JsonValue
+type LegacyRecordDict = dict[str, JsonValue]
 type GenerationParamsDict = dict[str, int | float | str | bool | list[int]]
 type GenerationDefaultsDict = dict[str, LegacyRecordValue]
 
@@ -144,7 +144,7 @@ class TextModelWriteProcessor:
         """
         validate_not_backend_prefixed(entry_key)
 
-        result = dict(record)
+        result: dict[str, JsonValue] = dict(record)
 
         original_style = result.get("style") if result.get("style") else None
         existing_tags = result.get("tags")
@@ -163,11 +163,15 @@ class TextModelWriteProcessor:
                 result["settings"] = normalized_settings
 
         # Auto-generate tags
-        result["tags"] = self.generate_tags(
-            parameters=normalized_parameters,
-            existing_tags=existing_tags,
-            style_for_tag=original_style,
+        generated_tags: list[JsonValue] = []
+        generated_tags.extend(
+            self.generate_tags(
+                parameters=normalized_parameters,
+                existing_tags=existing_tags,
+                style_for_tag=original_style,
+            )
         )
+        result["tags"] = generated_tags
 
         # Ensure name field matches the key
         result["name"] = entry_key
@@ -181,7 +185,7 @@ class TextModelWriteProcessor:
         result["model_name"] = self.extract_model_name(entry_key)
 
         # Remove empty values (matching convert.py semantics)
-        final_result: LegacyRecordDict = {key: value for key, value in result.items() if value}
+        final_result: dict[str, JsonValue] = {key: value for key, value in result.items() if value}
 
         # Apply defaults for missing fields
         if apply_defaults:

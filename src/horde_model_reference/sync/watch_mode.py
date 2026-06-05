@@ -69,6 +69,7 @@ class WatchModeManager:
         endpoint = f"{self.api_url}/model_references/v1/metadata/last_updated"
 
         try:
+            data = {}
             for attempt in http_retry_sync(max_attempts=3, min_wait=1.0, max_wait=15.0):
                 with attempt, httpx.Client(timeout=30.0) as client:
                     response = client.get(endpoint)

@@ -103,8 +103,7 @@ class _InMemoryReplicaBackend(ModelReferenceBackend):
 
 @pytest.mark.integration
 def test_manager(
-    caplog: LogCaptureFixture,
-    restore_manager_singleton: None,
+    model_reference_manager: ModelReferenceManager,
 ) -> None:
     """Test that the manager can fetch and cache all model reference categories via the backend.
 
@@ -114,11 +113,7 @@ def test_manager(
     - Manager returns properly structured model references
     - Data quality of fetched references
     """
-    from tests.helpers import verify_model_references_structure
-
-    model_reference_manager = ModelReferenceManager(
-        replicate_mode=ReplicateMode.REPLICA, prefetch_strategy=PrefetchStrategy.LAZY
-    )
+    from .helpers import verify_model_references_structure
 
     legacy_reference_locations = model_reference_manager.backend.get_all_category_file_paths()
 
@@ -126,7 +121,6 @@ def test_manager(
     assert MODEL_REFERENCE_CATEGORY.image_generation in legacy_reference_locations
     assert all(ref_cat in legacy_reference_locations for ref_cat in MODEL_REFERENCE_CATEGORY)
 
-    caplog.clear()
     model_reference_manager.backend.fetch_all_categories(force_refresh=True)
 
     all_references: dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]]
@@ -146,7 +140,6 @@ def test_manager(
 @pytest.mark.asyncio
 async def test_manager_async(
     model_reference_manager: ModelReferenceManager,
-    caplog: LogCaptureFixture,
 ) -> None:
     """Test that the manager can fetch all categories asynchronously via the backend.
 
@@ -156,7 +149,7 @@ async def test_manager_async(
     - Manager returns properly structured model references after async fetch
     - Data quality of fetched references
     """
-    from tests.helpers import verify_model_references_structure
+    from .helpers import verify_model_references_structure
 
     legacy_reference_locations = model_reference_manager.backend.get_all_category_file_paths()
 

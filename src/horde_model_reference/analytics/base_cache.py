@@ -11,7 +11,7 @@ import json
 import time
 from abc import ABC, abstractmethod
 from threading import RLock
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, ClassVar, Self, TypeVar
 
 from loguru import logger
 from pydantic import BaseModel
@@ -45,15 +45,15 @@ class RedisCache[T: BaseModel](ABC):
     Type parameter T must be a Pydantic BaseModel subclass.
     """
 
-    _instance: RedisCache[T] | None = None
-    _lock: RLock = RLock()
+    _instance: ClassVar[Self | None] = None
+    _lock: ClassVar[RLock] = RLock()
 
     _cache: dict[str, T]
     _timestamps: dict[str, float]
     _redis_client: redis.Redis[bytes] | None
     _redis_key_prefix: str
 
-    def __new__(cls) -> RedisCache[T]:
+    def __new__(cls) -> Self:
         """Singleton pattern matching ModelReferenceManager."""
         with cls._lock:
             if not cls._instance:

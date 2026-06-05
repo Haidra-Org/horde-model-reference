@@ -7,7 +7,7 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, model_serializer, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_serializer, model_validator
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.util import model_name_to_showcase_folder_name
@@ -100,7 +100,6 @@ class LegacyConfig(BaseModel):
     files: list[LegacyConfigFile] = Field(default_factory=list)
     download: list[LegacyConfigDownload] = Field(default_factory=list)
 
-    @model_validator(mode="before")
     @classmethod
     def _coerce_config_dict(cls, value: object, info: ValidationInfo) -> dict[str, Any]:
         if value is None:
@@ -117,6 +116,8 @@ class LegacyConfig(BaseModel):
                 raise TypeError(f"config[{key!s}] must be iterable")
             coerced[key] = list(entries)
         return coerced
+
+    _coerce_config_dict = model_validator(mode="before")(_coerce_config_dict)  # type: ignore[assignment]  # Pydantic wraps the classmethod in a descriptor proxy
 
     @model_validator(mode="after")
     def _normalize_entries(self, info: ValidationInfo) -> LegacyConfig:
@@ -168,7 +169,7 @@ class LegacyConfig(BaseModel):
 class LegacyGenericRecord(BaseModel):
     """Base legacy record representation with shared validation rules."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="allow", frozen=True)
 
     name: str
     type: str | None = None
@@ -218,35 +219,49 @@ class LegacyStableDiffusionRecord(LegacyGenericRecord):
     optimization: str | None = None
     requirements: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
 
+    @field_validator("baseline", mode="before")
+    def _normalize_baseline(cls, value: str) -> str:
+        if value in _BASELINE_NORMALIZATION_MAP:
+            return _BASELINE_NORMALIZATION_MAP[value]
+        return value
+
+    @field_validator("showcases", mode="before")
+    def _validate_showcases(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return value
+        for showcase in value:
+            if "huggingface" in showcase:
+                raise ValueError("huggingface showcases are not allowed")
+        return value
+
+    # Non-mutating "after" validator to enforce Stable Diffusion specific rules and record issues without raising
+    # and respecting the "frozen" model config (legacy models are immutable after validation)
     @model_validator(mode="after")
     def _validate_stable_diffusion_rules(self, info: ValidationInfo) -> LegacyStableDiffusionRecord:
-        if self.type != "ckpt":
-            _record_issue(info, "is not a ckpt!")
-        if self.baseline in _BASELINE_NORMALIZATION_MAP:
-            self.baseline = _BASELINE_NORMALIZATION_MAP[self.baseline]
-        model_key = self.name
-        existing_showcases: dict[str, list[str]] = {}
+        if self.baseline not in _BASELINE_NORMALIZATION_MAP.values():
+            _record_issue(info, "has an unrecognized baseline.")
+        if self.showcases is None or len(self.showcases) == 0:
+            _record_issue(info, "has no showcases defined.")
+        if self.showcases is not None and any("huggingface" in showcase for showcase in self.showcases):
+            _record_issue(info, "has a huggingface showcase.")
+
+        on_disk_showcases: list[str] | None = None
         if info.context is not None:
+            existing_showcases: dict[str, list[str]] = info.context.get("existing_showcase_files", {})
             model_key = info.context.get("model_key", self.name)
-            existing_showcases = info.context.get("existing_showcase_files", {})
-        expected_showcase_foldername = model_name_to_showcase_folder_name(model_key)
-        on_disk_showcases = existing_showcases.get(expected_showcase_foldername)
-        if self.showcases:
-            if on_disk_showcases is None:
-                _record_issue(
-                    info,
-                    f"is expected to have a showcase folder named {expected_showcase_foldername}",
-                )
-                # Don't raise, just record the issue and continue
-            elif len(on_disk_showcases) == 0:
-                _record_issue(info, "has no showcases defined on disk.")
-            elif len(self.showcases) != len(on_disk_showcases):
-                _record_issue(
-                    info,
-                    "has a mismatch between defined showcases and the files present on disk.",
-                )
-            if any("huggingface" in showcase for showcase in self.showcases):
-                _record_issue(info, "has a huggingface showcase.")
+            expected_showcase_foldername = model_name_to_showcase_folder_name(model_key)
+            on_disk_showcases = existing_showcases.get(expected_showcase_foldername)
+
+        if (
+            self.showcases is not None
+            and on_disk_showcases is not None
+            and len(self.showcases) != len(on_disk_showcases)
+        ):
+            _record_issue(
+                info,
+                "has a mismatch between defined showcases and the files present on disk.",
+            )
+
         return self
 
     @model_serializer(when_used="always")
@@ -350,7 +365,7 @@ class LegacySafetyCheckerRecord(LegacyGenericRecord):
 class LegacyMiscellaneousRecord(LegacyGenericRecord):
     """Miscellaneous legacy record with category-specific normalization."""
 
-    type: Literal["layer_diffuse"]
+    type: Literal["layer_diffuse"] = "layer_diffuse"
 
 
 class LegacyControlnetRecord(LegacyGenericRecord):

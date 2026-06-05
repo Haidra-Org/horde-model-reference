@@ -234,7 +234,7 @@ class TestFetchGithubDataUrlResolution:
 
     def test_fetch_github_data_raises_for_unknown_category(self) -> None:
         """fetch_github_data raises ValueError for a category with no URL."""
-        from scripts.sync.sync_github_references import GithubSynchronizer
+        from scripts.sync.sync_github_references import GithubSynchronizer  # pyrefly: ignore [missing-import]
 
         synchronizer = GithubSynchronizer()
 
@@ -248,4 +248,4 @@ class TestFetchGithubDataUrlResolution:
             mock_paths.legacy_text_model_github_urls = {}
 
             with pytest.raises(ValueError, match="No known GitHub URL"):
-                synchronizer.fetch_github_data(category=fake_cat)
+                synchronizer.fetch_github_data(category=fake_cat)  # type: ignore

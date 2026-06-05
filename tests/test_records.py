@@ -164,6 +164,8 @@ def test_model_record_union_covers_all_registered_types() -> None:
     assert isinstance(ModelRecordUnionType, UnionType), (
         f"ModelRecordUnionType should be a Union, got {type(ModelRecordUnionType)}"
     )
+
+    assert hasattr(ModelRecordUnionType, "__args__"), "ModelRecordUnionType should have __args__ attribute"
     union_members = set(ModelRecordUnionType.__args__)
 
     # Every distinct record type in the lookup must appear in the union

@@ -14,9 +14,11 @@ from horde_model_reference.model_reference_records import (
     GenericModelRecord,
     GfpganModelRecord,
     ImageGenerationModelRecord,
+    LoraModelRecord,
     MiscellaneousModelRecord,
     SafetyCheckerModelRecord,
     TextGenerationModelRecord,
+    TextualInversionModelRecord,
     VideoGenerationModelRecord,
 )
 
@@ -53,6 +55,8 @@ ModelRecordUnion = Annotated[
     | VideoGenerationModelRecord
     | AudioGenerationModelRecord
     | MiscellaneousModelRecord
+    | LoraModelRecord
+    | TextualInversionModelRecord
     | GenericModelRecord,
     Field(
         description="A model record conforming to one of the category-specific schemas",
@@ -73,6 +77,8 @@ ModelRecordUnionType = (
     | VideoGenerationModelRecord
     | AudioGenerationModelRecord
     | MiscellaneousModelRecord
+    | LoraModelRecord
+    | TextualInversionModelRecord
     | GenericModelRecord
 )
 """Union of all possible model record types for type hints."""

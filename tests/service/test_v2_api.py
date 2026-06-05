@@ -2,7 +2,7 @@
 
 from collections.abc import Callable, Iterator
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -23,7 +23,8 @@ from horde_model_reference.service.shared import (
     route_registry,
     v2_prefix,
 )
-from tests.helpers import ALL_MODEL_CATEGORIES
+
+from ..helpers import ALL_MODEL_CATEGORIES
 
 pytestmark = pytest.mark.usefixtures("mock_auth_success")
 
@@ -146,12 +147,12 @@ def _create_minimal_model_dict(
 
 def _path_var(variable: PathVariables) -> str:
     """Return the string key for a PathVariables enum value."""
-    return cast(str, variable.value)
+    return variable.value
 
 
 def _category_value(category: MODEL_REFERENCE_CATEGORY) -> str:
     """Return the string value for a model category enum entry."""
-    return cast(str, category.value)
+    return category.value
 
 
 def _model_url(

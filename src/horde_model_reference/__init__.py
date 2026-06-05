@@ -404,15 +404,22 @@ Allows service to fully initialize before background tasks begin."""
 
     @field_validator("cors_allowed_origins", mode="before")
     def validate_cors_origins(cls, v: Any) -> list[str]:  # noqa: ANN401
-        if not isinstance(v, list):
-            raise ValueError("CORS allowed origins must be a list of strings.")
-        if not v:
+        if isinstance(v, str):
+            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
+            logger.debug(f"Parsed CORS allowed origins from string: {origins}")
+            return origins
+        if isinstance(v, (list, tuple)):
+            origins = [str(origin).strip() for origin in v if str(origin).strip()]
+            logger.debug(f"Parsed CORS allowed origins from list/tuple: {origins}")
+            return origins
+        if v is None:
             logger.warning(
-                "CORS allowed origins is not set or empty. This may lead to security issues in production. "
+                "CORS allowed origins is not set. This may lead to security issues in production. "
                 "Please set HORDE_MODEL_REFERENCE_CORS_ALLOWED_ORIGINS to a list of allowed origins."
             )
-        logger.debug(f"CORS allowed origins: {v}")
-        return v
+            return []
+
+        raise ValueError("CORS allowed origins must be a string (comma-separated) or a list/tuple of strings.")
 
     @field_validator("primary_api_url")
     def validate_primary_api_url(cls, v: str | None) -> str | None:
@@ -422,20 +429,34 @@ Allows service to fully initialize before background tasks begin."""
 
     @field_validator("replicate_mode", mode="before")
     def validate_replicate_mode(cls, v: str | ReplicateMode) -> ReplicateMode:
-        if isinstance(v, str):
+        if isinstance(v, ReplicateMode):
+            return v
+
+        try:
             v_lower = v.lower()
             if v_lower in [rm.value.lower() for rm in ReplicateMode]:
                 return ReplicateMode(v.upper())
             return ReplicateMode(v)
-        return v
+        except (ValueError, AttributeError) as e:
+            raise ValueError(
+                f"Invalid replicate_mode value: {v}. Must be one of {[rm.value for rm in ReplicateMode]} "
+                "or their lowercase variants."
+            ) from e
 
     @field_validator("canonical_format", mode="before")
     def validate_canonical_format(cls, v: str | CanonicalFormat) -> CanonicalFormat:
-        if isinstance(v, str):
+        if isinstance(v, CanonicalFormat):
+            return v
+
+        try:
             if v.lower() == CanonicalFormat.LEGACY.value.lower():
                 return CanonicalFormat.LEGACY
             return CanonicalFormat(v)
-        return v
+        except (ValueError, AttributeError) as e:
+            raise ValueError(
+                f"Invalid canonical_format value: {v}. Must be one of {[cf.value for cf in CanonicalFormat]} "
+                "or their lowercase variants."
+            ) from e
 
     @model_validator(mode="after")
     def validate_mode_configuration(self) -> HordeModelReferenceSettings:
@@ -537,7 +558,12 @@ from .path_consts import (  # noqa: E402
 
 from .integrations.data_merger import PopularModelResult  # noqa: E402
 from .model_reference_manager import ModelReferenceManager, PrefetchStrategy  # noqa: E402
-from .model_reference_records import get_record_type_for_category, register_record_type  # noqa: E402
+from .model_reference_records import (  # noqa: E402
+    LoraModelRecord,
+    TextualInversionModelRecord,
+    get_record_type_for_category,
+    register_record_type,
+)
 from .query import ImageGenerationQuery, ModelQuery, TextModelQuery, build_image_query, build_text_query  # noqa: E402
 from .query_fields import (  # noqa: E402
     AudioFields,
@@ -561,6 +587,7 @@ from .query_fields import (  # noqa: E402
 )
 
 __all__ = [
+    "ANY_SOURCE",
     "DEFAULT_SHOWCASE_FOLDER_NAME",
     "KNOWN_IMAGE_GENERATION_BASELINE",
     "KNOWN_TAGS",
@@ -582,8 +609,11 @@ __all__ = [
     "GfpganFields",
     "ImageFields",
     "ImageGenerationQuery",
+    "LoraModelRecord",
     "MiscellaneousFields",
     "ModelClassification",
+    "ModelProvider",
+    "ModelProviderRegistry",
     "ModelQuery",
     "ModelReferenceManager",
     "OrderSpec",
@@ -593,6 +623,7 @@ __all__ = [
     "SafetyCheckerFields",
     "TextFields",
     "TextModelQuery",
+    "TextualInversionModelRecord",
     "VideoFields",
     "build_image_query",
     "build_text_query",
