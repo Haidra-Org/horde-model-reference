@@ -267,12 +267,11 @@ class CacheHydrator:
         effective_include_backend_variations = include_backend_variations and is_text_category and not grouped
 
         # Get model names and records
-        model_names = manager.get_model_names(category)
+        model_records = manager.get_model_reference(category)
+        model_names = list(model_records)
         if not model_names:
             logger.warning(f"No models found for category {category}")
             return None
-
-        model_records = manager.get_model_reference(category)
 
         # Determine model type for Horde API
         model_type: Literal["image", "text"] = (

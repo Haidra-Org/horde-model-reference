@@ -755,7 +755,6 @@ class TestCacheHydrationIntegration:
 
         # Mock all dependencies
         mock_manager = MagicMock()
-        mock_manager.get_model_names.return_value = ["test_model"]
         mock_manager.get_model_reference.return_value = mock_model_records
 
         mock_horde_api = MagicMock()

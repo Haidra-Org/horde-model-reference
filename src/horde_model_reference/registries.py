@@ -111,6 +111,23 @@ class DescriptorRegistry[K, V]:
         if self._init_complete:
             self._rebuild(self._data)
 
+    def update_value(self, key: K, value: V) -> None:
+        """Update the value for an already registered key, raising if the key is not registered.
+
+        Args:
+            key (K): The key to update.
+            value (V): The new value to associate with the key.
+
+        Raises:
+            ValueError: If the key is not already registered.
+
+        """
+        if key not in self._data:
+            raise ValueError(f"{key!r} is not registered and cannot be updated")
+        self._data[key] = value
+        if self._init_complete:
+            self._rebuild(self._data)
+
     def finalize(self) -> None:
         """Mark initialization complete and trigger a final rebuild with all registered data.
 

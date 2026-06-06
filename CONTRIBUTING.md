@@ -48,8 +48,8 @@ All pull requests, large or small, from anyone are welcome!
     - Combined: `ruff format . && ruff check . --fix`
     - See `pyproject.toml` for the rules used.
     - See all rules (but not necessarily used in the project) [available in ruff here](https://beta.ruff.rs/docs/rules/).
-- [**ty**](https://github.com/astral-sh/ty)
-    - Type checker: `ty check .`
+- [**pyrefly**](https://pyrefly.org/)
+    - Type checker: `pyrefly check .`
 - [**pyright**](https://github.com/microsoft/pyright)
     - Shipped with vscode by default (via the python extension `ms-python.vscode-pylance`)
     - Suggested settings:
@@ -87,7 +87,7 @@ pytest tests/test_model_reference_manager.py
 
 1. Fork the repository and create a feature branch from `main`
 2. Make your changes
-3. Run the quality checks: `ruff format . && ruff check . --fix && ty check .`
+3. Run the quality checks: `ruff format . && ruff check . --fix && pyrefly check .`
 4. Run the tests: `AI_HORDE_TESTING=True pytest`
 5. Commit with a clear message and open a pull request
 

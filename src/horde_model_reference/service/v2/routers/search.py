@@ -67,9 +67,10 @@ def _apply_generic_filters(
     backend: str | None,
     exclude_backend_variations: bool,
     quantized: bool | None,
+    source: str,
 ) -> SearchResponse:
     """Build a query from parameters, execute, and return a SearchResponse."""
-    q = manager.query(category)
+    q = manager.query(category, source=source)
 
     try:
         if nsfw is not None:
@@ -154,27 +155,34 @@ def search_category(
     backend: Annotated[str | None, Query(description="Text model backend filter")] = None,
     exclude_backend_variations: Annotated[bool, Query(description="Exclude text model backend variations")] = False,
     quantized: Annotated[bool | None, Query(description="Filter by quantization (text only)")] = None,
+    source: Annotated[
+        str, Query(description="Model source: 'horde' (canonical), 'any', or a registered provider source id")
+    ] = "horde",
 ) -> SearchResponse:
     """Search models within a specific category with filtering, sorting, and pagination."""
     category = _validate_category(model_category_name)
-    return _apply_generic_filters(
-        manager,
-        category,
-        nsfw=nsfw,
-        baseline=baseline,
-        inpainting=inpainting,
-        tags_any=tags_any,
-        tags_all=tags_all,
-        tags_none=tags_none,
-        name_contains=name_contains,
-        sort_by=sort_by,
-        sort_desc=sort_desc,
-        limit=limit,
-        offset=offset,
-        backend=backend,
-        exclude_backend_variations=exclude_backend_variations,
-        quantized=quantized,
-    )
+    try:
+        return _apply_generic_filters(
+            manager,
+            category,
+            nsfw=nsfw,
+            baseline=baseline,
+            inpainting=inpainting,
+            tags_any=tags_any,
+            tags_all=tags_all,
+            tags_none=tags_none,
+            name_contains=name_contains,
+            sort_by=sort_by,
+            sort_desc=sort_desc,
+            limit=limit,
+            offset=offset,
+            backend=backend,
+            exclude_backend_variations=exclude_backend_variations,
+            quantized=quantized,
+            source=source,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Unknown source: {exc}") from None
 
 
 @router.get(

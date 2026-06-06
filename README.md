@@ -105,7 +105,7 @@ if "stable_diffusion_xl" in image_models:
 # Query API: filter and sort with a fluent builder
 from horde_model_reference import ImageFields, false
 sfw_xl = (
-    manager.query_image_generation()
+    manager.query("image_generation")
     .where(ImageFields.nsfw == false, ImageFields.baseline == "stable_diffusion_xl")
     .order_by("name")
     .to_list()
@@ -164,6 +164,38 @@ curl http://localhost:19800/api/heartbeat
 
 For GitHub sync setup, see [the sync README.md](./scripts/sync/README.md).
 
+### Use Case 4: Contributing Models via a Provider
+
+**For third parties (e.g. a model catalog) who want their models readable alongside canonical data:**
+
+Register a read-only *provider* under your own source id; consumers opt in with `source=`:
+
+```python
+from horde_model_reference import (
+    ModelReferenceManager,
+    MODEL_REFERENCE_CATEGORY,
+    StaticModelProvider,
+    ANY_SOURCE,
+)
+
+provider = StaticModelProvider.from_raw(
+    "civitai",
+    {
+        MODEL_REFERENCE_CATEGORY.image_generation: {
+            "my_cool_model": {"baseline": "stable_diffusion_xl", "nsfw": False},
+        },
+    },
+)
+
+manager = ModelReferenceManager()
+manager.register_provider(provider)
+
+# Canonical + all providers; canonical wins name collisions
+models = manager.query("image_generation", source=ANY_SOURCE).to_list()
+```
+
+See [Registering & Consuming Providers](docs/tutorials/registering_providers.md) for the full guide.
+
 ## Installation
 
 ### From PyPI (Recommended)
@@ -216,7 +248,7 @@ print(f"Parameters: {model.parameters_count}")
 print(f"Description: {model.description}")
 
 # Get just the model names in a category
-model_names = manager.get_model_names(MODEL_REFERENCE_CATEGORY.image_generation)
+model_names = list(manager.get_model_reference(MODEL_REFERENCE_CATEGORY.image_generation))
 print(f"Available image models: {', '.join(model_names[:3])}...")
 
 # Get all references across all categories
@@ -278,7 +310,7 @@ manager = ModelReferenceManager()
 
 # Find SFW SDXL models sorted by name
 sfw_sdxl = (
-    manager.query_image_generation()
+    manager.query("image_generation")
     .exclude_nsfw()
     .for_baseline("stable_diffusion_xl")
     .order_by("name")
@@ -287,13 +319,13 @@ sfw_sdxl = (
 
 # Text models with 7B+ parameters
 big_llms = (
-    manager.query_text_generation()
+    manager.query("text_generation")
     .where(TextFields.parameters_count > 7_000_000_000)
     .to_list()
 )
 
 # Group text models by base model
-groups = manager.query_text_generation().group_by_base_model()
+groups = manager.query("text_generation").group_by_base_model()
 for base, variants in groups.items():
     print(f"{base}: {len(variants)} variants")
 

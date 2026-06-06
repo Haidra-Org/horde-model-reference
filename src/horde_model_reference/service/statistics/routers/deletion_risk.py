@@ -186,7 +186,7 @@ async def get_category_deletion_risk(
 
     # Get model names from reference
     try:
-        model_names = manager.get_model_names(model_category_name)
+        model_names = list(manager.get_model_reference(model_category_name))
     except Exception as e:
         logger.exception(f"Error fetching models for category {model_category_name}: {e}")
         raise HTTPException(
