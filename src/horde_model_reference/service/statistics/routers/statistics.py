@@ -257,7 +257,7 @@ async def read_models_with_stats(
 
     """
     # 1. Get reference data (from ModelReferenceManager cache)
-    model_names = manager.get_model_names(model_category_name)
+    model_names = list(manager.get_model_reference(model_category_name))
     if not model_names:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

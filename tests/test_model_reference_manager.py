@@ -377,20 +377,20 @@ class TestTypedModelAccessors:
             replicate_mode=ReplicateMode.REPLICA,
         )
 
-    def test_image_generation_models_returns_typed_dict(self) -> None:
-        """Verify the accessor returns only ImageGenerationModelRecord values."""
+    def test_query_returns_typed_records(self) -> None:
+        """Verify the typed query builder yields only ImageGenerationModelRecord values."""
         manager = self._create_manager_with_image_record()
 
-        models = manager.image_generation_models
+        models = manager.query(MODEL_REFERENCE_CATEGORY.image_generation).to_list()
 
-        assert set(models.keys()) == {"valid_model"}
-        assert isinstance(models["valid_model"], ImageGenerationModelRecord)
+        assert {model.name for model in models} == {"valid_model"}
+        assert isinstance(models[0], ImageGenerationModelRecord)
 
-    def test_image_generation_models_raises_if_cache_corrupted(self) -> None:
-        """Ensure a corrupted cache triggers a runtime error."""
+    def test_query_raises_if_cache_corrupted(self) -> None:
+        """Ensure a corrupted cache triggers a runtime error during typed query building."""
         manager = self._create_manager_with_image_record()
 
-        _ = manager.image_generation_models
+        _ = manager.query(MODEL_REFERENCE_CATEGORY.image_generation)
 
         manager._cached_records[MODEL_REFERENCE_CATEGORY.image_generation] = {
             "bad_model": GenericModelRecord(
@@ -404,7 +404,7 @@ class TestTypedModelAccessors:
         }
 
         with pytest.raises(RuntimeError, match="image_generation"):
-            _ = manager.image_generation_models
+            _ = manager.query(MODEL_REFERENCE_CATEGORY.image_generation)
 
     def test_deferred_prefetch_strategy_exposes_handle(self) -> None:
         """Ensure PrefetchStrategy.DEFERRED avoids blocking init but provides a handle."""

@@ -40,6 +40,7 @@ from horde_model_reference.model_reference_records import (
     TextGenerationModelRecord,
     VideoGenerationModelRecord,
 )
+from horde_model_reference.providers import ModelProvider, ModelProviderRegistry
 from horde_model_reference.query import (
     ControlNetFieldName,
     ControlNetQuery,
@@ -54,6 +55,12 @@ from horde_model_reference.query import (
     build_image_query,
     build_query,
     build_text_query,
+)
+from horde_model_reference.source_consts import (
+    ANY_SOURCE,
+    HORDE_SOURCE_ID,
+    SourceSelector,
+    normalize_source_selector,
 )
 
 if TYPE_CHECKING:
@@ -108,6 +115,7 @@ class ModelReferenceManager:
     _prefetch_strategy: PrefetchStrategy = PrefetchStrategy.SYNC
     _deferred_prefetch_handle: DeferredPrefetchHandle | None = None
     _async_prefetch_task: asyncio.Task[None] | None = None
+    _provider_registry: ModelProviderRegistry
     _audit_writer: AuditTrailWriter | None = None
     _pending_queue_service: PendingQueueService | None = None
     _group_alias_store: GroupAliasStore | None = None
@@ -355,6 +363,7 @@ class ModelReferenceManager:
                 cls._instance._cached_records = {}
                 cls._instance._deferred_prefetch_handle = None
                 cls._instance._async_prefetch_task = None
+                cls._instance._provider_registry = ModelProviderRegistry()
 
                 # Register invalidation callback so backend can notify us when cache is stale
                 cls._instance.backend.register_invalidation_callback(cls._instance._on_backend_invalidated)
@@ -952,20 +961,29 @@ class ModelReferenceManager:
         self,
         category: MODEL_REFERENCE_CATEGORY,
         overwrite_existing: bool = False,
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
     ) -> dict[str, GenericModelRecord] | None:
         """Return the model reference object for a specific category.
 
         Args:
             category: The category to retrieve.
             overwrite_existing: Whether to force a redownload. Defaults to False.
+            source: Which source(s) to read from. Defaults to canonical horde data
+                (:data:`~horde_model_reference.source_consts.HORDE_SOURCE_ID`). Pass
+                ``"any"`` to merge all registered providers, or a provider id / sequence
+                of ids to select specific third-party sources. On name collisions the
+                canonical (or earlier-listed) source wins.
 
         Returns:
             dict[str, GenericModelRecord] | None: The model reference object for the category,
                 or None if not found.
 
         """
-        all_references = self.get_all_model_references_or_none(overwrite_existing=overwrite_existing)
-        return all_references.get(category)
+        if self._is_canonical_only(source):
+            all_references = self.get_all_model_references_or_none(overwrite_existing=overwrite_existing)
+            return all_references.get(category)
+        return self._merge_sourced_reference(category, source, overwrite_existing=overwrite_existing)
 
     async def get_model_reference_or_none_async(
         self,
@@ -973,6 +991,7 @@ class ModelReferenceManager:
         overwrite_existing: bool = False,
         *,
         httpx_client: httpx.AsyncClient | None = None,
+        source: SourceSelector = HORDE_SOURCE_ID,
     ) -> dict[str, GenericModelRecord] | None:
         """Return a single category's references asynchronously without strict enforcement.
 
@@ -980,21 +999,31 @@ class ModelReferenceManager:
             category: Target category to load.
             overwrite_existing: Whether to force backend refresh.
             httpx_client: Optional shared async client for HTTP backends.
+            source: Which source(s) to read from. See :meth:`get_model_reference_or_none`.
 
         Returns:
             dict[str, GenericModelRecord] | None: Mapping of model names or None.
 
         """
-        all_references = await self.get_all_model_references_or_none_async(
+        if self._is_canonical_only(source):
+            all_references = await self.get_all_model_references_or_none_async(
+                overwrite_existing=overwrite_existing,
+                httpx_client=httpx_client,
+            )
+            return all_references.get(category)
+        return await self._merge_sourced_reference_async(
+            category,
+            source,
             overwrite_existing=overwrite_existing,
             httpx_client=httpx_client,
         )
-        return all_references.get(category)
 
     def get_model_reference(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         overwrite_existing: bool = False,
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
     ) -> dict[str, GenericModelRecord]:
         """Return the model reference object for a specific category.
 
@@ -1004,6 +1033,7 @@ class ModelReferenceManager:
         Args:
             category: The category to retrieve.
             overwrite_existing: Whether to force a redownload. Defaults to False.
+            source: Which source(s) to read from. See :meth:`get_model_reference_or_none`.
 
         Returns:
             dict[str, GenericModelRecord]: The model reference object for the category.
@@ -1012,6 +1042,7 @@ class ModelReferenceManager:
         model_reference = self.get_model_reference_or_none(
             category,
             overwrite_existing=overwrite_existing,
+            source=source,
         )
         if model_reference is None:
             raise RuntimeError(f"Model reference for category {category} not found or could not be parsed.")
@@ -1024,6 +1055,7 @@ class ModelReferenceManager:
         overwrite_existing: bool = False,
         *,
         httpx_client: httpx.AsyncClient | None = None,
+        source: SourceSelector = HORDE_SOURCE_ID,
     ) -> dict[str, GenericModelRecord]:
         """Return a single category's references asynchronously, raising if missing.
 
@@ -1031,6 +1063,7 @@ class ModelReferenceManager:
             category: Target category to load.
             overwrite_existing: Whether to force backend refresh.
             httpx_client: Optional shared async client for HTTP backends.
+            source: Which source(s) to read from. See :meth:`get_model_reference_or_none`.
 
         Returns:
             dict[str, GenericModelRecord]: Mapping of model names for the category.
@@ -1043,68 +1076,20 @@ class ModelReferenceManager:
             category,
             overwrite_existing=overwrite_existing,
             httpx_client=httpx_client,
+            source=source,
         )
         if model_reference is None:
             raise RuntimeError(f"Model reference for category {category} not found or could not be parsed.")
 
         return model_reference
 
-    def get_model_names_or_none(
-        self,
-        category: MODEL_REFERENCE_CATEGORY,
-        overwrite_existing: bool = False,
-    ) -> list[str] | None:
-        """Return a list of model names for a specific category.
-
-        Args:
-            category: The category to retrieve.
-            overwrite_existing: Whether to force a redownload. Defaults to False.
-
-        Returns:
-            list[str] | None: The list of model names for the category, or None if not found.
-
-        """
-        model_reference = self.get_model_reference_or_none(
-            category,
-            overwrite_existing=overwrite_existing,
-        )
-        if model_reference is None:
-            return None
-
-        return list(model_reference.keys())
-
-    def get_model_names(
-        self,
-        category: MODEL_REFERENCE_CATEGORY,
-        overwrite_existing: bool = False,
-    ) -> list[str]:
-        """Return a list of model names for a specific category.
-
-        Raises an exception if the model reference could not be found or parsed.
-        If you want to allow missing model references, use `get_model_names_or_none()` instead.
-
-        Args:
-            category: The category to retrieve.
-            overwrite_existing: Whether to force a redownload. Defaults to False.
-
-        Returns:
-            list[str]: The list of model names for the category.
-
-        """
-        model_reference = self.get_model_reference(
-            category,
-            overwrite_existing=overwrite_existing,
-        )
-        if model_reference is None:
-            raise RuntimeError(f"Model reference for category {category} not found or could not be parsed.")
-
-        return list(model_reference.keys())
-
     def get_model_or_none(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         overwrite_existing: bool = False,
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
     ) -> GenericModelRecord | None:
         """Return a specific model from a category.
 
@@ -1112,6 +1097,7 @@ class ModelReferenceManager:
             category: The category to retrieve.
             model_name: The name of the model within the category.
             overwrite_existing: Whether to force a redownload. Defaults to False.
+            source: Which source(s) to read from. See :meth:`get_model_reference_or_none`.
 
         Returns:
             GenericModelRecord | None: The model record, or None if not found.
@@ -1120,6 +1106,7 @@ class ModelReferenceManager:
         model_reference = self.get_model_reference_or_none(
             category,
             overwrite_existing=overwrite_existing,
+            source=source,
         )
         if model_reference is None:
             return None
@@ -1131,6 +1118,8 @@ class ModelReferenceManager:
         category: MODEL_REFERENCE_CATEGORY,
         model_name: str,
         overwrite_existing: bool = False,
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
     ) -> GenericModelRecord:
         """Return a specific model from a category.
 
@@ -1141,6 +1130,7 @@ class ModelReferenceManager:
             category: The category to retrieve.
             model_name: The name of the model within the category.
             overwrite_existing: Whether to force a redownload. Defaults to False.
+            source: Which source(s) to read from. See :meth:`get_model_reference_or_none`.
 
         Returns:
             GenericModelRecord: The model record.
@@ -1149,6 +1139,7 @@ class ModelReferenceManager:
         model_reference = self.get_model_reference(
             category,
             overwrite_existing=overwrite_existing,
+            source=source,
         )
 
         model_record = model_reference.get(model_name)
@@ -1229,114 +1220,329 @@ class ModelReferenceManager:
         return typed_reference
 
     @property
-    def blip_models(self) -> dict[str, BlipModelRecord]:
-        """Return a mapping of BLIP model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.blip,
-            record_type=BlipModelRecord,
+    def provider_registry(self) -> ModelProviderRegistry:
+        """Return the registry of third-party model providers owned by this manager."""
+        return self._provider_registry
+
+    def register_provider(self, provider: ModelProvider, *, replace: bool = False) -> None:
+        """Register a third-party :class:`ModelProvider` for use in reads/queries.
+
+        Args:
+            provider: The provider to register.
+            replace: If ``True``, replace an existing provider with the same source id.
+
+        Raises:
+            ValueError: If the source id is reserved/empty, or already registered and
+                *replace* is ``False``.
+
+        """
+        self._provider_registry.register(provider, replace=replace)
+
+    def unregister_provider(self, source_id: str) -> bool:
+        """Remove the provider registered under *source_id*.
+
+        Returns:
+            bool: ``True`` if a provider was removed, ``False`` otherwise.
+
+        """
+        return self._provider_registry.unregister(source_id)
+
+    def list_providers(self) -> list[str]:
+        """Return the source ids of all registered providers (registration order)."""
+        return self._provider_registry.source_ids()
+
+    def get_provider(self, source_id: str) -> ModelProvider | None:
+        """Return the provider registered under *source_id*, or ``None``."""
+        return self._provider_registry.get(source_id)
+
+    def _resolve_source_selectors(
+        self,
+        selectors: list[str],
+    ) -> tuple[bool, list[str]]:
+        """Split normalized selectors into ``(include_canonical, ordered_provider_ids)``.
+
+        ``ANY_SOURCE`` expands to the canonical source plus every registered provider.
+        Explicitly named, unregistered provider ids raise ``ValueError``; ids discovered
+        via ``ANY_SOURCE`` are simply the live set and never raise.
+        """
+        include_canonical = False
+        provider_ids: list[str] = []
+        seen: set[str] = set()
+
+        for selector in selectors:
+            if selector == ANY_SOURCE:
+                include_canonical = True
+                for provider_id in self._provider_registry.source_ids():
+                    if provider_id not in seen:
+                        seen.add(provider_id)
+                        provider_ids.append(provider_id)
+            elif selector == HORDE_SOURCE_ID:
+                include_canonical = True
+            else:
+                if not self._provider_registry.has(selector):
+                    raise ValueError(
+                        f"No provider registered under source id {selector!r}. "
+                        f"Registered providers: {self._provider_registry.source_ids()}.",
+                    )
+                if selector not in seen:
+                    seen.add(selector)
+                    provider_ids.append(selector)
+
+        return include_canonical, provider_ids
+
+    @staticmethod
+    def _is_canonical_only(source: SourceSelector) -> bool:
+        """Return whether *source* selects canonical data exclusively (the default)."""
+        return normalize_source_selector(source) == [HORDE_SOURCE_ID]
+
+    def _gather_sourced_records(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        source: SourceSelector,
+        *,
+        overwrite_existing: bool = False,
+    ) -> tuple[list[GenericModelRecord], list[str]]:
+        """Collect records and aligned source ids for *category* from the selected sources.
+
+        Records are returned canonical-first (so the canonical source wins name
+        collisions during de-duplication) followed by each provider's records in
+        selector order. Duplicates are intentionally retained so callers/queries can
+        detect collisions. A provider raising or returning ``None`` is logged and
+        skipped (error isolation).
+        """
+        selectors = normalize_source_selector(source)
+        include_canonical, provider_ids = self._resolve_source_selectors(selectors)
+
+        records: list[GenericModelRecord] = []
+        sources: list[str] = []
+
+        if include_canonical:
+            canonical = self.get_all_model_references_or_none(
+                overwrite_existing=overwrite_existing,
+            ).get(category)
+            if canonical:
+                for record in canonical.values():
+                    records.append(record)
+                    sources.append(HORDE_SOURCE_ID)
+
+        for provider_id in provider_ids:
+            provider = self._provider_registry.get(provider_id)
+            if provider is None:  # pragma: no cover - guarded by _resolve_source_selectors
+                continue
+            if not provider.serves_category(category):
+                continue
+            try:
+                provided = provider.fetch_category(category, force_refresh=overwrite_existing)
+            except Exception as exc:
+                logger.error(
+                    f"Provider {provider_id!r} raised while fetching category {category.value!r}; skipping: {exc}",
+                )
+                continue
+            if not provided:
+                continue
+            for record in provided.values():
+                records.append(record)
+                sources.append(provider_id)
+
+        return records, sources
+
+    def _merge_sourced_reference(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        source: SourceSelector,
+        *,
+        overwrite_existing: bool = False,
+    ) -> dict[str, GenericModelRecord] | None:
+        """Return a canonical-wins merged ``name -> record`` mapping across *source*.
+
+        Returns ``None`` only when no source produced any records for the category,
+        preserving the ``*_or_none`` contract.
+        """
+        records, sources = self._gather_sourced_records(
+            category,
+            source,
+            overwrite_existing=overwrite_existing,
         )
+        if not records:
+            return None
 
-    @property
-    def clip_models(self) -> dict[str, ClipModelRecord]:
-        """Return a mapping of CLIP model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.clip,
-            record_type=ClipModelRecord,
+        merged: dict[str, GenericModelRecord] = {}
+        for record, _source in zip(records, sources, strict=True):
+            merged.setdefault(record.name, record)
+        return merged
+
+    async def _gather_sourced_records_async(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        source: SourceSelector,
+        *,
+        overwrite_existing: bool = False,
+        httpx_client: httpx.AsyncClient | None = None,
+    ) -> tuple[list[GenericModelRecord], list[str]]:
+        """Async counterpart to :meth:`_gather_sourced_records` using provider async fetch."""
+        selectors = normalize_source_selector(source)
+        include_canonical, provider_ids = self._resolve_source_selectors(selectors)
+
+        records: list[GenericModelRecord] = []
+        sources: list[str] = []
+
+        if include_canonical:
+            all_references = await self.get_all_model_references_or_none_async(
+                overwrite_existing=overwrite_existing,
+                httpx_client=httpx_client,
+            )
+            canonical = all_references.get(category)
+            if canonical:
+                for record in canonical.values():
+                    records.append(record)
+                    sources.append(HORDE_SOURCE_ID)
+
+        for provider_id in provider_ids:
+            provider = self._provider_registry.get(provider_id)
+            if provider is None:  # pragma: no cover - guarded by _resolve_source_selectors
+                continue
+            if not provider.serves_category(category):
+                continue
+            try:
+                provided = await provider.fetch_category_async(category, force_refresh=overwrite_existing)
+            except Exception as exc:
+                logger.error(
+                    f"Provider {provider_id!r} raised while fetching category {category.value!r}; skipping: {exc}",
+                )
+                continue
+            if not provided:
+                continue
+            for record in provided.values():
+                records.append(record)
+                sources.append(provider_id)
+
+        return records, sources
+
+    async def _merge_sourced_reference_async(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        source: SourceSelector,
+        *,
+        overwrite_existing: bool = False,
+        httpx_client: httpx.AsyncClient | None = None,
+    ) -> dict[str, GenericModelRecord] | None:
+        """Async counterpart to :meth:`_merge_sourced_reference`."""
+        records, sources = await self._gather_sourced_records_async(
+            category,
+            source,
+            overwrite_existing=overwrite_existing,
+            httpx_client=httpx_client,
         )
+        if not records:
+            return None
 
-    @property
-    def codeformer_models(self) -> dict[str, CodeformerModelRecord]:
-        """Return a mapping of CodeFormer model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.codeformer,
-            record_type=CodeformerModelRecord,
-        )
-
-    @property
-    def controlnet_models(self) -> dict[str, ControlNetModelRecord]:
-        """Return a mapping of ControlNet model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.controlnet,
-            record_type=ControlNetModelRecord,
-        )
-
-    @property
-    def esrgan_models(self) -> dict[str, EsrganModelRecord]:
-        """Return a mapping of ESRGAN model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.esrgan,
-            record_type=EsrganModelRecord,
-        )
-
-    @property
-    def gfpgan_models(self) -> dict[str, GfpganModelRecord]:
-        """Return a mapping of GFPGAN model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.gfpgan,
-            record_type=GfpganModelRecord,
-        )
-
-    @property
-    def safety_checker_models(self) -> dict[str, SafetyCheckerModelRecord]:
-        """Return a mapping of safety checker model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.safety_checker,
-            record_type=SafetyCheckerModelRecord,
-        )
-
-    @property
-    def image_generation_models(self) -> dict[str, ImageGenerationModelRecord]:
-        """Return a mapping of image generation model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.image_generation,
-            record_type=ImageGenerationModelRecord,
-        )
-
-    @property
-    def text_generation_models(self) -> dict[str, TextGenerationModelRecord]:
-        """Return a mapping of text generation model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.text_generation,
-            record_type=TextGenerationModelRecord,
-        )
-
-    @property
-    def audio_generation_models(self) -> dict[str, AudioGenerationModelRecord]:
-        """Return a mapping of audio generation model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.audio_generation,
-            record_type=AudioGenerationModelRecord,
-        )
-
-    @property
-    def video_generation_models(self) -> dict[str, VideoGenerationModelRecord]:
-        """Return a mapping of video generation model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.video_generation,
-            record_type=VideoGenerationModelRecord,
-        )
-
-    @property
-    def miscellaneous_models(self) -> dict[str, MiscellaneousModelRecord]:
-        """Return a mapping of miscellaneous model names to their records."""
-        return self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.miscellaneous,
-            record_type=MiscellaneousModelRecord,
-        )
-
-    @overload
-    def query(self, category: Literal["image_generation"]) -> ImageGenerationQuery: ...  # type: ignore[overload-overlap]
-
-    @overload
-    def query(self, category: Literal["text_generation"]) -> TextModelQuery: ...  # type: ignore[overload-overlap]
-
-    @overload
-    def query(self, category: Literal["controlnet"]) -> ControlNetQuery: ...  # type: ignore[overload-overlap]
+        merged: dict[str, GenericModelRecord] = {}
+        for record, _source in zip(records, sources, strict=True):
+            merged.setdefault(record.name, record)
+        return merged
 
     @overload
     def query(
         self,
-        category: str,
+        category: Literal["image_generation", MODEL_REFERENCE_CATEGORY.image_generation],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ImageGenerationQuery: ...
+
+    @overload
+    def query(
+        self,
+        category: Literal["text_generation", MODEL_REFERENCE_CATEGORY.text_generation],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> TextModelQuery: ...
+
+    @overload
+    def query(
+        self,
+        category: Literal["controlnet", MODEL_REFERENCE_CATEGORY.controlnet],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ControlNetQuery: ...
+
+    @overload
+    def query(  # pyrefly: ignore[inconsistent-overload]
+        self,
+        category: Literal["blip", MODEL_REFERENCE_CATEGORY.blip],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ModelQuery[BlipModelRecord, GenericFieldName]: ...
+
+    @overload
+    def query(  # pyrefly: ignore[inconsistent-overload]
+        self,
+        category: Literal["clip", MODEL_REFERENCE_CATEGORY.clip],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ModelQuery[ClipModelRecord, GenericFieldName]: ...
+
+    @overload
+    def query(  # pyrefly: ignore[inconsistent-overload]
+        self,
+        category: Literal["codeformer", MODEL_REFERENCE_CATEGORY.codeformer],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ModelQuery[CodeformerModelRecord, GenericFieldName]: ...
+
+    @overload
+    def query(  # pyrefly: ignore[inconsistent-overload]
+        self,
+        category: Literal["esrgan", MODEL_REFERENCE_CATEGORY.esrgan],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ModelQuery[EsrganModelRecord, GenericFieldName]: ...
+
+    @overload
+    def query(  # pyrefly: ignore[inconsistent-overload]
+        self,
+        category: Literal["gfpgan", MODEL_REFERENCE_CATEGORY.gfpgan],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ModelQuery[GfpganModelRecord, GenericFieldName]: ...
+
+    @overload
+    def query(  # pyrefly: ignore[inconsistent-overload]
+        self,
+        category: Literal["safety_checker", MODEL_REFERENCE_CATEGORY.safety_checker],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ModelQuery[SafetyCheckerModelRecord, GenericFieldName]: ...
+
+    @overload
+    def query(  # pyrefly: ignore[inconsistent-overload]
+        self,
+        category: Literal["audio_generation", MODEL_REFERENCE_CATEGORY.audio_generation],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ModelQuery[AudioGenerationModelRecord, GenericFieldName]: ...
+
+    @overload
+    def query(  # pyrefly: ignore[inconsistent-overload]
+        self,
+        category: Literal["video_generation", MODEL_REFERENCE_CATEGORY.video_generation],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ModelQuery[VideoGenerationModelRecord, GenericFieldName]: ...
+
+    @overload
+    def query(  # pyrefly: ignore[inconsistent-overload]
+        self,
+        category: Literal["miscellaneous", MODEL_REFERENCE_CATEGORY.miscellaneous],
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> ModelQuery[MiscellaneousModelRecord, GenericFieldName]: ...
+
+    @overload
+    def query(
+        self,
+        category: MODEL_REFERENCE_CATEGORY | str,
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
     ) -> ModelQuery[
         GenericModelRecord, GenericFieldName | ImageGenFieldName | TextGenFieldName | ControlNetFieldName
     ]: ...
@@ -1344,38 +1550,111 @@ class ModelReferenceManager:
     def query(
         self,
         category: MODEL_REFERENCE_CATEGORY | str,
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
     ) -> (
         ImageGenerationQuery
         | TextModelQuery
         | ControlNetQuery
         | ModelQuery[GenericModelRecord, GenericFieldName | ImageGenFieldName | TextGenFieldName | ControlNetFieldName]
     ):
-        """Return a query builder for a single category.
+        """Return the query builder for a single category.
 
-        When called with a literal category string, the return type is
-        narrowed to the corresponding typed query builder (e.g.
-        ``ImageGenerationQuery`` for ``"image_generation"``).
+        This is the single entry point for filtering, sorting, and aggregating model
+        records. The returned builder is typed to the category's record class; the
+        three domain categories return enriched subclasses with extra helpers
+        (``ImageGenerationQuery``, ``TextModelQuery``, ``ControlNetQuery``).
 
         Args:
-            category: The model reference category to query.
+            category: The model reference category to query, as the
+                :class:`~horde_model_reference.meta_consts.MODEL_REFERENCE_CATEGORY`
+                member (recommended, for precise return typing) or its string value.
+            source: Which source(s) to include. Defaults to canonical horde data
+                (:data:`~horde_model_reference.source_consts.HORDE_SOURCE_ID`). Pass
+                ``"any"`` to merge all registered providers, or a provider id / ordered
+                sequence of ids. When more than one source is selected, results are
+                de-duplicated by name (canonical / earlier-listed source wins); use
+                :meth:`~horde_model_reference.query.ModelQuery.duplicate_names` to detect
+                collisions and :meth:`~horde_model_reference.query.ModelQuery.where_source`
+                to filter by provenance.
 
         Returns:
             A ``ModelQuery`` (or typed subclass) ready for chaining filters.
 
         """
-        if isinstance(category, str):
-            category = MODEL_REFERENCE_CATEGORY(category)
+        category = MODEL_REFERENCE_CATEGORY(category)
+        canonical_only = self._is_canonical_only(source)
 
         if category == MODEL_REFERENCE_CATEGORY.image_generation:
-            return self.query_image_generation()
-        if category == MODEL_REFERENCE_CATEGORY.text_generation:
-            return self.query_text_generation()
-        if category == MODEL_REFERENCE_CATEGORY.controlnet:
-            return self.query_controlnet()
+            if canonical_only:
+                return build_image_query(
+                    self._get_typed_models(category, record_type=ImageGenerationModelRecord),
+                )
+            img_records, img_sources = self._gather_typed_sourced(
+                category,
+                record_type=ImageGenerationModelRecord,
+                source=source,
+            )
+            return ImageGenerationQuery(img_records, ImageGenerationModelRecord, sources=img_sources)
 
-        records = self.get_model_reference(category)
+        if category == MODEL_REFERENCE_CATEGORY.text_generation:
+            if canonical_only:
+                return build_text_query(
+                    self._get_typed_models(category, record_type=TextGenerationModelRecord),
+                )
+            txt_records, txt_sources = self._gather_typed_sourced(
+                category,
+                record_type=TextGenerationModelRecord,
+                source=source,
+            )
+            return TextModelQuery(txt_records, TextGenerationModelRecord, sources=txt_sources)
+
+        if category == MODEL_REFERENCE_CATEGORY.controlnet:
+            if canonical_only:
+                return build_controlnet_query(
+                    self._get_typed_models(category, record_type=ControlNetModelRecord),
+                )
+            cn_records, cn_sources = self._gather_typed_sourced(
+                category,
+                record_type=ControlNetModelRecord,
+                source=source,
+            )
+            return ControlNetQuery(cn_records, ControlNetModelRecord, sources=cn_sources)
+
         record_type = MODEL_RECORD_TYPE_LOOKUP.get(category, GenericModelRecord)
-        return build_query(records, record_type)
+        if canonical_only:
+            return build_query(self._get_typed_models(category, record_type=record_type), record_type)
+        sourced_records, sourced_sources = self._gather_typed_sourced(
+            category,
+            record_type=record_type,
+            source=source,
+        )
+        return ModelQuery(sourced_records, record_type, sources=sourced_sources)
+
+    def _gather_typed_sourced(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        *,
+        record_type: type[TModelRecord],
+        source: SourceSelector,
+    ) -> tuple[list[TModelRecord], list[str]]:
+        """Gather records (and aligned sources) for *category*, validating their type.
+
+        Raises:
+            RuntimeError: If any source supplies a record that is not an instance of
+                *record_type* (or a subclass of it).
+
+        """
+        records, sources = self._gather_sourced_records(category, source)
+        typed_records: list[TModelRecord] = []
+        for record in records:
+            if not isinstance(record, record_type):
+                raise RuntimeError(
+                    f"A source for category {category.value} supplied record {record.name!r} "
+                    f"that is not a {record_type.__name__} instance.",
+                )
+            typed_records.append(record)
+        return typed_records, sources
 
     def query_all(
         self,
@@ -1388,102 +1667,6 @@ class ModelReferenceManager:
         """
         all_refs = self.get_all_model_references()
         return build_cross_category_query(all_refs)
-
-    def query_image_generation(self) -> ImageGenerationQuery:
-        """Return a typed query builder for image generation models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.image_generation,
-            record_type=ImageGenerationModelRecord,
-        )
-        return build_image_query(records)
-
-    def query_text_generation(self) -> TextModelQuery:
-        """Return a typed query builder for text generation models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.text_generation,
-            record_type=TextGenerationModelRecord,
-        )
-        return build_text_query(records)
-
-    def query_controlnet(self) -> ControlNetQuery:
-        """Return a typed query builder for ControlNet models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.controlnet,
-            record_type=ControlNetModelRecord,
-        )
-        return build_controlnet_query(records)
-
-    def query_blip(self) -> ModelQuery[BlipModelRecord, GenericFieldName]:
-        """Return a typed query builder for BLIP models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.blip,
-            record_type=BlipModelRecord,
-        )
-        return build_query(records, BlipModelRecord)
-
-    def query_clip(self) -> ModelQuery[ClipModelRecord, GenericFieldName]:
-        """Return a typed query builder for CLIP models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.clip,
-            record_type=ClipModelRecord,
-        )
-        return build_query(records, ClipModelRecord)
-
-    def query_codeformer(self) -> ModelQuery[CodeformerModelRecord, GenericFieldName]:
-        """Return a typed query builder for CodeFormer models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.codeformer,
-            record_type=CodeformerModelRecord,
-        )
-        return build_query(records, CodeformerModelRecord)
-
-    def query_esrgan(self) -> ModelQuery[EsrganModelRecord, GenericFieldName]:
-        """Return a typed query builder for ESRGAN models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.esrgan,
-            record_type=EsrganModelRecord,
-        )
-        return build_query(records, EsrganModelRecord)
-
-    def query_gfpgan(self) -> ModelQuery[GfpganModelRecord, GenericFieldName]:
-        """Return a typed query builder for GFPGAN models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.gfpgan,
-            record_type=GfpganModelRecord,
-        )
-        return build_query(records, GfpganModelRecord)
-
-    def query_safety_checker(self) -> ModelQuery[SafetyCheckerModelRecord, GenericFieldName]:
-        """Return a typed query builder for safety checker models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.safety_checker,
-            record_type=SafetyCheckerModelRecord,
-        )
-        return build_query(records, SafetyCheckerModelRecord)
-
-    def query_audio_generation(self) -> ModelQuery[AudioGenerationModelRecord, GenericFieldName]:
-        """Return a typed query builder for audio generation models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.audio_generation,
-            record_type=AudioGenerationModelRecord,
-        )
-        return build_query(records, AudioGenerationModelRecord)
-
-    def query_video_generation(self) -> ModelQuery[VideoGenerationModelRecord, GenericFieldName]:
-        """Return a typed query builder for video generation models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.video_generation,
-            record_type=VideoGenerationModelRecord,
-        )
-        return build_query(records, VideoGenerationModelRecord)
-
-    def query_miscellaneous(self) -> ModelQuery[MiscellaneousModelRecord, GenericFieldName]:
-        """Return a typed query builder for miscellaneous models."""
-        records = self._get_typed_models(
-            MODEL_REFERENCE_CATEGORY.miscellaneous,
-            record_type=MiscellaneousModelRecord,
-        )
-        return build_query(records, MiscellaneousModelRecord)
 
     _CATEGORY_TO_HORDE_TYPE: ClassVar[dict[MODEL_REFERENCE_CATEGORY, HordeModelType]] = {
         MODEL_REFERENCE_CATEGORY.image_generation: "image",
@@ -1542,7 +1725,7 @@ class ModelReferenceManager:
             workers=indexed_workers,
         )
 
-        def _sort_key(item: tuple[str, object]) -> float:
+        def _sort_key(item: tuple[str, Any]) -> float:
             _name, stats = item
             if not isinstance(stats, CombinedModelStatistics):
                 return 0.0

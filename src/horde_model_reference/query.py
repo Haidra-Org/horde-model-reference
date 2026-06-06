@@ -39,6 +39,7 @@ from horde_model_reference.model_reference_records import (
     TextGenerationModelRecord,
 )
 from horde_model_reference.query_fields import OrderSpec, Predicate
+from horde_model_reference.source_consts import HORDE_SOURCE_ID
 from horde_model_reference.text_backend_names import (
     TEXT_LEGACY_BACKEND_PREFIXES,
     has_legacy_text_backend_prefix,
@@ -209,27 +210,44 @@ class ModelQuery[T: GenericModelRecord, F: str]:
     partially-built queries can be safely reused.  Subclasses automatically
     preserve their concrete type through the chain thanks to ``type(self)``
     dispatch in ``_clone``.
+
+    Provenance ("sources"): each record may carry a source id describing where it
+    came from. When ``sources`` is ``None`` (the common, canonical-only case) every
+    record is treated as originating from :data:`~horde_model_reference.source_consts.HORDE_SOURCE_ID`
+    and there is zero overhead. When records are merged from multiple sources the
+    manager supplies an aligned ``sources`` sequence (canonical-first); results are
+    de-duplicated by name keeping the first (highest-priority) occurrence, so the
+    canonical source wins collisions by default. Use :meth:`duplicate_names` /
+    :meth:`has_duplicate_names` to detect when a collision occurred.
     """
 
     _records: Sequence[T]
-    _record_type: type[T]
-    _predicates: Sequence[Callable[[T], bool]]
+    _record_type: type[GenericModelRecord]
+    _predicates: Sequence[Callable[..., bool]]
     _sort_key: str | None
     _sort_descending: bool
     _offset_value: int
     _limit_value: int | None
+    _sources: Sequence[str] | None
+    _source_predicates: Sequence[Callable[[str], bool]]
 
     def __init__(  # noqa: D107
         self,
         records: Sequence[T],
-        record_type: type[T],
+        record_type: type[GenericModelRecord],
         *,
-        predicates: Sequence[Callable[[T], bool]] | None = None,
+        predicates: Sequence[Callable[..., bool]] | None = None,
         sort_key: str | None = None,
         sort_descending: bool = False,
         offset_value: int = 0,
         limit_value: int | None = None,
+        sources: Sequence[str] | None = None,
+        source_predicates: Sequence[Callable[[str], bool]] | None = None,
     ) -> None:
+        if sources is not None and len(sources) != len(records):
+            raise ValueError(
+                f"sources length ({len(sources)}) must match records length ({len(records)}).",
+            )
         self._records = records
         self._record_type = record_type
         self._predicates = list(predicates) if predicates else []
@@ -237,22 +255,28 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         self._sort_descending = sort_descending
         self._offset_value = offset_value
         self._limit_value = limit_value
+        self._sources = list(sources) if sources is not None else None
+        self._source_predicates = list(source_predicates) if source_predicates else []
 
     def _clone(
         self,
         records: Sequence[T] | None = None,
-        record_type: type[T] | None = None,
-        predicates: Sequence[Callable[[T], bool]] | None = None,
+        record_type: type[GenericModelRecord] | None = None,
+        predicates: Sequence[Callable[..., bool]] | None = None,
         sort_key: str | None = None,
         sort_descending: bool | None = None,
         offset_value: int | None = None,
         limit_value: int | None = None,
+        source_predicates: Sequence[Callable[[str], bool]] | None = None,
     ) -> Self:
         """Create a shallow copy with optional overrides.
 
         Uses ``type(self)`` so that subclasses (``TextModelQuery``,
         ``ImageGenerationQuery``, etc.) automatically get back their own
         concrete type without needing to override this method.
+
+        ``_records`` and ``_sources`` are passed through unchanged (fluent methods
+        only ever adjust predicates/sort/pagination), so the two stay aligned.
         """
         return type(self)(
             records=records if records is not None else self._records,
@@ -262,6 +286,8 @@ class ModelQuery[T: GenericModelRecord, F: str]:
             sort_descending=sort_descending if sort_descending is not None else self._sort_descending,
             offset_value=offset_value if offset_value is not None else self._offset_value,
             limit_value=limit_value if limit_value is not None else self._limit_value,
+            sources=self._sources,
+            source_predicates=(source_predicates if source_predicates is not None else list(self._source_predicates)),
         )
 
     def where(self, *predicates: Predicate, **kwargs: object) -> Self:
@@ -286,7 +312,7 @@ class ModelQuery[T: GenericModelRecord, F: str]:
             A new query with the additional predicates applied.
 
         """
-        new_preds: list[Callable[[T], bool]] = list(self._predicates)
+        new_preds: list[Callable[..., bool]] = list(self._predicates)
         new_preds.extend(predicates)
 
         for raw_key, value in kwargs.items():
@@ -316,7 +342,7 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         purpose: MODEL_PURPOSE | None = None,
     ) -> Self:
         """Filter records by their ``model_classification``."""
-        new_preds: list[Callable[[T], bool]] = list(self._predicates)
+        new_preds: list[Callable[..., bool]] = list(self._predicates)
 
         def _classification_pred(record: T) -> bool:
             cls = record.model_classification
@@ -391,6 +417,26 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         _validate_field_exists(self._record_type, field)
         return self._clone(sort_key=field, sort_descending=descending)
 
+    def where_source(self, *sources: str) -> Self:
+        """Keep only records originating from one of *sources*.
+
+        When the query has no per-record provenance (canonical-only), every record
+        is treated as coming from :data:`~horde_model_reference.source_consts.HORDE_SOURCE_ID`.
+
+        Args:
+            *sources: One or more source ids to keep.
+
+        Returns:
+            A new query restricted to the given sources.
+
+        """
+        allowed = set(sources)
+
+        def _source_pred(source: str) -> bool:
+            return source in allowed
+
+        return self._clone(source_predicates=[*self._source_predicates, _source_pred])
+
     def limit(self, n: int) -> Self:
         """Limit the number of returned results."""
         return self._clone(limit_value=n)
@@ -399,41 +445,129 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         """Skip the first *n* results."""
         return self._clone(offset_value=n)
 
-    def _execute(self) -> list[T]:
-        """Apply all predicates, sorting, and pagination."""
-        result: list[T] = [r for r in self._records if all(p(r) for p in self._predicates)]
+    def _filtered_pairs(self) -> list[tuple[T, str]]:
+        """Return ``(record, source)`` pairs after applying record + source predicates.
 
-        if not result:
-            return []
+        No de-duplication, sorting, or pagination is performed. When the query has
+        no provenance, every source is :data:`HORDE_SOURCE_ID`.
+        """
+        if self._sources is None:
+            paired: list[tuple[T, str]] = [(r, HORDE_SOURCE_ID) for r in self._records]
+        else:
+            paired = list(zip(self._records, self._sources, strict=True))
+
+        return [
+            (record, source)
+            for record, source in paired
+            if all(p(record) for p in self._predicates) and all(sp(source) for sp in self._source_predicates)
+        ]
+
+    def _execute_with_sources(self) -> tuple[list[T], list[str]]:
+        """Apply predicates, canonical-wins de-duplication, sorting, and pagination.
+
+        Returns the surviving records and their aligned source ids. De-duplication
+        keeps the first occurrence of each model name; because the manager supplies
+        records canonical-first, the canonical source wins collisions by default.
+        """
+        paired = self._filtered_pairs()
+        if not paired:
+            return [], []
+
+        seen_names: set[str] = set()
+        deduped: list[tuple[T, str]] = []
+        for record, source in paired:
+            if record.name in seen_names:
+                continue
+            seen_names.add(record.name)
+            deduped.append((record, source))
+        paired = deduped
 
         if self._sort_key is not None:
             key_field = self._sort_key
 
-            def _sort_key(record: T) -> tuple[int, object]:
-                val = _resolve_field_value(record, key_field)
+            def _sort_key(item: tuple[T, str]) -> tuple[int, object]:
+                val = _resolve_field_value(item[0], key_field)
                 if val is None:
                     return (1, "")
                 return (0, val)
 
             try:
-                result.sort(key=_sort_key, reverse=self._sort_descending)
+                paired.sort(key=_sort_key, reverse=self._sort_descending)
             except TypeError as exc:  # pragma: no cover - exercised via tests
-                value_types = {type(_resolve_field_value(r, key_field)).__name__ for r in result}
+                value_types = {type(_resolve_field_value(r, key_field)).__name__ for r, _ in paired}
                 raise ValueError(
                     "Cannot order by field "
                     f"'{key_field}' because values are not mutually comparable: {sorted(value_types)}"
                 ) from exc
 
         if self._offset_value:
-            result = result[self._offset_value :]
+            paired = paired[self._offset_value :]
         if self._limit_value is not None:
-            result = result[: self._limit_value]
+            paired = paired[: self._limit_value]
 
-        return result
+        records = [record for record, _ in paired]
+        sources = [source for _, source in paired]
+        return records, sources
+
+    def _execute(self) -> list[T]:
+        """Apply all predicates, sorting, and pagination, returning records only."""
+        records, _ = self._execute_with_sources()
+        return records
 
     def to_list(self) -> list[T]:
         """Execute the query and return results as a list."""
         return self._execute()
+
+    def to_list_with_source(self) -> list[tuple[T, str]]:
+        """Execute the query and return ``(record, source_id)`` tuples."""
+        records, sources = self._execute_with_sources()
+        return list(zip(records, sources, strict=True))
+
+    def sources(self) -> list[str]:
+        """Return the source ids aligned with :meth:`to_list` (same order/length)."""
+        _, sources = self._execute_with_sources()
+        return sources
+
+    def group_by_source(self) -> dict[str, list[T]]:
+        """Group matching records by their source id.
+
+        Returns:
+            A dict mapping each source id to the list of records from that source,
+            after de-duplication/sorting/pagination.
+
+        """
+        records, sources = self._execute_with_sources()
+        groups: dict[str, list[T]] = {}
+        for record, source in zip(records, sources, strict=True):
+            groups.setdefault(source, []).append(record)
+        return groups
+
+    def duplicate_names(self) -> dict[str, list[str]]:
+        """Return model names served by more than one source (collision detection).
+
+        Reflects the records remaining after filtering but **before** canonical-wins
+        de-duplication, so it surfaces exactly which names collided and which sources
+        supplied them. The first source listed for each name is the one that wins in
+        :meth:`to_list`.
+
+        Returns:
+            A dict mapping each colliding model name to the list of source ids that
+            supplied it (in priority order). Empty when there are no collisions.
+
+        """
+        by_name: dict[str, list[str]] = {}
+        for record, source in self._filtered_pairs():
+            by_name.setdefault(record.name, []).append(source)
+        return {name: srcs for name, srcs in by_name.items() if len(srcs) > 1}
+
+    def has_duplicate_names(self) -> bool:
+        """Return whether any model name was supplied by more than one source."""
+        seen: set[str] = set()
+        for record, _ in self._filtered_pairs():
+            if record.name in seen:
+                return True
+            seen.add(record.name)
+        return False
 
     def first(self) -> T | None:
         """Execute the query and return the first result, or ``None``."""
@@ -665,12 +799,15 @@ class ControlNetQuery(ModelQuery[GenericModelRecord, ControlNetFieldName]):
 def build_query[T: GenericModelRecord](
     records: dict[str, T],
     record_type: type[T],
+    *,
+    sources: Sequence[str] | None = None,
 ) -> ModelQuery[T, str]:
     """Create a ``ModelQuery`` from a name-to-record mapping.
 
     Args:
         records: The mapping returned by ``ModelReferenceManager.get_model_reference()``.
         record_type: The Pydantic record type for field validation.
+        sources: Optional source ids aligned with ``records.values()`` for provenance.
 
     Returns:
         A fresh ``ModelQuery`` ready for chaining.
@@ -679,17 +816,21 @@ def build_query[T: GenericModelRecord](
     return ModelQuery(
         records=list(records.values()),
         record_type=record_type,
+        sources=sources,
     )
 
 
 def build_image_query(
     records: dict[str, ImageGenerationModelRecord],
+    *,
+    sources: Sequence[str] | None = None,
 ) -> ImageGenerationQuery:
     """Create an ``ImageGenerationQuery`` from a name-to-record mapping.
 
     Args:
         records: The mapping returned by ``ModelReferenceManager.get_model_reference()``
             for the ``image_generation`` category.
+        sources: Optional source ids aligned with ``records.values()`` for provenance.
 
     Returns:
         A fresh ``ImageGenerationQuery`` ready for chaining.
@@ -698,17 +839,21 @@ def build_image_query(
     return ImageGenerationQuery(
         records=list(records.values()),
         record_type=ImageGenerationModelRecord,
+        sources=sources,
     )
 
 
 def build_text_query(
     records: dict[str, TextGenerationModelRecord],
+    *,
+    sources: Sequence[str] | None = None,
 ) -> TextModelQuery:
     """Create a ``TextModelQuery`` from a name-to-record mapping.
 
     Args:
         records: The mapping returned by ``ModelReferenceManager.get_model_reference()``
             for the ``text_generation`` category.
+        sources: Optional source ids aligned with ``records.values()`` for provenance.
 
     Returns:
         A fresh ``TextModelQuery`` ready for chaining.
@@ -717,17 +862,21 @@ def build_text_query(
     return TextModelQuery(
         records=list(records.values()),
         record_type=TextGenerationModelRecord,
+        sources=sources,
     )
 
 
 def build_controlnet_query(
     records: dict[str, ControlNetModelRecord],
+    *,
+    sources: Sequence[str] | None = None,
 ) -> ControlNetQuery:
     """Create a ``ControlNetQuery`` from a name-to-record mapping.
 
     Args:
         records: The mapping returned by ``ModelReferenceManager.get_model_reference()``
             for the ``controlnet`` category.
+        sources: Optional source ids aligned with ``records.values()`` for provenance.
 
     Returns:
         A fresh ``ControlNetQuery`` ready for chaining.
@@ -736,6 +885,7 @@ def build_controlnet_query(
     return ControlNetQuery(
         records=list(records.values()),
         record_type=ControlNetModelRecord,
+        sources=sources,
     )
 
 
