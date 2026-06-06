@@ -305,7 +305,7 @@ def _compose_name_from_parts(
     """Compose a model name from structured parts.
 
     When part_order is provided, parts are arranged in that order, using separator.
-    Otherwise uses default: [author/]base{sep}size[{sep}variant][{sep}version][{sep}quant]
+    Otherwise uses default: `[author/]base{sep}size[{sep}variant][{sep}version][{sep}quant]`
     """
     available_parts = {
         "base": base_name,

@@ -468,6 +468,25 @@ class TestCategoryDescriptorAccessors:
         assert get_category_descriptor(MODEL_REFERENCE_CATEGORY.ti).managed_elsewhere is True
         assert get_category_descriptor(MODEL_REFERENCE_CATEGORY.image_generation).managed_elsewhere is False
 
+    def test_managed_elsewhere_has_descriptor_data(self) -> None:
+        """Verify that categories managed elsewhere still have valid descriptor data."""
+        from horde_model_reference.meta_consts import categories_managed_elsewhere
+
+        for cat in categories_managed_elsewhere:
+            desc = get_category_descriptor(cat)
+            assert desc.domain is not None
+            assert desc.purpose is not None
+
+            assert desc.managed_elsewhere is True, f"{cat} should be marked as managed_elsewhere in its descriptor"
+
+    def test_category_classification_lookup_consistent_with_descriptors(self) -> None:
+        """Every category's classification in the lookup should match its descriptor data."""
+        for cat in MODEL_REFERENCE_CATEGORY:
+            classification = get_model_classification(cat)
+            desc = get_category_descriptor(cat)
+            assert classification.domain == desc.domain, f"{cat} domain mismatch"
+            assert classification.purpose == desc.purpose, f"{cat} purpose mismatch"
+
     def test_runtime_category_registration_updates_derived_state(self) -> None:
         """Registering a new category should rebuild derived lists and classification lookups."""
         register_category(

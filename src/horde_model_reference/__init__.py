@@ -564,6 +564,14 @@ from .model_reference_records import (  # noqa: E402
     get_record_type_for_category,
     register_record_type,
 )
+from .providers import (  # noqa: E402
+    ANY_SOURCE,
+    HORDE_SOURCE_ID,
+    ModelProvider,
+    ModelProviderRegistry,
+    StaticModelProvider,
+)
+from .source_consts import SourceSelector  # noqa: E402
 from .query import ImageGenerationQuery, ModelQuery, TextModelQuery, build_image_query, build_text_query  # noqa: E402
 from .query_fields import (  # noqa: E402
     AudioFields,
@@ -589,6 +597,7 @@ from .query_fields import (  # noqa: E402
 __all__ = [
     "ANY_SOURCE",
     "DEFAULT_SHOWCASE_FOLDER_NAME",
+    "HORDE_SOURCE_ID",
     "KNOWN_IMAGE_GENERATION_BASELINE",
     "KNOWN_TAGS",
     "MODEL_CLASSIFICATION_LOOKUP",
@@ -621,6 +630,8 @@ __all__ = [
     "Predicate",
     "PrefetchStrategy",
     "SafetyCheckerFields",
+    "SourceSelector",
+    "StaticModelProvider",
     "TextFields",
     "TextModelQuery",
     "TextualInversionModelRecord",

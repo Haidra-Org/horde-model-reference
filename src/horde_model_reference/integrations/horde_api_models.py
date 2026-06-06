@@ -201,7 +201,7 @@ class IndexedHordeModelStatus(RootModel[dict[str, HordeModelStatus]]):
             Tuple of (aggregated_status, variations_dict) where:
             - aggregated_status: Combined status or None if no variants found
             - variations_dict: Dict of backend_name -> HordeModelStatus
-              Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
+                Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
 
         """
         from horde_model_reference.text_backend_names import get_model_name_variants
@@ -529,7 +529,7 @@ class IndexedHordeModelStats(RootModel[_StatsLookup]):
             Tuple of (aggregated_stats, variations_dict) where:
             - aggregated_stats: (day_total, month_total, total_total) for this exact model
             - variations_dict: Dict of backend_name -> (day, month, total)
-              Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
+                Keys are 'canonical', 'aphrodite', 'koboldcpp' depending on what's found
 
         """
         from horde_model_reference.text_backend_names import get_model_name_variants
