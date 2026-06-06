@@ -273,6 +273,7 @@ class HordeAPIIntegration:
             params["min_count"] = str(min_count)
 
         try:
+            data = None
             async for attempt in http_retry_async(max_attempts=3, min_wait=1.0, max_wait=15.0):
                 with attempt:
                     async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
@@ -281,6 +282,9 @@ class HordeAPIIntegration:
                             raise RetryableHTTPStatusError(response)
                         response.raise_for_status()
                         data = response.json()
+
+            if data is None:
+                raise ValueError(f"No data received from Horde API for {url} with params {params}")
 
             horde_api_circuit_breaker.record_success()
             return [HordeModelStatus.model_validate(item) for item in data]
@@ -396,6 +400,8 @@ class HordeAPIIntegration:
         params = {"model_state": model_state}
 
         try:
+            data = None
+
             async for attempt in http_retry_async(max_attempts=3, min_wait=1.0, max_wait=15.0):
                 with attempt:
                     async with httpx.AsyncClient(timeout=httpx.Timeout(self._timeout)) as client:
@@ -404,6 +410,9 @@ class HordeAPIIntegration:
                             raise RetryableHTTPStatusError(response)
                         response.raise_for_status()
                         data = response.json()
+
+            if data is None:
+                raise ValueError(f"No data received from Horde API for {url} with params {params}")
 
             horde_api_circuit_breaker.record_success()
             return HordeModelStatsResponse.model_validate(data)
