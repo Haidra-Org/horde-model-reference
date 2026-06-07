@@ -1,4 +1,4 @@
-"""Tests for text_model_duplicates.py — backend-prefixed duplicate management."""
+"""Tests for text_model_duplicates.py - backend-prefixed duplicate management."""
 
 # ruff: noqa: D102
 

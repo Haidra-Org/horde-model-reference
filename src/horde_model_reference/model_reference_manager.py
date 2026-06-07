@@ -156,7 +156,7 @@ class ModelReferenceManager:
         """Destroy the singleton instance so a fresh one can be created.
 
         Intended for testing and development only. Production code should not
-        call this — the singleton is designed to live for the process lifetime.
+        call this - the singleton is designed to live for the process lifetime.
         """
         with cls._lock:
             instance = cls._instance

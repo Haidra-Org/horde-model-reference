@@ -273,7 +273,7 @@ docker-compose logs horde-model-reference  # Docker
 # Common fixes:
 # - Port conflict: pass a different port as a CLI argument, e.g.
 #     fastapi run ... --port 9800
-#   (There is no PORT env var — the port is a CLI argument, not a config key.)
+#   (There is no PORT env var - the port is a CLI argument, not a config key.)
 # - Missing files: Enable HORDE_MODEL_REFERENCE_GITHUB_SEED_ENABLED=true
 ```
 

@@ -38,7 +38,7 @@ def _convert_py_reference(
     """Independent reference implementation of upstream convert.py.
 
     Transliterated directly from the upstream repository's convert.py.
-    Used as a comparison oracle — the serializer must produce identical output.
+    Used as a comparison oracle - the serializer must produce identical output.
     """
     data: dict[str, Any] = {}
 
@@ -407,7 +407,7 @@ class TestReverseConversion:
         """A style matching the default that was never explicitly set (not in tags) must be stripped.
 
         convert.py adds explicit styles to tags before applying defaults. So style="generalist"
-        with "generalist" absent from tags means it was only injected by defaults.json — writing
+        with "generalist" absent from tags means it was only injected by defaults.json - writing
         it to CSV would cause the next forward conversion to add a spurious "generalist" tag.
         """
         record: dict[str, Any] = {
@@ -494,7 +494,7 @@ class TestReverseConversion:
         for name in records:
             tags1 = db1[name]["tags"]
             tags2 = db2[name]["tags"]
-            assert tags1 == tags2, f"Tags changed for {name} between passes: {tags1} → {tags2}"
+            assert tags1 == tags2, f"Tags changed for {name} between passes: {tags1} -> {tags2}"
 
     def test_instruct_format_preserved_in_csv(self, serializer: TextGenerationSerializer) -> None:
         """instruct_format is passed through to CSV."""
@@ -790,7 +790,7 @@ class TestApplyChanges:
 
 
 class TestEndToEnd:
-    """Full pipeline: PRIMARY records → serialize() → CSV + JSON."""
+    """Full pipeline: PRIMARY records -> serialize() -> CSV + JSON."""
 
     def test_serialize_produces_valid_csv_and_json(
         self,
@@ -844,7 +844,7 @@ class TestEndToEnd:
         serializer: TextGenerationSerializer,
         sample_primary_records: dict[str, dict[str, Any]],
     ) -> None:
-        """CSV→JSON is idempotent: serializing twice from the same data gives the same result."""
+        """CSV->JSON is idempotent: serializing twice from the same data gives the same result."""
         artifacts_1 = serializer.serialize(
             primary_base_records=sample_primary_records,
             existing_csv_path=None,
@@ -914,7 +914,7 @@ class TestCSVLineEndingsFix:
         r"""_render_csv output must use LF, never CRLF.
 
         We check for ``\r`` anywhere in the output rather than just
-        ``\r\n`` — there is no legitimate reason for ``\r`` to appear
+        ``\r\n`` - there is no legitimate reason for ``\r`` to appear
         in model reference CSV data.
         """
         csv_rows = [
@@ -960,7 +960,7 @@ class TestTagMergeFix:
     writing to CSV. For a model whose tags are ALL auto-generated, the
     stripped result is ``""``. Under the old merge rule ("PRIMARY wins if
     non-empty"), this empty string was falsy, so the merge fell back to
-    the existing CSV's tags — which could contain user-added tags like
+    the existing CSV's tags - which could contain user-added tags like
     ``"popular"`` that were never in the PRIMARY data.
 
     The fix introduces ``_PRIMARY_AUTHORITATIVE_FIELDS``: a set of fields
@@ -1003,7 +1003,7 @@ class TestTagMergeFix:
                 "baseline": "",
                 "description": "",
                 "style": "chat",
-                "tags": "",  # All auto-tags stripped → empty
+                "tags": "",  # All auto-tags stripped -> empty
                 "instruct_format": "",
                 "settings": "",
             },
@@ -1103,8 +1103,8 @@ class TestTagMergeFix:
     ) -> None:
         """End-to-end: a model with only auto-tags must NOT gain 'popular' from existing CSV.
 
-        Reproduces the full pipeline: PRIMARY record → serialize with
-        existing CSV containing 'popular' → verify db.json does NOT
+        Reproduces the full pipeline: PRIMARY record -> serialize with
+        existing CSV containing 'popular' -> verify db.json does NOT
         have 'popular' in the output tags.
 
         This is the definitive regression test for the popular-tag leak.

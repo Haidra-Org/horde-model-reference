@@ -190,7 +190,7 @@ class TestGetGroup:
     def test_group_no_backend_duplicates_in_v2(
         self, api_client: TestClient, text_group_manager: ModelReferenceManager
     ) -> None:
-        """Backend duplicates are not stored in v2 format — only canonical models."""
+        """Backend duplicates are not stored in v2 format - only canonical models."""
         resp = api_client.get(f"{_V2}/text_generation/group/Qwen3")
         data = resp.json()
         dups = [m for m in data["members"] if m["is_backend_duplicate"]]
@@ -784,5 +784,5 @@ class TestGroupsHealth:
         data = resp.json()
         qwen_issues = [i for i in data["issues"] if i["group_name"] == "Qwen3"]
         warning_issues = [i for i in qwen_issues if i.get("severity", "warning") == "warning"]
-        # Qwen3 has 3 consistent members — no warnings expected
+        # Qwen3 has 3 consistent members - no warnings expected
         assert len(warning_issues) == 0

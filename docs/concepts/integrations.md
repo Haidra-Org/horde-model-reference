@@ -30,8 +30,8 @@ Each response type is modeled as Pydantic classes (`HordeModelStatus`, `HordeMod
 
 The integration uses the same dual-layer caching pattern as the rest of the system:
 
-- **Redis** (when available in PRIMARY mode) — shared cache with configurable TTL, key prefix `{redis_key_prefix}:horde_api`
-- **In-memory** — per-type dictionaries with timestamp tracking for TTL enforcement
+- **Redis** (when available in PRIMARY mode) - shared cache with configurable TTL, key prefix `{redis_key_prefix}:horde_api`
+- **In-memory** - per-type dictionaries with timestamp tracking for TTL enforcement
 
 The `horde_api_cache_ttl` setting (default 60s) controls how long API responses are cached. A `force_refresh` parameter on fetch methods bypasses the cache for background hydration.
 
@@ -87,4 +87,4 @@ The statistics and audit analytics endpoints follow the same pattern:
 The [Analytics Pipeline](analytics_pipeline.md) page covers the computation and caching layers in detail.
 
 !!! warning
-The Horde API data reflects a point-in-time snapshot. Worker counts and usage stats can change rapidly. The caching TTL represents a trade-off between freshness and API load — production deployments should enable cache hydration to keep data warm without hammering the Horde API on every request.
+The Horde API data reflects a point-in-time snapshot. Worker counts and usage stats can change rapidly. The caching TTL represents a trade-off between freshness and API load - production deployments should enable cache hydration to keep data warm without hammering the Horde API on every request.

@@ -407,7 +407,7 @@ class TestCrossValidation:
 
 
 class TestWriteLegacyTextCsvRoundtrip:
-    """Verify CSV write→read roundtrip preserves data."""
+    """Verify CSV write->read roundtrip preserves data."""
 
     def test_roundtrip_preserves_rows(self, tmp_path: Path) -> None:
         """Write rows to CSV, read them back, verify identical legacy dict output."""
@@ -509,7 +509,7 @@ class TestLegacyRecordToCsvRow:
         assert row.instruct_format == "ChatML"
 
     def test_roundtrip_through_legacy_dict(self) -> None:
-        """TextCSVRow → legacy dict → legacy_record_to_csv_row → legacy dict is identical."""
+        """TextCSVRow -> legacy dict -> legacy_record_to_csv_row -> legacy dict is identical."""
         original_row = _make_row(
             name="Org/Model-7B",
             parameters_bn=7.0,
@@ -560,27 +560,27 @@ class TestLegacyRecordToCsvRow:
         """Multi-pass stability: models without style must not accumulate a generalist tag.
 
         This is the core regression test for the bug where:
-        1. CSV has no style → defaults inject style="generalist" into db.json
+        1. CSV has no style -> defaults inject style="generalist" into db.json
         2. Reverse conversion writes "generalist" to CSV style column
         3. Next forward conversion adds "generalist" to tags
         """
         original_row = _make_row(name="acrastt/Marx-3B-V3", parameters_bn=3.0, style="", tags=[])
 
-        # Pass 1: CSV → legacy dict (simulates convert.py)
+        # Pass 1: CSV -> legacy dict (simulates convert.py)
         dict_pass1 = csv_rows_to_legacy_dict([original_row], with_backend_prefixes=False)
         record1 = dict_pass1["acrastt/Marx-3B-V3"]
         tags_pass1 = set(record1["tags"])
 
-        # Reverse: legacy dict → CSV row
+        # Reverse: legacy dict -> CSV row
         csv_row_pass1 = legacy_record_to_csv_row("acrastt/Marx-3B-V3", record1)
 
-        # Pass 2: CSV → legacy dict again
+        # Pass 2: CSV -> legacy dict again
         dict_pass2 = csv_rows_to_legacy_dict([csv_row_pass1], with_backend_prefixes=False)
         record2 = dict_pass2["acrastt/Marx-3B-V3"]
         tags_pass2 = set(record2["tags"])
 
         assert tags_pass1 == tags_pass2, (
-            f"Tags changed after roundtrip: {tags_pass1} → {tags_pass2}. "
+            f"Tags changed after roundtrip: {tags_pass1} -> {tags_pass2}. "
             "A defaulted style is leaking into the CSV and then into tags."
         )
 
@@ -620,7 +620,7 @@ class TestLegacyRecordToCsvRow:
 
         for name, _ in names_and_params:
             assert dict_pass1[name]["tags"] == dict_pass2[name]["tags"], (
-                f"Tags changed for {name}: {dict_pass1[name]['tags']} → {dict_pass2[name]['tags']}"
+                f"Tags changed for {name}: {dict_pass1[name]['tags']} -> {dict_pass2[name]['tags']}"
             )
 
 
@@ -642,7 +642,7 @@ class TestURLNameRejection:
         """A CSV row whose name is a URL must be silently skipped.
 
         If allowed through, ``split("/")[1]`` produces ``""`` and the
-        koboldcpp key becomes ``"koboldcpp/"`` — a collision hazard that
+        koboldcpp key becomes ``"koboldcpp/"`` - a collision hazard that
         overwrites unrelated models and breaks API lookups.
         """
         url_row = _make_row(

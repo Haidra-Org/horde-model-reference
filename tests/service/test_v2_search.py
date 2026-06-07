@@ -272,7 +272,7 @@ class TestCategorySearch:
         api_client: TestClient,
         primary_manager_for_search: ModelReferenceManager,
     ) -> None:
-        """Clip has no 'nsfw' field — should get 400, not 500."""
+        """Clip has no 'nsfw' field - should get 400, not 500."""
         resp = api_client.get(f"{_V2}/clip/search", params={"nsfw": "false"})
         assert resp.status_code == 400
         assert "not supported" in resp.json()["detail"].lower() or "does not exist" in resp.json()["detail"].lower()
@@ -316,7 +316,7 @@ class TestCrossCategorySearch:
         data = resp.json()
         names = {r["name"] for r in data["results"]}
         assert "img_nsfw_xl" in names
-        # clip/misc have no nsfw field → excluded, not errored
+        # clip/misc have no nsfw field -> excluded, not errored
         assert "clip_vit" not in names
         assert "misc_util" not in names
 
@@ -369,17 +369,11 @@ class TestPopularModels:
             IndexedHordeWorkers,
         )
 
-        mock_status = IndexedHordeModelStatus(
-            [
-                HordeModelStatus(
-                    name="img_safe_sd1", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"
-                ),
-                HordeModelStatus(name="img_nsfw_xl", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-                HordeModelStatus(
-                    name="img_inpaint_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"
-                ),
-            ]
-        )
+        mock_status = IndexedHordeModelStatus([
+            HordeModelStatus(name="img_safe_sd1", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            HordeModelStatus(name="img_nsfw_xl", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            HordeModelStatus(name="img_inpaint_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+        ])
         mock_stats = IndexedHordeModelStats(HordeModelStatsResponse(day={}, month={}, total={}))
         mock_workers = IndexedHordeWorkers([])
 
@@ -413,12 +407,10 @@ class TestPopularModels:
             IndexedHordeWorkers,
         )
 
-        mock_status = IndexedHordeModelStatus(
-            [
-                HordeModelStatus(name="img_safe_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-                HordeModelStatus(name="img_nsfw_xl", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-            ]
-        )
+        mock_status = IndexedHordeModelStatus([
+            HordeModelStatus(name="img_safe_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            HordeModelStatus(name="img_nsfw_xl", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+        ])
         mock_stats = IndexedHordeModelStats(
             HordeModelStatsResponse(
                 day={"img_safe_sd1": 5, "img_nsfw_xl": 50},
@@ -461,17 +453,11 @@ class TestPopularModels:
             IndexedHordeWorkers,
         )
 
-        mock_status = IndexedHordeModelStatus(
-            [
-                HordeModelStatus(
-                    name="img_safe_sd1", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"
-                ),
-                HordeModelStatus(name="img_nsfw_xl", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-                HordeModelStatus(
-                    name="img_inpaint_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"
-                ),
-            ]
-        )
+        mock_status = IndexedHordeModelStatus([
+            HordeModelStatus(name="img_safe_sd1", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            HordeModelStatus(name="img_nsfw_xl", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            HordeModelStatus(name="img_inpaint_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+        ])
         mock_stats = IndexedHordeModelStats(HordeModelStatsResponse(day={}, month={}, total={}))
         mock_workers = IndexedHordeWorkers([])
 

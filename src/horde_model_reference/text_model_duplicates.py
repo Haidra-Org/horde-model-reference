@@ -112,7 +112,7 @@ class TextModelDuplicateManager:
         """Remove all backend-prefixed entries from a data dict, keeping only base models.
 
         Args:
-            data: Dictionary of model records (name → record).
+            data: Dictionary of model records (name -> record).
 
         Returns:
             New dictionary with only base (non-prefixed) model entries.

@@ -1,7 +1,7 @@
 """Tests for Phase 4 API design corrections.
 
 Covers:
-- API-1/IV-3: Invalid category → 422 (not 404)
+- API-1/IV-3: Invalid category -> 422 (not 404)
 - API-5: POST creates include Location header
 - API-6: Direct DELETE returns 204 No Content
 - IV-2: Model name validation (empty, whitespace, path separators)
@@ -42,7 +42,7 @@ _V2 = "/model_references/v2"
 pytestmark = pytest.mark.usefixtures("mock_auth_success")
 
 
-# — Helpers ————————————————————————
+# - Helpers ------------------------
 
 
 def _v1_model_url(route_name: RouteNames, category: MODEL_REFERENCE_CATEGORY, model_name: str) -> str:
@@ -100,7 +100,7 @@ def _v2_model_payload(
     return model_dict
 
 
-# — Fixtures ————————————————————————
+# - Fixtures ------------------------
 
 
 @pytest.fixture
@@ -175,7 +175,7 @@ def search_manager(
     return manager
 
 
-# — IV-2: Model Name Validation ————————————————————————
+# - IV-2: Model Name Validation ------------------------
 
 
 class TestModelNameValidation:
@@ -245,7 +245,7 @@ class TestModelNameValidation:
         assert resp.status_code == 422
 
 
-# — API-1/IV-3: Category Validation → 422 ————————————————————————
+# - API-1/IV-3: Category Validation -> 422 ------------------------
 
 
 class TestCategoryValidation:
@@ -270,7 +270,7 @@ class TestCategoryValidation:
         assert resp.status_code == 422
 
 
-# — API-6: DELETE → 204 ————————————————————————
+# - API-6: DELETE -> 204 ------------------------
 
 
 class TestDeleteReturns204:
@@ -295,7 +295,7 @@ class TestDeleteReturns204:
         assert resp.content == b""
 
 
-# — API-5: POST → 201 + Location header ————————————————————————
+# - API-5: POST -> 201 + Location header ------------------------
 
 
 class TestPostLocation:
@@ -323,7 +323,7 @@ class TestPostLocation:
         assert model_name in location
 
 
-# — API-3: has_more in SearchResponse ————————————————————————
+# - API-3: has_more in SearchResponse ------------------------
 
 
 class TestSearchHasMore:

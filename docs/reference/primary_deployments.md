@@ -59,10 +59,10 @@ The package uses a pluggable backend system:
 
 ```python
 # Determined by environment variables:
-# PRIMARY + Redis → RedisBackend(FileSystemBackend)
-# PRIMARY + No Redis → FileSystemBackend
-# REPLICA + primary_api_url → HTTPBackend
-# REPLICA + No primary_api_url → GitHubBackend
+# PRIMARY + Redis -> RedisBackend(FileSystemBackend)
+# PRIMARY + No Redis -> FileSystemBackend
+# REPLICA + primary_api_url -> HTTPBackend
+# REPLICA + No primary_api_url -> GitHubBackend
 ```
 
 ### Canonical Format Architecture

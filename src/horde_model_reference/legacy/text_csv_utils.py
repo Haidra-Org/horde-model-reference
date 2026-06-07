@@ -1,6 +1,6 @@
 """Helpers for parsing and writing legacy text generation CSV files.
 
-Includes the canonical CSV→legacy-dict conversion that replicates convert.py's
+Includes the canonical CSV->legacy-dict conversion that replicates convert.py's
 algorithm, plus CSV write-back and reverse-conversion functions for maintaining
 the CSV as the source of truth through write operations.
 
@@ -171,7 +171,7 @@ def csv_rows_to_legacy_dict(
 ) -> dict[str, Any]:
     """Convert parsed CSV rows to legacy dict format, replicating convert.py exactly.
 
-    This is the single canonical implementation of the CSV→legacy-dict conversion.
+    This is the single canonical implementation of the CSV->legacy-dict conversion.
     Field ordering, defaults merging, empty-value filtering, tag generation, and
     backend prefix duplication all match the upstream convert.py algorithm.
 
@@ -225,7 +225,7 @@ def csv_rows_to_legacy_dict(
 
         row["instruct_format"] = csv_row.instruct_format
 
-        # Remove empty values — matches convert.py: {k: v for k, v in row.items() if v}
+        # Remove empty values - matches convert.py: {k: v for k, v in row.items() if v}
         row = {k: v for k, v in row.items() if v}
 
         if with_backend_prefixes:
@@ -241,7 +241,7 @@ def csv_rows_to_legacy_dict(
 def _parameters_to_bn_str(parameters: int) -> str:
     """Convert integer parameter count to minimal billions string for CSV.
 
-    Uses simplest representation: 3000000000 → "3", 560000000 → "0.56".
+    Uses simplest representation: 3000000000 -> "3", 560000000 -> "0.56".
 
     Args:
         parameters: Integer parameter count.

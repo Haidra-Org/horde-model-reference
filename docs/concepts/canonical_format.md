@@ -107,8 +107,8 @@ createModel(category: string, modelData: LegacyRecordUnion): Observable<PendingC
 
 When the canonical format changes, data must be synchronized between formats:
 
-1. **Legacy → V2:** Export v1 data and import into v2 format
-2. **V2 → Legacy:** Export v2 data and import into legacy format
+1. **Legacy -> V2:** Export v1 data and import into v2 format
+2. **V2 -> Legacy:** Export v2 data and import into legacy format
 
 The canonical format should not be changed while the system is in production without proper migration planning.
 

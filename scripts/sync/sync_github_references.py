@@ -260,7 +260,7 @@ class GithubSynchronizer:
             primary_base_records=primary_data,
         )
         serialized_dict: dict[str, dict[str, Any]] = json.loads(artifacts.json_content)
-        logger.debug(f"Serialized {len(primary_data)} PRIMARY records → {len(serialized_dict)} db.json entries")
+        logger.debug(f"Serialized {len(primary_data)} PRIMARY records -> {len(serialized_dict)} db.json entries")
         return serialized_dict, artifacts
 
 

@@ -55,9 +55,9 @@ Two authentication methods are supported, with GitHub App taking precedence:
 
 `ModelReferenceComparator` performs a set-difference comparison between PRIMARY and GitHub data for each category:
 
-- **Added models** — present in PRIMARY but not in GitHub
-- **Removed models** — present in GitHub but not in PRIMARY
-- **Modified models** — present in both but with different content
+- **Added models** - present in PRIMARY but not in GitHub
+- **Removed models** - present in GitHub but not in PRIMARY
+- **Modified models** - present in both but with different content
 
 The result is a `ModelReferenceDiff` dataclass that drives branch naming, commit messages, and PR descriptions.
 
@@ -65,11 +65,11 @@ The result is a `ModelReferenceDiff` dataclass that drives branch naming, commit
 
 The sync client handles the git workflow for publishing changes:
 
-1. **Clone or reuse** — clones the target repo to a temp directory, or reuses a persistent clone (verified by remote URL and branch). Persistent clones are reset to `origin/{branch}` before each run.
-2. **Branch** — creates `sync/{category}/{timestamp}` (or `sync/multi-category/{timestamp}` for batched syncs). A context manager ensures the original branch is restored on exit.
-3. **Transform** — writes the PRIMARY data as JSON. For `text_generation`, applies `LegacyTextValidator` and generates backend-prefix duplicates (`aphrodite/`, `koboldcpp/`) to match the legacy GitHub format.
-4. **Commit and push** — commits with a structured message listing added/removed/modified models, then pushes using the authenticated URL.
-5. **PR creation** — creates a pull request via the GitHub API, closes any existing sync PRs for the same category, and applies configured labels and reviewers.
+1. **Clone or reuse** - clones the target repo to a temp directory, or reuses a persistent clone (verified by remote URL and branch). Persistent clones are reset to `origin/{branch}` before each run.
+2. **Branch** - creates `sync/{category}/{timestamp}` (or `sync/multi-category/{timestamp}` for batched syncs). A context manager ensures the original branch is restored on exit.
+3. **Transform** - writes the PRIMARY data as JSON. For `text_generation`, applies `LegacyTextValidator` and generates backend-prefix duplicates (`aphrodite/`, `koboldcpp/`) to match the legacy GitHub format.
+4. **Commit and push** - commits with a structured message listing added/removed/modified models, then pushes using the authenticated URL.
+5. **PR creation** - creates a pull request via the GitHub API, closes any existing sync PRs for the same category, and applies configured labels and reviewers.
 
 !!! tip
 Use `target_clone_dir` in production to avoid re-cloning on every sync cycle. The client verifies repository identity (owner/repo from the remote URL) before reusing an existing clone, preventing data corruption from mismatched directories.

@@ -18,8 +18,8 @@ class PendingChangeStatus(StrEnum):
 
     State transitions::
 
-        PENDING → APPROVED → APPLYING → APPLIED
-        PENDING → REJECTED
+        PENDING -> APPROVED -> APPLYING -> APPLIED
+        PENDING -> REJECTED
 
     The ``APPLYING`` state is a transient lock held while the backend write is
     in progress.  If the process crashes during this window, records stuck in

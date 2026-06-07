@@ -278,7 +278,7 @@ export GITHUB_TOKEN="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 **Creating a Personal Access Token:**
 
 1. Go to <https://github.com/settings/tokens>
-2. Click "Generate new token" → "Generate new token (classic)"
+2. Click "Generate new token" -> "Generate new token (classic)"
 3. Set a note (e.g., "Horde Model Reference Sync")
 4. Select scopes: `repo` (full control of private repositories)
 5. Click "Generate token"
@@ -307,7 +307,7 @@ export GITHUB_APP_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----\nMIIE...\n-----EN
 
 **Setting up a GitHub App:**
 
-1. Go to your organization settings → Developer settings → GitHub Apps → New GitHub App
+1. Go to your organization settings -> Developer settings -> GitHub Apps -> New GitHub App
 2. Configure the app:
     - Set a name (e.g., "Horde Model Reference Sync")
     - Set Homepage URL (your repo URL)
