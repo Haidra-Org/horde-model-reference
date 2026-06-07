@@ -35,7 +35,7 @@ class TestValidateNotBackendPrefixed:
 
 
 class TestGetModelNameVariants:
-    """Tests for get_model_name_variants — the single source of truth."""
+    """Tests for get_model_name_variants - the single source of truth."""
 
     def test_canonical_is_first(self) -> None:
         variants = get_model_name_variants("Author/Model")
@@ -165,7 +165,7 @@ class TestWriteProcessorValidateAndTransform:
 
     def test_defaults_applied(self) -> None:
         result = self.processor.validate_and_transform("Author/Model", self._base_record())
-        # defaults.json provides baseline fields — verify at least one is present
+        # defaults.json provides baseline fields - verify at least one is present
         assert len(result) > 4  # name, model_name, parameters, tags + defaults
 
     def test_defaults_skipped_when_disabled(self) -> None:

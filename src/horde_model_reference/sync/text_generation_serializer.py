@@ -5,7 +5,7 @@ ensuring that synced files are byte-compatible with what convert.py would produc
 from the same CSV input.
 
 The pipeline is:
-    PRIMARY API records → reverse-convert to CSV rows → forward-convert to db.json
+    PRIMARY API records -> reverse-convert to CSV rows -> forward-convert to db.json
 
 The forward conversion is a faithful reproduction of convert.py's algorithm,
 guaranteeing field ordering, default merging, and value transformations match.
@@ -52,20 +52,18 @@ LegacyRecordDict = dict[str, Any]
 # Fields where _record_to_csv_row always produces a value derived from PRIMARY data.
 # An empty string means "PRIMARY says this is empty", not "unknown/missing".
 # Fields NOT in this set (like instruct_format) are CSV-only metadata that
-# PRIMARY may not carry — empty PRIMARY values fall back to existing CSV.
-_PRIMARY_AUTHORITATIVE_FIELDS: frozenset[str] = frozenset(
-    {
-        "name",
-        "parameters_bn",
-        "display_name",
-        "url",
-        "baseline",
-        "description",
-        "style",
-        "tags",
-        "settings",
-    }
-)
+# PRIMARY may not carry - empty PRIMARY values fall back to existing CSV.
+_PRIMARY_AUTHORITATIVE_FIELDS: frozenset[str] = frozenset({
+    "name",
+    "parameters_bn",
+    "display_name",
+    "url",
+    "baseline",
+    "description",
+    "style",
+    "tags",
+    "settings",
+})
 
 
 @dataclass(frozen=True)
@@ -147,7 +145,7 @@ class TextGenerationSerializer:
         json_content = self._render_json(db_dict)
 
         logger.debug(
-            f"Serialized {len(merged_rows)} CSV rows → {len(db_dict)} db.json entries "
+            f"Serialized {len(merged_rows)} CSV rows -> {len(db_dict)} db.json entries "
             f"(CSV: {len(csv_content)} bytes, JSON: {len(json_content)} bytes)"
         )
 
@@ -182,7 +180,7 @@ class TextGenerationSerializer:
         """Reverse-convert a PRIMARY API record to a CSV row dict.
 
         Extracts only fields that belong in the CSV schema and converts
-        types appropriately (int→str, list→comma-separated, dict→JSON).
+        types appropriately (int->str, list->comma-separated, dict->JSON).
 
         Auto-generated values (size tag, style tag, auto display_name) are
         stripped so the forward conversion can regenerate them identically
@@ -315,7 +313,7 @@ class TextGenerationSerializer:
                 merged = self._merge_row_fields(existing_row, primary_row)
                 result.append(merged)
             else:
-                # Model absent from PRIMARY — preserve from existing CSV
+                # Model absent from PRIMARY - preserve from existing CSV
                 result.append(existing_row)
 
         for new_row in remaining_primary.values():

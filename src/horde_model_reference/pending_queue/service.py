@@ -375,7 +375,7 @@ class PendingQueueService:
         reverted: list[PendingChangeRecord] = []
         for record in stuck:
             logger.warning(
-                "Change %d (%s/%s) was stuck in APPLYING state — reverting to APPROVED",
+                "Change %d (%s/%s) was stuck in APPLYING state - reverting to APPROVED",
                 record.change_id,
                 record.category,
                 record.model_name,

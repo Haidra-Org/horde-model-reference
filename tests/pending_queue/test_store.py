@@ -90,7 +90,7 @@ class TestStoreCorruptionRecovery:
         root = tmp_path / "queue"
         root.mkdir()
 
-        # Fresh store with no files — should work normally
+        # Fresh store with no files - should work normally
         store = PendingQueueStore(root_path=root)
         new_record = PendingChangeRecord(
             change_id=0,
@@ -121,7 +121,7 @@ class TestStoreCorruptionRecovery:
 
 
 class TestStoreApplyingState:
-    """AQ-1/CR-7: APPROVED → APPLYING → APPLIED state transitions."""
+    """AQ-1/CR-7: APPROVED -> APPLYING -> APPLIED state transitions."""
 
     def _make_store_with_approved(self, tmp_path: Path) -> tuple[PendingQueueStore, int]:
         """Create a store with one APPROVED record and return (store, change_id)."""

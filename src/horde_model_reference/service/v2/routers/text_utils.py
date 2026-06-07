@@ -723,7 +723,7 @@ def _collect_group_health_issues(
             GroupHealthIssue(
                 group_name=group_name,
                 issue_type="singleton_group",
-                message="Group has only 1 canonical model — may not need a group",
+                message="Group has only 1 canonical model - may not need a group",
             )
         )
 
@@ -1386,7 +1386,7 @@ def detect_family_suggestions(
 ) -> DetectFamiliesResponse:
     """Run prefix-based heuristics over current group names to suggest families.
 
-    Results are suggestions only — they are not persisted automatically.
+    Results are suggestions only - they are not persisted automatically.
     """
     all_models = _get_all_text_models(manager)
     if not all_models:

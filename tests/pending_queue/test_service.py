@@ -36,18 +36,16 @@ class _StubAuditWriter:
         request_id: str | None = None,
         timestamp: int | None = None,
     ) -> None:
-        self.events.append(
-            {
-                "domain": domain,
-                "category": category,
-                "model_name": model_name,
-                "operation": operation,
-                "logical_user_id": logical_user_id,
-                "payload": payload,
-                "request_id": request_id,
-                "timestamp": timestamp,
-            }
-        )
+        self.events.append({
+            "domain": domain,
+            "category": category,
+            "model_name": model_name,
+            "operation": operation,
+            "logical_user_id": logical_user_id,
+            "payload": payload,
+            "request_id": request_id,
+            "timestamp": timestamp,
+        })
 
 
 @pytest.fixture()
@@ -269,7 +267,7 @@ def test_mark_applied_accepts_applying_status(
         reject_reason=None,
     )
 
-    # Simulate the reservation step (APPROVED → APPLYING)
+    # Simulate the reservation step (APPROVED -> APPLYING)
     service.reserve_for_apply(change_id=change_id, reservation_id="job-1")
 
     result = service.mark_applied(

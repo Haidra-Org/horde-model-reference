@@ -306,7 +306,7 @@ class PendingQueueStore:
             return updated.model_copy(deep=True)
 
     def clear_reservation_if_matches(self, *, change_id: int, reservation_id: str) -> None:
-        """Release a reservation if it still matches, reverting APPLYING → APPROVED."""
+        """Release a reservation if it still matches, reverting APPLYING -> APPROVED."""
         with self._lock:
             record = self._changes.get(change_id)
             if record is None:

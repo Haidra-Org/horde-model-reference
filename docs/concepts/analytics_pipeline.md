@@ -24,10 +24,10 @@ graph TD
 
 `statistics.py` computes per-category aggregates from model records:
 
-- **Baseline distribution** — counts and percentages per baseline (e.g., `stable_diffusion_xl`: 42%)
-- **Parameter buckets** — for text generation, groups models into size ranges (< 3B, 3B-6B, 70B-100B, 100B+)
-- **Download stats** — total entries, total size in bytes, average size, host distribution
-- **Tag and style distributions** — counts per tag/style with percentages
+- **Baseline distribution** - counts and percentages per baseline (e.g., `stable_diffusion_xl`: 42%)
+- **Parameter buckets** - for text generation, groups models into size ranges (< 3B, 3B-6B, 70B-100B, 100B+)
+- **Download stats** - total entries, total size in bytes, average size, host distribution
+- **Tag and style distributions** - counts per tag/style with percentages
 
 Results are modeled as Pydantic classes (`CategoryStatistics`, `BaselineStats`, `DownloadStats`, `TagStats`, `ParameterBucketStats`) for type-safe serialization to API responses.
 
@@ -52,14 +52,14 @@ The cache checks Redis first (if available), then falls back to an in-memory dic
 
 When cache hydration is enabled, the cache implements a stale-while-revalidate pattern:
 
-- **Normal TTL** — controls when background hydration refreshes the entry
-- **Stale TTL** — maximum age before returning `None` (forcing synchronous computation)
+- **Normal TTL** - controls when background hydration refreshes the entry
+- **Stale TTL** - maximum age before returning `None` (forcing synchronous computation)
 - Clients always receive cached data immediately while the hydrator refreshes in the background
 
 ### Concrete Caches
 
-- **`StatisticsCache`** — caches `CategoryStatistics` with TTL from `statistics_cache_ttl` (default 300s)
-- **`DeletionRiskCache`** — caches `CategoryDeletionRiskResponse` with TTL from `deletion_risk_cache_ttl` (default 300s)
+- **`StatisticsCache`** - caches `CategoryStatistics` with TTL from `statistics_cache_ttl` (default 300s)
+- **`DeletionRiskCache`** - caches `CategoryDeletionRiskResponse` with TTL from `deletion_risk_cache_ttl` (default 300s)
 
 Both auto-invalidate when the backend signals a data change (e.g., after a model is created or deleted).
 
@@ -87,9 +87,9 @@ Configuration via environment variables:
 
 `deletion_risk_analysis.py` performs risk and usage analysis over model records enriched with Horde runtime data:
 
-- **Deletion risk scoring** — flags models with no workers, zero usage, or downloads hosted outside preferred hosts
-- **Low usage detection** — configurable thresholds (different for image vs text models)
-- **Backend variation tracking** — for text models, tracks per-backend worker counts and usage
+- **Deletion risk scoring** - flags models with no workers, zero usage, or downloads hosted outside preferred hosts
+- **Low usage detection** - configurable thresholds (different for image vs text models)
+- **Backend variation tracking** - for text models, tracks per-backend worker counts and usage
 
 `FilterPresets` provides named filter combinations for common deletion risk queries (e.g., "at-risk models", "high usage", "no workers").
 
@@ -107,9 +107,9 @@ graph LR
 
 **`TextModelParser`** uses regex patterns to extract:
 
-- **Size** — parameter counts like `7B`, `13B`, MoE patterns like `8x7B`
-- **Variant** — indicators like `Instruct`, `Chat`, `Code`, `Uncensored`
-- **Quantization** — K-quants (`Q4_K_M`), legacy quants (`Q4_0`), formats (`GGUF`, `GPTQ`, `AWQ`, `EXL2`)
+- **Size** - parameter counts like `7B`, `13B`, MoE patterns like `8x7B`
+- **Variant** - indicators like `Instruct`, `Chat`, `Code`, `Uncensored`
+- **Quantization** - K-quants (`Q4_K_M`), legacy quants (`Q4_0`), formats (`GGUF`, `GPTQ`, `AWQ`, `EXL2`)
 
 Results are cached with `@lru_cache` for repeated lookups.
 

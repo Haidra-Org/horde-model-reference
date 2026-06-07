@@ -94,7 +94,7 @@ Batch IDs group approved changes together for coordinated application. The syste
 
 ### Single Open Batch Rule
 
-At any point in time, there is **at most one "open" batch** — the batch containing all APPROVED (but not yet applied) changes. This ensures:
+At any point in time, there is **at most one "open" batch** - the batch containing all APPROVED (but not yet applied) changes. This ensures:
 
 1. **Approval consolidation**: When an approver approves new changes, they join the existing open batch rather than creating a new one.
 2. **Predictable batch IDs**: The batch ID for pending approvals equals `last_fully_applied_batch_id + 1`.
@@ -123,13 +123,13 @@ This ensures the partially-applied batch is "closed" and won't receive new appro
 ### Example Scenario
 
 ```text
-1. Approve changes A, B, C → All get batch_id=1
-2. Approve change D       → D gets batch_id=1 (joins existing batch)
-3. Apply change A         → A is now APPLIED, B/C/D still APPROVED
+1. Approve changes A, B, C -> All get batch_id=1
+2. Approve change D       -> D gets batch_id=1 (joins existing batch)
+3. Apply change A         -> A is now APPLIED, B/C/D still APPROVED
    └─ Partial apply detected: B, C, D reassigned to batch_id=2
-4. Approve change E       → E gets batch_id=2 (joins current open batch)
-5. Apply all (B, C, D, E) → Batch 2 fully applied
-6. Approve change F       → F gets batch_id=3 (new batch, none open)
+4. Approve change E       -> E gets batch_id=2 (joins current open batch)
+5. Apply all (B, C, D, E) -> Batch 2 fully applied
+6. Approve change F       -> F gets batch_id=3 (new batch, none open)
 ```
 
 ### Implementation Details

@@ -229,7 +229,7 @@ class TestGroupFamilyStore:
         assert store2.get_family_for_group("Mistral-Large") is not None
 
     def test_persistence_file_format(self, store_path: Path) -> None:
-        """The persisted JSON should be a dict of family_name → family data."""
+        """The persisted JSON should be a dict of family_name -> family data."""
         store = GroupFamilyStore(file_path=store_path)
         store.set_family("Mistral", ["Mistral-Large", "Mistral-Small"])
 
@@ -347,7 +347,7 @@ class TestDetectFamilies:
             "Mistral-Large",
             "Mistral-Nemo",
             "Mistral-Small",
-            "Mixtral",  # Different base — should NOT be in Mistral family
+            "Mixtral",  # Different base - should NOT be in Mistral family
         ]
         families = detect_families(groups)
 

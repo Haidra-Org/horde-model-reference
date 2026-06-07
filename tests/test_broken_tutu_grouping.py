@@ -44,50 +44,46 @@ class TestBrokenTutuGrouping:
             writer.writeheader()
 
             # Row 1: Broken-Tutu-24B-Unslop-v2.0
-            writer.writerow(
-                {
-                    "name": "ReadyArt/Broken-Tutu-24B-Unslop-v2.0",
-                    "parameters_bn": "24",
-                    "description": (
-                        "An updated version of the RP powerhouse, Broken-Tutu, now with unprecedented coherence "
-                        "and a zero-slop dataset. Mistral-V7-Tekken-T8-XML Recommended."
-                    ),
-                    "version": "1",
-                    "style": "chat",
-                    "nsfw": "false",
-                    "baseline": "mistralai/Mistral-Small-24B-Base-2501",
-                    "url": "https://huggingface.co/ReadyArt/Broken-Tutu-24B-Unslop-v2.0",
-                    "tags": "roleplay, ERP, unaligned, explicit, horror, violence, popular",
-                    "settings": "",
-                    "display_name": "",
-                }
-            )
+            writer.writerow({
+                "name": "ReadyArt/Broken-Tutu-24B-Unslop-v2.0",
+                "parameters_bn": "24",
+                "description": (
+                    "An updated version of the RP powerhouse, Broken-Tutu, now with unprecedented coherence "
+                    "and a zero-slop dataset. Mistral-V7-Tekken-T8-XML Recommended."
+                ),
+                "version": "1",
+                "style": "chat",
+                "nsfw": "false",
+                "baseline": "mistralai/Mistral-Small-24B-Base-2501",
+                "url": "https://huggingface.co/ReadyArt/Broken-Tutu-24B-Unslop-v2.0",
+                "tags": "roleplay, ERP, unaligned, explicit, horror, violence, popular",
+                "settings": "",
+                "display_name": "",
+            })
 
             # Row 2: Broken-Tutu-24B
-            writer.writerow(
-                {
-                    "name": "ReadyArt/Broken-Tutu-24B",
-                    "parameters_bn": "24",
-                    "description": (
-                        "A do-it-all RP powerhouse with a lively, initiative-driven voice and rock-solid adherence "
-                        "to even the most complex character cards. Go-to daily-driver for slice-of-life, fantasy, "
-                        "adventure, ERP, and gritty horror - effortlessly churning out detailed adventure scenes and "
-                        "intimate dialogues alike. Fully unaligned and uncensored, it delivers extreme NSFW/NSFL "
-                        "performance when appropriate and tracks up to 7 characters, time, and location. Beware: "
-                        "without careful temperature tweaks it can loop or get overly hostile, and mild repetition "
-                        "may creep in extremely-long sessions. Creator recommends "
-                        "sleepdeprived3/Mistral-V7-Tekken-T5-XML preset."
-                    ),
-                    "version": "1",
-                    "style": "chat",
-                    "nsfw": "false",
-                    "baseline": "",
-                    "url": "https://huggingface.co/ReadyArt/Broken-Tutu-24B",
-                    "tags": "roleplay, unaligned, popular",
-                    "settings": "",
-                    "display_name": "",
-                }
-            )
+            writer.writerow({
+                "name": "ReadyArt/Broken-Tutu-24B",
+                "parameters_bn": "24",
+                "description": (
+                    "A do-it-all RP powerhouse with a lively, initiative-driven voice and rock-solid adherence "
+                    "to even the most complex character cards. Go-to daily-driver for slice-of-life, fantasy, "
+                    "adventure, ERP, and gritty horror - effortlessly churning out detailed adventure scenes and "
+                    "intimate dialogues alike. Fully unaligned and uncensored, it delivers extreme NSFW/NSFL "
+                    "performance when appropriate and tracks up to 7 characters, time, and location. Beware: "
+                    "without careful temperature tweaks it can loop or get overly hostile, and mild repetition "
+                    "may creep in extremely-long sessions. Creator recommends "
+                    "sleepdeprived3/Mistral-V7-Tekken-T5-XML preset."
+                ),
+                "version": "1",
+                "style": "chat",
+                "nsfw": "false",
+                "baseline": "",
+                "url": "https://huggingface.co/ReadyArt/Broken-Tutu-24B",
+                "tags": "roleplay, unaligned, popular",
+                "settings": "",
+                "display_name": "",
+            })
 
         return csv_path
 
@@ -111,7 +107,7 @@ class TestBrokenTutuGrouping:
         assert "ReadyArt/Broken-Tutu-24B" in converted_records
 
     def test_github_backend_format_has_six_entries(self, broken_tutu_csv_file: Path, tmp_path: Path) -> None:
-        """Test that the GitHub backend format (legacy CSV → dict) produces 6 entries.
+        """Test that the GitHub backend format (legacy CSV -> dict) produces 6 entries.
 
         This tests the actual GitHubBackend._read_legacy_csv_to_dict method to ensure
         it creates 3 entries per CSV row as expected.

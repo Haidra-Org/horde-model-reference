@@ -85,10 +85,10 @@ Both `ModelReferenceManager` and `LegacyReferenceDownloadManager` use a singleto
 
 Depending on the active backend, multiple caching layers may be stacked:
 
-1. **ModelReferenceManager** — top-level in-memory cache with TTL (wraps any backend)
-2. **FileSystemBackend** — file mtime tracking plus in-memory per-category cache
-3. **RedisBackend** — Redis shared cache delegating to FileSystemBackend on miss
-4. **GitHubBackend** — download, convert, write to disk, then in-memory cache
-5. **HTTPBackend** — in-memory cache with PRIMARY API as source and GitHub fallback
+1. **ModelReferenceManager** - top-level in-memory cache with TTL (wraps any backend)
+2. **FileSystemBackend** - file mtime tracking plus in-memory per-category cache
+3. **RedisBackend** - Redis shared cache delegating to FileSystemBackend on miss
+4. **GitHubBackend** - download, convert, write to disk, then in-memory cache
+5. **HTTPBackend** - in-memory cache with PRIMARY API as source and GitHub fallback
 
 This multi-layer approach ensures clients get fast responses while maintaining data consistency across deployment topologies.

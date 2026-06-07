@@ -263,9 +263,9 @@ class BaseLegacyConverter:
 
         """
         raise NotImplementedError(
-            "v2 → legacy conversion is not yet implemented. "
+            "v2 -> legacy conversion is not yet implemented. "
             "This feature is planned for a future release. "
-            "For now, only legacy → v2 conversion is supported."
+            "For now, only legacy -> v2 conversion is supported."
         )
 
     def convert_from_v2_to_legacy(
@@ -287,9 +287,9 @@ class BaseLegacyConverter:
 
         """
         raise NotImplementedError(
-            "v2 → legacy conversion is not yet implemented. "
+            "v2 -> legacy conversion is not yet implemented. "
             "This feature is planned for a future release. "
-            "For now, only legacy → v2 conversion is supported. "
+            "For now, only legacy -> v2 conversion is supported. "
             f"Attempted to convert {len(v2_records)} records from category: {self.model_reference_category}"
         )
 
@@ -625,7 +625,7 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
         - name, parameters_bn (billions), description, version, style, nsfw, baseline,
           url, tags (comma-separated), instruct_format, settings (JSON string), display_name
 
-        The converter transforms CSV → internal dict → Pydantic validation → v2 JSON output.
+        The converter transforms CSV -> internal dict -> Pydantic validation -> v2 JSON output.
         Output is ALWAYS JSON format (text_generation.json), never CSV.
 
         Note: parameters_bn is converted to integer parameters (billions * 1,000,000,000)
