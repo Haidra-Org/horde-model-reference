@@ -341,7 +341,7 @@ class TestModelReferenceManagerLegacyWrites:
 
 
 class TestLegacyConverterStubs:
-    """Test that v2 → legacy converter stubs raise NotImplementedError."""
+    """Test that v2 -> legacy converter stubs raise NotImplementedError."""
 
     def test_converter_convert_from_v2_to_legacy_not_implemented(
         self,
@@ -356,7 +356,7 @@ class TestLegacyConverterStubs:
             model_reference_category=MODEL_REFERENCE_CATEGORY.image_generation,
         )
 
-        with pytest.raises(NotImplementedError, match="v2 → legacy conversion is not yet implemented"):
+        with pytest.raises(NotImplementedError, match="v2 -> legacy conversion is not yet implemented"):
             converter.convert_from_v2_to_legacy({})
 
 

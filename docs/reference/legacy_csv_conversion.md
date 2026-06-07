@@ -35,32 +35,32 @@ name,parameters_bn,description,version,style,nsfw,baseline,url,tags,settings,dis
 
 ## Conversion Process
 
-### 1. CSV → Internal Dictionary
+### 1. CSV -> Internal Dictionary
 
 The `LegacyTextGenerationConverter._load_and_validate_legacy_records()` method reads the CSV and converts it to an internal dictionary format:
 
 ```python
-# Parameters: billions → integer
+# Parameters: billions -> integer
 params_bn = float(row.get("parameters_bn", 0))
-parameters = int(params_bn * 1_000_000_000)  # 7.0 → 7,000,000,000
+parameters = int(params_bn * 1_000_000_000)  # 7.0 -> 7,000,000,000
 
-# Tags: comma-separated string → list
+# Tags: comma-separated string -> list
 tags_str = row.get("tags", "")
 tags = [t.strip() for t in tags_str.split(",") if t.strip()]
 
-# Settings: JSON string → dict
+# Settings: JSON string -> dict
 settings_str = row.get("settings", "")
 settings = json.loads(settings_str) if settings_str else None
 
-# NSFW: string → boolean
+# NSFW: string -> boolean
 nsfw = row.get("nsfw", "").lower() == "true"
 ```
 
-### 2. Dictionary → Pydantic Validation
+### 2. Dictionary -> Pydantic Validation
 
 The internal dictionary is validated using `LegacyTextGenerationRecord` Pydantic model.
 
-### 3. Pydantic → V2 JSON Output
+### 3. Pydantic -> V2 JSON Output
 
 The base class `write_out_records()` method writes the converted records to `text_generation.json` (always JSON format).
 
@@ -105,7 +105,7 @@ The `settings` column must contain valid JSON. If a row includes malformed JSON,
 
 ### Numeric Parameters Required
 
-`parameters_bn` must parse as a floating-point number (e.g., `"7.0"`). Non-numeric strings—including blank cells—raise a `ValueError` during conversion; there is no automatic fallback beyond the explicit `0` default used when the column is truly missing.
+`parameters_bn` must parse as a floating-point number (e.g., `"7.0"`). Non-numeric strings-including blank cells-raise a `ValueError` during conversion; there is no automatic fallback beyond the explicit `0` default used when the column is truly missing.
 
 ## Common Pitfalls
 
@@ -155,7 +155,7 @@ settings=None
 display_name=""
 ```
 
-`parameters_bn` is the exception—leave it blank or non-numeric and the conversion fails. Ensure every row contains a numeric value (use `0` when no parameter estimate is available).
+`parameters_bn` is the exception-leave it blank or non-numeric and the conversion fails. Ensure every row contains a numeric value (use `0` when no parameter estimate is available).
 
 ## Testing Considerations
 
@@ -218,10 +218,10 @@ parameters = int(parameters_bn * 1_000_000_000)
 # Result: 7,000,000,000
 
 # Examples:
-# 0.5 → 500,000,000 (500M)
-# 7.0 → 7,000,000,000 (7B)
-# 13.0 → 13,000,000,000 (13B)
-# 70.0 → 70,000,000,000 (70B)
+# 0.5 -> 500,000,000 (500M)
+# 7.0 -> 7,000,000,000 (7B)
+# 13.0 -> 13,000,000,000 (13B)
+# 70.0 -> 70,000,000,000 (70B)
 ```
 
 ## Best Practices

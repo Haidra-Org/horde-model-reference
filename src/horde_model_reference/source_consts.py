@@ -39,10 +39,10 @@ type SourceSelector = str | Sequence[str]
 
 May be:
 
-* ``"horde"`` (:data:`HORDE_SOURCE_ID`) — canonical data only (the default).
-* ``"any"`` (:data:`ANY_SOURCE`) — canonical data merged with all providers.
+* ``"horde"`` (:data:`HORDE_SOURCE_ID`) - canonical data only (the default).
+* ``"any"`` (:data:`ANY_SOURCE`) - canonical data merged with all providers.
 * a single provider id (e.g. ``"civitai"``).
-* a sequence of ids (e.g. ``["horde", "civitai"]``) — an explicit, ordered set.
+* a sequence of ids (e.g. ``["horde", "civitai"]``) - an explicit, ordered set.
   Ordering controls collision precedence: earlier sources win.
 """
 

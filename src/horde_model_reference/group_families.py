@@ -1,7 +1,7 @@
 """File-backed persistence for related-group families.
 
 Provides a lightweight association layer between distinct model groups that
-share a conceptual relationship — for example, Mistral-Large, Mistral-Small,
+share a conceptual relationship - for example, Mistral-Large, Mistral-Small,
 and Mistral-Nemo all belong to the "Mistral" family even though they are
 architecturally distinct models with their own groups.
 
@@ -10,9 +10,9 @@ extraction, alias resolution, or group membership. They exist so that UIs
 and analytics can surface "see also" relationships between groups.
 
 Public API:
-    ``GroupFamily``       — Pydantic model representing a single family.
-    ``GroupFamilyStore``  — Thread-safe, file-backed CRUD for families.
-    ``detect_families``   — Heuristic prefix-based family suggestion from group names.
+    ``GroupFamily``       - Pydantic model representing a single family.
+    ``GroupFamilyStore``  - Thread-safe, file-backed CRUD for families.
+    ``detect_families``   - Heuristic prefix-based family suggestion from group names.
 """
 
 from __future__ import annotations
@@ -47,7 +47,7 @@ class GroupFamilyStore:
     """Thread-safe, file-backed store for related-group families.
 
     Each family maps a descriptive name to a set of group base-names.
-    A group may belong to at most one family — assigning it to a second
+    A group may belong to at most one family - assigning it to a second
     family raises ``ValueError``.
 
     The reverse index (``_group_to_family``) enables O(1) lookups from
@@ -55,8 +55,8 @@ class GroupFamilyStore:
 
     Attributes:
         _file_path: Filesystem location for JSON persistence.
-        _families: family_name → ``GroupFamily`` mapping.
-        _group_to_family: group_name → family_name reverse index.
+        _families: family_name -> ``GroupFamily`` mapping.
+        _group_to_family: group_name -> family_name reverse index.
 
     """
 
@@ -136,7 +136,7 @@ class GroupFamilyStore:
         """Return a deep copy of every family.
 
         Returns:
-            Mapping of family_name → ``GroupFamily`` (copies).
+            Mapping of family_name -> ``GroupFamily`` (copies).
 
         """
         with self._lock:
@@ -277,7 +277,7 @@ def detect_families(
     that captures at least *min_family_size* groups wins, and its members are
     excluded from shorter prefix families.
 
-    This is a suggestion engine — results should be reviewed by an admin before
+    This is a suggestion engine - results should be reviewed by an admin before
     persisting via ``GroupFamilyStore.set_family()``.
 
     Args:
@@ -286,7 +286,7 @@ def detect_families(
         min_family_size: Minimum number of groups required to form a family.
 
     Returns:
-        Mapping of suggested family prefix → list of member group names.
+        Mapping of suggested family prefix -> list of member group names.
 
     """
     prefix_to_groups: dict[str, set[str]] = defaultdict(set)

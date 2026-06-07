@@ -1052,7 +1052,7 @@ class FileSystemBackend(ReplicaBackendBase):
             )
 
         with self._lock:
-            # text_generation uses CSV as source of truth — route to dedicated handler
+            # text_generation uses CSV as source of truth - route to dedicated handler
             if category == MODEL_REFERENCE_CATEGORY.text_generation:
                 self._update_text_generation_csv(
                     model_name,
@@ -1363,7 +1363,7 @@ class FileSystemBackend(ReplicaBackendBase):
             )
 
         with self._lock:
-            # text_generation uses CSV as source of truth — route to dedicated handler
+            # text_generation uses CSV as source of truth - route to dedicated handler
             if category == MODEL_REFERENCE_CATEGORY.text_generation:
                 self._delete_text_generation_csv(
                     model_name,

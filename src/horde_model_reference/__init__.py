@@ -505,7 +505,7 @@ Allows service to fully initialize before background tasks begin."""
             logger.info(
                 "canonical_format='LEGACY' in PRIMARY mode: "
                 "v1 API has CRUD operations, v2 API is read-only. "
-                "Note: v2 → LEGACY conversion is not yet implemented."
+                "Note: v2 -> LEGACY conversion is not yet implemented."
             )
 
         return self

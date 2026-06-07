@@ -109,7 +109,7 @@ async def _create_or_update_legacy_model(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
                     f"Model name '{model_name}' contains a backend prefix (aphrodite/, koboldcpp/). "
-                    "Submit only the base model name — backend duplicates are generated automatically."
+                    "Submit only the base model name - backend duplicates are generated automatically."
                 ),
             )
 
@@ -240,7 +240,7 @@ async def _delete_legacy_model(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=(
                     f"Model name '{model_name}' contains a backend prefix (aphrodite/, koboldcpp/). "
-                    "Submit only the base model name — backend duplicates are deleted automatically."
+                    "Submit only the base model name - backend duplicates are deleted automatically."
                 ),
             )
 

@@ -1,4 +1,4 @@
-"""Reverse conversion script: db.json (legacy GitHub format) → models.csv.
+"""Reverse conversion script: db.json (legacy GitHub format) -> models.csv.
 
 This script performs the inverse operation of convert.py, extracting unique base models
 from the legacy JSON format (which includes backend-prefixed duplicates) and generating

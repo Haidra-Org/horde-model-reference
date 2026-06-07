@@ -5,7 +5,7 @@ like base name, size, variant, and quantization. Useful for grouping model varia
 (e.g., different quant versions of the same base model).
 
 The parser recognises five *primary* parts (base, size, variant, version, quant) and
-an open-ended list of *extra* parts — name segments that do not fit any primary
+an open-ended list of *extra* parts - name segments that do not fit any primary
 category (date suffixes, descriptive variant words, sub-model identifiers, etc.).
 """
 
@@ -133,7 +133,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
     Attempts to extract base name, size, variant, quantization, version,
     and *extra* segments from a model name using regex patterns.
 
-    Extraction order: leading version → size → version → quant → variant → date.
+    Extraction order: leading version -> size -> version -> quant -> variant -> date.
     Segments that remain after all primary extractions are classified as extras.
 
     Args:
@@ -230,7 +230,7 @@ def parse_text_model_name(model_name: str) -> ParsedTextModelName:
             logger.trace(f"Extracted date extra: {date_value}")
             break
 
-    # Clean up base name — collapse repeated separators and strip edges
+    # Clean up base name - collapse repeated separators and strip edges
     base_name = name_parts
     for sep in SEPARATORS:
         while sep + sep in base_name:
@@ -631,10 +631,10 @@ def compute_group_summaries(
     metadata fields (baseline, nsfw, tags, description) across members.
 
     Args:
-        models_dict: Mapping of model_name → model_data dicts (mutated legacy JSON).
+        models_dict: Mapping of model_name -> model_data dicts (mutated legacy JSON).
 
     Returns:
-        Mapping of group_name → TextModelGroupSummary.
+        Mapping of group_name -> TextModelGroupSummary.
 
     """
     # Group model names by their text_model_group value

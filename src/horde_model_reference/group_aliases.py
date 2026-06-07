@@ -1,11 +1,11 @@
 """File-backed persistence for text model group aliases.
 
-Provides a canonical-name → alias mapping so that distinct parser base names
+Provides a canonical-name -> alias mapping so that distinct parser base names
 (e.g., ``c4ai-command-r``, ``c4ai-command-r-plus``, ``c4ai-command-a``) can
 be collapsed into a single group during grouping operations.
 
 This is the correct mechanism for model families whose names differ in ways
-the parser cannot resolve heuristically — the alias is always an explicit
+the parser cannot resolve heuristically - the alias is always an explicit
 admin decision.
 """
 
@@ -52,7 +52,7 @@ class GroupAliasStore:
         self._file_path = file_path
         self._lock = RLock()
         self._entries: dict[str, GroupAlias] = {}
-        # Reverse index: alias → canonical (built from _entries on load/mutate)
+        # Reverse index: alias -> canonical (built from _entries on load/mutate)
         self._alias_to_canonical: dict[str, str] = {}
         self._load()
 
@@ -157,7 +157,7 @@ class GroupAliasStore:
                 entry.aliases.append(alias)
                 self._rebuild_reverse_index()
                 self._persist()
-                logger.info(f"Added alias '{alias}' → canonical '{canonical}'")
+                logger.info(f"Added alias '{alias}' -> canonical '{canonical}'")
 
     def remove_alias(self, canonical: str, alias: str) -> bool:
         """Remove a single *alias* from a canonical entry.

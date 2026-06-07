@@ -48,9 +48,9 @@ The `/replicate_mode` endpoint returns a `BackendInfo` response containing the c
 
 `service/shared.py` provides the key dependencies:
 
-- **`get_model_reference_manager()`** — returns the `ModelReferenceManager` singleton
-- **`assert_canonical_write_enabled()`** — guards write endpoints with two checks: mode (PRIMARY required) and canonical format (must match the API version)
-- **`authenticate_queue_requestor()` / `authenticate_queue_approver()`** — validates API keys against the AI-Horde `/v2/find_user` endpoint and checks the user ID against configured allowlists
+- **`get_model_reference_manager()`** - returns the `ModelReferenceManager` singleton
+- **`assert_canonical_write_enabled()`** - guards write endpoints with two checks: mode (PRIMARY required) and canonical format (must match the API version)
+- **`authenticate_queue_requestor()` / `authenticate_queue_approver()`** - validates API keys against the AI-Horde `/v2/find_user` endpoint and checks the user ID against configured allowlists
 
 ## Read Request Flow
 
@@ -79,7 +79,7 @@ sequenceDiagram
     Router-->>Client: 200 JSON response
 ```
 
-The manager's in-memory cache uses a configurable TTL (default 60 seconds). On cache miss, the backend fetches data — from the filesystem (PRIMARY), PRIMARY API or GitHub (REPLICA) — and the manager validates it through the appropriate Pydantic record type from `MODEL_RECORD_TYPE_LOOKUP`.
+The manager's in-memory cache uses a configurable TTL (default 60 seconds). On cache miss, the backend fetches data - from the filesystem (PRIMARY), PRIMARY API or GitHub (REPLICA) - and the manager validates it through the appropriate Pydantic record type from `MODEL_RECORD_TYPE_LOOKUP`.
 
 ## Write Request Flow
 
@@ -107,14 +107,14 @@ sequenceDiagram
 ```
 
 !!! note
-Write endpoints return **202 Accepted** because changes are queued for approval rather than applied immediately. The pending queue workflow (propose → approve → apply) is documented in the [Pending Queue](../reference/pending_queue.md) reference.
+Write endpoints return **202 Accepted** because changes are queued for approval rather than applied immediately. The pending queue workflow (propose -> approve -> apply) is documented in the [Pending Queue](../reference/pending_queue.md) reference.
 
 ## Write Guard Checks
 
 Every write endpoint performs two sequential checks via `assert_canonical_write_enabled()`:
 
-1. **Mode check** — `backend.supports_writes()` must return `True` (only PRIMARY backends do). Returns 503 if the instance is in REPLICA mode.
-2. **Format check** — the configured `canonical_format` must match the API version being called. v2 endpoints require `canonical_format='v2'`; v1 endpoints require `canonical_format='legacy'`. Returns 503 on mismatch.
+1. **Mode check** - `backend.supports_writes()` must return `True` (only PRIMARY backends do). Returns 503 if the instance is in REPLICA mode.
+2. **Format check** - the configured `canonical_format` must match the API version being called. v2 endpoints require `canonical_format='v2'`; v1 endpoints require `canonical_format='legacy'`. Returns 503 on mismatch.
 
 This dual-gate ensures that write traffic is routed to exactly one API version at any given time, preventing split-brain data issues.
 

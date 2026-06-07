@@ -2,7 +2,7 @@
 
 Provides a read-only, lazy-evaluated query API over cached model records.
 All filtering, ordering, and pagination happens in-memory on the already-loaded
-Pydantic models — no new storage or network calls are introduced.
+Pydantic models - no new storage or network calls are introduced.
 
 Usage::
 
@@ -171,7 +171,7 @@ def _validate_field_exists(record_type: type[GenericModelRecord], field_name: st
     """Validate that *field_name* (top-level segment) exists on the Pydantic model.
 
     This serves as the security boundary for user-supplied field names in sort, filter,
-    and group-by operations — only fields declared on the Pydantic model are accepted.
+    and group-by operations - only fields declared on the Pydantic model are accepted.
     """
     top_level = field_name.split("__")[0]
     all_fields = record_type.model_fields

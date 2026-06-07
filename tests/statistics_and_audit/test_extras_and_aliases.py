@@ -339,7 +339,7 @@ class TestSchemaExtraParts:
         assert schema.extra_parts == []
 
     def test_round_trip_serialization(self) -> None:
-        """extra_parts should survive model_dump → model_validate round-trip."""
+        """extra_parts should survive model_dump -> model_validate round-trip."""
         schema = TextModelGroupNameSchema(extra_parts=["date", "leading_version"])
         dumped = schema.model_dump(mode="json")
         restored = TextModelGroupNameSchema.model_validate(dumped)
@@ -389,7 +389,7 @@ class TestRealWorldConsolidation:
     def test_glm4_multiple_sizes_same_date(self) -> None:
         r"""GLM-4-32B-0414 and GLM-4-9B-0414 are size variants of GLM-4.
 
-        The `-4` in `GLM-4` is a single digit — NOT a 4-digit date code.
+        The `-4` in `GLM-4` is a single digit - NOT a 4-digit date code.
         The 4-digit date pattern requires exactly 4 digits (`\\d{4}`), so
         `-4` is safe. Only `-0414` (April 14th) is extracted as a date.
         """
@@ -817,7 +817,7 @@ class TestParserCornerCases:
     def test_leading_size_in_name(self) -> None:
         """13B-BlueMethod: size appears before the model name.
 
-        The size pattern has no positional constraint — it matches `13B`
+        The size pattern has no positional constraint - it matches `13B`
         regardless of where it appears. The base should be `BlueMethod`.
         """
         parsed = parse_text_model_name("13B-BlueMethod")
