@@ -77,21 +77,24 @@ Every record shares these base fields:
 
 ## Type Narrowing
 
-`manager.get_model_reference()` returns `dict[str, GenericModelRecord]`. To access category-specific fields, use the typed properties or type narrowing:
+`manager.get_model_reference()` returns `dict[str, GenericModelRecord]` because it accepts any
+category. For category-specific typed access, use the query API (fully typed per category) or an
+`isinstance` check.
 
-### Typed Properties (Recommended)
+### The Query API (Recommended)
 
-The manager provides typed properties that return correctly-typed dicts:
+`manager.query(category)` returns records already typed to the category's record class:
 
 ```python
-# Returns dict[str, ImageGenerationModelRecord]
-image_models = manager.image_generation_models
+# Each record is an ImageGenerationModelRecord
+for model in manager.query("image_generation").to_list():
+    print(f"{model.name}: baseline={model.baseline}, nsfw={model.nsfw}")
 
-for name, model in image_models.items():
-    print(f"{name}: baseline={model.baseline}, nsfw={model.nsfw}")
+# Need a typed dict? Build one from the typed list:
+image_models = {model.name: model for model in manager.query("image_generation").to_list()}
 ```
 
-Available properties: `image_generation_models`, `text_generation_models`, `clip_models`, `controlnet_models`, `esrgan_models`, `gfpgan_models`, `blip_models`, `codeformer_models`, `safety_checker_models`, `video_generation_models`, `audio_generation_models`, `miscellaneous_models`.
+See [Querying Models](querying_models.md) for the full query reference.
 
 ### isinstance Checks
 

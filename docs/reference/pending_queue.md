@@ -194,11 +194,10 @@ When a pending change is **applied**, `FileSystemBackend.update_model()`/`delete
 | Pending queue service  | `src/horde_model_reference/pending_queue/{models.py,service.py,apply.py}`                                                                                                                    |
 | Router logic           | `src/horde_model_reference/service/v1/routers/create_update.py`, `src/horde_model_reference/service/v2/routers/{references,pending_queue}.py`, `src/horde_model_reference/service/shared.py` |
 | Tests                  | `tests/service/test_v2_api.py`, `tests/pending_queue/test_service.py`, `tests/pending_queue/test_apply.py`, fixtures in `tests/conftest.py`                                                  |
-| Docs referencing queue | `docs/pending_queue_plan.md`, `docs/model_reference_backend.md`, `docs/primary_deployments.md`                                                                                               |
+| Docs referencing queue | `docs/reference/model_reference_backend.md`, `docs/reference/primary_deployments.md`                                                                                                         |
 
 ## Related Documentation
 
-- [Pending Queue Apply Workflow Implementation Plan](pending_queue_plan.md)
 - [Model Reference Backend](model_reference_backend.md)
 - [Primary Deployment Guide](primary_deployments.md)
 - [Audit Trail Documentation](audit_trail.md)

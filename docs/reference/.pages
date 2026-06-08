@@ -1,7 +1,10 @@
 title: Reference
 nav:
+  - glossary.md
   - model_reference_backend.md
+  - model_providers.md
   - model_reference_records.md
+  - http_api
   - primary_deployments.md
   - replica_backend_base.md
   - audit_trail.md
