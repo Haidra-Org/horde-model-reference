@@ -38,7 +38,7 @@ from horde_model_reference.model_reference_records import (
     ImageGenerationModelRecord,
     TextGenerationModelRecord,
 )
-from horde_model_reference.query_fields import OrderSpec, Predicate
+from horde_model_reference.query_fields import FieldRef, OrderSpec, Predicate
 from horde_model_reference.source_consts import HORDE_SOURCE_ID, SourceOutcome
 from horde_model_reference.text_backend_names import (
     TEXT_LEGACY_BACKEND_PREFIXES,
@@ -180,6 +180,15 @@ def _validate_field_exists(record_type: type[GenericModelRecord], field_name: st
         raise ValueError(f"Field '{top_level}' does not exist on {record_type.__name__}. Valid fields: {valid}")
 
 
+def _field_name(field: FieldRef | str) -> str:
+    """Resolve a typed :class:`FieldRef` (or a plain field-name string) to its field name.
+
+    Lets the field-accepting query methods (``order_by``, ``distinct``, ``group_by``) take a
+    ``FieldRef`` from the field DSL directly - not only a string - without each having to unwrap it.
+    """
+    return field.field_name if isinstance(field, FieldRef) else field
+
+
 def _is_non_string_iterable(value: object) -> bool:
     """Return True when *value* is an iterable but not a string/bytes."""
     return isinstance(value, Iterable) and not isinstance(value, (str, bytes))
@@ -303,9 +312,9 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         1. **Keyword equality/comparison** (Django-style suffixes):
            ``where(nsfw=False, size_on_disk_bytes__gt=1_000_000_000)``
         2. **Field-ref predicates** (typed DSL):
-           ``where(ImageF.nsfw == false, ImageF.size_on_disk_bytes > 1_000_000_000)``
+           ``where(ImageFields.nsfw == false, ImageFields.size_on_disk_bytes > 1_000_000_000)``
         3. **Composed predicates** (boolean algebra):
-           ``where((ImageF.nsfw == false) & (ImageF.baseline == "stable_diffusion_xl"))``
+           ``where((ImageFields.nsfw == false) & (ImageFields.baseline == "stable_diffusion_xl"))``
 
         Args:
             *predicates: Zero or more ``Predicate`` objects (from ``FieldRef``
@@ -405,22 +414,30 @@ class ModelQuery[T: GenericModelRecord, F: str]:
     def order_by(self, field: OrderSpec) -> Self: ...
 
     @overload
+    def order_by(self, field: FieldRef, *, descending: bool = False) -> Self: ...
+
+    @overload
     def order_by(self, field: F, *, descending: bool = False) -> Self: ...
 
     @overload
     def order_by(self, field: str, *, descending: bool = False) -> Self: ...
 
-    def order_by(self, field: F | OrderSpec | str, *, descending: bool = False) -> Self:
+    def order_by(self, field: FieldRef | F | OrderSpec | str, *, descending: bool = False) -> Self:
         """Sort results by *field*; raises ``ValueError`` if values are not comparable.
 
-        Accepts either a field name string or an ``OrderSpec`` from the field
-        descriptor DSL (e.g. ``ImageF.size_on_disk_bytes.desc()``).
+        *field* may be a field-name string, a typed
+        :class:`~horde_model_reference.query_fields.FieldRef` from the field DSL
+        (e.g. ``ImageFields.size_on_disk_bytes``), or an ``OrderSpec``
+        (e.g. ``ImageFields.size_on_disk_bytes.desc()``). A bare string or ``FieldRef`` sorts
+        ascending unless ``descending=True``; an ``OrderSpec`` already carries its own direction
+        (passing ``descending`` alongside one has no effect).
         """
         if isinstance(field, OrderSpec):
             _validate_field_exists(self._record_type, field.field)
             return self._clone(sort_key=field.field, sort_descending=field.descending)
-        _validate_field_exists(self._record_type, field)
-        return self._clone(sort_key=field, sort_descending=descending)
+        field_name = _field_name(field)
+        _validate_field_exists(self._record_type, field_name)
+        return self._clone(sort_key=field_name, sort_descending=descending)
 
     def where_source(self, *sources: str) -> Self:
         """Keep only records originating from one of *sources*.
@@ -617,31 +634,38 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         """Execute the query and return the number of matching records."""
         return len(self._execute())
 
-    def distinct(self, field: F) -> list[object]:
-        """Return unique values of *field* across matching records (raises on unhashable values)."""
-        _validate_field_exists(self._record_type, field)
+    def distinct(self, field: FieldRef | F) -> list[object]:
+        """Return unique values of *field* across matching records (raises on unhashable values).
+
+        *field* may be a field-name string or a typed ``FieldRef`` from the field DSL.
+        """
+        field_name = _field_name(field)
+        _validate_field_exists(self._record_type, field_name)
         seen: set[Hashable] = set()
         result: list[object] = []
         for record in self._execute():
-            val = _resolve_field_value(record, field)
-            hashable_val = _to_hashable(field, val)
+            val = _resolve_field_value(record, field_name)
+            hashable_val = _to_hashable(field_name, val)
             if hashable_val not in seen:
                 seen.add(hashable_val)
                 result.append(val)
         return result
 
-    def group_by(self, field: F) -> dict[Hashable, list[T]]:
+    def group_by(self, field: FieldRef | F) -> dict[Hashable, list[T]]:
         """Group matching records by *field* value.
+
+        *field* may be a field-name string or a typed ``FieldRef`` from the field DSL.
 
         Returns:
             A dict mapping each distinct value to the list of records with that value.
 
         """
-        _validate_field_exists(self._record_type, field)
+        field_name = _field_name(field)
+        _validate_field_exists(self._record_type, field_name)
         groups: dict[Hashable, list[T]] = {}
         for record in self._execute():
-            val = _resolve_field_value(record, field)
-            key = _to_hashable(field, val)
+            val = _resolve_field_value(record, field_name)
+            key = _to_hashable(field_name, val)
             groups.setdefault(key, []).append(record)
         return groups
 
