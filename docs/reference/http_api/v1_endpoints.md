@@ -45,10 +45,16 @@ queued (`202`) depending on deployment configuration.
 | `POST /model_references/v1/codeformer` | `LegacyCodeformerRecord` | Create a CodeFormer model. |
 | `POST /model_references/v1/safety_checker` | `LegacySafetyCheckerRecord` | Create a safety-checker model. |
 | `POST /model_references/v1/miscellaneous` | `LegacyMiscellaneousRecord` | Create a miscellaneous model. |
-| `DELETE /model_references/v1/{category}/{model_name}` | - | Delete a model. `204` (applied) or `202` (queued); `404` if missing. |
+| `DELETE /model_references/v1/{category}/model/{model_name}` | - | Delete a model. `204` (applied) or `202` (queued); `404` if missing. |
 
 When the deployment routes legacy writes through the review queue, these return `202` and a
 `PendingChangeRecord` - see [Pending Queue endpoints](pending_queue_endpoints.md).
+
+!!! note "Why `/{category}/model/{model_name}` for DELETE?"
+    Single-model addressing is nested under a literal `model` segment, mirroring
+    [v2](v2_endpoints.md#read-operations). v1 has no sibling collection routes under `/{category}`
+    today, but the shared segment keeps the two API versions consistent and leaves the
+    `{model_name}` slot unambiguous if collection routes are ever added.
 
 ## Metadata
 
