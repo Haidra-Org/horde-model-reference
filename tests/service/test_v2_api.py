@@ -826,6 +826,82 @@ class TestPendingQueueAdminApi:
         assert payload["total"] == 1
         assert payload["items"][0]["change_id"] == second_id
 
+    def test_my_changes_scopes_to_caller(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+    ) -> None:
+        """GET /my_changes returns only the caller's own changes, not other requestors'."""
+        queue_service = primary_manager_for_api.pending_queue_service
+        assert queue_service is not None
+
+        mine = _enqueue_pending_change(primary_manager_for_api, model_name="queue_mine")
+        other = queue_service.enqueue_change(
+            category=MODEL_REFERENCE_CATEGORY.miscellaneous,
+            model_name="queue_theirs",
+            operation=AuditOperation.CREATE,
+            payload=_create_minimal_model_dict("queue_theirs"),
+            requestor_id="other-user-id",
+            requestor_username="someone#other-user-id",
+            notes=None,
+            request_metadata={"source": "tests"},
+        ).change_id
+
+        response = api_client.get(f"{self._base_url}/my_changes", headers=_auth_headers())
+        payload = _assert_success_response(response)
+
+        returned_ids = {item["change_id"] for item in payload["items"]}
+        assert mine in returned_ids
+        assert other not in returned_ids
+        assert all(item["requested_by"] == _TEST_USER_ID for item in payload["items"])
+
+    def test_my_changes_filters_by_status(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+    ) -> None:
+        """GET /my_changes honours the statuses filter like /changes."""
+        queue_service = primary_manager_for_api.pending_queue_service
+        assert queue_service is not None
+
+        _enqueue_pending_change(primary_manager_for_api, model_name="queue_mine_pending")
+        approved_id = _enqueue_pending_change(primary_manager_for_api, model_name="queue_mine_approved")
+        queue_service.process_batch(
+            approver_id=_TEST_USER_ID,
+            approver_username=_TEST_USERNAME,
+            batch_title="approve-mine",
+            approved_ids=[approved_id],
+            rejected_ids=None,
+            reject_reason=None,
+        )
+
+        response = api_client.get(
+            f"{self._base_url}/my_changes",
+            headers=_auth_headers(),
+            params={"statuses": PendingChangeStatus.APPROVED.value},
+        )
+        payload = _assert_success_response(response)
+        assert {item["change_id"] for item in payload["items"]} == {approved_id}
+
+    def test_my_changes_requires_only_requestor_role(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A requestor with no approver role can read my_changes but not the approver /changes list."""
+        from horde_model_reference import horde_model_reference_settings
+
+        monkeypatch.setattr(horde_model_reference_settings.pending_queue, "approver_ids", [])
+
+        _enqueue_pending_change(primary_manager_for_api, model_name="queue_requestor_only")
+
+        approver_response = api_client.get(f"{self._base_url}/changes", headers=_auth_headers())
+        assert approver_response.status_code == 401, approver_response.json()
+
+        requestor_response = api_client.get(f"{self._base_url}/my_changes", headers=_auth_headers())
+        _assert_success_response(requestor_response)
+
     def test_read_single_pending_change(
         self,
         api_client: TestClient,

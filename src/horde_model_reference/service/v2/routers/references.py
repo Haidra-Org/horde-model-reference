@@ -1,3 +1,4 @@
+from types import GenericAlias
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,13 +9,14 @@ from horde_model_reference import ModelReferenceManager
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import (
-    ControlNetModelRecord,
-    ImageGenerationModelRecord,
+    MODEL_RECORD_TYPE_LOOKUP,
+    GenericModelRecord,
     TextGenerationModelRecord,
 )
 from horde_model_reference.pending_queue import PendingChangeRecord, PendingQueueService
 from horde_model_reference.service.pending_queue.dependencies import require_pending_queue_service
 from horde_model_reference.service.shared import (
+    READ_ERROR_RESPONSES,
     ErrorResponse,
     PathVariables,
     RouteNames,
@@ -25,11 +27,11 @@ from horde_model_reference.service.shared import (
     v2_prefix,
     validate_model_name,
 )
-from horde_model_reference.service.v2.models import ModelRecordUnion, ModelRecordUnionType
+from horde_model_reference.service.v2.models import ModelRecordUnion
 from horde_model_reference.service.v2.routers.write_validations import assert_v2_write_enabled
 
 router = APIRouter(
-    responses={404: {"description": "Not found"}},
+    responses={**READ_ERROR_RESPONSES},
 )
 
 
@@ -43,7 +45,7 @@ def _check_model_exists(
     return existing_models is not None and model_name in existing_models
 
 
-def _model_payload(record: ModelRecordUnionType) -> dict[str, Any]:
+def _model_payload(record: GenericModelRecord) -> dict[str, Any]:
     return record.model_dump(mode="json", exclude_none=True)
 
 
@@ -80,8 +82,8 @@ def _preserve_created_metadata(
     manager: ModelReferenceManager,
     category: MODEL_REFERENCE_CATEGORY,
     model_name: str,
-    model_record: ModelRecordUnionType,
-) -> ModelRecordUnionType:
+    model_record: GenericModelRecord,
+) -> GenericModelRecord:
     """Copy created_* metadata fields from the stored record into the new payload."""
     existing_models = manager.get_raw_model_reference_json(category)
     if not existing_models:
@@ -138,7 +140,7 @@ async def _queue_model_record_request(
     *,
     manager: ModelReferenceManager,
     category: MODEL_REFERENCE_CATEGORY,
-    model_record: ModelRecordUnionType,
+    model_record: GenericModelRecord,
     apikey: str,
     operation: AuditOperation,
     route_name: str,
@@ -474,220 +476,174 @@ async def read_v2_single_model(
     return JSONResponse(content=raw_json[model_name], media_type="application/json")
 
 
-create_model_image_generation_route_subpath = f"/{MODEL_REFERENCE_CATEGORY.image_generation}/create_model"
-"""/image_generation/create_model"""
-route_registry.register_route(
-    v2_prefix,
-    RouteNames.image_generation_model,
-    create_model_image_generation_route_subpath,
-)
+# ---------------------------------------------------------------------------
+# Typed per-category write/read routes
+#
+# Every category has a concrete record type registered in ``MODEL_RECORD_TYPE_LOOKUP``.
+# We generate one POST (create), one PUT (update), and two GET (read) operations per
+# category so the OpenAPI schema and generated SDK clients see the concrete record
+# type for each category instead of a discriminated union. Reads return the raw stored
+# JSON via passthrough (no ``response_model`` filtering); ``response_model`` is declared
+# purely for documentation. The generic enum-bound endpoints defined below remain as a
+# uniform fallback and carry the stable ``operation_id``s referenced by OpenAPI links.
+# ---------------------------------------------------------------------------
+
+_CATEGORY_CREATE_ROUTE_NAMES: dict[MODEL_REFERENCE_CATEGORY, RouteNames] = {
+    MODEL_REFERENCE_CATEGORY.image_generation: RouteNames.image_generation_model,
+    MODEL_REFERENCE_CATEGORY.text_generation: RouteNames.text_generation_model,
+    MODEL_REFERENCE_CATEGORY.blip: RouteNames.blip_model,
+    MODEL_REFERENCE_CATEGORY.clip: RouteNames.clip_model,
+    MODEL_REFERENCE_CATEGORY.codeformer: RouteNames.codeformer_model,
+    MODEL_REFERENCE_CATEGORY.controlnet: RouteNames.controlnet_model,
+    MODEL_REFERENCE_CATEGORY.esrgan: RouteNames.esrgan_model,
+    MODEL_REFERENCE_CATEGORY.gfpgan: RouteNames.gfpgan_model,
+    MODEL_REFERENCE_CATEGORY.safety_checker: RouteNames.safety_checker_model,
+    MODEL_REFERENCE_CATEGORY.miscellaneous: RouteNames.miscellaneous_model,
+}
+
+_CATEGORY_UPDATE_ROUTE_NAMES: dict[MODEL_REFERENCE_CATEGORY, RouteNames] = {
+    MODEL_REFERENCE_CATEGORY.image_generation: RouteNames.update_image_generation_model,
+    MODEL_REFERENCE_CATEGORY.text_generation: RouteNames.update_text_generation_model,
+    MODEL_REFERENCE_CATEGORY.controlnet: RouteNames.update_controlnet_model,
+}
+
+_TYPED_WRITE_RESPONSES: dict[int | str, dict[str, Any]] = {
+    202: {"description": "Model change queued for approval"},
+    400: {"description": "Invalid request", "model": ErrorResponse},
+    404: {"description": "Model not found", "model": ErrorResponse},
+    409: {"description": "Model already exists (use PUT to update)", "model": ErrorResponse},
+    422: {"description": "Validation error in request body", "model": ErrorResponse},
+    503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
+}
 
 
-@router.post(
-    create_model_image_generation_route_subpath,
-    status_code=status.HTTP_202_ACCEPTED,
-    responses={
-        202: {
-            "description": "Model change queued for approval",
-            "links": {
-                "GetCreatedImageModel": {
-                    "operationId": "read_v2_reference",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.image_generation,
-                    },
-                    "description": "Retrieve all image generation models including the newly created one.",
-                },
-                "UpdateCreatedImageModel": {
-                    "operationId": "update_v2_model",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.image_generation,
-                        "model_name": "$request.body#/name",
-                    },
-                    "description": "Update the newly created image generation model.",
-                },
-                "DeleteCreatedImageModel": {
-                    "operationId": "delete_v2_model",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.image_generation,
-                        "model_name": "$request.body#/name",
-                    },
-                    "description": "Delete the newly created image generation model.",
-                },
-            },
-        },
-        400: {"description": "Invalid request", "model": ErrorResponse},
-        409: {"description": "Model already exists (use PUT to update)", "model": ErrorResponse},
-        422: {"description": "Validation error in request body", "model": ErrorResponse},
-        503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
-    },
-    summary="Create a new image generation model in v2 format",
-    response_model=PendingChangeRecord,
-    operation_id="create_v2_image_generation_model",
-)
-async def create_v2_image_generation_model(
-    new_model_record: ImageGenerationModelRecord,
-    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
-    apikey: Annotated[str, Depends(header_auth_scheme)],
-) -> JSONResponse:
-    """Create a new image generation model in v2 format.
+def _register_typed_category_routes(
+    category: MODEL_REFERENCE_CATEGORY,
+    record_type: type[GenericModelRecord],
+) -> None:
+    """Register concrete-schema POST/PUT/GET routes for a single category.
 
-    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
-
-    The model name in the request body must not already exist in the image generation category.
+    The request body is annotated as ``GenericModelRecord`` for static analysis, then the
+    concrete ``record_type`` is injected into ``__annotations__`` so FastAPI documents and
+    validates against the category's specific record schema.
     """
-    category = MODEL_REFERENCE_CATEGORY.image_generation
-    return await _queue_model_record_request(
-        manager=manager,
-        category=category,
-        model_record=new_model_record,
-        apikey=apikey,
-        operation=AuditOperation.CREATE,
-        route_name="create_v2_image_generation_model",
+    cat = category.value
+    create_path = f"/{cat}"
+    item_path = f"/{cat}/{{{PathVariables.model_name}}}"
+
+    async def create_handler(
+        new_model_record: GenericModelRecord,
+        manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+        apikey: Annotated[str, Depends(header_auth_scheme)],
+    ) -> JSONResponse:
+        return await _queue_model_record_request(
+            manager=manager,
+            category=category,
+            model_record=new_model_record,
+            apikey=apikey,
+            operation=AuditOperation.CREATE,
+            route_name=f"create_v2_{cat}",
+        )
+
+    async def update_handler(
+        model_name: str,
+        new_model_record: GenericModelRecord,
+        manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+        apikey: Annotated[str, Depends(header_auth_scheme)],
+    ) -> JSONResponse:
+        if new_model_record.name != model_name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Model name in the path must match the payload when queuing updates.",
+            )
+        return await _queue_model_record_request(
+            manager=manager,
+            category=category,
+            model_record=new_model_record,
+            apikey=apikey,
+            operation=AuditOperation.UPDATE,
+            route_name=f"update_v2_{cat}",
+        )
+
+    async def get_all_handler(
+        manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    ) -> JSONResponse:
+        raw_json = manager.get_raw_model_reference_json(category)
+        if raw_json is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Model category '{category}' not found",
+            )
+        return JSONResponse(content=raw_json, media_type="application/json")
+
+    async def get_one_handler(
+        model_name: str,
+        manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    ) -> JSONResponse:
+        raw_json = manager.get_raw_model_reference_json(category)
+        if raw_json is None or model_name not in raw_json:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Model '{model_name}' not found in category '{category}'",
+            )
+        return JSONResponse(content=raw_json[model_name], media_type="application/json")
+
+    # Swap the documented/validated body type to the category's concrete record.
+    create_handler.__annotations__["new_model_record"] = record_type
+    update_handler.__annotations__["new_model_record"] = record_type
+
+    if category in _CATEGORY_CREATE_ROUTE_NAMES:
+        route_registry.register_route(v2_prefix, _CATEGORY_CREATE_ROUTE_NAMES[category], create_path)
+    if category in _CATEGORY_UPDATE_ROUTE_NAMES:
+        route_registry.register_route(v2_prefix, _CATEGORY_UPDATE_ROUTE_NAMES[category], item_path)
+
+    router.add_api_route(
+        create_path,
+        create_handler,
+        methods=["POST"],
+        status_code=status.HTTP_202_ACCEPTED,
+        response_model=PendingChangeRecord,
+        responses=_TYPED_WRITE_RESPONSES,
+        summary=f"Create a new {cat} model",
+        operation_id=f"create_v2_{cat}",
+        tags=["v2"],
+    )
+    router.add_api_route(
+        item_path,
+        update_handler,
+        methods=["PUT"],
+        status_code=status.HTTP_202_ACCEPTED,
+        response_model=PendingChangeRecord,
+        responses=_TYPED_WRITE_RESPONSES,
+        summary=f"Update an existing {cat} model",
+        operation_id=f"update_v2_{cat}",
+        tags=["v2"],
+    )
+    router.add_api_route(
+        create_path,
+        get_all_handler,
+        methods=["GET"],
+        response_model=GenericAlias(dict, (str, record_type)),
+        responses={404: {"description": "Category not found or empty", "model": ErrorResponse}},
+        summary=f"Get all {cat} models",
+        operation_id=f"read_v2_{cat}_all",
+        tags=["v2"],
+    )
+    router.add_api_route(
+        item_path,
+        get_one_handler,
+        methods=["GET"],
+        response_model=record_type,
+        responses={404: {"description": "Model not found", "model": ErrorResponse}},
+        summary=f"Get a specific {cat} model",
+        operation_id=f"read_v2_{cat}_one",
+        tags=["v2"],
     )
 
 
-create_model_text_generation_route_subpath = f"/{MODEL_REFERENCE_CATEGORY.text_generation}/create_model"
-"""/text_generation/create_model"""
-route_registry.register_route(
-    v2_prefix,
-    RouteNames.text_generation_model,
-    create_model_text_generation_route_subpath,
-)
-
-
-@router.post(
-    create_model_text_generation_route_subpath,
-    status_code=status.HTTP_202_ACCEPTED,
-    responses={
-        202: {
-            "description": "Model change queued for approval",
-            "links": {
-                "GetCreatedTextModel": {
-                    "operationId": "read_v2_reference",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.text_generation,
-                    },
-                    "description": "Retrieve all text generation models including the newly created one.",
-                },
-                "UpdateCreatedTextModel": {
-                    "operationId": "update_v2_model",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.text_generation,
-                        "model_name": "$request.body#/name",
-                    },
-                    "description": "Update the newly created text generation model.",
-                },
-                "DeleteCreatedTextModel": {
-                    "operationId": "delete_v2_model",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.text_generation,
-                        "model_name": "$request.body#/name",
-                    },
-                    "description": "Delete the newly created text generation model.",
-                },
-            },
-        },
-        400: {"description": "Invalid request", "model": ErrorResponse},
-        409: {"description": "Model already exists (use PUT to update)", "model": ErrorResponse},
-        422: {"description": "Validation error in request body", "model": ErrorResponse},
-        503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
-    },
-    summary="Create a new text generation model in v2 format",
-    response_model=PendingChangeRecord,
-    operation_id="create_v2_text_generation_model",
-)
-async def create_v2_text_generation_model(
-    new_model_record: TextGenerationModelRecord,
-    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
-    apikey: Annotated[str, Depends(header_auth_scheme)],
-) -> JSONResponse:
-    """Create a new text generation model in v2 format.
-
-    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
-
-    The model name in the request body must not already exist in the text generation category.
-    """
-    category = MODEL_REFERENCE_CATEGORY.text_generation
-    return await _queue_model_record_request(
-        manager=manager,
-        category=category,
-        model_record=new_model_record,
-        apikey=apikey,
-        operation=AuditOperation.CREATE,
-        route_name="create_v2_text_generation_model",
-    )
-
-
-create_model_controlnet_route_subpath = f"/{MODEL_REFERENCE_CATEGORY.controlnet}/create_model"
-"""/controlnet/create_model"""
-route_registry.register_route(
-    v2_prefix,
-    RouteNames.controlnet_model,
-    create_model_controlnet_route_subpath,
-)
-
-
-@router.post(
-    create_model_controlnet_route_subpath,
-    status_code=status.HTTP_202_ACCEPTED,
-    responses={
-        202: {
-            "description": "Model change queued for approval",
-            "links": {
-                "GetCreatedControlNetModel": {
-                    "operationId": "read_v2_reference",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.controlnet,
-                    },
-                    "description": "Retrieve all ControlNet models including the newly created one.",
-                },
-                "UpdateCreatedControlNetModel": {
-                    "operationId": "update_v2_model",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.controlnet,
-                        "model_name": "$request.body#/name",
-                    },
-                    "description": "Update the newly created ControlNet model.",
-                },
-                "DeleteCreatedControlNetModel": {
-                    "operationId": "delete_v2_model",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.controlnet,
-                        "model_name": "$request.body#/name",
-                    },
-                    "description": "Delete the newly created ControlNet model.",
-                },
-            },
-        },
-        400: {"description": "Invalid request", "model": ErrorResponse},
-        409: {"description": "Model already exists (use PUT to update)", "model": ErrorResponse},
-        422: {"description": "Validation error in request body", "model": ErrorResponse},
-        503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
-    },
-    summary="Create a new ControlNet model in v2 format",
-    response_model=PendingChangeRecord,
-    operation_id="create_v2_controlnet_model",
-)
-async def create_v2_controlnet_model(
-    new_model_record: ControlNetModelRecord,
-    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
-    apikey: Annotated[str, Depends(header_auth_scheme)],
-) -> JSONResponse:
-    """Create a new ControlNet model in v2 format.
-
-    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
-
-    The model name in the request body must not already exist in the ControlNet category.
-    """
-    category = MODEL_REFERENCE_CATEGORY.controlnet
-    return await _queue_model_record_request(
-        manager=manager,
-        category=category,
-        model_record=new_model_record,
-        apikey=apikey,
-        operation=AuditOperation.CREATE,
-        route_name="create_v2_controlnet_model",
-    )
+for _category, _record_type in MODEL_RECORD_TYPE_LOOKUP.items():
+    if isinstance(_category, MODEL_REFERENCE_CATEGORY):
+        _register_typed_category_routes(_category, _record_type)
 
 
 add_model_route_subpath = f"/{{{PathVariables.model_category_name}}}/add"
@@ -756,7 +712,7 @@ async def create_v2_model(
 ) -> JSONResponse:
     """Create a new model in the specified category.
 
-    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
+    **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
 
     The model name in the request body must not already exist in the specified category.
     """
@@ -770,202 +726,7 @@ async def create_v2_model(
     )
 
 
-update_model_image_generation_route_subpath = (
-    f"/{MODEL_REFERENCE_CATEGORY.image_generation}/update_model/{{{PathVariables.model_name}}}"
-)
-"""/image_generation/update_model/{model_name}"""
-route_registry.register_route(
-    v2_prefix,
-    RouteNames.update_image_generation_model,
-    update_model_image_generation_route_subpath,
-)
-
-
-@router.put(
-    update_model_image_generation_route_subpath,
-    status_code=status.HTTP_202_ACCEPTED,
-    responses={
-        202: {
-            "description": "Model change queued for approval",
-            "links": {
-                "GetUpdatedImageModel": {
-                    "operationId": "read_v2_single_model",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.image_generation,
-                        "model_name": "$request.path.model_name",
-                    },
-                    "description": "Retrieve the updated image generation model.",
-                },
-            },
-        },
-        400: {"description": "Invalid request", "model": ErrorResponse},
-        404: {"description": "Model not found (use POST to create)", "model": ErrorResponse},
-        422: {"description": "Validation error in request body", "model": ErrorResponse},
-        503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
-    },
-    summary="Update an existing image generation model in v2 format",
-    response_model=PendingChangeRecord,
-    operation_id="update_v2_image_generation_model",
-)
-async def update_v2_image_generation_model(
-    model_name: str,
-    new_model_record: ImageGenerationModelRecord,
-    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
-    apikey: Annotated[str, Depends(header_auth_scheme)],
-) -> JSONResponse:
-    """Update an existing image generation model in v2 format.
-
-    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
-
-    The model must already exist in the image generation category. Use POST to create new models.
-    """
-    if new_model_record.name != model_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Model name in the path must match the payload when queuing updates.",
-        )
-
-    category = MODEL_REFERENCE_CATEGORY.image_generation
-    return await _queue_model_record_request(
-        manager=manager,
-        category=category,
-        model_record=new_model_record,
-        apikey=apikey,
-        operation=AuditOperation.UPDATE,
-        route_name="update_v2_image_generation_model",
-    )
-
-
-update_model_text_generation_route_subpath = (
-    f"/{MODEL_REFERENCE_CATEGORY.text_generation}/update_model/{{{PathVariables.model_name}}}"
-)
-"""/text_generation/update_model/{model_name}"""
-route_registry.register_route(
-    v2_prefix,
-    RouteNames.update_text_generation_model,
-    update_model_text_generation_route_subpath,
-)
-
-
-@router.put(
-    update_model_text_generation_route_subpath,
-    status_code=status.HTTP_202_ACCEPTED,
-    responses={
-        202: {
-            "description": "Model change queued for approval",
-            "links": {
-                "GetUpdatedTextModel": {
-                    "operationId": "read_v2_single_model",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.text_generation,
-                        "model_name": "$request.path.model_name",
-                    },
-                    "description": "Retrieve the updated text generation model.",
-                },
-            },
-        },
-        400: {"description": "Invalid request", "model": ErrorResponse},
-        404: {"description": "Model not found (use POST to create)", "model": ErrorResponse},
-        422: {"description": "Validation error in request body", "model": ErrorResponse},
-        503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
-    },
-    summary="Update an existing text generation model in v2 format",
-    response_model=PendingChangeRecord,
-    operation_id="update_v2_text_generation_model",
-)
-async def update_v2_text_generation_model(
-    model_name: str,
-    new_model_record: TextGenerationModelRecord,
-    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
-    apikey: Annotated[str, Depends(header_auth_scheme)],
-) -> JSONResponse:
-    """Update an existing text generation model in v2 format.
-
-    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
-
-    The model must already exist in the text generation category. Use POST to create new models.
-    """
-    if new_model_record.name != model_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Model name in the path must match the payload when queuing updates.",
-        )
-
-    category = MODEL_REFERENCE_CATEGORY.text_generation
-    return await _queue_model_record_request(
-        manager=manager,
-        category=category,
-        model_record=new_model_record,
-        apikey=apikey,
-        operation=AuditOperation.UPDATE,
-        route_name="update_v2_text_generation_model",
-    )
-
-
-update_model_controlnet_route_subpath = (
-    f"/{MODEL_REFERENCE_CATEGORY.controlnet}/update_model/{{{PathVariables.model_name}}}"
-)
-"""/controlnet/update_model/{model_name}"""
-route_registry.register_route(
-    v2_prefix,
-    RouteNames.update_controlnet_model,
-    update_model_controlnet_route_subpath,
-)
-
-
-@router.put(
-    update_model_controlnet_route_subpath,
-    status_code=status.HTTP_202_ACCEPTED,
-    responses={
-        202: {
-            "description": "Model change queued for approval",
-            "links": {
-                "GetUpdatedControlNetModel": {
-                    "operationId": "read_v2_single_model",
-                    "parameters": {
-                        "model_category_name": MODEL_REFERENCE_CATEGORY.controlnet,
-                        "model_name": "$request.path.model_name",
-                    },
-                    "description": "Retrieve the updated ControlNet model.",
-                },
-            },
-        },
-        400: {"description": "Invalid request", "model": ErrorResponse},
-        404: {"description": "Model not found (use POST to create)", "model": ErrorResponse},
-        422: {"description": "Validation error in request body", "model": ErrorResponse},
-        503: {"description": "Service unavailable (v2 canonical mode required)", "model": ErrorResponse},
-    },
-    summary="Update an existing ControlNet model in v2 format",
-    response_model=PendingChangeRecord,
-    operation_id="update_v2_controlnet_model",
-)
-async def update_v2_controlnet_model(
-    model_name: str,
-    new_model_record: ControlNetModelRecord,
-    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
-    apikey: Annotated[str, Depends(header_auth_scheme)],
-) -> JSONResponse:
-    """Update an existing ControlNet model in v2 format.
-
-    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
-
-    The model must already exist in the ControlNet category. Use POST to create new models.
-    """
-    if new_model_record.name != model_name:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Model name in the path must match the payload when queuing updates.",
-        )
-
-    category = MODEL_REFERENCE_CATEGORY.controlnet
-    return await _queue_model_record_request(
-        manager=manager,
-        category=category,
-        model_record=new_model_record,
-        apikey=apikey,
-        operation=AuditOperation.UPDATE,
-        route_name="update_v2_controlnet_model",
-    )
+# Typed per-category update routes are generated by _register_typed_category_routes above.
 
 
 update_model_route_subpath = f"/{{{PathVariables.model_category_name}}}/{{{PathVariables.model_name}}}"
@@ -1033,7 +794,7 @@ async def update_v2_model(
 ) -> JSONResponse:
     """Update an existing model in v2 format.
 
-    ⚠️ **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
+    **This endpoint is only available when `canonical_format='v2'` in PRIMARY mode.**
 
     The model must already exist in the specified category. Use POST to create new models.
 

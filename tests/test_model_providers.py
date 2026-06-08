@@ -299,6 +299,57 @@ def test_provider_error_is_isolated(
     assert names == {"horde_model", "provider_model"}
 
 
+def test_source_status_distinguishes_ok_empty_and_error(
+    provider_env: tuple[ModelReferenceManager, CanonicalView],
+) -> None:
+    """``source_status`` reports each selected source as ok/empty/error."""
+    manager, canonical = provider_env
+    canonical[MODEL_REFERENCE_CATEGORY.image_generation] = {"horde_model": _make_image_model("horde_model")}
+    manager.register_provider(
+        StubProvider(
+            "broken",
+            {MODEL_REFERENCE_CATEGORY.image_generation: {"x": _make_image_model("x")}},
+            raise_on_fetch=True,
+        ),
+    )
+    manager.register_provider(
+        StubProvider("empty_src", {MODEL_REFERENCE_CATEGORY.image_generation: {}}),
+    )
+    manager.register_provider(
+        StubProvider(
+            "civitai",
+            {MODEL_REFERENCE_CATEGORY.image_generation: {"provider_model": _make_image_model("provider_model")}},
+        ),
+    )
+
+    query = manager.query(MODEL_REFERENCE_CATEGORY.image_generation, source=ANY_SOURCE)
+
+    assert query.source_status() == {
+        HORDE_SOURCE_ID: "ok",
+        "broken": "error",
+        "empty_src": "empty",
+        "civitai": "ok",
+    }
+    assert query.failed_sources() == ["broken"]
+
+    # The outcome map survives fluent chaining (filters never touch provenance).
+    assert query.where(nsfw=False).source_status() == query.source_status()
+
+
+def test_source_status_canonical_only_is_derived(
+    provider_env: tuple[ModelReferenceManager, CanonicalView],
+) -> None:
+    """A default (canonical-only) query derives its status from record presence."""
+    manager, canonical = provider_env
+
+    canonical[MODEL_REFERENCE_CATEGORY.image_generation] = {"horde_model": _make_image_model("horde_model")}
+    assert manager.query(MODEL_REFERENCE_CATEGORY.image_generation).source_status() == {HORDE_SOURCE_ID: "ok"}
+    assert manager.query(MODEL_REFERENCE_CATEGORY.image_generation).failed_sources() == []
+
+    canonical[MODEL_REFERENCE_CATEGORY.image_generation] = {}
+    assert manager.query(MODEL_REFERENCE_CATEGORY.image_generation).source_status() == {HORDE_SOURCE_ID: "empty"}
+
+
 def test_get_model_reference_threads_source(
     provider_env: tuple[ModelReferenceManager, CanonicalView],
 ) -> None:
