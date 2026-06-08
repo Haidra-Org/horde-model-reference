@@ -1,5 +1,7 @@
 nav:
   - getting_started.md
   - querying_models.md
+  - using_the_http_api.md
+  - registering_providers.md
   - working_with_records.md
   - configuration_and_troubleshooting.md

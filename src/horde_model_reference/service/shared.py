@@ -359,6 +359,34 @@ class ErrorResponse(BaseModel):
     """Error details - either a string message or list of validation errors."""
 
 
+# OpenAPI ``responses`` fragments. Attaching these at the router level documents the error
+# bodies uniformly in the schema; they do not change runtime behaviour (FastAPI already returns
+# ``{"detail": ...}`` for HTTPException and validation errors).
+READ_ERROR_RESPONSES: dict[int | str, dict[str, object]] = {
+    404: {"model": ErrorResponse, "description": "The requested category or model was not found."},
+    422: {"model": ErrorResponse, "description": "The category name or query parameters were invalid."},
+    503: {
+        "model": ErrorResponse,
+        "description": "A required capability (e.g. metadata) is unavailable in this deployment mode.",
+    },
+}
+
+WRITE_ERROR_RESPONSES: dict[int | str, dict[str, object]] = {
+    400: {"model": ErrorResponse, "description": "The request was malformed or violated a state precondition."},
+    401: {
+        "model": ErrorResponse,
+        "description": "Missing or invalid ``apikey``, or the user lacks the required role.",
+    },
+    404: {"model": ErrorResponse, "description": "The target category or model was not found."},
+    409: {"model": ErrorResponse, "description": "The model already exists, or conflicts with another entry."},
+    422: {"model": ErrorResponse, "description": "The request body failed validation."},
+    503: {
+        "model": ErrorResponse,
+        "description": "Writes are unavailable: REPLICA mode, or the canonical format does not match this API.",
+    },
+}
+
+
 _INVALID_MODEL_NAME_CHARS = frozenset("\\")
 
 

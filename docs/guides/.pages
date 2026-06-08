@@ -1,1 +1,7 @@
 title: How-To Guides
+nav:
+  - filter_models_for_a_worker.md
+  - offline_and_resilient_reads.md
+  - consume_the_http_api.md
+  - submit_models_via_the_api.md
+  - write_a_live_provider.md

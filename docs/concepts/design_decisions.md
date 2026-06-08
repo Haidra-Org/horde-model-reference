@@ -42,6 +42,5 @@ The library provides parallel sync and async method sets (`get_model_reference` 
 
 **Workarounds:**
 
-- Use the typed properties: `manager.image_generation_models` returns `dict[str, ImageGenerationModelRecord]`
+- Use the query API, which is fully typed per category: `manager.query("image_generation")` returns records typed as `ImageGenerationModelRecord`
 - Use `isinstance()` checks for type narrowing
-- Use the query API, which is fully typed per category

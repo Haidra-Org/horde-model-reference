@@ -97,8 +97,23 @@ q.group_by_source()          # {source_id: [record, ...]}
 ### Error isolation
 
 If a provider raises while fetching (network error, bad data), the manager logs it and **skips that
-provider** - other sources still contribute. Prefer returning `None` from `fetch_category` over raising
-when you simply have no data for a category.
+provider** - other sources still contribute, so one bad provider never breaks a read. Prefer
+returning `None` from `fetch_category` over raising when you simply have no data for a category.
+
+A skipped provider is simply *absent* from the merged result. When completeness matters, inspect the
+per-source outcome of the query so you can tell "the provider is down" from "the provider had nothing
+for this category":
+
+```python
+q = manager.query("image_generation", source=ANY_SOURCE)
+
+q.source_status()     # {"horde": "ok", "civitai": "error", "internal": "empty"}
+q.failed_sources()    # ["civitai"] - selected sources that raised during fetch
+```
+
+`source_status()` reports each *selected* source as `"ok"` (contributed at least one record),
+`"empty"` (returned nothing for this category), or `"error"` (raised and was skipped). Check
+`failed_sources()` before trusting a merged read if a missing provider would be a problem for you.
 
 ## Introspecting registered providers
 
@@ -117,7 +132,10 @@ native async data path.
 
 ```python
 from horde_model_reference import ModelProvider, MODEL_REFERENCE_CATEGORY
-from horde_model_reference.model_reference_records import GenericModelRecord
+from horde_model_reference.model_reference_records import (
+    GenericModelRecord,
+    ImageGenerationModelRecord,
+)
 
 
 class CivitaiProvider(ModelProvider):
@@ -170,4 +188,3 @@ class MyRecord(GenericModelRecord):
 
 - [Querying Models](querying_models.md) -- The full query builder reference
 - [Model Providers (reference)](../reference/model_providers.md) -- ABC contract, registry, and source-selection rules
-```

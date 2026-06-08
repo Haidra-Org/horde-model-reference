@@ -360,43 +360,52 @@ print(f"Description: {model['description']}")
 
 ## Documentation
 
-### Getting Started
+The full documentation is published as an [MkDocs](https://www.mkdocs.org/) site
+(build it locally with `mkdocs serve`). Runnable, copy-paste examples live in the
+[`examples/`](examples/) directory.
+
+### Tutorials (learn by doing)
 
 - [Getting Started](docs/tutorials/getting_started.md) -- Installation, first query, singleton pattern, prefetch strategies
 - [Querying Models](docs/tutorials/querying_models.md) -- Fluent query API, filtering, sorting, aggregation
-- [Working with Records](docs/tutorials/working_with_records.md) -- Record types, fields, serialization
+- [Registering & Consuming Providers](docs/tutorials/registering_providers.md) -- Contribute and read records from third-party sources
+- [Working with Records](docs/tutorials/working_with_records.md) -- Record types, fields, type narrowing, serialization
 - [Configuration & Troubleshooting](docs/tutorials/configuration_and_troubleshooting.md) -- Env vars, debugging, common issues
 
-### Deployment & Operations
+### Concepts (understand how it works)
+
+- [Architecture Overview](docs/concepts/architecture_overview.md) -- Usage modes, backbone modules, subsystem map
+- [Request Lifecycle](docs/concepts/request_lifecycle.md) -- How the service processes read and write requests
+- [Sync System](docs/concepts/sync_system.md) -- How PRIMARY changes propagate to legacy GitHub repos
+- [Analytics Pipeline](docs/concepts/analytics_pipeline.md) -- Statistics, audit analysis, cache hydration
+- [Integrations](docs/concepts/integrations.md) -- Live Horde API data fetching and merging
+- [Canonical Format](docs/concepts/canonical_format.md) -- API versioning (v1/v2) and format settings
+- [Design Decisions](docs/concepts/design_decisions.md) -- Trade-offs and known limitations
+
+### Reference (look something up)
+
+- [Model Reference Backend](docs/reference/model_reference_backend.md) -- Backend ABC and implementations
+- [Model Providers](docs/reference/model_providers.md) -- Provider ABC, registry, source selection
+- [Model Reference Records](docs/reference/model_reference_records.md) -- Record hierarchy and validation
+- [Primary Deployments](docs/reference/primary_deployments.md) -- Backend selection, Redis, multi-worker setup
+- [Replica Backend Base](docs/reference/replica_backend_base.md) -- TTL caching and staleness tracking
+- [Audit Trail](docs/reference/audit_trail.md) -- Operation logging and replay
+- [Pending Queue](docs/reference/pending_queue.md) -- Write approval workflow
+- [Legacy CSV Conversion](docs/reference/legacy_csv_conversion.md) -- Text generation CSV format details
+
+### Deployment & operations
 
 - [Deployment Guide](DEPLOYMENT.md) -- Docker and non-Docker deployment
-- [GitHub Sync (Docker)](DOCKER_SYNC.md) -- Optional automated sync to legacy repos
-- [Primary Deployments](docs/primary_deployments.md) -- Backend selection, Redis, multi-worker setup
-- [Canonical Format](docs/canonical_format.md) -- API versioning and format settings
+- [GitHub Sync Service](scripts/sync/README.md) -- Optional automated sync to legacy repos
+- [Contributing](CONTRIBUTING.md) -- Development setup and guidelines
 
-### Architecture Reference
-
-- [Model Reference Backend](docs/model_reference_backend.md) -- Backend ABC and implementations
-- [Model Reference Records](docs/model_reference_records.md) -- Record hierarchy and validation
-- [Replica Backend Base](docs/replica_backend_base.md) -- TTL caching and staleness tracking
-- [Design Decisions](docs/design_decisions.md) -- Trade-offs and known limitations
-
-### Operations
-
-- [Pending Queue](docs/pending_queue.md) -- Write approval workflow
-- [Audit Trail](docs/audit_trail.md) -- Operation logging and replay
-
-### Other
-
-- [API Reference](http://localhost:19800/docs) -- Run service and visit for interactive Swagger UI
-- [Legacy CSV Conversion](docs/legacy_csv_conversion.md) -- Text generation CSV format details
-- [Contributing](.CONTRIBUTING.md) -- Development setup and guidelines
+The service also serves interactive Swagger UI at `/docs` (e.g. `http://localhost:19800/docs`) when running locally.
 
 ## Contributing
 
 We welcome contributions of all sizes! Before contributing:
 
-1. Read [.CONTRIBUTING.md](.CONTRIBUTING.md) for setup and guidelines
+1. Read [CONTRIBUTING.md](CONTRIBUTING.md) for setup and guidelines
 2. Check [open issues](https://github.com/Haidra-Org/horde-model-reference/issues) or [start a discussion](https://github.com/Haidra-Org/horde-model-reference/discussions)
 3. Follow the [Haidra Python Style Guide](docs/haidra-assets/docs/meta/python.md)
 
