@@ -59,9 +59,9 @@ A successful proposal returns **`202 Accepted`** and a `PendingChangeRecord` - i
 { "change_id": 42, "operation": "create", "model_name": "my_finetune_xl", "status": "pending", ... }
 ```
 
-- **Update** an existing model: `PUT /model_references/v2/{category}/{model_name}` (the path
+- **Update** an existing model: `PUT /model_references/v2/{category}/model/{model_name}` (the path
   `model_name` must match the body `name`).
-- **Delete** a model: `DELETE /model_references/v2/{category}/{model_name}`.
+- **Delete** a model: `DELETE /model_references/v2/{category}/model/{model_name}`.
 - Any category works; the typed routes exist for `image_generation`, `text_generation`,
   `controlnet`, and every other category. There is also a generic `POST /{category}/add` if you
   prefer a single uniform endpoint.
@@ -132,7 +132,7 @@ curl -X POST "https://models.aihorde.net/api/model_references/v2/pending_queue/a
 After apply, the model is live:
 
 ```bash
-curl https://models.aihorde.net/api/model_references/v2/image_generation/my_finetune_xl
+curl https://models.aihorde.net/api/model_references/v2/image_generation/model/my_finetune_xl
 ```
 
 ## The flow at a glance

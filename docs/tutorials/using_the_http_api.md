@@ -63,7 +63,7 @@ flag, description, download URLs and SHA-256 checksums, size on disk, and metada
 ## 4. Fetch a single model
 
 ```bash
-curl https://models.aihorde.net/api/model_references/v2/image_generation/stable_diffusion_xl
+curl https://models.aihorde.net/api/model_references/v2/image_generation/model/stable_diffusion_xl
 ```
 
 Returns just that one record. A missing model returns `404` with `{"detail": "..."}`.
@@ -105,7 +105,7 @@ BASE = "https://models.aihorde.net/api"
 
 with httpx.Client(base_url=BASE, timeout=15) as client:
     categories = client.get("/model_references/v2/model_categories").json()
-    sdxl = client.get("/model_references/v2/image_generation/stable_diffusion_xl").json()
+    sdxl = client.get("/model_references/v2/image_generation/model/stable_diffusion_xl").json()
     page = client.get(
         "/model_references/v2/image_generation/search",
         params={"nsfw": False, "limit": 10, "sort_by": "name"},

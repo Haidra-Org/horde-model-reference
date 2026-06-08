@@ -19,7 +19,7 @@ Unauthenticated and safe to cache.
 | `GET /model_references/v2/info` | API information message. |
 | `GET /model_references/v2/model_categories` | List all category names. |
 | `GET /model_references/v2/{category}` | All models in a category, as `{name: record}`. `404` if unknown/empty. |
-| `GET /model_references/v2/{category}/{model_name}` | A single model record. `404` if missing. |
+| `GET /model_references/v2/{category}/model/{model_name}` | A single model record. `404` if missing. |
 | `GET /model_references/v2/{category}/search` | Filter/sort/paginate within a category (see [Search](#search)). |
 | `GET /model_references/v2/search` | Search across all categories. |
 | `GET /model_references/v2/{category}/popular` | Rank by live Horde usage (`image_generation`, `text_generation` only). |
@@ -36,6 +36,14 @@ Unauthenticated and safe to cache.
     `/metadata` prefix and its "everything" operation is itself named `metadata`. The doubling is
     intentional, not a typo; the single-category route is `…/metadata/{category}`.
 
+!!! note "Why `/{category}/model/{model_name}` and not `/{category}/{model_name}`?"
+    Single-model operations are nested under a literal `model` segment so the `{model_name}` parameter
+    has no sibling routes to compete with. The category collections that live directly under
+    `/{category}` -- `search`, `popular`, and the `text_generation` toolkit (`aliases`, `families`, …)
+    -- would otherwise shadow a model whose name happened to match one of them. With the `model`
+    segment, **a model may be named anything (even `search`) and is always addressable** at
+    `/{category}/model/<name>`.
+
 ### Typed per-category routes
 
 Every category has a concrete record type, so the read routes above also exist as **typed
@@ -43,7 +51,7 @@ per-category operations** in the OpenAPI schema:
 
 - `GET /model_references/v2/{category}` documents its response as `{name: <CategoryRecord>}`
   (e.g. `ImageGenerationModelRecord`, `ClipModelRecord`).
-- `GET /model_references/v2/{category}/{model_name}` documents its response as the concrete
+- `GET /model_references/v2/{category}/model/{model_name}` documents its response as the concrete
   `<CategoryRecord>`.
 
 The runtime response is the raw stored JSON (passthrough); the concrete schema exists so generated
@@ -127,15 +135,15 @@ canonical format returns `503`. See [Submit Models via the API](../../guides/sub
 | Method & path | Body | Description |
 | ------------- | ---- | ----------- |
 | `POST /model_references/v2/{category}` | concrete `<CategoryRecord>` | **Typed create.** Name comes from the body. `409` if it already exists. |
-| `PUT /model_references/v2/{category}/{model_name}` | concrete `<CategoryRecord>` | **Typed update.** Path `model_name` must equal the body `name` (`400` otherwise); `404` if missing. |
+| `PUT /model_references/v2/{category}/model/{model_name}` | concrete `<CategoryRecord>` | **Typed update.** Path `model_name` must equal the body `name` (`400` otherwise); `404` if missing. |
 | `POST /model_references/v2/{category}/add` | `ModelRecordUnion` | **Generic create** - a single uniform endpoint covering any category. |
-| `DELETE /model_references/v2/{category}/{model_name}` | - | Delete a model. |
+| `DELETE /model_references/v2/{category}/model/{model_name}` | - | Delete a model. |
 
 Notes:
 
-- The **typed** routes (`POST /{category}`, `PUT /{category}/{model_name}`) are preferred: they
+- The **typed** routes (`POST /{category}`, `PUT /{category}/model/{model_name}`) are preferred: they
   expose the category's concrete request schema, so a wrong-schema body is rejected with `422`.
-- The **generic** `/add` and the generic `PUT /{category}/{model_name}` accept a discriminated
+- The **generic** `/add` and the generic `PUT /{category}/model/{model_name}` accept a discriminated
   union and exist as a uniform fallback (operation ids `create_v2_model`, `update_v2_model`,
   `delete_v2_model`).
 - For `text_generation`, submit base model names only; backend-prefixed variants are generated

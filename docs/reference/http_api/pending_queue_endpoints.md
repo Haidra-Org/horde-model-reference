@@ -24,7 +24,7 @@ otherwise they return `401`/`503`.
 | `GET /pending_queue/changes` | **(approver)** List all queued changes. Filters: `statuses`, `categories`, `batch_id` (≥1), `model_name`, `requested_by`, `offset` (≥0), `limit` (1–500, default 50). Returns a `PendingQueuePage`. |
 | `GET /pending_queue/changes/{change_id}` | **(approver)** One `PendingChangeRecord`. `404` if missing. |
 | `GET /pending_queue/changes/{change_id}/diff` | `PendingChangeDiff` against current state (field-level). |
-| `GET /pending_queue/changes/diff?change_ids=...` | Diffs for many changes (1–100). Returns `PendingChangeDiffPage`. |
+| `GET /pending_queue/diffs?change_ids=...` | Diffs for many changes (1–100). Returns `PendingChangeDiffPage`. Lives at `/diffs` (not under `/changes/`) so the `{change_id}` slot stays unambiguous. |
 
 (The `…/pending_queue/...` prefix above is short for `/model_references/v2/pending_queue/...`.)
 

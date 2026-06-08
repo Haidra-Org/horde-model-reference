@@ -35,8 +35,8 @@ from horde_model_reference.service.v1.routers.shared import (
 router = APIRouter(responses={404: {"description": "Not Found"}}, tags=["v1_create_update"])
 
 
-delete_model_route_subpath = f"/{{{PathVariables.model_category_name}}}/{{{PathVariables.model_name}}}"
-"""/{model_category_name}/{model_name}"""
+delete_model_route_subpath = f"/{{{PathVariables.model_category_name}}}/model/{{{PathVariables.model_name}}}"
+"""/{model_category_name}/model/{model_name}"""
 route_registry.register_route(
     v1_prefix,
     RouteNames.delete_model,
