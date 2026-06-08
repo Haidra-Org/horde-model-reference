@@ -179,3 +179,38 @@ def test_pending_queue_audit_requires_authentication(
 
     response = api_client.get("/model_references/v2/pending_queue/audit/current")
     assert response.status_code in {401, 403}
+
+
+def test_pending_queue_bulk_diffs_endpoint(
+    api_client: TestClient,
+    v2_primary_manager: ModelReferenceManager,
+) -> None:
+    """The bulk-diff route lives at ``/pending_queue/diffs``, clear of the ``/changes/{change_id}`` slot.
+
+    Before the relocation, ``GET /changes/diff`` was shadowed by ``GET /changes/{change_id}`` (with
+    ``change_id: int``), so ``"diff"`` failed int-coercion and the endpoint returned 422.
+    """
+    service = v2_primary_manager.pending_queue_service
+    assert service is not None
+
+    first = _enqueue(service, model_name="diff-model-1")
+    second = _enqueue(service, model_name="diff-model-2")
+
+    response = api_client.get(
+        "/model_references/v2/pending_queue/diffs",
+        params={"change_ids": [first, second]},
+        headers=_API_HEADERS,
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    diffed_ids = {entry["change_id"] for entry in payload["diffs"]}
+    assert {first, second} <= diffed_ids
+
+    # The single-change slot still resolves a real id rather than being captured by the bulk route.
+    single = api_client.get(
+        f"/model_references/v2/pending_queue/changes/{first}",
+        headers=_API_HEADERS,
+    )
+    assert single.status_code == 200
+    assert single.json()["change_id"] == first

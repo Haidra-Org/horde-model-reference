@@ -427,7 +427,7 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
         return diff
 
     @router.get(
-        "/changes/diff",
+        "/diffs",
         response_model=PendingChangeDiffPage,
         summary="Get diffs for multiple pending changes",
         responses={

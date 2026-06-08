@@ -257,7 +257,7 @@ class TestGetSingleModel:
 
 
 class TestCreateModel:
-    """Tests for POST /{category}/{model_name} endpoint."""
+    """Tests for POST /{category}/add endpoint."""
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_create_model_success(
@@ -329,7 +329,7 @@ class TestCreateModel:
 
 
 class TestUpdateModel:
-    """Tests for PUT /{category}/{model_name} endpoint."""
+    """Tests for PUT /{category}/model/{model_name} endpoint."""
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_update_existing_model(
@@ -426,7 +426,7 @@ class TestCategorySpecificUpdate:
         api_client: TestClient,
         primary_manager_for_api: ModelReferenceManager,
     ) -> None:
-        """PUT /image_generation/update_model/{name} should queue an update."""
+        """PUT /image_generation/model/{name} should queue an update."""
         category = MODEL_REFERENCE_CATEGORY.image_generation
         model_name = "img_update_test"
         original_data = _create_minimal_model_dict(model_name, category, description="Original")
@@ -450,7 +450,7 @@ class TestCategorySpecificUpdate:
         api_client: TestClient,
         primary_manager_for_api: ModelReferenceManager,
     ) -> None:
-        """PUT /text_generation/update_model/{name} should queue an update."""
+        """PUT /text_generation/model/{name} should queue an update."""
         category = MODEL_REFERENCE_CATEGORY.text_generation
         model_name = "text_update_test"
         original_data = _create_minimal_model_dict(model_name, category, description="Original")
@@ -474,7 +474,7 @@ class TestCategorySpecificUpdate:
         api_client: TestClient,
         primary_manager_for_api: ModelReferenceManager,
     ) -> None:
-        """PUT /controlnet/update_model/{name} should queue an update."""
+        """PUT /controlnet/model/{name} should queue an update."""
         category = MODEL_REFERENCE_CATEGORY.controlnet
         model_name = "cn_update_test"
         original_data = _create_minimal_model_dict(model_name, category, description="Original")
@@ -556,7 +556,7 @@ class TestCategorySpecificUpdate:
 
 
 class TestDeleteModel:
-    """Tests for DELETE /{category}/{model_name} endpoint."""
+    """Tests for DELETE /{category}/model/{model_name} endpoint."""
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_delete_model_success(
@@ -1887,3 +1887,63 @@ class TestImageGenerationModelValidation:
         )
 
         assert response.status_code == 422
+
+
+class TestRouteCollisionRemediation:
+    """Per-model routes are nested under a literal ``model`` segment.
+
+    This guarantees a model can be named anything (even a reserved collection word like
+    ``search``) without shadowing or being shadowed by sibling collection routes such as
+    ``/{category}/search``.
+    """
+
+    def test_model_named_search_is_addressable(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+    ) -> None:
+        """A model literally named ``search`` resolves to its own record, not the search route."""
+        category = MODEL_REFERENCE_CATEGORY.image_generation
+        model_name = "search"
+        model_data = _create_minimal_model_dict(model_name, category, description="A model named search")
+
+        primary_manager_for_api.backend.update_model(category, model_name, model_data)
+
+        response = api_client.get(_model_url(RouteNames.get_single_model, category, model_name))
+
+        data = _assert_success_response(response)
+        assert data["name"] == model_name
+        assert data["description"] == "A model named search"
+
+    def test_search_route_still_resolves_to_search(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+    ) -> None:
+        """``/{category}/search`` continues to hit the search endpoint (a SearchResponse envelope)."""
+        category = MODEL_REFERENCE_CATEGORY.image_generation
+        primary_manager_for_api.backend.update_model(
+            category,
+            "search",
+            _create_minimal_model_dict("search", category),
+        )
+
+        response = api_client.get(f"{v2_prefix}/{category.value}/search")
+
+        envelope = _assert_success_response(response)
+        # The search envelope is distinguishable from a single model record by its pagination keys.
+        assert {"results", "total", "offset", "limit", "has_more"} <= envelope.keys()
+
+    def test_no_per_model_route_lives_directly_under_category(self) -> None:
+        """Regression guard: every ``{model_name}`` route is nested under ``/model/``.
+
+        A route ending in ``/{model_name}`` that is not under a literal ``model`` segment would
+        share its slot with category-level collection routes, reintroducing the collision.
+        """
+        from horde_model_reference.service.app import app
+
+        route_paths = [getattr(route, "path", "") for route in app.routes]
+        offending = [
+            path for path in route_paths if path.endswith("/{model_name}") and "/model/{model_name}" not in path
+        ]
+        assert not offending, f"Per-model routes must be nested under '/model/': {offending}"

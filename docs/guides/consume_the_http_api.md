@@ -107,7 +107,7 @@ def refresh_if_changed(client: httpx.Client, category: str) -> dict | None:
 ## Pick the right read shape
 
 - **Whole category:** `GET /model_references/v2/{category}` - best for "load everything once".
-- **One model:** `GET /model_references/v2/{category}/{model_name}`.
+- **One model:** `GET /model_references/v2/{category}/model/{model_name}`.
 - **Filtered/sorted/paged:** `GET /model_references/v2/{category}/search` - best for UIs.
 - **Ranked by usage:** `GET /model_references/v2/{category}/popular` (image/text only).
 
