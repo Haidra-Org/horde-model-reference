@@ -1,18 +1,18 @@
 """Typed field references for the query builder DSL.
 
-Provides per-category field namespaces (``ImageF``, ``TextF``, etc.) that
+Provides per-category field namespaces (``ImageFields``, ``TextFields``, etc.) that
 give IDE autocomplete, static type checking, and a composable predicate
 language for ``ModelQuery.where()`` and ``ModelQuery.order_by()``.
 
 Usage::
 
-    from horde_model_reference import ImageF, false
+    from horde_model_reference import ImageFields, false
     from horde_model_reference.query import build_image_query
 
     results = (
         build_image_query(records)
-        .where(ImageF.nsfw == false, ImageF.size_on_disk_bytes > 1_000_000_000)
-        .order_by(ImageF.size_on_disk_bytes.asc())
+        .where(ImageFields.nsfw == false, ImageFields.size_on_disk_bytes > 1_000_000_000)
+        .order_by(ImageFields.size_on_disk_bytes)
         .to_list()
     )
 """
