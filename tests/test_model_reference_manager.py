@@ -66,12 +66,10 @@ class _InMemoryReplicaBackend(ModelReferenceBackend):
         httpx_client: httpx.AsyncClient | None = None,
         force_refresh: bool = False,
     ) -> dict[MODEL_REFERENCE_CATEGORY, dict[str, Any] | None]:
-        self.async_calls.append(
-            {
-                "httpx_client": httpx_client,
-                "force_refresh": force_refresh,
-            }
-        )
+        self.async_calls.append({
+            "httpx_client": httpx_client,
+            "force_refresh": force_refresh,
+        })
         return self.fetch_all_categories(force_refresh=force_refresh)
 
     def needs_refresh(self, category: MODEL_REFERENCE_CATEGORY) -> bool:
@@ -562,8 +560,49 @@ class TestAsyncErgonomics:
         handle = manager.deferred_prefetch_handle
         assert handle is not None
 
+        # The degrade is discoverable: a warm-up is still owed and the cache is cold.
+        original_prefetch_pending = manager.prefetch_pending
+        assert original_prefetch_pending is True
+
+        original_is_warm = manager.is_warm
+        assert original_is_warm is False
+
         handle.run_sync()
         assert fetch_called["count"] == 1
+
+        # Once the deferred handle has run, the manager reports itself warm and settled.
+        assert manager.is_warm is True
+        assert manager.prefetch_pending is False
+
+    def test_ensure_ready_warms_cache_synchronously(self) -> None:
+        """ensure_ready() should warm the cache without an event loop (sync mirror of ensure_ready_async)."""
+        backend = _InMemoryReplicaBackend()
+        manager = ModelReferenceManager(
+            backend=backend,
+            replicate_mode=ReplicateMode.REPLICA,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+        )
+
+        original_is_warm = manager.is_warm
+        assert original_is_warm is False
+
+        manager.ensure_ready()
+        assert manager.is_warm is True
+
+    @pytest.mark.asyncio
+    async def test_ensure_ready_async_warms_cache(self) -> None:
+        """ensure_ready_async() should warm the cache so the manager reports itself warm."""
+        backend = _InMemoryReplicaBackend()
+        manager = ModelReferenceManager(
+            backend=backend,
+            replicate_mode=ReplicateMode.REPLICA,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+        )
+
+        assert manager.is_warm is False
+
+        await manager.ensure_ready_async()
+        assert manager.is_warm is True
 
 
 class TestBackendConfiguration:
@@ -1177,13 +1216,11 @@ class TestGetPopularModels:
             replicate_mode=ReplicateMode.REPLICA,
         )
 
-        mock_status = IndexedHordeModelStatus(
-            [
-                HordeModelStatus(name="model_a", count=2, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-                HordeModelStatus(name="model_b", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-                HordeModelStatus(name="model_c", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-            ]
-        )
+        mock_status = IndexedHordeModelStatus([
+            HordeModelStatus(name="model_a", count=2, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            HordeModelStatus(name="model_b", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            HordeModelStatus(name="model_c", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+        ])
         mock_stats = IndexedHordeModelStats(HordeModelStatsResponse(day={}, month={}, total={}))
         mock_workers = IndexedHordeWorkers([])
 

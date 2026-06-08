@@ -2,6 +2,7 @@
 
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from importlib.metadata import PackageNotFoundError, version
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -71,7 +72,114 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
         await hydrator.stop()
 
 
-app = FastAPI(root_path="/api", lifespan=lifespan)
+try:
+    _SERVICE_VERSION = version("horde_model_reference")
+except PackageNotFoundError:  # pragma: no cover - only when running from a non-installed checkout
+    _SERVICE_VERSION = "0.0.0+unknown"
+
+
+_API_DESCRIPTION = """
+The **Horde Model Reference API** is the authoritative source of AI model metadata for the
+[AI-Horde](https://aihorde.net) ecosystem. It serves the curated lists of image, text, and
+utility models (CLIP, ControlNet, ESRGAN, …) that workers download and that clients display.
+
+### Who uses this API
+
+- **Workers & clients** read model references - either directly over HTTP or via the
+  `horde-model-reference` Python library running in REPLICA mode (which calls this same API,
+  falling back to GitHub if the PRIMARY is unreachable).
+- **The AI-Horde backend** runs this service in PRIMARY mode at
+  [`models.aihorde.net`](https://models.aihorde.net/api/docs) as the canonical source.
+
+### Two API versions
+
+- **v2** (`/model_references/v2`) - the current format, with search, per-model retrieval,
+  statistics, and the full text-model grouping toolkit. Prefer this for new integrations.
+- **v1** (`/model_references/v1`) - the legacy GitHub-compatible format, retained unchanged for
+  backward compatibility with existing AI-Horde workers.
+
+Both versions are readable regardless of deployment configuration. **Reads are open; writes are
+not.** Write operations require a PRIMARY deployment and a valid `apikey`, and they are not
+applied immediately - they enter a [pending queue](https://models.aihorde.net/api/docs) for
+two-person review (propose -> approve -> apply).
+
+### Discovering capabilities
+
+Call [`GET /replicate_mode`](#operations-default-replicate_mode_replicate_mode_get) on startup to
+learn whether an instance is writable and which canonical format it serves.
+
+Full documentation, tutorials, and guides: <https://github.com/Haidra-Org/horde-model-reference>
+"""
+
+
+_OPENAPI_TAGS = [
+    {
+        "name": "v2",
+        "description": "Current model-reference format: reads, CRUD, per-model retrieval, and metadata.",
+    },
+    {
+        "name": "v1",
+        "description": "Legacy GitHub-compatible format, retained unchanged for existing AI-Horde workers.",
+    },
+    {
+        "name": "search",
+        "description": "Filter, sort, and paginate models within a category or across all categories.",
+    },
+    {
+        "name": "statistics",
+        "description": "Aggregated per-category counts, baseline/tag distributions, and download statistics.",
+    },
+    {
+        "name": "deletion-risk",
+        "description": "Live-usage-informed risk analysis identifying models that are candidates for removal.",
+    },
+    {
+        "name": "text_utils",
+        "description": (
+            "Text-generation grouping toolkit: name parsing/composition, groups, aliases, "
+            "families, and naming schemas."
+        ),
+    },
+    {
+        "name": "pending_queue",
+        "description": "Propose -> approve -> apply workflow for model changes on PRIMARY deployments.",
+    },
+    {
+        "name": "audit",
+        "description": "Read-only history of pending-queue batches and their net effect.",
+    },
+    {
+        "name": "metadata",
+        "description": "Per-category last-updated timestamps for change detection by REPLICA clients.",
+    },
+    {
+        "name": "user",
+        "description": "Authenticated user identity and pending-queue roles (requestor/approver).",
+    },
+]
+
+
+app = FastAPI(
+    root_path="/api",
+    lifespan=lifespan,
+    title="Horde Model Reference API",
+    summary="Authoritative AI model metadata for the AI-Horde ecosystem.",
+    description=_API_DESCRIPTION,
+    version=_SERVICE_VERSION,
+    openapi_tags=_OPENAPI_TAGS,
+    contact={
+        "name": "Haidra-Org / AI-Horde",
+        "url": "https://github.com/Haidra-Org/horde-model-reference",
+    },
+    license_info={
+        "name": "AGPL-3.0",
+        "url": "https://www.gnu.org/licenses/agpl-3.0.en.html",
+    },
+    servers=[
+        {"url": "https://models.aihorde.net/api", "description": "Public PRIMARY deployment"},
+        {"url": "http://localhost:19800/api", "description": "Local development server"},
+    ],
+)
 
 app.add_middleware(
     CORSMiddleware,  # ty:ignore[invalid-argument-type] - This is idiomatic usage of CORSMiddleware in FastAPI, which expects these arguments.
@@ -97,15 +205,15 @@ app.include_router(v1_references.router, prefix=v1_prefix)
 app.include_router(v1_metadata.router, prefix=f"{v1_prefix}/metadata", tags=["v1", "metadata"])
 
 
-@app.get("/")
+@app.get("/", summary="API landing message", tags=["default"])
 async def read_root() -> ContainsMessage:
-    """Root endpoint for the Horde Model Reference API1."""
+    """Return a welcome message pointing to the interactive documentation."""
     return ContainsMessage(
-        message="Welcome to the Horde Model Reference API Check `/api/docs` for documentation.",
+        message="Welcome to the Horde Model Reference API. See `/api/docs` for interactive documentation.",
     )
 
 
-@app.get("/heartbeat")
+@app.get("/heartbeat", summary="Service health check", tags=["default"])
 async def heartbeat() -> HeartbeatResponse:
     """Heartbeat endpoint to check the service status.
 
@@ -125,7 +233,7 @@ async def heartbeat() -> HeartbeatResponse:
     )
 
 
-@app.get("/replicate_mode")
+@app.get("/replicate_mode", summary="Backend capabilities probe", tags=["default"])
 async def replicate_mode() -> BackendInfo:
     """Get backend configuration and capabilities.
 

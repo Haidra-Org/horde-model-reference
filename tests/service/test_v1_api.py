@@ -708,6 +708,34 @@ class TestLegacyPendingQueueAdmin:
         returned_ids = {item["change_id"] for item in payload["items"]}
         assert change_id in returned_ids
 
+    def test_my_changes_scopes_to_caller(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        mock_auth_success: None,
+    ) -> None:
+        """GET /pending_queue/my_changes is mounted under v1 and scoped to the caller."""
+        queue_service = v1_canonical_manager.pending_queue_service
+        assert queue_service is not None
+
+        mine = _enqueue_legacy_pending_change(v1_canonical_manager, model_name="legacy_queue_mine")
+        other = queue_service.enqueue_change(
+            category=MODEL_REFERENCE_CATEGORY.miscellaneous,
+            model_name="legacy_queue_theirs",
+            operation=AuditOperation.CREATE,
+            payload=_create_legacy_model_payload("legacy_queue_theirs", MODEL_REFERENCE_CATEGORY.miscellaneous),
+            requestor_id="other-user-id",
+            requestor_username="someone#other-user-id",
+            notes=None,
+            request_metadata={"source": "v1-tests"},
+        ).change_id
+
+        response = api_client.get(f"{self._base_url}/my_changes", headers=_queue_auth_headers())
+        payload = _assert_success_response(response)
+        returned_ids = {item["change_id"] for item in payload["items"]}
+        assert mine in returned_ids
+        assert other not in returned_ids
+
     def test_apply_pending_change_updates_legacy_file(
         self,
         api_client: TestClient,
