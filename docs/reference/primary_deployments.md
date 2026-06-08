@@ -4,7 +4,7 @@
 
 Historically, models have been managed via GitHub repositories ([image models](https://github.com/Haidra-Org/AI-Horde-image-model-reference), [text models](https://github.com/Haidra-Org/AI-Horde-text-model-reference)). This approach has had limitations which are mitigated by github actions and manual review, but a more robust solution is needed for scaling to new model categories and more frequent updates.
 
-The nature of the horde is such that we have many (many) third-party integrations which have hardcoded references to these github repositories. To avoid breaking these integrations, we are introducing a new model reference system which supports both the legacy github format and a new v2 format, while also providing a REST API for model reference access. Further, until we completely deprecate the github repositories, the new system will keep the github repositories in sync with the new system. You can see more details about that in the [sync readme in the scripts folder](../scripts/README.md).
+The nature of the horde is such that we have many (many) third-party integrations which have hardcoded references to these github repositories. To avoid breaking these integrations, we are introducing a new model reference system which supports both the legacy github format and a new v2 format, while also providing a REST API for model reference access. Further, until we completely deprecate the github repositories, the new system will keep the github repositories in sync with the new system. You can see more details about that in the [sync readme in the scripts folder](https://github.com/Haidra-Org/horde-model-reference/blob/main/scripts/sync/README.md).
 
 Adopting the v1 API is not recommended for new integrations, as it will eventually be deprecated. However, existing integrations and drop-in replace their references to github with calls to the v1 API without any other changes. Legacy filenames (`stable_diffusion.json` for image, `db.json` for text) are supported and the returned data is in the same format, order, etc, as the github repositories.
 
@@ -37,7 +37,7 @@ The package has two operational modes:
 ```bash
 # REPLICA mode (default) - for workers/clients
 export HORDE_MODEL_REFERENCE_REPLICATE_MODE=REPLICA
-export HORDE_MODEL_REFERENCE_PRIMARY_API_URL=https://models.aihorde.net/
+export HORDE_MODEL_REFERENCE_PRIMARY_API_URL=https://models.aihorde.net/api
 
 # PRIMARY mode - for server deployment
 export HORDE_MODEL_REFERENCE_REPLICATE_MODE=PRIMARY

@@ -6,16 +6,22 @@ The Model Reference Service provides two API versions (v1 and v2) for managing m
 
 This is controlled by the `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` environment variable.
 
+> **"Canonical format" is not the same as "canonical data."** This page is about
+> *which API version* (v1/v2) owns writes - a PRIMARY-only concern that does not
+> affect reads. "Canonical data" (in the query/provider docs) means *whose* data
+> you're reading - the horde dataset vs. a third-party provider. See the
+> [Glossary](../reference/glossary.md#canonical-format).
+
 ## Configuration
 
 ### Environment Variable
 
 ```bash
-# Legacy format (default) - v1 API has write access
-HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=LEGACY
-
-# V2 format - v2 API has write access
+# V2 format (default) - v2 API has write access
 HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=v2
+
+# Legacy format - v1 API has write access
+HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=LEGACY
 ```
 
 ### Interaction with Replicate Mode
@@ -173,11 +179,12 @@ The canonical format should not be changed while the system is in production wit
 
 | Variable                                 | Values               | Default   | Description                              |
 | ---------------------------------------- | -------------------- | --------- | ---------------------------------------- |
-| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` | `legacy`, `v2`       | `legacy`  | Which API version is the source of truth |
-| `HORDE_MODEL_REFERENCE_REPLICATE_MODE`   | `PRIMARY`, `REPLICA` | `PRIMARY` | Whether this instance accepts writes     |
+| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` | `LEGACY`, `v2`       | `v2`      | Which API version is the source of truth |
+| `HORDE_MODEL_REFERENCE_REPLICATE_MODE`   | `PRIMARY`, `REPLICA` | `REPLICA` | Whether this instance accepts writes     |
 
 ## Related Documentation
 
+- [Glossary](../reference/glossary.md) - Plain-language definitions of replicate mode, canonical data vs. canonical format, and more
 - [Model Reference Backend](../reference/model_reference_backend.md) - Backend implementation details
 - [Pending Queue Architecture](../reference/pending_queue.md) - Write approval workflow
 - [Audit Trail](../reference/audit_trail.md) - Operation logging

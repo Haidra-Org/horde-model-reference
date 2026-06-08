@@ -53,7 +53,8 @@ class HTTPBackend(ReplicaBackendBase):
         """Initialize HTTP backend with GitHub fallback.
 
         Args:
-            primary_api_url: Base URL of PRIMARY server API (e.g., "https://models.aihorde.net/")
+            primary_api_url: Base URL of PRIMARY server API, including the ``/api`` root path
+                (e.g., "https://models.aihorde.net/api")
             github_backend: GitHub backend to use as fallback
             cache_ttl_seconds: TTL for local cache in seconds
             timeout_seconds: HTTP request timeout in seconds

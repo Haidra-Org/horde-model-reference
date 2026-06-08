@@ -28,7 +28,9 @@ for name, model in list(image_models.items())[:5]:
     print(f"  {name}: {model.baseline}")
 ```
 
-On first run the manager fetches model reference data from the PRIMARY server (`aihorde.net`) with a GitHub fallback. Results are cached in memory with a configurable TTL (default 60 seconds).
+On first run the manager fetches model reference data over the network and caches it in memory with a configurable TTL (default 60 seconds). Subsequent reads inside the TTL are served from cache.
+
+By default the library runs in **REPLICA mode** - a read-only consumer. It fetches from the **PRIMARY server** (the authoritative service hosting the data, `models.aihorde.net`) and, if that is unreachable, automatically uses the **GitHub fallback** (the original model-reference repositories). You don't need to configure any of this to get started; the defaults work out of the box. If these terms are new, see the [Glossary](../reference/glossary.md).
 
 ## The Singleton Pattern
 
@@ -37,6 +39,8 @@ On first run the manager fetches model reference data from the PRIMARY server (`
 **Correct pattern** -- initialize once, reuse everywhere:
 
 ```python
+from horde_model_reference import ModelReferenceManager, PrefetchStrategy
+
 # At startup
 manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.LAZY)
 
@@ -62,22 +66,77 @@ manager = ModelReferenceManager.get_instance()  # raises RuntimeError if not yet
 
 The `prefetch_strategy` parameter controls when model data is fetched from the backend:
 
-| Strategy         | Behavior                                                                                 | Best For                                                        |
-| ---------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `LAZY` (default) | Defers fetching until you first access data                                              | Scripts, CLIs, most consumers                                   |
-| `SYNC`           | Fetches all categories immediately during init                                           | Latency-sensitive services that are OK with blocking on startup |
-| `ASYNC`          | Schedules a background async fetch if an event loop is running                           | FastAPI / async services                                        |
-| `DEFERRED`       | Creates a handle you trigger later via `handle.run_sync()` or `await handle.run_async()` | Fine-grained startup control                                    |
-| `NONE`           | No automatic fetching at all; you call cache helpers manually                            | Testing, custom orchestration                                   |
+| Strategy         | Behavior                                                                                   | Best For                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| `LAZY` (default) | Defers fetching until you first access data                                                | Scripts, CLIs, most consumers                                   |
+| `SYNC`           | Fetches all categories immediately during init                                             | Latency-sensitive services that are OK with blocking on startup |
+| `ASYNC`          | Schedules a background async fetch **if an event loop is already running** at construction | Code that constructs the manager *inside* a running loop        |
+| `DEFERRED`       | Creates a handle you trigger later via `handle.run_sync()` or `await handle.run_async()`   | Fine-grained startup control                                    |
+| `NONE`           | No automatic fetching at all; you call cache helpers manually                              | Testing, custom orchestration                                   |
 
 ```python
 from horde_model_reference import ModelReferenceManager, PrefetchStrategy
 
-# For a FastAPI app
-manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.ASYNC)
-
-# For a CLI script
+# CLI script or worker: lazy is fine -- the first read warms the cache
 manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.LAZY)
+```
+
+### Warming the cache in a FastAPI (or other async) service
+
+!!! warning "`ASYNC` needs a running event loop *at construction time*"
+    `PrefetchStrategy.ASYNC` only schedules the background fetch if an event loop is already running
+    when the manager is constructed. If you construct the manager at module import -- the usual case,
+    before the server's loop exists -- it logs a warning and degrades to a manual deferred handle that
+    is **not triggered automatically**. Your first requests then pay the full fetch latency, which is
+    exactly what `ASYNC` was supposed to avoid. The degrade is now discoverable rather than silent:
+    `manager.prefetch_pending` is `True` while a warm-up is still owed, and the exposed
+    `manager.deferred_prefetch_handle` can be run manually (see below).
+
+The robust pattern is to construct the manager lazily and warm the cache from the application's
+**lifespan / startup hook**, where a loop is guaranteed to be running, and `await` it:
+
+```python
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
+from horde_model_reference import ModelReferenceManager, PrefetchStrategy
+
+# Lazy construction at import is safe; the warm-up happens once the loop is up.
+manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.LAZY)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await manager.ensure_ready_async()  # fetch + cache now, while the loop runs
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+```
+
+`ensure_ready_async()` loads every category into the cache so subsequent request handlers read from
+memory. Reach for `PrefetchStrategy.ASYNC` only when you construct the manager *inside* a task that
+is already running on the loop.
+
+### Checking and forcing readiness
+
+Two manager members let you assert readiness instead of trusting a log line:
+
+- `manager.is_warm` -- `True` once every category is loaded into the in-memory cache, so reads are
+  served without a backend fetch. Use it in a health check or a test.
+- `manager.prefetch_pending` -- `True` when a deferred warm-up is still owed (e.g. an `ASYNC`
+  prefetch that degraded because no loop was running). It clears once the cache is warm.
+
+From synchronous code, `manager.ensure_ready()` is the sync mirror of `ensure_ready_async()`; it also
+completes a degraded `ASYNC` warm-up. The exposed handle does the same:
+
+```python
+manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.ASYNC)  # at import: no loop yet
+
+if manager.prefetch_pending:           # the ASYNC schedule degraded to a manual handle
+    manager.ensure_ready()             # ...or: manager.deferred_prefetch_handle.run_sync()
+
+assert manager.is_warm
 ```
 
 ## Model Categories
@@ -116,3 +175,6 @@ When you call `manager.get_model_reference(category)`:
 - [Querying Models](querying_models.md) -- Learn the fluent query API for filtering, sorting, and aggregating models
 - [Working with Records](working_with_records.md) -- Understand the model record types and their fields
 - [Configuration & Troubleshooting](configuration_and_troubleshooting.md) -- Environment variables, debugging, and common issues
+
+Prefer to read working code? The [`examples/`](https://github.com/Haidra-Org/horde-model-reference/tree/main/examples)
+directory has small, runnable scripts for each of these topics.

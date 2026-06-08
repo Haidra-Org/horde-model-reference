@@ -9,7 +9,7 @@ All settings use the `HORDE_MODEL_REFERENCE_` prefix. Most consumers only need a
 | Variable                 | Default                       | Description                                                               |
 | ------------------------ | ----------------------------- | ------------------------------------------------------------------------- |
 | `CACHE_TTL_SECONDS`      | `60`                          | How long (seconds) cached data stays valid before re-checking the backend |
-| `PRIMARY_API_URL`        | `https://models.aihorde.net/` | URL of the PRIMARY server to fetch from. Set to empty to use GitHub only  |
+| `PRIMARY_API_URL`        | `https://models.aihorde.net/api` | Base URL of the PRIMARY server (include the `/api` root path). Set to empty to use GitHub only |
 | `ENABLE_GITHUB_FALLBACK` | `True`                        | Whether to fall back to GitHub if the PRIMARY API is unreachable          |
 | `PRIMARY_API_TIMEOUT`    | `10`                          | Timeout (seconds) for PRIMARY API requests                                |
 
@@ -17,7 +17,7 @@ Set them via environment variables or a `.env` file:
 
 ```bash
 export HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS=120
-export HORDE_MODEL_REFERENCE_PRIMARY_API_URL="https://models.aihorde.net/"
+export HORDE_MODEL_REFERENCE_PRIMARY_API_URL="https://models.aihorde.net/api"
 ```
 
 ## Data Flow
@@ -51,7 +51,7 @@ Backend (selected automatically)
           Local JSON files
 ```
 
-In the typical consumer scenario (REPLICA mode), the manager fetches from the PRIMARY API first, falls back to GitHub if needed, and caches the results in memory.
+In the typical consumer scenario - **REPLICA mode**, the read-only default - the manager fetches from the **PRIMARY API** (the authoritative server, `models.aihorde.net`) first, **falls back to GitHub** if needed, and caches the results in memory. The **backend** is the component that does the fetching; the manager picks one for you based on your mode and settings. See the [Glossary](../reference/glossary.md) for these terms and [Architecture Overview](../concepts/architecture_overview.md#backend-selection) for how the backend is chosen.
 
 ## Common Issues
 
@@ -83,7 +83,7 @@ with different settings.
 | `get_model(cat, name)`             | `GenericModelRecord`                    | Raises `RuntimeError` |
 | `get_model_or_none(cat, name)`     | `GenericModelRecord \| None`            | Returns `None`        |
 
-Use the non-`unsafe` variants when you need guaranteed data. Use `unsafe` variants when you want to handle missing data gracefully.
+Use the plain variants (`get_model_reference`, `get_model`) when missing data is a real error you want raised. Use the `_or_none` variants when you'd rather check for `None` and degrade gracefully - see [Read Resiliently](../guides/offline_and_resilient_reads.md).
 
 ### Stale Data
 
