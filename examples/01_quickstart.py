@@ -18,11 +18,13 @@ def main() -> None:
 
     # Read every image generation model. Categories also accept the plain
     # string "image_generation" if you prefer not to import the enum.
+    # `get_model_reference()` returns the generic record type; for category-specific
+    # typed fields (like `baseline`), use the query API instead (see examples 02 & 03).
     image_models = manager.get_model_reference(MODEL_REFERENCE_CATEGORY.image_generation)
     print(f"Found {len(image_models)} image generation models")
 
     for name, model in list(image_models.items())[:5]:
-        print(f"  {name}: baseline={model.baseline}")
+        print(f"  {name}: {model.download_count} download file(s)")
 
     # Look up a single model by name without crashing if it is missing.
     first_name = next(iter(image_models), None)

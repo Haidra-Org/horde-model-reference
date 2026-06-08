@@ -319,6 +319,19 @@ class TestOrdering:
         params = [m.parameters_count for m in results]
         assert params == sorted(params, reverse=True)
 
+    def test_order_by_accepts_bare_fieldref(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
+        """A bare FieldRef sorts ascending, identical to passing the field name string."""
+        q = build_query(text_models, TextGenerationModelRecord)
+        by_ref = [m.parameters_count for m in q.order_by(TextFields.parameters_count).to_list()]
+        by_str = [m.parameters_count for m in q.order_by("parameters_count").to_list()]
+        assert by_ref == by_str == sorted(by_str)
+
+    def test_order_by_fieldref_honours_descending(self, text_models: dict[str, TextGenerationModelRecord]) -> None:
+        """A FieldRef passed with descending=True sorts descending (regression: used to raise)."""
+        q = build_query(text_models, TextGenerationModelRecord)
+        params = [m.parameters_count for m in q.order_by(TextFields.parameters_count, descending=True).to_list()]
+        assert params == sorted(params, reverse=True)
+
     def test_order_by_with_none_values(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test that None values sort last."""
         q = build_query(image_models, ImageGenerationModelRecord)
@@ -412,6 +425,11 @@ class TestTerminals:
             KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1,
         }
 
+    def test_distinct_accepts_fieldref(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
+        """distinct() accepts a typed FieldRef, identical to the field-name string."""
+        q = build_query(image_models, ImageGenerationModelRecord)
+        assert set(q.distinct(ImageFields.baseline)) == set(q.distinct("baseline"))
+
     def test_group_by(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test group_by() groups records by field value."""
         q = build_query(image_models, ImageGenerationModelRecord)
@@ -420,6 +438,13 @@ class TestTerminals:
         assert True in groups
         assert len(groups[False]) == 4
         assert len(groups[True]) == 1
+
+    def test_group_by_accepts_fieldref(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
+        """group_by() accepts a typed FieldRef, identical to the field-name string."""
+        q = build_query(image_models, ImageGenerationModelRecord)
+        by_ref = {k: len(v) for k, v in q.group_by(ImageFields.nsfw).items()}
+        by_str = {k: len(v) for k, v in q.group_by("nsfw").items()}
+        assert by_ref == by_str
 
 
 class TestWhereClassification:
