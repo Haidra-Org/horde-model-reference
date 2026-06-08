@@ -32,6 +32,7 @@ from horde_model_reference.service.pending_queue.dependencies import require_pen
 from horde_model_reference.service.shared import (
     ErrorResponse,
     authenticate_queue_approver,
+    authenticate_queue_requestor,
     get_model_reference_manager,
     header_auth_scheme,
 )
@@ -279,6 +280,41 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
             batch_id=batch_id,
             model_name=normalized_name,
             requested_by=normalized_requestors or None,
+        )
+
+        return queue_service.list_changes(queue_filter=queue_filter, offset=offset, limit=limit)
+
+    @router.get(
+        "/my_changes",
+        response_model=PendingQueuePage,
+        summary="List your own submitted pending changes",
+        responses={
+            200: {"description": "Your submitted queue entries"},
+            401: {"description": "Invalid API key", "model": ErrorResponse},
+            503: {"description": "Pending queue disabled", "model": ErrorResponse},
+        },
+    )
+    async def list_my_pending_changes(
+        manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+        apikey: Annotated[str, Depends(header_auth_scheme)],
+        statuses: StatusesQuery = None,
+        categories: CategoriesQuery = None,
+        offset: OffsetQuery = 0,
+        limit: LimitQuery = 50,
+    ) -> PendingQueuePage:
+        """Return the caller's own queued changes so a requestor can track a proposal's fate.
+
+        Unlike ``/changes`` this requires only the *requestor* role; visibility is hard-scoped
+        to the calling key's user id and cannot be widened to other users' changes.
+        """
+        requestor = await authenticate_queue_requestor(apikey)
+        assert_write_enabled(manager)
+        queue_service = require_pending_queue_service(manager)
+
+        queue_filter = PendingQueueFilter(
+            statuses=set(statuses) if statuses else None,
+            categories=set(categories) if categories else None,
+            requested_by={requestor.user_id},
         )
 
         return queue_service.list_changes(queue_filter=queue_filter, offset=offset, limit=limit)

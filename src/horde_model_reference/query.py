@@ -22,7 +22,7 @@ Usage::
 from __future__ import annotations
 
 import operator
-from collections.abc import Callable, Hashable, Iterable, Sequence
+from collections.abc import Callable, Hashable, Iterable, Mapping, Sequence
 from typing import Any, Literal, Protocol, Self, overload, runtime_checkable
 
 from horde_model_reference.meta_consts import (
@@ -39,7 +39,7 @@ from horde_model_reference.model_reference_records import (
     TextGenerationModelRecord,
 )
 from horde_model_reference.query_fields import OrderSpec, Predicate
-from horde_model_reference.source_consts import HORDE_SOURCE_ID
+from horde_model_reference.source_consts import HORDE_SOURCE_ID, SourceOutcome
 from horde_model_reference.text_backend_names import (
     TEXT_LEGACY_BACKEND_PREFIXES,
     has_legacy_text_backend_prefix,
@@ -230,6 +230,7 @@ class ModelQuery[T: GenericModelRecord, F: str]:
     _limit_value: int | None
     _sources: Sequence[str] | None
     _source_predicates: Sequence[Callable[[str], bool]]
+    _source_status: dict[str, SourceOutcome] | None
 
     def __init__(  # noqa: D107
         self,
@@ -243,6 +244,7 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         limit_value: int | None = None,
         sources: Sequence[str] | None = None,
         source_predicates: Sequence[Callable[[str], bool]] | None = None,
+        source_status: Mapping[str, SourceOutcome] | None = None,
     ) -> None:
         if sources is not None and len(sources) != len(records):
             raise ValueError(
@@ -257,6 +259,7 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         self._limit_value = limit_value
         self._sources = list(sources) if sources is not None else None
         self._source_predicates = list(source_predicates) if source_predicates else []
+        self._source_status = dict(source_status) if source_status is not None else None
 
     def _clone(
         self,
@@ -275,8 +278,9 @@ class ModelQuery[T: GenericModelRecord, F: str]:
         ``ImageGenerationQuery``, etc.) automatically get back their own
         concrete type without needing to override this method.
 
-        ``_records`` and ``_sources`` are passed through unchanged (fluent methods
-        only ever adjust predicates/sort/pagination), so the two stay aligned.
+        ``_records``, ``_sources`` and ``_source_status`` are passed through unchanged
+        (fluent methods only ever adjust predicates/sort/pagination), so the records
+        stay aligned with their provenance and the per-source outcome map is preserved.
         """
         return type(self)(
             records=records if records is not None else self._records,
@@ -288,6 +292,7 @@ class ModelQuery[T: GenericModelRecord, F: str]:
             limit_value=limit_value if limit_value is not None else self._limit_value,
             sources=self._sources,
             source_predicates=(source_predicates if source_predicates is not None else list(self._source_predicates)),
+            source_status=self._source_status,
         )
 
     def where(self, *predicates: Predicate, **kwargs: object) -> Self:
@@ -568,6 +573,40 @@ class ModelQuery[T: GenericModelRecord, F: str]:
                 return True
             seen.add(record.name)
         return False
+
+    def source_status(self) -> dict[str, SourceOutcome]:
+        """Return the per-source outcome of the read that built this query.
+
+        Maps each *selected* source id (including ``"horde"``) to ``"ok"`` (it
+        contributed at least one record), ``"empty"`` (it was reachable but had
+        nothing for this category), or ``"error"`` (it raised during fetch and was
+        skipped). This distinguishes a provider that *failed* from one that was
+        merely *empty* - both are otherwise silently absent from a merged read.
+
+        For a canonical-only query (the default ``source="horde"``), the map is
+        derived from whether any record is present, so the method is always
+        answerable regardless of how the query was constructed.
+
+        Returns:
+            A dict mapping source id to its outcome.
+
+        """
+        if self._source_status is not None:
+            return dict(self._source_status)
+        outcome: SourceOutcome = "ok" if self._records else "empty"
+        return {HORDE_SOURCE_ID: outcome}
+
+    def failed_sources(self) -> list[str]:
+        """Return the selected source ids that raised during fetch (status ``"error"``).
+
+        Sugar over :meth:`source_status`; check this before trusting a merged read if
+        a missing provider would be a problem for you.
+
+        Returns:
+            The ids whose outcome is ``"error"`` (empty when none failed).
+
+        """
+        return [source_id for source_id, outcome in self.source_status().items() if outcome == "error"]
 
     def first(self) -> T | None:
         """Execute the query and return the first result, or ``None``."""

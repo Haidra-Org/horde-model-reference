@@ -13,7 +13,13 @@ from typing import Any
 
 import pytest
 
-from horde_model_reference import MODEL_REFERENCE_CATEGORY, ReplicateMode, horde_model_reference_paths
+from horde_model_reference import (
+    MODEL_REFERENCE_CATEGORY,
+    ModelReferenceManager,
+    PrefetchStrategy,
+    ReplicateMode,
+    horde_model_reference_paths,
+)
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.model_reference_metadata import CategoryMetadata, MetadataManager, OperationType
 
@@ -1048,3 +1054,82 @@ class TestMetadataFileIO:
         assert updated_mtime is not None
         assert updated_mtime > initial_mtime, "mtime should increase after file update"
         assert updated_mtime == updated_actual_mtime, "Cached mtime should match updated file mtime"
+
+
+class TestManagerMetadataPassthrough:
+    """Tests for the manager-level metadata accessors (AG-2)."""
+
+    def _seed_primary_manager(self, primary_base: Path) -> ModelReferenceManager:
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        file_path = horde_model_reference_paths.get_model_reference_file_path(category, base_path=primary_base)
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path.write_text(json.dumps({"test_model": {"name": "test_model"}}))
+        return ModelReferenceManager(
+            base_path=primary_base,
+            replicate_mode=ReplicateMode.PRIMARY,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+        )
+
+    def test_primary_manager_exposes_metadata(
+        self,
+        primary_base: Path,
+        restore_manager_singleton: None,
+    ) -> None:
+        """A PRIMARY manager surfaces backend metadata without reaching into ``manager.backend``."""
+        manager = self._seed_primary_manager(primary_base)
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+
+        assert manager.supports_metadata() is True
+        metadata = manager.get_metadata(category)
+        assert isinstance(metadata, CategoryMetadata)
+        assert metadata.category == category
+        assert isinstance(manager.last_updated(category), int)
+
+    def test_manager_metadata_degrades_when_unsupported(
+        self,
+        primary_base: Path,
+        restore_manager_singleton: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """When the backend lacks metadata support the accessors degrade to ``None`` (or raise on request)."""
+        manager = self._seed_primary_manager(primary_base)
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+
+        monkeypatch.setattr(manager.backend, "supports_metadata", lambda: False)
+
+        assert manager.supports_metadata() is False
+        assert manager.get_metadata(category) is None
+        assert manager.last_updated(category) is None
+        with pytest.raises(NotImplementedError):
+            manager.get_metadata(category, raise_if_unsupported=True)
+
+    @pytest.mark.asyncio
+    async def test_get_metadata_async_matches_sync(
+        self,
+        primary_base: Path,
+        restore_manager_singleton: None,
+    ) -> None:
+        """The async accessor returns the same metadata as its sync mirror on a PRIMARY backend."""
+        manager = self._seed_primary_manager(primary_base)
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+
+        metadata = await manager.get_metadata_async(category)
+        assert isinstance(metadata, CategoryMetadata)
+        assert metadata.category == category
+
+    @pytest.mark.asyncio
+    async def test_get_metadata_async_degrades_when_unsupported(
+        self,
+        primary_base: Path,
+        restore_manager_singleton: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The async accessor degrades to ``None`` (or raises on request) when metadata is unsupported."""
+        manager = self._seed_primary_manager(primary_base)
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+
+        monkeypatch.setattr(manager.backend, "supports_metadata", lambda: False)
+
+        assert await manager.get_metadata_async(category) is None
+        with pytest.raises(NotImplementedError):
+            await manager.get_metadata_async(category, raise_if_unsupported=True)

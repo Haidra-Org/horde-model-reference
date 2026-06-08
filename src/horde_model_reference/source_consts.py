@@ -14,6 +14,7 @@ import cycle.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import Literal
 
 HORDE_SOURCE_ID = "horde"
 """Reserved source id for canonical horde-model-reference data.
@@ -33,6 +34,18 @@ collision occurred.
 
 RESERVED_SOURCE_IDS: frozenset[str] = frozenset({HORDE_SOURCE_ID, ANY_SOURCE})
 """Source ids that third-party providers may not register under."""
+
+type SourceOutcome = Literal["ok", "empty", "error"]
+"""The result of attempting to read a single selected source for one category.
+
+* ``"ok"`` - the source contributed at least one record.
+* ``"empty"`` - the source was reachable but had nothing for this category
+  (returned ``None``/empty, or does not serve the category).
+* ``"error"`` - the source raised during fetch and was skipped (error isolation).
+
+Surfaced to consumers via :meth:`horde_model_reference.query.ModelQuery.source_status`
+so a failed source can be distinguished from a genuinely empty one.
+"""
 
 type SourceSelector = str | Sequence[str]
 """A source selection accepted by the read/query APIs.

@@ -24,6 +24,7 @@ from horde_model_reference.group_aliases import GroupAliasStore
 from horde_model_reference.group_families import GroupFamilyStore
 from horde_model_reference.group_schema_store import GroupSchemaStore
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, categories_managed_elsewhere
+from horde_model_reference.model_reference_metadata import CategoryMetadata
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
     AudioGenerationModelRecord,
@@ -59,6 +60,7 @@ from horde_model_reference.query import (
 from horde_model_reference.source_consts import (
     ANY_SOURCE,
     HORDE_SOURCE_ID,
+    SourceOutcome,
     SourceSelector,
     normalize_source_selector,
 )
@@ -534,6 +536,31 @@ class ModelReferenceManager:
         """Handle that callers can use to trigger a deferred eager fetch."""
         return self._deferred_prefetch_handle
 
+    @property
+    def is_warm(self) -> bool:
+        """Return whether every category has been loaded into the in-memory cache.
+
+        This is a pure in-memory check (it does not consult the backend). Use it to
+        assert readiness after a warm-up (e.g. ``PrefetchStrategy.ASYNC`` or
+        :meth:`ensure_ready_async`) instead of relying on a log line. A category cached
+        as ``None`` (e.g. managed elsewhere or empty) still counts as loaded; ``False``
+        means at least one category has never been fetched.
+        """
+        with self._lock:
+            return all(category in self._cached_records for category in MODEL_REFERENCE_CATEGORY)
+
+    @property
+    def prefetch_pending(self) -> bool:
+        """Return whether a deferred warm-up is exposed but has not yet made the cache warm.
+
+        ``True`` means a :class:`DeferredPrefetchHandle` is available and no async
+        prefetch task is running, yet the cache is not warm - so the caller must
+        trigger the handle (``run_sync`` / ``run_async``) to warm it. This makes the
+        ``PrefetchStrategy.ASYNC`` "no running event loop" degrade discoverable beyond
+        the logged warning.
+        """
+        return self._deferred_prefetch_handle is not None and self._async_prefetch_task is None and not self.is_warm
+
     def create_deferred_prefetch_handle(
         self,
         *,
@@ -596,6 +623,19 @@ class ModelReferenceManager:
             httpx_client=httpx_client,
         )
 
+    def ensure_ready(self, *, overwrite_existing: bool = False) -> None:
+        """Ensure cached references exist synchronously (sync mirror of :meth:`ensure_ready_async`).
+
+        Useful for warming the cache up-front from synchronous code - or for completing
+        a deferred ``PrefetchStrategy.ASYNC`` warm-up that degraded because no event loop
+        was running at construction. After this returns, :attr:`is_warm` is ``True``.
+
+        Args:
+            overwrite_existing: Whether to bypass backend caches while warming.
+
+        """
+        self.get_all_model_references_or_none(overwrite_existing=overwrite_existing)
+
     async def ensure_ready_async(
         self,
         *,
@@ -610,6 +650,70 @@ class ModelReferenceManager:
 
         """
         await self.warm_cache_async(force_refresh=overwrite_existing, httpx_client=httpx_client)
+
+    def supports_metadata(self) -> bool:
+        """Return whether the active backend tracks per-category metadata.
+
+        Metadata (timestamps, operation counts) is typically only available in PRIMARY
+        mode; REPLICA backends return ``False``. Check this before relying on
+        :meth:`get_metadata` / :meth:`last_updated` returning a value.
+        """
+        return self.backend.supports_metadata()
+
+    def get_metadata(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        *,
+        raise_if_unsupported: bool = False,
+    ) -> CategoryMetadata | None:
+        """Return per-category metadata, or ``None`` when the backend cannot provide it.
+
+        A first-class manager accessor so library consumers do not need to reach into
+        ``manager.backend`` and contend with backend-varying ``supports_metadata()``.
+
+        Args:
+            category: The category to fetch metadata for.
+            raise_if_unsupported: When ``True``, raise ``NotImplementedError`` instead of
+                returning ``None`` if the backend does not support metadata.
+
+        Returns:
+            The category metadata, or ``None`` when unsupported (and not raising).
+
+        """
+        if not self.backend.supports_metadata():
+            if raise_if_unsupported:
+                raise NotImplementedError(f"{type(self.backend).__name__} does not support metadata tracking")
+            return None
+        return self.backend.get_metadata(category)
+
+    async def get_metadata_async(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        *,
+        raise_if_unsupported: bool = False,
+    ) -> CategoryMetadata | None:
+        """Async counterpart to :meth:`get_metadata`."""
+        if not self.backend.supports_metadata():
+            if raise_if_unsupported:
+                raise NotImplementedError(f"{type(self.backend).__name__} does not support metadata tracking")
+            return None
+        return await self.backend.get_metadata_async(category)
+
+    def last_updated(self, category: MODEL_REFERENCE_CATEGORY) -> int | None:
+        """Return the unix timestamp of the category's last update, or ``None``.
+
+        Convenience over :meth:`get_metadata` for cheap change-detection polling by
+        library consumers. Returns ``None`` when the backend does not track metadata.
+
+        Args:
+            category: The category to inspect.
+
+        Returns:
+            The ``last_updated`` unix timestamp, or ``None`` when unavailable.
+
+        """
+        metadata = self.get_metadata(category)
+        return metadata.last_updated if metadata is not None else None
 
     @staticmethod
     def _file_json_dict_to_model_reference(
@@ -1301,7 +1405,7 @@ class ModelReferenceManager:
         source: SourceSelector,
         *,
         overwrite_existing: bool = False,
-    ) -> tuple[list[GenericModelRecord], list[str]]:
+    ) -> tuple[list[GenericModelRecord], list[str], dict[str, SourceOutcome]]:
         """Collect records and aligned source ids for *category* from the selected sources.
 
         Records are returned canonical-first (so the canonical source wins name
@@ -1309,23 +1413,31 @@ class ModelReferenceManager:
         selector order. Duplicates are intentionally retained so callers/queries can
         detect collisions. A provider raising or returning ``None`` is logged and
         skipped (error isolation).
+
+        The third return value maps every *selected* source id to its outcome
+        (``"ok"`` / ``"empty"`` / ``"error"``) so callers can distinguish a source
+        that failed from one that simply had nothing for this category.
         """
         selectors = normalize_source_selector(source)
         include_canonical, provider_ids = self._resolve_source_selectors(selectors)
 
         records: list[GenericModelRecord] = []
         sources: list[str] = []
+        status: dict[str, SourceOutcome] = {}
 
         if include_canonical:
+            status[HORDE_SOURCE_ID] = "empty"
             canonical = self.get_all_model_references_or_none(
                 overwrite_existing=overwrite_existing,
             ).get(category)
             if canonical:
+                status[HORDE_SOURCE_ID] = "ok"
                 for record in canonical.values():
                     records.append(record)
                     sources.append(HORDE_SOURCE_ID)
 
         for provider_id in provider_ids:
+            status[provider_id] = "empty"
             provider = self._provider_registry.get(provider_id)
             if provider is None:  # pragma: no cover - guarded by _resolve_source_selectors
                 continue
@@ -1334,17 +1446,19 @@ class ModelReferenceManager:
             try:
                 provided = provider.fetch_category(category, force_refresh=overwrite_existing)
             except Exception as exc:
+                status[provider_id] = "error"
                 logger.error(
                     f"Provider {provider_id!r} raised while fetching category {category.value!r}; skipping: {exc}",
                 )
                 continue
             if not provided:
                 continue
+            status[provider_id] = "ok"
             for record in provided.values():
                 records.append(record)
                 sources.append(provider_id)
 
-        return records, sources
+        return records, sources, status
 
     def _merge_sourced_reference(
         self,
@@ -1358,7 +1472,7 @@ class ModelReferenceManager:
         Returns ``None`` only when no source produced any records for the category,
         preserving the ``*_or_none`` contract.
         """
-        records, sources = self._gather_sourced_records(
+        records, sources, _status = self._gather_sourced_records(
             category,
             source,
             overwrite_existing=overwrite_existing,
@@ -1378,26 +1492,30 @@ class ModelReferenceManager:
         *,
         overwrite_existing: bool = False,
         httpx_client: httpx.AsyncClient | None = None,
-    ) -> tuple[list[GenericModelRecord], list[str]]:
+    ) -> tuple[list[GenericModelRecord], list[str], dict[str, SourceOutcome]]:
         """Async counterpart to :meth:`_gather_sourced_records` using provider async fetch."""
         selectors = normalize_source_selector(source)
         include_canonical, provider_ids = self._resolve_source_selectors(selectors)
 
         records: list[GenericModelRecord] = []
         sources: list[str] = []
+        status: dict[str, SourceOutcome] = {}
 
         if include_canonical:
+            status[HORDE_SOURCE_ID] = "empty"
             all_references = await self.get_all_model_references_or_none_async(
                 overwrite_existing=overwrite_existing,
                 httpx_client=httpx_client,
             )
             canonical = all_references.get(category)
             if canonical:
+                status[HORDE_SOURCE_ID] = "ok"
                 for record in canonical.values():
                     records.append(record)
                     sources.append(HORDE_SOURCE_ID)
 
         for provider_id in provider_ids:
+            status[provider_id] = "empty"
             provider = self._provider_registry.get(provider_id)
             if provider is None:  # pragma: no cover - guarded by _resolve_source_selectors
                 continue
@@ -1406,17 +1524,19 @@ class ModelReferenceManager:
             try:
                 provided = await provider.fetch_category_async(category, force_refresh=overwrite_existing)
             except Exception as exc:
+                status[provider_id] = "error"
                 logger.error(
                     f"Provider {provider_id!r} raised while fetching category {category.value!r}; skipping: {exc}",
                 )
                 continue
             if not provided:
                 continue
+            status[provider_id] = "ok"
             for record in provided.values():
                 records.append(record)
                 sources.append(provider_id)
 
-        return records, sources
+        return records, sources, status
 
     async def _merge_sourced_reference_async(
         self,
@@ -1427,7 +1547,7 @@ class ModelReferenceManager:
         httpx_client: httpx.AsyncClient | None = None,
     ) -> dict[str, GenericModelRecord] | None:
         """Async counterpart to :meth:`_merge_sourced_reference`."""
-        records, sources = await self._gather_sourced_records_async(
+        records, sources, _status = await self._gather_sourced_records_async(
             category,
             source,
             overwrite_existing=overwrite_existing,
@@ -1590,46 +1710,61 @@ class ModelReferenceManager:
                 return build_image_query(
                     self._get_typed_models(category, record_type=ImageGenerationModelRecord),
                 )
-            img_records, img_sources = self._gather_typed_sourced(
+            img_records, img_sources, img_status = self._gather_typed_sourced(
                 category,
                 record_type=ImageGenerationModelRecord,
                 source=source,
             )
-            return ImageGenerationQuery(img_records, ImageGenerationModelRecord, sources=img_sources)
+            return ImageGenerationQuery(
+                img_records,
+                ImageGenerationModelRecord,
+                sources=img_sources,
+                source_status=img_status,
+            )
 
         if category == MODEL_REFERENCE_CATEGORY.text_generation:
             if canonical_only:
                 return build_text_query(
                     self._get_typed_models(category, record_type=TextGenerationModelRecord),
                 )
-            txt_records, txt_sources = self._gather_typed_sourced(
+            txt_records, txt_sources, txt_status = self._gather_typed_sourced(
                 category,
                 record_type=TextGenerationModelRecord,
                 source=source,
             )
-            return TextModelQuery(txt_records, TextGenerationModelRecord, sources=txt_sources)
+            return TextModelQuery(
+                txt_records,
+                TextGenerationModelRecord,
+                sources=txt_sources,
+                source_status=txt_status,
+            )
 
         if category == MODEL_REFERENCE_CATEGORY.controlnet:
             if canonical_only:
                 return build_controlnet_query(
                     self._get_typed_models(category, record_type=ControlNetModelRecord),
                 )
-            cn_records, cn_sources = self._gather_typed_sourced(
+            cn_records, cn_sources, cn_status = self._gather_typed_sourced(
                 category,
                 record_type=ControlNetModelRecord,
                 source=source,
             )
-            return ControlNetQuery(cn_records, ControlNetModelRecord, sources=cn_sources)
+            return ControlNetQuery(
+                cn_records,
+                ControlNetModelRecord,
+                sources=cn_sources,
+                source_status=cn_status,
+            )
 
         record_type = MODEL_RECORD_TYPE_LOOKUP.get(category, GenericModelRecord)
         if canonical_only:
             return build_query(self._get_typed_models(category, record_type=record_type), record_type)
-        sourced_records, sourced_sources = self._gather_typed_sourced(
+        sourced_records, sourced_sources, sourced_status = self._gather_typed_sourced(
             category,
             record_type=record_type,
             source=source,
         )
-        return ModelQuery(sourced_records, record_type, sources=sourced_sources)
+        return ModelQuery(sourced_records, record_type, sources=sourced_sources, source_status=sourced_status)
 
     def _gather_typed_sourced(
         self,
@@ -1637,7 +1772,7 @@ class ModelReferenceManager:
         *,
         record_type: type[TModelRecord],
         source: SourceSelector,
-    ) -> tuple[list[TModelRecord], list[str]]:
+    ) -> tuple[list[TModelRecord], list[str], dict[str, SourceOutcome]]:
         """Gather records (and aligned sources) for *category*, validating their type.
 
         Raises:
@@ -1645,7 +1780,7 @@ class ModelReferenceManager:
                 *record_type* (or a subclass of it).
 
         """
-        records, sources = self._gather_sourced_records(category, source)
+        records, sources, status = self._gather_sourced_records(category, source)
         typed_records: list[TModelRecord] = []
         for record in records:
             if not isinstance(record, record_type):
@@ -1654,7 +1789,7 @@ class ModelReferenceManager:
                     f"that is not a {record_type.__name__} instance.",
                 )
             typed_records.append(record)
-        return typed_records, sources
+        return typed_records, sources, status
 
     def query_all(
         self,
@@ -1776,17 +1911,22 @@ class DeferredPrefetchHandle(Awaitable[None]):
         return self._force_refresh
 
     def run_sync(self) -> None:
-        """Execute the deferred fetch synchronously on the current thread."""
-        self._manager._fetch_from_backend_if_needed(force_refresh=self._force_refresh)
+        """Execute the deferred warm-up synchronously on the current thread.
+
+        Warms the manager's converted-record cache (not just the backend layer) so the
+        next read is served without a backend fetch or pydantic conversion - leaving
+        :attr:`ModelReferenceManager.is_warm` ``True`` afterwards.
+        """
+        self._manager.ensure_ready(overwrite_existing=self._force_refresh)
 
     async def run_async(
         self,
         *,
         httpx_client: httpx.AsyncClient | None = None,
     ) -> None:
-        """Execute the deferred fetch asynchronously using the backend's async API."""
-        await self._manager._fetch_from_backend_if_needed_async(
-            force_refresh=self._force_refresh,
+        """Execute the deferred warm-up asynchronously, warming the manager's record cache."""
+        await self._manager.ensure_ready_async(
+            overwrite_existing=self._force_refresh,
             httpx_client=httpx_client,
         )
 
