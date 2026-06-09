@@ -75,7 +75,7 @@ All backends implement the `ModelReferenceBackend` ABC. Capability checks like `
 
 Configuration is environment-based via Pydantic Settings with the `HORDE_MODEL_REFERENCE_` prefix. The settings singleton validates mode/backend combinations at startup and logs warnings for invalid combinations (e.g., REPLICA with Redis enabled). Cross-project settings are imported from `haidra_core`.
 
-See [Canonical Format](canonical_format.md) for how the `CANONICAL_FORMAT` setting controls API write routing, and [Primary Deployments](../reference/primary_deployments.md) for deployment-specific configuration.
+See [Canonical Format](canonical_format.md) for how the `CANONICAL_FORMAT` setting controls API write routing, and [Primary Deployments](../reference/api_deployments.md) for deployment-specific configuration.
 
 ## Singleton Pattern
 

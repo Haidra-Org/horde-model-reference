@@ -106,8 +106,9 @@ sequenceDiagram
     Router-->>Client: 202 Accepted (queued)
 ```
 
-!!! note
-Write endpoints return **202 Accepted** because changes are queued for approval rather than applied immediately. The pending queue workflow (propose -> approve -> apply) is documented in the [Pending Queue](../reference/pending_queue.md) reference.
+Write endpoints return **202 Accepted** because changes are queued for approval rather than
+applied immediately. The pending queue workflow (propose, approve, apply) is documented in
+the [Pending Queue](../reference/pending_queue.md) reference.
 
 ## Write Guard Checks
 

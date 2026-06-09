@@ -183,7 +183,6 @@ models = manager.get_model_reference("image_generation")
 json_dict = ModelReferenceManager.model_reference_to_json_dict_safe(models)
 ```
 
-## Next Steps
+## Next
 
-- [Querying Models](querying_models.md) -- Use the fluent query API to filter and aggregate records
-- [Configuration & Troubleshooting](configuration_and_troubleshooting.md) -- Env vars, debugging, and common issues
+- [Querying Models](querying_models.md) -- filter and aggregate records with the fluent API

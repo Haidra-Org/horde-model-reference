@@ -55,18 +55,18 @@ There are three consumer roles, and the same service serves all of them:
 - **Clients, UIs, and tooling** (model browsers, admin dashboards, automation) call the HTTP API
   directly to list, search, and rank models, or to propose changes.
 
-## The service and the Python library are the same data, two doors
+## The service and the Python library serve the same data
 
 The FastAPI service and the `ModelReferenceManager` Python API are two front-ends over the same
-backend. When you run the library in **REPLICA** mode with a `primary_api_url`, its `HTTPBackend`
-calls the very endpoints documented here:
+backend. When you run the library in REPLICA mode with a `primary_api_url`, its `HTTPBackend`
+calls the same endpoints documented here:
 
 | Library call (REPLICA `HTTPBackend`) | HTTP endpoint it requests |
 | ------------------------------------ | ------------------------- |
 | fetch a category (v2)                | `GET {primary_api_url}/model_references/v2/{category}` |
 | fetch a category (legacy fallback)   | `GET {primary_api_url}/model_references/v1/{category}` |
 
-So "consume the API from a worker" and "use the library in REPLICA mode" are the same thing at
+So "consume the API from a worker" and "use the library in REPLICA mode" are the same operation at
 different layers. See [Consume the HTTP API](../guides/consume_the_http_api.md) for both styles, and
 [Offline & Resilient Reads](../guides/offline_and_resilient_reads.md) for the fallback chain.
 

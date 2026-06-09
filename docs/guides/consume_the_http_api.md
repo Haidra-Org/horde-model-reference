@@ -87,22 +87,17 @@ def refresh_if_changed(client: httpx.Client, category: str) -> dict | None:
     return client.get(f"/model_references/v2/{category}").json()
 ```
 
-!!! note "Metadata requires a PRIMARY in matching canonical format"
-    The `metadata/*` endpoints return `503` on REPLICA deployments. The public PRIMARY supports them.
+The `metadata/*` endpoints return `503` on REPLICA deployments. The public PRIMARY supports them.
 
-!!! tip "Using the library? Change detection is automatic"
-    The polling pattern above is for **direct-HTTP** consumers who manage their own cache. If you
-    read through the **library** (REPLICA mode) you do not poll: the in-memory TTL cache refetches on
-    its own once data is older than `HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS` (default 60 s). Lengthen
-    that TTL for fewer network calls, shorten it for fresher data -- see
-    [Read Resiliently](offline_and_resilient_reads.md#tune-freshness-vs-resilience). Pass
-    `overwrite_existing=True` on a single read to force an immediate refetch.
+If you read through the library (REPLICA mode) you do not need to poll: the in-memory TTL cache
+refetches on its own once data is older than `HORDE_MODEL_REFERENCE_CACHE_TTL_SECONDS` (default
+60 s). Lengthen the TTL for fewer network calls, shorten it for fresher data. Pass
+`overwrite_existing=True` on a single read to force an immediate refetch.
 
-    If you do want explicit change polling (e.g. on a PRIMARY deployment), `manager.last_updated(category)`
-    returns the category's last-update unix timestamp without reaching into the backend -- compare it to
-    your last-seen value to decide whether to act. It returns `None` when the backend does not track
-    metadata (REPLICA backends), and `manager.supports_metadata()` /
-    `manager.get_metadata(category)` give the full picture.
+For explicit change polling (e.g. on a PRIMARY deployment), `manager.last_updated(category)`
+returns the category's last-update unix timestamp without reaching into the backend. It returns
+`None` when the backend does not track metadata (REPLICA backends). `manager.supports_metadata()`
+and `manager.get_metadata(category)` give the full picture.
 
 ## Pick the right read shape
 

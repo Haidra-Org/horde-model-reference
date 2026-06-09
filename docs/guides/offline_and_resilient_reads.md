@@ -71,7 +71,6 @@ outages, at the cost of staleness. See
 [Configuration & Troubleshooting](../tutorials/configuration_and_troubleshooting.md)
 for the complete list and debugging tips.
 
-## See also
+## Next
 
-- [Configuration & Troubleshooting](../tutorials/configuration_and_troubleshooting.md)
-- [Design Decisions](../concepts/design_decisions.md) - why `_or_none` exists and the async/sync split
+- [Configuration & Troubleshooting](../tutorials/configuration_and_troubleshooting.md) -- environment variables, debugging, common issues
