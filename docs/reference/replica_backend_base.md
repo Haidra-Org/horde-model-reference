@@ -268,12 +268,12 @@ If any check fails, `should_fetch_data()` returns `True`, indicating data should
 
 These are the concrete methods provided by `ReplicaBackendBase` to help you implement the abstract methods from `ModelReferenceBackend`.
 
-### `should_fetch_data(category)` ⭐ **Primary Helper**
+### `should_fetch_data(category)` **Primary Helper**
 
 The primary method for determining whether to fetch data. Use this when implementing `fetch_category()`.
 
 ```python
-# ✅ GitHubBackend pattern
+# GitHubBackend pattern
 if force_refresh or self.should_fetch_data(category):
     self._download_and_convert_single(category, overwrite_existing=force_refresh)
     return self._load_converted_from_disk(category)
@@ -288,12 +288,12 @@ Returns `True` if:
 
 This combines initial fetch detection and refresh detection into a single check.
 
-### `_get_from_cache(category)` ⭐ **Cache Retrieval Helper**
+### `_get_from_cache(category)` **Cache Retrieval Helper**
 
 Protected method that retrieves cached data if valid, handling all validation internally.
 
 ```python
-# ✅ GitHubBackend pattern
+# GitHubBackend pattern
 cached_data = self._get_from_cache(category)
 if cached_data is not None:
     return cached_data
@@ -304,12 +304,12 @@ Returns:
 - The cached dict if data exists and is valid
 - `None` if no data exists or cache is invalid
 
-### `_store_in_cache(category, data)` ⭐ **Cache Storage Helper**
+### `_store_in_cache(category, data)` **Cache Storage Helper**
 
 Protected method that stores fetched data and updates all cache metadata (timestamps, mtimes, staleness flags).
 
 ```python
-# ✅ GitHubBackend pattern (inside _load_converted_from_disk)
+# GitHubBackend pattern (inside _load_converted_from_disk)
 with open(file_path, encoding="utf-8") as f:
     data: dict[str, Any] = ujson.load(f)
 
@@ -324,12 +324,12 @@ Automatically handles:
 - Clearing staleness flags
 - Updating file mtime tracking (via `_get_file_path_for_validation()` hook)
 
-⚠️ **Important:** Passing `None` intentionally keeps the category in a "cache miss" state. This records that
+Warning: **Important:** Passing `None` intentionally keeps the category in a "cache miss" state. This records that
 the backend already checked the source but no data exists yet, prompting `should_fetch_data()` to continue
 returning `True` so future calls keep retrying. Use this when a missing file or empty dataset should trigger
 retries without manual stale markers.
 
-### `_fetch_with_cache(category, fetch_fn, *, force_refresh=False)` ⭐ **Fetch Helper**
+### `_fetch_with_cache(category, fetch_fn, *, force_refresh=False)` **Fetch Helper**
 
 Use `_fetch_with_cache()` when your backend follows the simple pattern of "return cache unless force refresh,
 otherwise fetch and store". Provide a callable that contains the backend-specific fetch logic; the helper will
@@ -367,13 +367,13 @@ backend.mark_stale(MODEL_REFERENCE_CATEGORY.image_generation)
 Marks cache as invalid without deleting data. Use in your backend when write operations or errors occur.
 
 ```python
-# ✅ FileSystemBackend pattern - invalidate after write
+# FileSystemBackend pattern - invalidate after write
 def update_model(self, category, model_name, record_dict):
     with self._lock:
         # ... write data to disk ...
         self._invalidate_cache(category)  # Force reload on next fetch
 
-# ✅ FileSystemBackend pattern - invalidate on read error
+# FileSystemBackend pattern - invalidate on read error
 try:
     with open(file_path, encoding="utf-8") as f:
         data = json.load(f)
@@ -390,10 +390,10 @@ Similarly, use `_invalidate_legacy_cache(category)` for legacy format cache.
 
 Public API provided by `ReplicaBackendBase` that implements the abstract method from `ModelReferenceBackend`. Checks if **existing** cached data has become stale.
 
-⚠️ **Important**: Returns `False` when no data has been cached yet. Use `should_fetch_data()` for fetch decisions.
+Warning: **Important**: Returns `False` when no data has been cached yet. Use `should_fetch_data()` for fetch decisions.
 
 ```python
-# ✅ GitHubBackend uses this to force redownload
+# GitHubBackend uses this to force redownload
 needs_refresh = self.needs_refresh(category)
 if needs_refresh:
     logger.debug(f"Category {category} needs refresh, proceeding to download")
@@ -407,7 +407,7 @@ if needs_refresh:
 Return a file path to enable automatic mtime validation for v2/converted format files.
 
 ```python
-# ✅ GitHubBackend implementation
+# GitHubBackend implementation
 @override
 def _get_file_path_for_validation(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
     return horde_model_reference_paths.get_model_reference_file_path(
@@ -427,7 +427,7 @@ When implemented, the base class automatically:
 Return a file path for legacy format files if your backend maintains separate legacy files.
 
 ```python
-# ✅ GitHubBackend implementation
+# GitHubBackend implementation
 @override
 def _get_legacy_file_path_for_validation(self, category: MODEL_REFERENCE_CATEGORY) -> Path | None:
     return self._references_paths_cache.get(category)  # Points to legacy files
@@ -451,7 +451,7 @@ def _additional_cache_validation(self, category: MODEL_REFERENCE_CATEGORY) -> bo
 Configure cache time-to-live during backend initialization:
 
 ```python
-# ✅ GitHubBackend initialization with TTL
+# GitHubBackend initialization with TTL
 backend = GitHubBackend(
     base_path=horde_model_reference_paths.base_path,
     cache_ttl_seconds=horde_model_reference_settings.cache_ttl_seconds,
@@ -499,7 +499,7 @@ For backends that maintain separate legacy format files (like `GitHubBackend`), 
 Retrieves cached legacy data (both dict and string format).
 
 ```python
-# ✅ GitHubBackend pattern
+# GitHubBackend pattern
 legacy_dict, legacy_string = self._get_legacy_from_cache(category)
 if legacy_dict is not None:
     return legacy_dict
@@ -512,7 +512,7 @@ Returns a tuple: `(dict | None, str | None)`
 Stores legacy format data (both dict and string representations).
 
 ```python
-# ✅ GitHubBackend pattern (inside _load_legacy_json_from_disk)
+# GitHubBackend pattern (inside _load_legacy_json_from_disk)
 with open(file_path, "rb") as f:
     content = f.read()
 
@@ -762,10 +762,10 @@ def _get_file_path_for_validation(self, category: MODEL_REFERENCE_CATEGORY) -> P
 ### 3. Use Public APIs for Cache Control
 
 ```python
-# ✅ GOOD: Use public API to mark stale
+# GOOD: Use public API to mark stale
 backend.mark_stale(category)
 
-# ❌ BAD: Don't manipulate internal state directly
+# Avoid: BAD: Don't manipulate internal state directly
 backend._stale_categories.add(category)  # Bypasses proper handling
 ```
 
@@ -774,11 +774,11 @@ backend._stale_categories.add(category)  # Bypasses proper handling
 Use `should_fetch_data()` which handles both:
 
 ```python
-# ✅ GOOD: Unified check
+# GOOD: Unified check
 if force_refresh or self.should_fetch_data(category):
     fetch_data()
 
-# ⚠️ AVOID: Manual separation (more complex, error-prone)
+# Warning: AVOID: Manual separation (more complex, error-prone)
 if not self.has_cached_data(category):
     initial_fetch()
 elif self.needs_refresh(category):
@@ -790,7 +790,7 @@ elif self.needs_refresh(category):
 If your backend supports writes, invalidate cache after modifying data:
 
 ```python
-# ✅ FileSystemBackend pattern
+# FileSystemBackend pattern
 def update_model(self, category, model_name, record_dict):
     with self._lock:
         # Write to disk

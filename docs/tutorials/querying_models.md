@@ -1,15 +1,14 @@
 # Querying Model References
 
-The library exposes **two ways to read model records**, and picking the right one is the whole story:
+The library provides two ways to read model records:
 
-| You want…                                              | Use                                  | You get                          |
-| ------------------------------------------------------ | ------------------------------------ | -------------------------------- |
-| The raw mapping for a category (lookups, `in`, names)  | `manager.get_model_reference(cat)`   | `dict[str, GenericModelRecord]`  |
-| One record by name                                     | `manager.get_model(cat, name)`       | a record (raises if missing)     |
-| To filter / sort / aggregate / merge sources           | `manager.query(cat)`                 | a typed `ModelQuery` builder     |
+| You want                                              | Use                                | You get                         |
+| ----------------------------------------------------- | ---------------------------------- | ------------------------------- |
+| The raw mapping for a category (lookups, `in`, names) | `manager.get_model_reference(cat)` | `dict[str, GenericModelRecord]` |
+| One record by name                                    | `manager.get_model(cat, name)`     | a record (raises if missing)    |
+| To filter / sort / aggregate / merge sources          | `manager.query(cat)`               | a typed `ModelQuery` builder    |
 
-Everything below is about the third row - the fluent query builder. All query operations happen
-in-memory over already-cached Pydantic records; there are no extra network calls.
+This page covers the query builder. All query operations run in-memory over already-cached Pydantic records; there are no extra network calls.
 
 ## Direct access (the simple case)
 
@@ -50,50 +49,7 @@ For a query spanning every category at once, use `manager.query_all()`.
 
 ## Filtering with `.where()`
 
-### Keyword equality
-
-```python
-results = manager.query("image_generation").where(nsfw=False).to_list()
-```
-
-### Django-style comparison operators
-
-Append `__operator` to the field name:
-
-| Operator     | Meaning                         |
-| ------------ | ------------------------------- |
-| `__gt`       | Greater than                    |
-| `__gte`      | Greater than or equal           |
-| `__lt`       | Less than                       |
-| `__lte`      | Less than or equal              |
-| `__ne`       | Not equal                       |
-| `__in`       | Value is in a collection        |
-| `__contains` | Collection field contains value |
-
-```python
-# Models larger than 1 GB
-large = (
-    manager.query("image_generation")
-    .where(size_on_disk_bytes__gt=1_000_000_000)
-    .to_list()
-)
-
-# Text models with more than 7 billion parameters
-big_llms = (
-    manager.query("text_generation")
-    .where(parameters_count__gt=7_000_000_000)
-    .to_list()
-)
-```
-
-!!! note "Comparisons are None-safe and exclude missing values"
-    The comparison operators (`<`, `<=`, `>`, `>=`, and `__gt`/`__lt`/...) match only records whose
-    field is set. A record whose field is `None` never matches a comparison -- it is *excluded*, not
-    treated as zero and not kept. (`order_by` likewise sorts `None` values last instead of raising.)
-    To filter on presence itself, use `.is_none()` / `.is_not_none()`; to keep missing values
-    alongside a comparison, combine them with `|` or drop to `.filter(...)`.
-
-### Typed field references
+### Typed field references (recommended)
 
 Import field namespaces for IDE autocomplete and static type checking:
 
@@ -108,17 +64,22 @@ results = (
 ```
 
 Available field namespaces: `ImageFields`, `TextFields`, `ControlNetFields`, `ClipFields`,
-`GenericFields`, `VideoFields`, `AudioFields`, and more. Each provides `FieldRef` attributes matching
-the record's fields.
+`GenericFields`, `VideoFields`, `AudioFields`, `BlipFields`, `CodeformerFields`, `EsrganFields`,
+`GfpganFields`, `SafetyCheckerFields`, and `MiscellaneousFields`. Each provides `FieldRef` attributes
+matching the record's fields.
 
-!!! note "Unknown field names raise -- they do not silently return nothing"
-    Every field name is validated against the record type before filtering. A typo in a string
-    keyword (e.g. `.where(nfsw=False)`) raises a clear error rather than quietly matching zero
-    records. The typed field references above catch the mistake even earlier -- at edit time, via
-    your IDE and type checker -- so prefer them in code you maintain.
+Field references catch typos at edit time through your IDE and type checker, while string
+keywords raise a clear error at runtime rather than silently matching zero records. For this
+reason, prefer typed field references in code you maintain.
+
+Comparisons with `FieldRef` operators (`<`, `<=`, `>`, `>=`) are None-safe: a record whose field is
+`None` is excluded from the comparison, not treated as zero. Use `.is_none()` / `.is_not_none()` to
+filter on presence itself. `order_by` likewise sorts `None` values last.
 
 `FieldRef` supports `==`, `!=`, `<`, `<=`, `>`, `>=`, `.contains()`, `.is_in()`, `.is_none()`,
-`.is_not_none()`:
+`.is_not_none()`. Use `false()` / `true()` (imported from `horde_model_reference`) instead of
+Python's `False` / `True` when comparing boolean fields, since `== False` would compare against
+the Python built-in rather than producing a `FieldRef` predicate:
 
 ```python
 from horde_model_reference import TextFields, false
@@ -131,7 +92,20 @@ results = (
 )
 ```
 
-### Predicate composition
+#### Keyword strings (alternative)
+
+As an alternative to typed field references, you can pass field names as string keywords. Append
+`__gt`, `__lt`, `__gte`, `__lte`, `__ne`, `__in`, or `__contains` for comparisons:
+
+```python
+large = manager.query("image_generation").where(size_on_disk_bytes__gt=1_000_000_000).to_list()
+```
+
+String keywords validate field names at runtime (typos raise an error rather than silently
+matching nothing), but misspellings are only caught when the code runs. Typed field references
+catch them in your IDE instead, so prefer `FieldRef` in code you maintain.
+
+## Predicate composition
 
 Combine predicates with `&` (and), `|` (or), `~` (not):
 
@@ -179,15 +153,8 @@ manager.query("image_generation").offset(5).limit(10).to_list()    # skip 5, tak
 
 ## Terminal operations
 
-Every query chain ends with a terminal operation:
-
-| Method             | Returns                   | Description                    |
-| ------------------ | ------------------------- | ------------------------------ |
-| `.to_list()`       | `list[T]`                 | All matching records           |
-| `.first()`         | `T \| None`               | First match, or `None`         |
-| `.count()`         | `int`                     | Number of matches              |
-| `.distinct(field)` | `list[object]`            | Unique values of a field       |
-| `.group_by(field)` | `dict[Hashable, list[T]]` | Records grouped by field value |
+Every query chain ends with a terminal: `.to_list()` (all matches), `.first()` (first or
+`None`), `.count()`, `.distinct(field)`, and `.group_by(field)`.
 
 ```python
 count = manager.query("image_generation").exclude_nsfw().count()
@@ -231,11 +198,9 @@ q.group_by_style()                      # Terminal: group by style
 
 ## Source-aware queries (third-party providers)
 
-By default every read returns only the **canonical horde data** - the official horde dataset, as
-opposed to records from a third-party provider (source id `"horde"`; see the
-[Glossary](../reference/glossary.md#canonical-data-the-horde-source)). If you have
-[registered third-party providers](registering_providers.md), the `source=` argument selects where
-records come from:
+By default every read returns only the canonical horde data (the official dataset, source id
+`"horde"`). If you have [registered third-party providers](registering_providers.md), the
+`source=` argument selects where records come from:
 
 ```python
 from horde_model_reference import ANY_SOURCE  # == "any"
@@ -319,9 +284,8 @@ for model in results:
     print(f"{model.name}: {size_mb:.0f} MB")
 ```
 
-## Next steps
+## Next
 
-- [Registering & Consuming Providers](registering_providers.md) -- Contribute models from a third-party source
-- [Working with Records](working_with_records.md) -- Understand record types, fields, and serialization
-- [Configuration & Troubleshooting](configuration_and_troubleshooting.md) -- Env vars, debugging, common issues
+- [Working with Records](working_with_records.md) -- record types, fields, and serialization
+- [Registering & Consuming Providers](registering_providers.md) -- contribute models from third-party sources
 ```

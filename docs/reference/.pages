@@ -5,7 +5,7 @@ nav:
   - model_providers.md
   - model_reference_records.md
   - http_api
-  - primary_deployments.md
+  - api_deployments.md
   - replica_backend_base.md
   - audit_trail.md
   - pending_queue.md

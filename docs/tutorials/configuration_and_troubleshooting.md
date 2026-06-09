@@ -162,8 +162,6 @@ For FastAPI services, use the `ASYNC` prefetch strategy:
 manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.ASYNC)
 ```
 
-## Previous Tutorials
+## Next
 
-- [Getting Started](getting_started.md) -- Installation, first query, singleton pattern
-- [Querying Models](querying_models.md) -- Fluent query API
-- [Working with Records](working_with_records.md) -- Record types and fields
+- [Getting Started](getting_started.md) -- installation, first query, singleton pattern
