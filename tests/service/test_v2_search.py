@@ -369,11 +369,17 @@ class TestPopularModels:
             IndexedHordeWorkers,
         )
 
-        mock_status = IndexedHordeModelStatus([
-            HordeModelStatus(name="img_safe_sd1", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-            HordeModelStatus(name="img_nsfw_xl", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-            HordeModelStatus(name="img_inpaint_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-        ])
+        mock_status = IndexedHordeModelStatus(
+            [
+                HordeModelStatus(
+                    name="img_safe_sd1", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"
+                ),
+                HordeModelStatus(name="img_nsfw_xl", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+                HordeModelStatus(
+                    name="img_inpaint_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"
+                ),
+            ]
+        )
         mock_stats = IndexedHordeModelStats(HordeModelStatsResponse(day={}, month={}, total={}))
         mock_workers = IndexedHordeWorkers([])
 
@@ -407,10 +413,12 @@ class TestPopularModels:
             IndexedHordeWorkers,
         )
 
-        mock_status = IndexedHordeModelStatus([
-            HordeModelStatus(name="img_safe_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-            HordeModelStatus(name="img_nsfw_xl", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-        ])
+        mock_status = IndexedHordeModelStatus(
+            [
+                HordeModelStatus(name="img_safe_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+                HordeModelStatus(name="img_nsfw_xl", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+            ]
+        )
         mock_stats = IndexedHordeModelStats(
             HordeModelStatsResponse(
                 day={"img_safe_sd1": 5, "img_nsfw_xl": 50},
@@ -453,11 +461,17 @@ class TestPopularModels:
             IndexedHordeWorkers,
         )
 
-        mock_status = IndexedHordeModelStatus([
-            HordeModelStatus(name="img_safe_sd1", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-            HordeModelStatus(name="img_nsfw_xl", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-            HordeModelStatus(name="img_inpaint_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
-        ])
+        mock_status = IndexedHordeModelStatus(
+            [
+                HordeModelStatus(
+                    name="img_safe_sd1", count=10, jobs=0, performance=1.0, eta=0, queued=0, type="image"
+                ),
+                HordeModelStatus(name="img_nsfw_xl", count=5, jobs=0, performance=1.0, eta=0, queued=0, type="image"),
+                HordeModelStatus(
+                    name="img_inpaint_sd1", count=1, jobs=0, performance=1.0, eta=0, queued=0, type="image"
+                ),
+            ]
+        )
         mock_stats = IndexedHordeModelStats(HordeModelStatsResponse(day={}, month={}, total={}))
         mock_workers = IndexedHordeWorkers([])
 
