@@ -19,7 +19,7 @@ Every instance of the library runs in one of two modes, set by the
 
 See [Architecture Overview](../concepts/architecture_overview.md#backend-selection)
 for how the mode selects a backend, and
-[Primary Deployments](primary_deployments.md) for running a PRIMARY server.
+[Primary Deployments](api_deployments.md) for running a PRIMARY server.
 
 ## PRIMARY server
 
@@ -108,7 +108,7 @@ sit alongside the canonical horde data. Each provider has a unique **source id**
 Controls *when* the manager loads data: `LAZY` (on first access, the default),
 `SYNC` (at construction, blocking), `ASYNC` (background), `DEFERRED` (you
 trigger it), or `NONE`. See
-[Getting Started](../tutorials/getting_started.md#prefetch-strategies).
+[Getting Started](../tutorials/getting_started.md#prefetch-strategy).
 
 ## Singleton
 

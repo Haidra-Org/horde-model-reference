@@ -94,8 +94,8 @@ settings: dict[str, int | float | str | list[int] | list[float] | list[str] | bo
 
 ```json
 {
-    "nested": { "key": "value" }, // ❌ Nested dicts not allowed
-    "complex": { "another": { "level": "here" } } // ❌ Nested dicts not allowed
+    "nested": { "key": "value" },
+    "complex": { "another": { "level": "here" } }
 }
 ```
 
@@ -118,7 +118,7 @@ The `settings` column must contain valid JSON. If a row includes malformed JSON,
 **Wrong Usage:**
 
 ```python
-# ❌ WRONG - results in data/legacy/legacy/models.csv
+# WRONG: WRONG - results in data/legacy/legacy/models.csv
 converter = LegacyTextGenerationConverter(
     legacy_folder_path=Path("data/legacy"),  # Already has /legacy/
     target_file_folder=Path("data"),
@@ -128,7 +128,7 @@ converter = LegacyTextGenerationConverter(
 **Correct Usage:**
 
 ```python
-# ✅ CORRECT - results in data/legacy/models.csv
+# CORRECT: CORRECT - results in data/legacy/models.csv
 converter = LegacyTextGenerationConverter(
     legacy_folder_path=Path("data"),  # Base path only
     target_file_folder=Path("data"),
@@ -164,7 +164,7 @@ display_name=""
 In tests, the `populated_legacy_path` fixture creates files in `primary/legacy/` but when calling converters, always pass `primary_base` (not `populated_legacy_path`):
 
 ```python
-# ✅ CORRECT
+# CORRECT: CORRECT
 def test_converter(primary_base: Path, populated_legacy_path: Path):
     converter = LegacyTextGenerationConverter(
         legacy_folder_path=primary_base,  # Pass base, not populated_legacy_path

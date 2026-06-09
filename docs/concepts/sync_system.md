@@ -71,8 +71,9 @@ The sync client handles the git workflow for publishing changes:
 4. **Commit and push** - commits with a structured message listing added/removed/modified models, then pushes using the authenticated URL.
 5. **PR creation** - creates a pull request via the GitHub API, closes any existing sync PRs for the same category, and applies configured labels and reviewers.
 
-!!! tip
-Use `target_clone_dir` in production to avoid re-cloning on every sync cycle. The client verifies repository identity (owner/repo from the remote URL) before reusing an existing clone, preventing data corruption from mismatched directories.
+Use `target_clone_dir` in production to avoid re-cloning on every sync cycle. The client verifies
+repository identity (owner/repo from the remote URL) before reusing an existing clone, preventing
+data corruption from mismatched directories.
 
 ## Watch Mode
 

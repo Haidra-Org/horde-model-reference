@@ -51,14 +51,13 @@ servable = (
 Filters compose left to right, so you can add or remove a clause without
 rewriting the rest.
 
-!!! note "Comparison filters skip models with unknown values"
-    `size_on_disk_bytes` is `int | None`. A `<` / `>` comparison matches only records whose value is
-    set, so models with an *unrecorded* size are silently dropped -- not kept, and not treated as
-    zero. If you would rather keep unknown-size models, say so explicitly:
+Comparison filters skip models with unknown values. `size_on_disk_bytes` is `int | None`,
+and a `<` / `>` comparison matches only records whose value is set. If you would rather keep
+unknown-size models:
 
-    ```python
-    .filter(lambda m: m.size_on_disk_bytes is None or m.size_on_disk_bytes < 7_000_000_000)
-    ```
+```python
+.filter(lambda m: m.size_on_disk_bytes is None or m.size_on_disk_bytes < 7_000_000_000)
+```
 
 ## Turn it into a download list
 
@@ -72,7 +71,7 @@ for model in servable:
 ```
 
 To fetch and **verify** weights, iterate `config.download` instead - it carries the file name, URL,
-and SHA-256 checksum for each file (some models ship more than one). The `known_slow_download` flag
+and SHA-256 checksum for each file (some models ship more than one). The `known_slow_download` flag (absent on most models, `bool | None`)
 marks mirrors that are reliable but slow, so you can lengthen timeouts or download them last:
 
 ```python
@@ -88,8 +87,6 @@ for model in servable:
 Check each downloaded file against `sha256sum` before trusting it. (The reference provides the
 metadata; performing the download and the hash check is the worker's job.)
 
-## See also
+## Next
 
-- [Querying Models](../tutorials/querying_models.md) - operators, predicates, ordering, pagination
-- [Working with Records](../tutorials/working_with_records.md) - every field available on a record
-- [`examples/02_query_recipes.py`](https://github.com/Haidra-Org/horde-model-reference/blob/main/examples/02_query_recipes.py) - runnable version
+- [Querying Models](../tutorials/querying_models.md) -- operators, predicates, ordering, pagination

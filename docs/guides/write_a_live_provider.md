@@ -96,8 +96,7 @@ mine = manager.query("image_generation", source="civitai").to_list()
 Provider failures are isolated: if `fetch_category` raises, the error is logged
 and other sources still return.
 
-## See also
+## Next
 
-- [Registering & Consuming Providers](../tutorials/registering_providers.md) - the full tutorial, including custom record types
-- [Model Providers](../reference/model_providers.md) - interface reference, source-selection and collision rules
-- [`examples/04_register_provider.py`](https://github.com/Haidra-Org/horde-model-reference/blob/main/examples/04_register_provider.py) - runnable static-provider version
+- [Registering & Consuming Providers](../tutorials/registering_providers.md) -- full tutorial including custom record types
+- [Model Providers](../reference/model_providers.md) -- interface reference, source-selection and collision rules

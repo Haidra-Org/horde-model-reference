@@ -47,7 +47,11 @@ Routers are included before category routes (`/{model_category_name}`) to avoid 
 | `HORDE_MODEL_REFERENCE_PENDING_QUEUE__ROOT_PATH_OVERRIDE` | Optional absolute path for queue storage. Defaults to `<cache_home>/pending_queue`. Required when multiple deployments share disk. |
 | `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT`                  | Determines which API is writable (`v2` or `legacy`).                                                                               |
 
-> **Development fallback:** If either allow-list is left empty, the service automatically falls back to the built-in `allowed_users` list defined in `src/horde_model_reference/service/shared.py`. This keeps local environments usable with the default approver IDs (`["1", "6572"]`) but production deployments **must** set `HORDE_MODEL_REFERENCE_PENDING_QUEUE__REQUESTOR_IDS` and `HORDE_MODEL_REFERENCE_PENDING_QUEUE__APPROVER_IDS` explicitly. Removing the fallback IDs or leaving them unset in production will cause every queue request to be rejected with `401 Invalid API key`.
+Production deployments must set `HORDE_MODEL_REFERENCE_PENDING_QUEUE__REQUESTOR_IDS` and
+`HORDE_MODEL_REFERENCE_PENDING_QUEUE__APPROVER_IDS` explicitly. If either allowlist is left
+empty, the service falls back to a built-in `allowed_users` list for local development
+convenience. Leaving these unset in production will cause every queue request to be rejected
+with `401 Invalid API key`.
 
 Recommended production layout:
 
@@ -194,12 +198,12 @@ When a pending change is **applied**, `FileSystemBackend.update_model()`/`delete
 | Pending queue service  | `src/horde_model_reference/pending_queue/{models.py,service.py,apply.py}`                                                                                                                    |
 | Router logic           | `src/horde_model_reference/service/v1/routers/create_update.py`, `src/horde_model_reference/service/v2/routers/{references,pending_queue}.py`, `src/horde_model_reference/service/shared.py` |
 | Tests                  | `tests/service/test_v2_api.py`, `tests/pending_queue/test_service.py`, `tests/pending_queue/test_apply.py`, fixtures in `tests/conftest.py`                                                  |
-| Docs referencing queue | `docs/reference/model_reference_backend.md`, `docs/reference/primary_deployments.md`                                                                                                         |
+| Docs referencing queue | `docs/reference/model_reference_backend.md`, `docs/reference/api_deployments.md`                                                                                                         |
 
 ## Related Documentation
 
 - [Model Reference Backend](model_reference_backend.md)
-- [Primary Deployment Guide](primary_deployments.md)
+- [Primary Deployment Guide](api_deployments.md)
 - [Audit Trail Documentation](audit_trail.md)
 
 ```text
