@@ -96,4 +96,3 @@ and async variants) drives selection and merging.
 - The library does not cache provider output; `cache_ttl_seconds()` is advisory metadata.
 - Records returned by a provider are trusted as-is - the library does not re-validate provider output
   against any schema (use `StaticModelProvider.from_raw` if you want validation at construction time).
-
