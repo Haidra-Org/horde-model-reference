@@ -26,7 +26,7 @@ from horde_model_reference.pending_queue.audit_view import (
 from horde_model_reference.service.pending_queue.dependencies import require_pending_queue_service
 from horde_model_reference.service.shared import (
     ErrorResponse,
-    authenticate_queue_approver,
+    authenticate_queue_reader,
     get_model_reference_manager,
     header_auth_scheme,
 )
@@ -37,7 +37,8 @@ LimitQuery = Annotated[int, Query(ge=1, le=50, description="Maximum number of ba
 
 
 async def _assert_audit_access(apikey: str) -> None:
-    await authenticate_queue_approver(apikey)
+    """Audit data is readable by any authenticated user (transparency surface)."""
+    await authenticate_queue_reader(apikey)
 
 
 def build_pending_queue_audit_router(*, tags: Sequence[str]) -> APIRouter:

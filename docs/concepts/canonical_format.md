@@ -4,13 +4,13 @@
 
 The Model Reference Service provides two API versions (v1 and v2) for managing model records. The **canonical format** setting determines which API version is the authoritative source of truth for data modifications.
 
-This is controlled by the `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` environment variable.
+This is controlled by the `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` environment variable. The value is case-insensitive.
 
-> **"Canonical format" is not the same as "canonical data."** This page is about
-> *which API version* (v1/v2) owns writes - a PRIMARY-only concern that does not
-> affect reads. "Canonical data" (in the query/provider docs) means *whose* data
-> you're reading - the horde dataset vs. a third-party provider. See the
-> [Glossary](../reference/glossary.md#canonical-format).
+**"Canonical format" is not the same as "canonical data."** This page is about
+*which API version* (v1/v2) owns writes -- a PRIMARY-only concern that does not
+affect reads. "Canonical data" (in the query/provider docs) means *whose* data
+you're reading -- the horde dataset vs. a third-party provider. See the
+[Glossary](../reference/glossary.md#canonical-format).
 
 ## Configuration
 
@@ -20,8 +20,8 @@ This is controlled by the `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` environment v
 # V2 format (default) - v2 API has write access
 HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=v2
 
-# Legacy format - v1 API has write access
-HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=LEGACY
+# Legacy format - v1 API has write access (case-insensitive)
+HORDE_MODEL_REFERENCE_CANONICAL_FORMAT=legacy
 ```
 
 ### Interaction with Replicate Mode
@@ -46,7 +46,7 @@ The `/replicate_mode` endpoint returns comprehensive backend configuration infor
 ```json
 {
     "replicate_mode": "PRIMARY",
-    "canonical_format": "LEGACY",
+    "canonical_format": "legacy",
     "writable": true
 }
 ```
@@ -56,7 +56,7 @@ The `/replicate_mode` endpoint returns comprehensive backend configuration infor
 | Field              | Type              | Description                                  |
 | ------------------ | ----------------- | -------------------------------------------- |
 | `replicate_mode`   | `ReplicateMode`   | Either `PRIMARY` or `REPLICA`                |
-| `canonical_format` | `CanonicalFormat` | Either `LEGACY` or `V2`                      |
+| `canonical_format` | `CanonicalFormat` | Either `legacy` or `v2`                      |
 | `writable`         | `boolean`         | Whether the backend accepts write operations |
 
 ### Usage in Frontend Clients
@@ -69,7 +69,7 @@ detectBackendCapabilities(): Observable<BackendCapabilities> {
     map((info: BackendInfo) => ({
       writable: info.writable,
       mode: info.replicate_mode === 'PRIMARY' ? 'PRIMARY' : 'REPLICA',
-      canonicalFormat: info.canonical_format === 'LEGACY' ? 'legacy' : 'v2',
+      canonicalFormat: info.canonical_format === 'legacy' ? 'legacy' : 'v2',
     })),
   );
 }
@@ -82,7 +82,7 @@ detectBackendCapabilities(): Observable<BackendCapabilities> {
 - **Path pattern:** `/model_references/v1/{category}`
 - **Model format:** Category-specific record types (e.g., `LegacyStableDiffusionRecord`, `LegacyBlipRecord`)
 - **Endpoints:** Category-specific create/update/delete methods
-- **Write access:** When `canonical_format=LEGACY` and `replicate_mode=PRIMARY`
+- **Write access:** When `canonical_format=legacy` and `replicate_mode=PRIMARY`
 
 ### V2 API
 
@@ -150,7 +150,7 @@ The canonical format should not be changed while the system is in production wit
 
 **Cause:** Frontend is using V2 API when backend is configured for legacy format.
 
-**Solution:** Query `/replicate_mode` and ensure the frontend routes to the V1 API when `canonical_format=LEGACY`.
+**Solution:** Query `/replicate_mode` and ensure the frontend routes to the V1 API when `canonical_format=legacy`.
 
 ### Write operations return 503
 
@@ -179,7 +179,7 @@ The canonical format should not be changed while the system is in production wit
 
 | Variable                                 | Values               | Default   | Description                              |
 | ---------------------------------------- | -------------------- | --------- | ---------------------------------------- |
-| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` | `LEGACY`, `v2`       | `v2`      | Which API version is the source of truth |
+| `HORDE_MODEL_REFERENCE_CANONICAL_FORMAT` | `legacy`, `v2`       | `v2`      | Which API version is the source of truth (case-insensitive) |
 | `HORDE_MODEL_REFERENCE_REPLICATE_MODE`   | `PRIMARY`, `REPLICA` | `REPLICA` | Whether this instance accepts writes     |
 
 ## Related Documentation

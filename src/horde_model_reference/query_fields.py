@@ -145,6 +145,22 @@ class FieldRef:
         field = self._field_name
         return Predicate(lambda r: getattr(r, field, None) is not None)
 
+    def is_true(self) -> Predicate:
+        """Check whether the field value is ``True``.
+
+        For boolean fields, prefer this over ``FieldRef == true()``.
+        """
+        field = self._field_name
+        return Predicate(lambda r: getattr(r, field, None) is True)
+
+    def is_false(self) -> Predicate:
+        """Check whether the field value is ``False``.
+
+        For boolean fields, prefer this over ``FieldRef == false()``.
+        """
+        field = self._field_name
+        return Predicate(lambda r: getattr(r, field, None) is False)
+
     def asc(self) -> OrderSpec:
         """Return an ascending ``OrderSpec`` for this field."""
         return OrderSpec(self._field_name, descending=False)

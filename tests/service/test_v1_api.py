@@ -708,6 +708,33 @@ class TestLegacyPendingQueueAdmin:
         returned_ids = {item["change_id"] for item in payload["items"]}
         assert change_id in returned_ids
 
+    def test_reader_without_role_can_list_but_not_mutate(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        mock_auth_success: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Queue reads need only a valid key; mutations still require the approver role."""
+        change_id = _enqueue_legacy_pending_change(
+            v1_canonical_manager,
+            model_name="legacy_queue_reader",
+        )
+        monkeypatch.setattr(horde_model_reference_settings.pending_queue, "requestor_ids", ["someone-else"])
+        monkeypatch.setattr(horde_model_reference_settings.pending_queue, "approver_ids", ["someone-else"])
+
+        response = api_client.get(f"{self._base_url}/changes", headers=_queue_auth_headers())
+        payload = _assert_success_response(response)
+        assert change_id in {item["change_id"] for item in payload["items"]}
+
+        batch_response = api_client.post(
+            f"{self._base_url}/batches",
+            headers=_queue_auth_headers(),
+            json={"batch_title": "should fail", "approved_ids": [change_id]},
+        )
+        assert batch_response.status_code == 403
+        assert "approver" in batch_response.json()["detail"].lower()
+
     def test_my_changes_scopes_to_caller(
         self,
         api_client: TestClient,

@@ -77,9 +77,34 @@ Comparisons with `FieldRef` operators (`<`, `<=`, `>`, `>=`) are None-safe: a re
 filter on presence itself. `order_by` likewise sorts `None` values last.
 
 `FieldRef` supports `==`, `!=`, `<`, `<=`, `>`, `>=`, `.contains()`, `.is_in()`, `.is_none()`,
-`.is_not_none()`. Use `false()` / `true()` (imported from `horde_model_reference`) instead of
-Python's `False` / `True` when comparing boolean fields, since `== False` would compare against
-the Python built-in rather than producing a `FieldRef` predicate:
+`.is_not_none()`, `.is_true()`, and `.is_false()`. For boolean fields, prefer `.is_true()` and
+`.is_false()`:
+
+```python
+from horde_model_reference import ImageFields
+
+# Boolean filter with is_true() / is_false()
+results = (
+    manager.query("image_generation")
+    .where(ImageFields.nsfw.is_false(), ImageFields.inpainting.is_true())
+    .to_list()
+)
+```
+
+For equality comparisons with non-boolean values, use `==` directly. For boolean fields, an
+alternative is `false()` / `true()` (imported from `horde_model_reference`) — these produce
+`FieldRef` predicates instead of comparing against Python's built-in `False` / `True`:
+
+```python
+from horde_model_reference import ImageFields, false
+
+# Equivalent to ImageFields.nsfw.is_false()
+results = (
+    manager.query("image_generation")
+    .where(ImageFields.nsfw == false)
+    .to_list()
+)
+```
 
 ```python
 from horde_model_reference import TextFields, false
@@ -110,11 +135,11 @@ catch them in your IDE instead, so prefer `FieldRef` in code you maintain.
 Combine predicates with `&` (and), `|` (or), `~` (not):
 
 ```python
-from horde_model_reference import ImageFields, false, true
+from horde_model_reference import ImageFields
 
 # SFW models on SDXL OR any inpainting model
-pred = (ImageFields.nsfw == false()) & (ImageFields.baseline == "stable_diffusion_xl")
-pred_alt = ImageFields.inpainting == true()
+pred = ImageFields.nsfw.is_false() & (ImageFields.baseline == "stable_diffusion_xl")
+pred_alt = ImageFields.inpainting.is_true()
 
 results = (
     manager.query("image_generation")
@@ -263,16 +288,16 @@ results = (
 **Find the 5 largest SFW SDXL inpainting models:**
 
 ```python
-from horde_model_reference import ModelReferenceManager, ImageFields, false, true
+from horde_model_reference import ModelReferenceManager, ImageFields
 
 manager = ModelReferenceManager()
 
 results = (
     manager.query("image_generation")
     .where(
-        ImageFields.nsfw == false(),
+        ImageFields.nsfw.is_false(),
         ImageFields.baseline == "stable_diffusion_xl",
-        ImageFields.inpainting == true(),
+        ImageFields.inpainting.is_true(),
     )
     .order_by(ImageFields.size_on_disk_bytes.desc())
     .limit(5)
