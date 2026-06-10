@@ -158,14 +158,17 @@ class CanonicalFormat(StrEnum):
     """Which format is the canonical source of truth for model data.
 
     This controls which API version has write access:
-    - 'LEGACY': v1 API has CRUD operations, v2 API is read-only
+    - 'legacy': v1 API has CRUD operations, v2 API is read-only
     - 'v2': v2 API has CRUD operations, v1 API is read-only
     """
 
-    LEGACY = auto()
+    legacy = auto()
     """Legacy format is canonical. V1 API has write access."""
     v2 = auto()
     """V2 format is canonical. V2 API has write access."""
+
+    # Backward-compatible alias (prefer ``CanonicalFormat.legacy`` in new code)
+    LEGACY = legacy
 
 
 class BackendInfo(BaseModel):
