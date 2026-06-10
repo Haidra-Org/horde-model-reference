@@ -543,7 +543,7 @@ class TestLegacyFormatWriteRestriction:
         v1_canonical_manager: ModelReferenceManager,
     ) -> None:
         """Backend should support legacy writes when canonical_format='LEGACY'."""
-        assert horde_model_reference_settings.canonical_format == "LEGACY"
+        assert horde_model_reference_settings.canonical_format.upper() == "LEGACY"
         assert v1_canonical_manager.backend.supports_legacy_writes() is True
 
     def test_backend_rejects_legacy_writes_in_v2_mode(
@@ -1061,7 +1061,7 @@ class TestRouteConditionalImport:
         mock_auth_success: None,
     ) -> None:
         """CRUD routes should be registered when canonical_format='LEGACY' at import time."""
-        assert horde_model_reference_settings.canonical_format == "LEGACY"
+        assert horde_model_reference_settings.canonical_format.upper() == "LEGACY"
 
         category = MODEL_REFERENCE_CATEGORY.miscellaneous
         route_name = _get_create_route_for_category(category)

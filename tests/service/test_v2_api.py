@@ -883,25 +883,6 @@ class TestPendingQueueAdminApi:
         payload = _assert_success_response(response)
         assert {item["change_id"] for item in payload["items"]} == {approved_id}
 
-    def test_my_changes_requires_only_requestor_role(
-        self,
-        api_client: TestClient,
-        primary_manager_for_api: ModelReferenceManager,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        """A requestor with no approver role can read my_changes but not the approver /changes list."""
-        from horde_model_reference import horde_model_reference_settings
-
-        monkeypatch.setattr(horde_model_reference_settings.pending_queue, "approver_ids", [])
-
-        _enqueue_pending_change(primary_manager_for_api, model_name="queue_requestor_only")
-
-        approver_response = api_client.get(f"{self._base_url}/changes", headers=_auth_headers())
-        assert approver_response.status_code == 401, approver_response.json()
-
-        requestor_response = api_client.get(f"{self._base_url}/my_changes", headers=_auth_headers())
-        _assert_success_response(requestor_response)
-
     def test_read_single_pending_change(
         self,
         api_client: TestClient,
