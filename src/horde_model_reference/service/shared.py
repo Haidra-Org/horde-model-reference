@@ -262,34 +262,68 @@ def _queue_approver_allowlist() -> set[str]:
 async def authenticate_queue_requestor(apikey: str) -> HordeUserContext:
     """Authenticate a queue requestor using the configured allowlist.
 
+    Distinguishes invalid credentials (401) from a valid key that lacks the
+    role (403) so clients can message each case correctly.
+
     Raises:
-        APIKeyInvalidException: If no allowlist is configured or the user is not authorized.
-        HTTPException: 503 if the Horde auth service is unreachable.
+        APIKeyInvalidException: If no allowlist is configured or the key is invalid.
+        HTTPException: 403 if the user is authenticated but not on the requestor
+            allowlist; 503 if the Horde auth service is unreachable.
     """
     allowlist = _queue_requestor_allowlist()
     if not allowlist:
         raise APIKeyInvalidException()
 
-    context = await auth_against_horde(apikey, httpx_client, allowed_user_ids=allowlist)
+    context = await auth_against_horde(apikey, httpx_client, allowed_user_ids=None)
     if context is None:
         raise APIKeyInvalidException()
+    if context.user_id not in allowlist:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not on the pending queue requestor list.",
+        )
     return context
 
 
 async def authenticate_queue_approver(apikey: str) -> HordeUserContext:
     """Authenticate a queue approver using the configured allowlist.
 
+    Distinguishes invalid credentials (401) from a valid key that lacks the
+    role (403) so clients can message each case correctly.
+
     Raises:
-        APIKeyInvalidException: If no allowlist is configured or the user is not authorized.
-        HTTPException: 503 if the Horde auth service is unreachable.
+        APIKeyInvalidException: If no allowlist is configured or the key is invalid.
+        HTTPException: 403 if the user is authenticated but not on the approver
+            allowlist; 503 if the Horde auth service is unreachable.
     """
     allowlist = _queue_approver_allowlist()
     if not allowlist:
         raise APIKeyInvalidException()
 
-    context = await auth_against_horde(apikey, httpx_client, allowed_user_ids=allowlist)
-    if context is not None:
-        logger.debug(f"Approver authenticated: user_id={context.user_id}")
+    context = await auth_against_horde(apikey, httpx_client, allowed_user_ids=None)
+    if context is None:
+        raise APIKeyInvalidException()
+    if context.user_id not in allowlist:
+        raise HTTPException(
+            status_code=403,
+            detail="You are not on the pending queue approver list.",
+        )
+    logger.debug(f"Approver authenticated: user_id={context.user_id}")
+    return context
+
+
+async def authenticate_queue_reader(apikey: str) -> HordeUserContext:
+    """Authenticate any valid Horde API key for read-only pending queue access.
+
+    The pending queue is a transparency surface: any authenticated user may view
+    queued changes and audit history, while approve/reject/apply/purge operations
+    remain gated by the approver allowlist.
+
+    Raises:
+        APIKeyInvalidException: If the key does not resolve to a Horde user.
+        HTTPException: 503 if the Horde auth service is unreachable.
+    """
+    context = await auth_against_horde(apikey, httpx_client, allowed_user_ids=None)
     if context is None:
         raise APIKeyInvalidException()
     return context

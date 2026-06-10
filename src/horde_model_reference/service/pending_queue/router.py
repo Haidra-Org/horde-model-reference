@@ -32,6 +32,7 @@ from horde_model_reference.service.pending_queue.dependencies import require_pen
 from horde_model_reference.service.shared import (
     ErrorResponse,
     authenticate_queue_approver,
+    authenticate_queue_reader,
     authenticate_queue_requestor,
     get_model_reference_manager,
     header_auth_scheme,
@@ -267,8 +268,11 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
         offset: OffsetQuery = 0,
         limit: LimitQuery = 50,
     ) -> PendingQueuePage:
-        """Return a filtered, paginated list of pending queue entries."""
-        await _assert_approver(apikey)
+        """Return a filtered, paginated list of pending queue entries.
+
+        Readable by any authenticated user; the queue is a transparency surface.
+        """
+        await authenticate_queue_reader(apikey)
         assert_write_enabled(manager)
         queue_service = require_pending_queue_service(manager)
 
@@ -291,6 +295,7 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
         responses={
             200: {"description": "Your submitted queue entries"},
             401: {"description": "Invalid API key", "model": ErrorResponse},
+            403: {"description": "Valid key but missing the requestor role", "model": ErrorResponse},
             503: {"description": "Pending queue disabled", "model": ErrorResponse},
         },
     )
@@ -327,6 +332,7 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
             200: {"description": "Filtered changes removed"},
             400: {"description": "Invalid purge request", "model": ErrorResponse},
             401: {"description": "Invalid API key", "model": ErrorResponse},
+            403: {"description": "Valid key but missing the approver role", "model": ErrorResponse},
         },
     )
     async def purge_pending_changes(
@@ -385,8 +391,11 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
         manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
         apikey: Annotated[str, Depends(header_auth_scheme)],
     ) -> PendingChangeRecord:
-        """Return details for a single pending change."""
-        await _assert_approver(apikey)
+        """Return details for a single pending change.
+
+        Readable by any authenticated user — the queue is a transparency surface.
+        """
+        await authenticate_queue_reader(apikey)
         queue_service = require_pending_queue_service(manager)
         record = queue_service.get_change(change_id)
         if record is None:
@@ -416,8 +425,10 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
         For UPDATE operations, returns field-level diffs showing added,
         removed, and modified fields. For CREATE/DELETE operations, shows
         the full proposed/current state respectively.
+
+        Readable by any authenticated user — the queue is a transparency surface.
         """
-        await _assert_approver(apikey)
+        await authenticate_queue_reader(apikey)
         queue_service = require_pending_queue_service(manager)
         diff_service = PendingChangeDiffService(manager=manager, queue_service=queue_service)
 
@@ -445,8 +456,10 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
 
         Accepts a list of change IDs and returns diffs for each. Changes
         that cannot be found or diffed are reported in the errors array.
+
+        Readable by any authenticated user — the queue is a transparency surface.
         """
-        await _assert_approver(apikey)
+        await authenticate_queue_reader(apikey)
         queue_service = require_pending_queue_service(manager)
         diff_service = PendingChangeDiffService(manager=manager, queue_service=queue_service)
 
@@ -461,6 +474,7 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
             200: {"description": "Batch processed"},
             400: {"description": "Invalid batch request", "model": ErrorResponse},
             401: {"description": "Invalid API key", "model": ErrorResponse},
+            403: {"description": "Valid key but missing the approver role", "model": ErrorResponse},
         },
     )
     async def process_pending_batch(
@@ -494,6 +508,7 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
             200: {"description": "Change applied"},
             400: {"description": "Change not ready for apply", "model": ErrorResponse},
             401: {"description": "Invalid API key", "model": ErrorResponse},
+            403: {"description": "Valid key but missing the approver role", "model": ErrorResponse},
             404: {"description": "Change not found", "model": ErrorResponse},
             503: {"description": "Writes not supported", "model": ErrorResponse},
         },
@@ -553,6 +568,7 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
             200: {"description": "All requested changes applied"},
             400: {"description": "Invalid request or change state"},
             401: {"description": "Invalid API key", "model": ErrorResponse},
+            403: {"description": "Valid key but missing the approver role", "model": ErrorResponse},
             404: {"description": "One of the change ids was not found"},
             503: {"description": "Writes not supported or backend failure"},
         },
@@ -611,6 +627,7 @@ def build_pending_queue_router(*, tags: Sequence[str], assert_write_enabled: Wri
             200: {"description": "All approved changes in batch applied"},
             400: {"description": "Invalid batch or change state"},
             401: {"description": "Invalid API key", "model": ErrorResponse},
+            403: {"description": "Valid key but missing the approver role", "model": ErrorResponse},
             404: {"description": "Batch not found or has no approved changes"},
             503: {"description": "Writes not supported or backend failure"},
         },
