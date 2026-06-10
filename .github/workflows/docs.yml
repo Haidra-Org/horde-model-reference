@@ -44,6 +44,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      # We need to initialize the submodules to get the markdown files for link checking.
+      - name: Initialize submodules
+        run: git submodule update --init --recursive
+
       # README and other root markdown live outside the MkDocs site, so the
       # strict build above does not cover them. lychee in --offline mode
       # validates relative/local links (catching README -> file drift) without
