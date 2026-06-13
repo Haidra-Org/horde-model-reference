@@ -964,10 +964,9 @@ class ModelReferenceManager:
         for category, reference in all_references.items():
             if reference is not None:
                 safe_references[category] = reference
-            else:
+            elif category not in categories_managed_elsewhere:
+                missing_references.append(category)
                 safe_references[category] = {}
-                if category not in categories_managed_elsewhere:
-                    missing_references.append(category)
 
         if missing_references:
             logger.error(f"Missing model references for categories: {missing_references}")

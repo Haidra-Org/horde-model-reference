@@ -16,6 +16,7 @@ from horde_model_reference.meta_consts import (
     MODEL_PURPOSE,
     MODEL_REFERENCE_CATEGORY,
     ModelClassification,
+    categories_managed_elsewhere,
 )
 from horde_model_reference.model_reference_manager import ModelReferenceManager
 from horde_model_reference.model_reference_records import GenericModelRecord, ImageGenerationModelRecord
@@ -127,13 +128,13 @@ def test_manager(
     all_references = model_reference_manager.get_all_model_references(overwrite_existing=False)
 
     assert len(all_references) > 0
-    assert all(ref_cat in all_references for ref_cat in MODEL_REFERENCE_CATEGORY)
+    assert all(ref_cat in all_references for ref_cat in MODEL_REFERENCE_CATEGORY if ref_cat not in categories_managed_elsewhere if ref_cat not in categories_managed_elsewhere)
     assert all(ref is not None for ref in all_references.values())
 
     verify_model_references_structure(all_references)
 
     cached_references = model_reference_manager.get_all_model_references_or_none(overwrite_existing=False)
-    assert len(cached_references) == len(all_references)
+    assert len(cached_references) == len(all_references) + len(categories_managed_elsewhere)
 
 
 @pytest.mark.integration
@@ -168,12 +169,12 @@ async def test_manager_async(
     all_references = model_reference_manager.get_all_model_references(overwrite_existing=False)
 
     assert len(all_references) > 0
-    assert all(ref_cat in all_references for ref_cat in MODEL_REFERENCE_CATEGORY)
+    assert all(ref_cat in all_references for ref_cat in MODEL_REFERENCE_CATEGORY if ref_cat not in categories_managed_elsewhere)
 
     verify_model_references_structure(all_references)
 
     cached_references = model_reference_manager.get_all_model_references_or_none(overwrite_existing=False)
-    assert len(cached_references) == len(all_references)
+    assert len(cached_references) == len(all_references) + len(categories_managed_elsewhere)
 
 
 class TestSingleton:
@@ -513,7 +514,7 @@ class TestAsyncErgonomics:
         )
 
         first_result = await manager.get_all_model_references_async()
-        assert len(first_result) == len(MODEL_REFERENCE_CATEGORY)
+        assert len(first_result) == len(MODEL_REFERENCE_CATEGORY) - len(categories_managed_elsewhere)
         assert len(backend.async_calls) == 1
 
         second_result = await manager.get_all_model_references_async()

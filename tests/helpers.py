@@ -1,4 +1,5 @@
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.meta_consts import categories_managed_elsewhere
 from horde_model_reference.model_reference_records import GenericModelRecord
 
 
@@ -13,10 +14,13 @@ def verify_model_references_structure(
     Raises:
         AssertionError: If validation fails.
     """
-    # Should have all categories
-    assert len(all_references) == len(MODEL_REFERENCE_CATEGORY)
+    # Should have all categories except those managed elsewhere
+    expected_count = len(MODEL_REFERENCE_CATEGORY) - len(categories_managed_elsewhere)
+    assert len(all_references) == expected_count
 
     for category in MODEL_REFERENCE_CATEGORY:
+        if category in categories_managed_elsewhere:
+            continue
         assert category in all_references, f"Category {category} is missing"
 
         references = all_references[category]
