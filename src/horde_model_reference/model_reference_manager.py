@@ -1417,40 +1417,49 @@ class ModelReferenceManager:
         """Return the provider registered under *source_id*, or ``None``."""
         return self._provider_registry.get(source_id)
 
-    def _resolve_source_selectors(
+    def _resolve_ordered_source_ids(
         self,
         selectors: list[str],
-    ) -> tuple[bool, list[str]]:
-        """Split normalized selectors into ``(include_canonical, ordered_provider_ids)``.
+    ) -> list[str]:
+        """Return an ordered, de-duplicated list of concrete source ids to read.
 
-        ``ANY_SOURCE`` expands to the canonical source plus every registered provider.
-        Explicitly named, unregistered provider ids raise ``ValueError``; ids discovered
-        via ``ANY_SOURCE`` are simply the live set and never raise.
+        Unlike a canonical-first split, this preserves each selector's **position** so
+        callers control collision precedence (earlier sources win during the
+        ``setdefault`` merge). The canonical source (:data:`HORDE_SOURCE_ID`) is treated
+        as just another id and keeps wherever it appears in the selector, so
+        ``["pending", "horde"]`` lets the ``"pending"`` provider override canonical while
+        the default ``["horde"]`` is canonical-only.
+
+        ``ANY_SOURCE`` expands to the canonical source **first**, then every registered
+        provider in registration order, preserving the historical "canonical wins"
+        default for ``"any"``. Explicitly named, unregistered provider ids raise
+        ``ValueError``; ids discovered via ``ANY_SOURCE`` are simply the live set and
+        never raise.
         """
-        include_canonical = False
-        provider_ids: list[str] = []
+        ordered: list[str] = []
         seen: set[str] = set()
+
+        def _add(source_id: str) -> None:
+            if source_id not in seen:
+                seen.add(source_id)
+                ordered.append(source_id)
 
         for selector in selectors:
             if selector == ANY_SOURCE:
-                include_canonical = True
+                _add(HORDE_SOURCE_ID)
                 for provider_id in self._provider_registry.source_ids():
-                    if provider_id not in seen:
-                        seen.add(provider_id)
-                        provider_ids.append(provider_id)
+                    _add(provider_id)
             elif selector == HORDE_SOURCE_ID:
-                include_canonical = True
+                _add(HORDE_SOURCE_ID)
             else:
                 if not self._provider_registry.has(selector):
                     raise ValueError(
                         f"No provider registered under source id {selector!r}. "
                         f"Registered providers: {self._provider_registry.source_ids()}.",
                     )
-                if selector not in seen:
-                    seen.add(selector)
-                    provider_ids.append(selector)
+                _add(selector)
 
-        return include_canonical, provider_ids
+        return ordered
 
     @staticmethod
     def _is_canonical_only(source: SourceSelector) -> bool:
@@ -1466,55 +1475,56 @@ class ModelReferenceManager:
     ) -> tuple[list[GenericModelRecord], list[str], dict[str, SourceOutcome]]:
         """Collect records and aligned source ids for *category* from the selected sources.
 
-        Records are returned canonical-first (so the canonical source wins name
-        collisions during de-duplication) followed by each provider's records in
-        selector order. Duplicates are intentionally retained so callers/queries can
-        detect collisions. A provider raising or returning ``None`` is logged and
-        skipped (error isolation).
+        Records are returned in **selector order** (the canonical source is read at its
+        position in the selector rather than always first), so the first source to
+        provide a given name wins during the ``setdefault`` merge. Duplicates are
+        intentionally retained so callers/queries can detect collisions. A provider
+        raising or returning ``None`` is logged and skipped (error isolation).
 
         The third return value maps every *selected* source id to its outcome
         (``"ok"`` / ``"empty"`` / ``"error"``) so callers can distinguish a source
         that failed from one that simply had nothing for this category.
         """
         selectors = normalize_source_selector(source)
-        include_canonical, provider_ids = self._resolve_source_selectors(selectors)
+        ordered_source_ids = self._resolve_ordered_source_ids(selectors)
 
         records: list[GenericModelRecord] = []
         sources: list[str] = []
         status: dict[str, SourceOutcome] = {}
 
-        if include_canonical:
-            status[HORDE_SOURCE_ID] = "empty"
-            canonical = self.get_all_model_references_or_none(
-                overwrite_existing=overwrite_existing,
-            ).get(category)
-            if canonical:
-                status[HORDE_SOURCE_ID] = "ok"
-                for record in canonical.values():
-                    records.append(record)
-                    sources.append(HORDE_SOURCE_ID)
+        for source_id in ordered_source_ids:
+            status[source_id] = "empty"
 
-        for provider_id in provider_ids:
-            status[provider_id] = "empty"
-            provider = self._provider_registry.get(provider_id)
-            if provider is None:  # pragma: no cover - guarded by _resolve_source_selectors
+            if source_id == HORDE_SOURCE_ID:
+                canonical = self.get_all_model_references_or_none(
+                    overwrite_existing=overwrite_existing,
+                ).get(category)
+                if canonical:
+                    status[source_id] = "ok"
+                    for record in canonical.values():
+                        records.append(record)
+                        sources.append(HORDE_SOURCE_ID)
+                continue
+
+            provider = self._provider_registry.get(source_id)
+            if provider is None:  # pragma: no cover - guarded by _resolve_ordered_source_ids
                 continue
             if not provider.serves_category(category):
                 continue
             try:
                 provided = provider.fetch_category(category, force_refresh=overwrite_existing)
             except Exception as exc:
-                status[provider_id] = "error"
+                status[source_id] = "error"
                 logger.error(
-                    f"Provider {provider_id!r} raised while fetching category {category.value!r}; skipping: {exc}",
+                    f"Provider {source_id!r} raised while fetching category {category.value!r}; skipping: {exc}",
                 )
                 continue
             if not provided:
                 continue
-            status[provider_id] = "ok"
+            status[source_id] = "ok"
             for record in provided.values():
                 records.append(record)
-                sources.append(provider_id)
+                sources.append(source_id)
 
         return records, sources, status
 
@@ -1553,46 +1563,47 @@ class ModelReferenceManager:
     ) -> tuple[list[GenericModelRecord], list[str], dict[str, SourceOutcome]]:
         """Async counterpart to :meth:`_gather_sourced_records` using provider async fetch."""
         selectors = normalize_source_selector(source)
-        include_canonical, provider_ids = self._resolve_source_selectors(selectors)
+        ordered_source_ids = self._resolve_ordered_source_ids(selectors)
 
         records: list[GenericModelRecord] = []
         sources: list[str] = []
         status: dict[str, SourceOutcome] = {}
 
-        if include_canonical:
-            status[HORDE_SOURCE_ID] = "empty"
-            all_references = await self.get_all_model_references_or_none_async(
-                overwrite_existing=overwrite_existing,
-                httpx_client=httpx_client,
-            )
-            canonical = all_references.get(category)
-            if canonical:
-                status[HORDE_SOURCE_ID] = "ok"
-                for record in canonical.values():
-                    records.append(record)
-                    sources.append(HORDE_SOURCE_ID)
+        for source_id in ordered_source_ids:
+            status[source_id] = "empty"
 
-        for provider_id in provider_ids:
-            status[provider_id] = "empty"
-            provider = self._provider_registry.get(provider_id)
-            if provider is None:  # pragma: no cover - guarded by _resolve_source_selectors
+            if source_id == HORDE_SOURCE_ID:
+                all_references = await self.get_all_model_references_or_none_async(
+                    overwrite_existing=overwrite_existing,
+                    httpx_client=httpx_client,
+                )
+                canonical = all_references.get(category)
+                if canonical:
+                    status[source_id] = "ok"
+                    for record in canonical.values():
+                        records.append(record)
+                        sources.append(HORDE_SOURCE_ID)
+                continue
+
+            provider = self._provider_registry.get(source_id)
+            if provider is None:  # pragma: no cover - guarded by _resolve_ordered_source_ids
                 continue
             if not provider.serves_category(category):
                 continue
             try:
                 provided = await provider.fetch_category_async(category, force_refresh=overwrite_existing)
             except Exception as exc:
-                status[provider_id] = "error"
+                status[source_id] = "error"
                 logger.error(
-                    f"Provider {provider_id!r} raised while fetching category {category.value!r}; skipping: {exc}",
+                    f"Provider {source_id!r} raised while fetching category {category.value!r}; skipping: {exc}",
                 )
                 continue
             if not provided:
                 continue
-            status[provider_id] = "ok"
+            status[source_id] = "ok"
             for record in provided.values():
                 records.append(record)
-                sources.append(provider_id)
+                sources.append(source_id)
 
         return records, sources, status
 

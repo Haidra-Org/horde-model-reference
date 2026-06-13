@@ -11,6 +11,7 @@ See :mod:`horde_model_reference.source_consts` for the source-selection constant
 from __future__ import annotations
 
 from horde_model_reference.providers.base import ModelProvider
+from horde_model_reference.providers.pending_provider import PENDING_SOURCE_ID, PendingModelProvider
 from horde_model_reference.providers.registry import ModelProviderRegistry
 from horde_model_reference.providers.static_provider import StaticModelProvider
 from horde_model_reference.source_consts import (
@@ -24,9 +25,11 @@ from horde_model_reference.source_consts import (
 __all__ = [
     "ANY_SOURCE",
     "HORDE_SOURCE_ID",
+    "PENDING_SOURCE_ID",
     "RESERVED_SOURCE_IDS",
     "ModelProvider",
     "ModelProviderRegistry",
+    "PendingModelProvider",
     "SourceSelector",
     "StaticModelProvider",
     "normalize_source_selector",

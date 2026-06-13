@@ -128,7 +128,12 @@ def test_manager(
     all_references = model_reference_manager.get_all_model_references(overwrite_existing=False)
 
     assert len(all_references) > 0
-    assert all(ref_cat in all_references for ref_cat in MODEL_REFERENCE_CATEGORY if ref_cat not in categories_managed_elsewhere if ref_cat not in categories_managed_elsewhere)
+    assert all(
+        ref_cat in all_references
+        for ref_cat in MODEL_REFERENCE_CATEGORY
+        if ref_cat not in categories_managed_elsewhere
+        if ref_cat not in categories_managed_elsewhere
+    )
     assert all(ref is not None for ref in all_references.values())
 
     verify_model_references_structure(all_references)
@@ -169,7 +174,11 @@ async def test_manager_async(
     all_references = model_reference_manager.get_all_model_references(overwrite_existing=False)
 
     assert len(all_references) > 0
-    assert all(ref_cat in all_references for ref_cat in MODEL_REFERENCE_CATEGORY if ref_cat not in categories_managed_elsewhere)
+    assert all(
+        ref_cat in all_references
+        for ref_cat in MODEL_REFERENCE_CATEGORY
+        if ref_cat not in categories_managed_elsewhere
+    )
 
     verify_model_references_structure(all_references)
 

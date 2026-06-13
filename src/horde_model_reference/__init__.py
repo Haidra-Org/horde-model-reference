@@ -571,8 +571,10 @@ from .model_reference_records import (  # noqa: E402
 from .providers import (  # noqa: E402
     ANY_SOURCE,
     HORDE_SOURCE_ID,
+    PENDING_SOURCE_ID,
     ModelProvider,
     ModelProviderRegistry,
+    PendingModelProvider,
     StaticModelProvider,
 )
 from .source_consts import SourceSelector  # noqa: E402
@@ -609,6 +611,7 @@ __all__ = [
     "MODEL_PURPOSE",
     "MODEL_REFERENCE_CATEGORY",
     "MODEL_STYLE",
+    "PENDING_SOURCE_ID",
     "AudioFields",
     "BaselineDescriptor",
     "BlipFields",
@@ -630,6 +633,7 @@ __all__ = [
     "ModelQuery",
     "ModelReferenceManager",
     "OrderSpec",
+    "PendingModelProvider",
     "PopularModelResult",
     "Predicate",
     "PrefetchStrategy",

@@ -559,3 +559,72 @@ def test_static_provider_rejects_invalid_source_id(reserved: str) -> None:
     """StaticModelProvider validates its source id on construction."""
     with pytest.raises(ValueError):
         StaticModelProvider(reserved, {})
+
+
+def test_ordered_selector_lets_provider_override_canonical(
+    provider_env: tuple[ModelReferenceManager, CanonicalView],
+) -> None:
+    """An explicit ``[provider, "horde"]`` selector lets the provider win a name collision.
+
+    This is the precedence used to surface "beta" models over canonical ones.
+    """
+    manager, canonical = provider_env
+    canonical[MODEL_REFERENCE_CATEGORY.image_generation] = {"shared": _make_image_model("shared", nsfw=False)}
+    manager.register_provider(
+        StubProvider(
+            "pending",
+            {MODEL_REFERENCE_CATEGORY.image_generation: {"shared": _make_image_model("shared", nsfw=True)}},
+        ),
+    )
+
+    merged = manager.get_model_reference(
+        MODEL_REFERENCE_CATEGORY.image_generation,
+        source=["pending", HORDE_SOURCE_ID],
+    )
+
+    shared = merged["shared"]
+    assert isinstance(shared, ImageGenerationModelRecord)
+    assert shared.nsfw is True  # the provider (listed first) wins
+
+
+def test_ordered_selector_canonical_first_keeps_canonical(
+    provider_env: tuple[ModelReferenceManager, CanonicalView],
+) -> None:
+    """``["horde", provider]`` keeps canonical-wins; ordering controls precedence."""
+    manager, canonical = provider_env
+    canonical[MODEL_REFERENCE_CATEGORY.image_generation] = {"shared": _make_image_model("shared", nsfw=False)}
+    manager.register_provider(
+        StubProvider(
+            "pending",
+            {MODEL_REFERENCE_CATEGORY.image_generation: {"shared": _make_image_model("shared", nsfw=True)}},
+        ),
+    )
+
+    merged = manager.get_model_reference(
+        MODEL_REFERENCE_CATEGORY.image_generation,
+        source=[HORDE_SOURCE_ID, "pending"],
+    )
+
+    shared = merged["shared"]
+    assert isinstance(shared, ImageGenerationModelRecord)
+    assert shared.nsfw is False  # canonical (listed first) wins
+
+
+def test_ordered_selector_adds_provider_only_models(
+    provider_env: tuple[ModelReferenceManager, CanonicalView],
+) -> None:
+    """A provider-only model is additive regardless of override ordering."""
+    manager, canonical = provider_env
+    canonical[MODEL_REFERENCE_CATEGORY.image_generation] = {"horde_model": _make_image_model("horde_model")}
+    manager.register_provider(
+        StubProvider(
+            "pending",
+            {MODEL_REFERENCE_CATEGORY.image_generation: {"beta_model": _make_image_model("beta_model")}},
+        ),
+    )
+
+    merged = manager.get_model_reference(
+        MODEL_REFERENCE_CATEGORY.image_generation,
+        source=["pending", HORDE_SOURCE_ID],
+    )
+    assert set(merged) == {"horde_model", "beta_model"}

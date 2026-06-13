@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import JSONResponse
 from haidra_core.service_base import ContainsMessage
 
-from horde_model_reference import ModelReferenceManager
+from horde_model_reference import ModelReferenceManager, horde_model_reference_settings
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import (
@@ -13,13 +13,20 @@ from horde_model_reference.model_reference_records import (
     GenericModelRecord,
     TextGenerationModelRecord,
 )
-from horde_model_reference.pending_queue import PendingChangeRecord, PendingQueueService
+from horde_model_reference.pending_queue import (
+    PendingChangeRecord,
+    PendingChangeStatus,
+    PendingQueueFilter,
+    PendingQueueService,
+)
+from horde_model_reference.pending_queue.materialize import materialize_pending_records
 from horde_model_reference.service.pending_queue.dependencies import require_pending_queue_service
 from horde_model_reference.service.shared import (
     READ_ERROR_RESPONSES,
     ErrorResponse,
     PathVariables,
     RouteNames,
+    authenticate_queue_reader,
     authenticate_queue_requestor,
     get_model_reference_manager,
     header_auth_scheme,
@@ -474,6 +481,54 @@ async def read_v2_single_model(
         )
 
     return JSONResponse(content=raw_json[model_name], media_type="application/json")
+
+
+pending_route_subpath = f"/{{{PathVariables.model_category_name}}}/pending"
+"""/{model_category_name}/pending"""
+
+
+@router.get(
+    pending_route_subpath,
+    response_model=dict[str, ModelRecordUnion],
+    responses={
+        200: {"description": "Pending (beta) models in the category, materialized as v2 records"},
+        401: {"description": "Invalid API key", "model": ErrorResponse},
+        503: {"description": "Pending queue not enabled on this deployment", "model": ErrorResponse},
+    },
+    summary="Get pending (beta) models for a category",
+    operation_id="read_v2_reference_pending",
+)
+async def read_v2_reference_pending(
+    model_category_name: MODEL_REFERENCE_CATEGORY,
+    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    apikey: Annotated[str, Depends(header_auth_scheme)],
+) -> JSONResponse:
+    """Return ``PENDING``/``APPROVED`` create/update changes as ready-to-use v2 records.
+
+    These are "beta" models awaiting (or pending) approval into the canonical reference.
+    The payload is keyed by model name and shaped exactly like the canonical category
+    endpoint, so a REPLICA client can overlay it onto canonical data without any format
+    handling. ``DELETE`` changes are never surfaced (a beta cannot remove a live model),
+    and when several changes target one name the most recent wins.
+
+    Reader authentication is required (any valid Horde API key), matching the other
+    pending-queue read surfaces.
+    """
+    await authenticate_queue_reader(apikey)
+    queue_service = require_pending_queue_service(manager)
+
+    page = queue_service.list_changes(
+        queue_filter=PendingQueueFilter(
+            categories={model_category_name},
+            statuses={PendingChangeStatus.PENDING, PendingChangeStatus.APPROVED},
+        ),
+    )
+    records = materialize_pending_records(
+        model_category_name,
+        page.items,
+        domain=horde_model_reference_settings.canonical_format,
+    )
+    return JSONResponse(content=records, media_type="application/json")
 
 
 # ---------------------------------------------------------------------------
