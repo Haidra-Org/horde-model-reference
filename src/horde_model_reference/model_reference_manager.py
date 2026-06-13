@@ -962,11 +962,12 @@ class ModelReferenceManager:
         safe_references: dict[MODEL_REFERENCE_CATEGORY, dict[str, GenericModelRecord]] = {}
         missing_references: list[MODEL_REFERENCE_CATEGORY] = []
         for category, reference in all_references.items():
-            if category not in categories_managed_elsewhere:
-                missing_references.append(category)
-                safe_references[category] = {}
-            elif reference is not None:
+            if reference is not None:
                 safe_references[category] = reference
+            else:
+                safe_references[category] = {}
+                if category not in categories_managed_elsewhere:
+                    missing_references.append(category)
 
         if missing_references:
             logger.error(f"Missing model references for categories: {missing_references}")
