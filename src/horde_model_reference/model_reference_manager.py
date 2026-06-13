@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Generator, Iterable
+from collections.abc import Awaitable, Generator, Iterable, Mapping
 from pathlib import Path
 from threading import RLock
 from typing import TYPE_CHECKING, Any, ClassVar, Literal, TypeVar, overload
@@ -1123,13 +1123,71 @@ class ModelReferenceManager:
             httpx_client=httpx_client,
         )
 
+    @overload
+    def get_model_reference(
+        self,
+        category: Literal[MODEL_REFERENCE_CATEGORY.audio_generation],
+        overwrite_existing: bool = False,
+    ) -> dict[str, AudioGenerationModelRecord]: ...
+
+    @overload
+    def get_model_reference(
+        self,
+        category: Literal[MODEL_REFERENCE_CATEGORY.blip],
+        overwrite_existing: bool = False,
+    ) -> dict[str, BlipModelRecord]: ...
+
+    @overload
+    def get_model_reference(
+        self,
+        category: Literal[MODEL_REFERENCE_CATEGORY.clip],
+        overwrite_existing: bool = False,
+    ) -> dict[str, ClipModelRecord]: ...
+
+    @overload
+    def get_model_reference(
+        self,
+        category: Literal[MODEL_REFERENCE_CATEGORY.codeformer],
+        overwrite_existing: bool = False,
+    ) -> dict[str, CodeformerModelRecord]: ...
+
+    @overload
+    def get_model_reference(
+        self,
+        category: Literal[MODEL_REFERENCE_CATEGORY.controlnet],
+        overwrite_existing: bool = False,
+    ) -> dict[str, ControlNetModelRecord]: ...
+
+    @overload
+    def get_model_reference(
+        self,
+        category: Literal[MODEL_REFERENCE_CATEGORY.image_generation],
+        overwrite_existing: bool = False,
+    ) -> dict[str, ImageGenerationModelRecord]: ...
+
+    @overload
+    def get_model_reference(
+        self,
+        category: Literal[MODEL_REFERENCE_CATEGORY.text_generation],
+        overwrite_existing: bool = False,
+    ) -> dict[str, TextGenerationModelRecord]: ...
+
+    @overload
     def get_model_reference(
         self,
         category: MODEL_REFERENCE_CATEGORY,
         overwrite_existing: bool = False,
         *,
         source: SourceSelector = HORDE_SOURCE_ID,
-    ) -> dict[str, GenericModelRecord]:
+    ) -> dict[str, GenericModelRecord]: ...
+
+    def get_model_reference(
+        self,
+        category: MODEL_REFERENCE_CATEGORY = MODEL_REFERENCE_CATEGORY.image_generation,
+        overwrite_existing: bool = False,
+        *,
+        source: SourceSelector = HORDE_SOURCE_ID,
+    ) -> Mapping[str, GenericModelRecord]:
         """Return the model reference object for a specific category.
 
         Raises an exception if the model reference could not be found or parsed.
@@ -1141,7 +1199,7 @@ class ModelReferenceManager:
             source: Which source(s) to read from. See :meth:`get_model_reference_or_none`.
 
         Returns:
-            dict[str, GenericModelRecord]: The model reference object for the category.
+            Mapping[str, GenericModelRecord]: The model reference object for the category.
 
         """
         model_reference = self.get_model_reference_or_none(
