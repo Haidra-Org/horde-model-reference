@@ -213,6 +213,7 @@ class GenericFields:
     metadata: FieldRef = FieldRef("metadata")
     config: FieldRef = FieldRef("config")
     model_classification: FieldRef = FieldRef("model_classification")
+    size_on_disk_bytes: FieldRef = FieldRef("size_on_disk_bytes")
 
 
 class ImageFields(GenericFields):
@@ -229,7 +230,6 @@ class ImageFields(GenericFields):
     nsfw: FieldRef = FieldRef("nsfw")
     style: FieldRef = FieldRef("style")
     requirements: FieldRef = FieldRef("requirements")
-    size_on_disk_bytes: FieldRef = FieldRef("size_on_disk_bytes")
 
 
 class TextFields(GenericFields):
