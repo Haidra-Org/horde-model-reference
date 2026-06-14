@@ -39,6 +39,7 @@ dependencies = [
 [project.scripts]
 validate-sd-models = "horde_model_reference.legacy.validate_sd:main"
 download-sd-models = "horde_model_reference.legacy.download_live_legacy_dbs:main"
+migrate-model-layout = "horde_model_reference.cli.migrate_layout:main"
 
 [project.optional-dependencies]
 redis = [
