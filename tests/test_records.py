@@ -150,6 +150,63 @@ def test_download_count_zero() -> None:
     assert record.download_count == 0
 
 
+def test_category_returns_enum_for_known_record_type() -> None:
+    """Verify category resolves a record's record_type to the matching enum member."""
+    record = _make_generic_record()
+    assert record.category is MODEL_REFERENCE_CATEGORY.miscellaneous
+
+
+def test_category_returns_none_for_unknown_record_type() -> None:
+    """Verify category yields None (rather than raising) for an unrecognised record_type string."""
+    record = GenericModelRecord(
+        name="junk",
+        record_type="not_a_real_category",
+        model_classification=ModelClassification(domain=MODEL_DOMAIN.image, purpose=MODEL_PURPOSE.miscellaneous),
+    )
+    assert record.category is None
+
+
+def test_size_on_disk_bytes_available_on_base_record() -> None:
+    """Verify size_on_disk_bytes is a base-record field (lifted from ImageGenerationModelRecord)."""
+    record = GenericModelRecord(
+        name="sized",
+        record_type=MODEL_REFERENCE_CATEGORY.miscellaneous,
+        model_classification=ModelClassification(domain=MODEL_DOMAIN.image, purpose=MODEL_PURPOSE.miscellaneous),
+        size_on_disk_bytes=1234,
+    )
+    assert record.size_on_disk_bytes == 1234
+
+
+def test_declared_total_size_prefers_summed_per_file_sizes() -> None:
+    """Verify declared_total_size_bytes sums per-file sizes when every download declares one."""
+    record = _make_generic_record(
+        [
+            DownloadRecord(file_name="a.bin", file_url="https://example.com/a.bin", sha256sum="aaa", size_bytes=10),
+            DownloadRecord(file_name="b.bin", file_url="https://example.com/b.bin", sha256sum="bbb", size_bytes=20),
+        ]
+    )
+    record.size_on_disk_bytes = 999
+    assert record.declared_total_size_bytes == 30
+
+
+def test_declared_total_size_falls_back_to_aggregate_when_a_file_size_is_missing() -> None:
+    """Verify declared_total_size_bytes falls back to the aggregate when any per-file size is absent."""
+    record = _make_generic_record(
+        [
+            DownloadRecord(file_name="a.bin", file_url="https://example.com/a.bin", sha256sum="aaa", size_bytes=10),
+            DownloadRecord(file_name="b.bin", file_url="https://example.com/b.bin", sha256sum="bbb"),
+        ]
+    )
+    record.size_on_disk_bytes = 999
+    assert record.declared_total_size_bytes == 999
+
+
+def test_declared_total_size_is_none_when_undeclared() -> None:
+    """Verify declared_total_size_bytes is None when neither per-file nor aggregate sizes exist."""
+    record = _make_generic_record()
+    assert record.declared_total_size_bytes is None
+
+
 def test_model_record_union_covers_all_registered_types() -> None:
     """Verify ModelRecordUnionType includes every type registered in MODEL_RECORD_TYPE_LOOKUP.
 

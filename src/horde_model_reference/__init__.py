@@ -547,6 +547,7 @@ from .meta_consts import (  # noqa: E402, I001
     get_baseline_descriptor,
     get_category_descriptor,
     get_known_tags,
+    get_weights_marker_folders,
     register_image_baseline,
     register_category,
 )
@@ -567,6 +568,22 @@ from .model_reference_records import (  # noqa: E402
     TextualInversionModelRecord,
     get_record_type_for_category,
     register_record_type,
+)
+from .on_disk_layout import (  # noqa: E402
+    COMPONENT_PURPOSE_FOLDERS,
+    category_folder,
+    component_relative_path,
+    file_paths_for,
+    free_bytes_for,
+    is_present,
+    resolve_weights_root,
+)
+from .download_engine import (  # noqa: E402
+    DownloadOutcome,
+    download_file,
+    download_record_files,
+    md5_of,
+    sha256_of,
 )
 from .providers import (  # noqa: E402
     ANY_SOURCE,
@@ -602,6 +619,7 @@ from .query_fields import (  # noqa: E402
 
 __all__ = [
     "ANY_SOURCE",
+    "COMPONENT_PURPOSE_FOLDERS",
     "DEFAULT_SHOWCASE_FOLDER_NAME",
     "HORDE_SOURCE_ID",
     "KNOWN_IMAGE_GENERATION_BASELINE",
@@ -618,6 +636,7 @@ __all__ = [
     "CategoryDescriptor",
     "ClipFields",
     "CodeformerFields",
+    "DownloadOutcome",
     "ControlNetFields",
     "EsrganFields",
     "FieldRef",
@@ -646,7 +665,13 @@ __all__ = [
     "VideoFields",
     "build_image_query",
     "build_text_query",
+    "category_folder",
+    "component_relative_path",
+    "download_file",
+    "download_record_files",
     "false",
+    "file_paths_for",
+    "free_bytes_for",
     "get_all_registered_baselines",
     "get_all_registered_categories",
     "get_baseline_descriptor",
@@ -654,11 +679,16 @@ __all__ = [
     "get_known_tags",
     "get_model_name_variants",
     "get_record_type_for_category",
+    "get_weights_marker_folders",
     "has_legacy_text_backend_prefix",
     "horde_model_reference_paths",
+    "is_present",
+    "md5_of",
     "register_category",
     "register_image_baseline",
     "register_record_type",
+    "resolve_weights_root",
+    "sha256_of",
     "strip_backend_prefix",
     "true",
 ]

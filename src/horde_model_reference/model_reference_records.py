@@ -62,9 +62,14 @@ class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
     sha256sum: str = "FIXME"
     """The sha256sum of the file."""
     file_purpose: str | None = None
-    """"""
+    """The role this file plays for the model (e.g. ``"vae"`` or ``"text_encoders"``).
+
+    Drives on-disk placement: component files route to a sibling folder rather than sitting beside the
+    primary checkpoint. ``None`` means the file is the primary file for its category."""
     known_slow_download: bool | None = None
     """Whether the download is known to be slow or not."""
+    size_bytes: int | None = None
+    """The size of this file in bytes, if known. ``None`` when the reference does not declare it."""
 
 
 class GenericModelRecordConfig(BaseModel):
@@ -146,6 +151,38 @@ class GenericModelRecord(BaseModel):
 
     model_classification: ModelClassification
     """The classification of the model."""
+
+    size_on_disk_bytes: int | None = None
+    """The model's total on-disk size in bytes, if known.
+
+    A declared aggregate; prefer :attr:`declared_total_size_bytes`, which sums per-file sizes when every
+    download entry declares one. ``None`` when no size metadata is available."""
+
+    @property
+    def category(self) -> MODEL_REFERENCE_CATEGORY | None:
+        """Return this record's category, or None when ``record_type`` is not a known category.
+
+        ``record_type`` is normally the enum already; a plain-string value (older or third-party records)
+        is coerced, and an unrecognised string yields None rather than raising.
+        """
+        if isinstance(self.record_type, MODEL_REFERENCE_CATEGORY):
+            return self.record_type
+        try:
+            return MODEL_REFERENCE_CATEGORY(self.record_type)
+        except ValueError:
+            return None
+
+    @property
+    def declared_total_size_bytes(self) -> int | None:
+        """Return the model's total on-disk size in bytes, or None when undeclared.
+
+        Prefers summing per-file :attr:`DownloadRecord.size_bytes` when every download entry declares one;
+        otherwise falls back to the aggregate :attr:`size_on_disk_bytes`.
+        """
+        downloads = self.config.download if self.config else []
+        if downloads and all(download.size_bytes is not None for download in downloads):
+            return sum(download.size_bytes for download in downloads if download.size_bytes is not None)
+        return self.size_on_disk_bytes
 
     @property
     def primary_download_url(self) -> str | None:
@@ -274,8 +311,6 @@ class ImageGenerationModelRecord(GenericModelRecord):
     """The style of the model."""
 
     requirements: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
-
-    size_on_disk_bytes: int | None = None
 
     @model_validator(mode="after")
     def validator_set_arrays_to_empty_if_none(self) -> ImageGenerationModelRecord:

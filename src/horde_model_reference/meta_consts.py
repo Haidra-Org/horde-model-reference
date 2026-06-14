@@ -162,6 +162,19 @@ class CategoryDescriptor:
     """Non-default v2 filename (default is ``{category}.json``)."""
     legacy_filename_override: str | None = None
     """Non-default legacy filename (default matches v2)."""
+    on_disk_folder_name: str | None = None
+    """The folder under the model-weights root where this category's files live (e.g. ``"compvis"`` for
+    image generation). ``None`` for categories with no on-disk weights folder in this ecosystem (e.g.
+    text/video/audio generation)."""
+    weights_marker: bool = False
+    """Whether this category's folder is one of the markers used to locate the model-weights root.
+
+    See :func:`horde_model_reference.on_disk_layout.resolve_weights_root`."""
+    managed_download_elsewhere: bool = False
+    """Whether downloading is handled outside the horde_model_reference engine.
+
+    ``True`` for categories whose files are fetched by a specialised external mechanism (e.g. LoRA/TI via
+    CivitAI in hordelib); the :mod:`horde_model_reference.download_engine` is not used for them."""
 
 
 github_image_model_reference_categories: list[MODEL_REFERENCE_CATEGORY | str] = []
@@ -178,6 +191,9 @@ categories_managed_elsewhere: list[MODEL_REFERENCE_CATEGORY | str] = []
 
 MODEL_CLASSIFICATION_LOOKUP: dict[MODEL_REFERENCE_CATEGORY | str, ModelClassification] = {}
 
+WEIGHTS_MARKER_FOLDERS: tuple[str, ...] = ()
+"""Folder names whose joint presence marks the model-weights root (derived from the category registry)."""
+
 
 def _rebuild_category_derived_data(
     data: dict[MODEL_REFERENCE_CATEGORY | str, CategoryDescriptor],
@@ -187,11 +203,15 @@ def _rebuild_category_derived_data(
     global github_text_model_reference_categories
     global no_legacy_format_available_categories
     global categories_managed_elsewhere
+    global WEIGHTS_MARKER_FOLDERS
 
     github_image_model_reference_categories = [c for c, d in data.items() if d.github_source == "image"]
     github_text_model_reference_categories = [c for c, d in data.items() if d.github_source == "text"]
     no_legacy_format_available_categories = [c for c, d in data.items() if not d.has_legacy_format]
     categories_managed_elsewhere = [c for c, d in data.items() if d.managed_elsewhere]
+    WEIGHTS_MARKER_FOLDERS = tuple(
+        d.on_disk_folder_name for d in data.values() if d.weights_marker and d.on_disk_folder_name is not None
+    )
 
     MODEL_CLASSIFICATION_LOOKUP.clear()
     MODEL_CLASSIFICATION_LOOKUP.update(
@@ -237,6 +257,7 @@ register_category(
         domain=MODEL_DOMAIN.image,
         purpose=MODEL_PURPOSE.feature_extractor,
         github_source="image",
+        on_disk_folder_name="blip",
     ),
 )
 register_category(
@@ -245,6 +266,8 @@ register_category(
         domain=MODEL_DOMAIN.image,
         purpose=MODEL_PURPOSE.feature_extractor,
         github_source="image",
+        on_disk_folder_name="clip",
+        weights_marker=True,
     ),
 )
 register_category(
@@ -253,6 +276,7 @@ register_category(
         domain=MODEL_DOMAIN.image,
         purpose=MODEL_PURPOSE.post_processing,
         github_source="image",
+        on_disk_folder_name="codeformer",
     ),
 )
 register_category(
@@ -261,6 +285,7 @@ register_category(
         domain=MODEL_DOMAIN.image,
         purpose=MODEL_PURPOSE.auxiliary_or_patch,
         github_source="image",
+        on_disk_folder_name="controlnet",
     ),
 )
 register_category(
@@ -269,6 +294,7 @@ register_category(
         domain=MODEL_DOMAIN.image,
         purpose=MODEL_PURPOSE.post_processing,
         github_source="image",
+        on_disk_folder_name="esrgan",
     ),
 )
 register_category(
@@ -277,6 +303,7 @@ register_category(
         domain=MODEL_DOMAIN.image,
         purpose=MODEL_PURPOSE.post_processing,
         github_source="image",
+        on_disk_folder_name="gfpgan",
     ),
 )
 register_category(
@@ -285,6 +312,7 @@ register_category(
         domain=MODEL_DOMAIN.image,
         purpose=MODEL_PURPOSE.safety_checker,
         github_source="image",
+        on_disk_folder_name="safety_checker",
     ),
 )
 register_category(
@@ -294,6 +322,8 @@ register_category(
         purpose=MODEL_PURPOSE.generation,
         github_source="image",
         filename_override="stable_diffusion.json",
+        on_disk_folder_name="compvis",
+        weights_marker=True,
     ),
 )
 register_category(
@@ -328,6 +358,7 @@ register_category(
         domain=MODEL_DOMAIN.image,
         purpose=MODEL_PURPOSE.miscellaneous,
         github_source="image",
+        on_disk_folder_name="miscellaneous",
     ),
 )
 register_category(
@@ -337,6 +368,8 @@ register_category(
         purpose=MODEL_PURPOSE.auxiliary_or_patch,
         has_legacy_format=False,
         managed_elsewhere=True,
+        on_disk_folder_name="lora",
+        managed_download_elsewhere=True,
     ),
 )
 register_category(
@@ -346,6 +379,8 @@ register_category(
         purpose=MODEL_PURPOSE.auxiliary_or_patch,
         has_legacy_format=False,
         managed_elsewhere=True,
+        on_disk_folder_name="ti",
+        managed_download_elsewhere=True,
     ),
 )
 
@@ -365,6 +400,11 @@ def get_category_descriptor(category: MODEL_REFERENCE_CATEGORY | str) -> Categor
 def get_all_registered_categories() -> dict[MODEL_REFERENCE_CATEGORY | str, CategoryDescriptor]:
     """Return a shallow copy of the category registry."""
     return _CATEGORY_REGISTRY.all()
+
+
+def get_weights_marker_folders() -> tuple[str, ...]:
+    """Return the folder names whose joint presence marks the model-weights root."""
+    return WEIGHTS_MARKER_FOLDERS
 
 
 _unregistered_categories = {c for c in MODEL_REFERENCE_CATEGORY if not _CATEGORY_REGISTRY.contains(c)}
@@ -395,6 +435,7 @@ __all__ = [
     "get_baselines_by_resolution",
     "get_category_descriptor",
     "get_known_tags",
+    "get_weights_marker_folders",
     "is_known_controlnet_style",
     "is_known_image_baseline",
     "is_known_model_domain",
