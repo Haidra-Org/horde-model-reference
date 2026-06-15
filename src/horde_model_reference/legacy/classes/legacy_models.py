@@ -37,6 +37,7 @@ def _drop_none_keys(handler: SerializerFunctionWrapHandler, instance: BaseModel)
         return serialized
     return {key: value for key, value in serialized.items() if value is not None}
 
+
 _ALLOWED_CONFIG_FILENAMES = {"v2-inference-v.yaml", "v1-inference.yaml"}
 _BASELINE_NORMALIZATION_MAP = {
     "stable diffusion 1": "stable_diffusion_1",

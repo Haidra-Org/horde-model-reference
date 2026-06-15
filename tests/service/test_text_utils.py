@@ -129,7 +129,7 @@ class TestGetGroup:
 
     def test_get_group_members(self, api_client: TestClient, text_group_manager: ModelReferenceManager) -> None:
         """Test retrieving all members of a text model group and their details."""
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3")
+        resp = api_client.get(f"{_V2}/text_generation/group?name=Qwen3")
         assert resp.status_code == 200
         data = resp.json()
         assert data["group_name"] == "Qwen3"
@@ -137,9 +137,21 @@ class TestGetGroup:
         assert data["backend_duplicate_count"] == 0
         assert len(data["members"]) == 3
 
+    def test_get_group_handles_slash_in_name(
+        self, api_client: TestClient, text_group_manager: ModelReferenceManager
+    ) -> None:
+        """A group name containing '/' (HF org/model style) must reach the handler intact.
+
+        With the name carried as a query parameter, the request reaches get_group and returns the
+        handler's own 404 (which echoes the name) rather than a router-level "Not Found".
+        """
+        resp = api_client.get(f"{_V2}/text_generation/group", params={"name": "acme/Cool-7B"})
+        assert resp.status_code == 404
+        assert "acme/Cool-7B" in resp.json()["detail"]
+
     def test_group_common_fields(self, api_client: TestClient, text_group_manager: ModelReferenceManager) -> None:
         """Test that common fields across group members are correctly identified and returned."""
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3")
+        resp = api_client.get(f"{_V2}/text_generation/group?name=Qwen3")
         data = resp.json()
         common = data["common_fields"]
         # All canonical members share baseline="qwen3" and description
@@ -148,7 +160,7 @@ class TestGetGroup:
 
     def test_group_available_sizes(self, api_client: TestClient, text_group_manager: ModelReferenceManager) -> None:
         """Test that the available sizes within a text model group are correctly identified and returned."""
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3")
+        resp = api_client.get(f"{_V2}/text_generation/group?name=Qwen3")
         data = resp.json()
         sizes = data["available_sizes"]
         assert "0.6B" in sizes
@@ -157,7 +169,7 @@ class TestGetGroup:
 
     def test_group_usage_counts(self, api_client: TestClient, text_group_manager: ModelReferenceManager) -> None:
         """Test that usage counts by size, variant, and quant are correct and returned for a text model group."""
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3")
+        resp = api_client.get(f"{_V2}/text_generation/group?name=Qwen3")
         assert resp.status_code == 200
         data = resp.json()
 
@@ -173,12 +185,12 @@ class TestGetGroup:
 
     def test_group_not_found(self, api_client: TestClient, text_group_manager: ModelReferenceManager) -> None:
         """Test requesting a text model group that doesn't exist returns a 404 error."""
-        resp = api_client.get(f"{_V2}/text_generation/group/NonExistent")
+        resp = api_client.get(f"{_V2}/text_generation/group?name=NonExistent")
         assert resp.status_code == 404
 
     def test_group_parsed_info(self, api_client: TestClient, text_group_manager: ModelReferenceManager) -> None:
         """Test that parsed info for group members is included and correct."""
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3")
+        resp = api_client.get(f"{_V2}/text_generation/group?name=Qwen3")
         data = resp.json()
         # Find the Instruct variant
         instruct_members = [m for m in data["members"] if "Instruct" in m["name"]]
@@ -191,7 +203,7 @@ class TestGetGroup:
         self, api_client: TestClient, text_group_manager: ModelReferenceManager
     ) -> None:
         """Backend duplicates are not stored in v2 format - only canonical models."""
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3")
+        resp = api_client.get(f"{_V2}/text_generation/group?name=Qwen3")
         data = resp.json()
         dups = [m for m in data["members"] if m["is_backend_duplicate"]]
         assert len(dups) == 0
@@ -287,7 +299,7 @@ class TestGroupNameSchema:
         if store:
             store.delete("Qwen3")
 
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3/name_schema")
+        resp = api_client.get(f"{_V2}/text_generation/group/name_schema?name=Qwen3")
         assert resp.status_code == 200
         data = resp.json()
         assert data["group_name"] == "Qwen3"
@@ -299,7 +311,7 @@ class TestGroupNameSchema:
         self, api_client: TestClient, text_group_manager: ModelReferenceManager
     ) -> None:
         """Test that requesting a schema for a non-existent group returns 404."""
-        resp = api_client.get(f"{_V2}/text_generation/group/NonExistent/name_schema")
+        resp = api_client.get(f"{_V2}/text_generation/group/name_schema?name=NonExistent")
         assert resp.status_code == 404
 
     def test_put_custom_schema(
@@ -307,7 +319,7 @@ class TestGroupNameSchema:
     ) -> None:
         """Test saving a custom naming schema for a group."""
         resp = api_client.put(
-            f"{_V2}/text_generation/group/Qwen3/name_schema",
+            f"{_V2}/text_generation/group/name_schema?name=Qwen3",
             json={"separator": "_", "author_included": False},
             headers={"apikey": "test-key"},
         )
@@ -323,12 +335,12 @@ class TestGroupNameSchema:
         """Test that a saved custom schema is returned on subsequent GET."""
         # Save a custom schema
         api_client.put(
-            f"{_V2}/text_generation/group/Qwen3/name_schema",
+            f"{_V2}/text_generation/group/name_schema?name=Qwen3",
             json={"separator": "_", "common_author": "Qwen"},
             headers={"apikey": "test-key"},
         )
         # Retrieve it
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3/name_schema")
+        resp = api_client.get(f"{_V2}/text_generation/group/name_schema?name=Qwen3")
         assert resp.status_code == 200
         data = resp.json()
         assert data["is_custom"] is True
@@ -341,18 +353,18 @@ class TestGroupNameSchema:
         """Test deleting a custom schema reverts to inferred."""
         # Save then delete
         api_client.put(
-            f"{_V2}/text_generation/group/Qwen3/name_schema",
+            f"{_V2}/text_generation/group/name_schema?name=Qwen3",
             json={"separator": "_"},
             headers={"apikey": "test-key"},
         )
         resp = api_client.delete(
-            f"{_V2}/text_generation/group/Qwen3/name_schema",
+            f"{_V2}/text_generation/group/name_schema?name=Qwen3",
             headers={"apikey": "test-key"},
         )
         assert resp.status_code == 204
 
         # Verify it's back to inferred
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3/name_schema")
+        resp = api_client.get(f"{_V2}/text_generation/group/name_schema?name=Qwen3")
         assert resp.json()["is_custom"] is False
 
     def test_delete_nonexistent_schema(
@@ -360,7 +372,7 @@ class TestGroupNameSchema:
     ) -> None:
         """Test deleting a schema that doesn't exist returns 404."""
         resp = api_client.delete(
-            f"{_V2}/text_generation/group/Qwen3/name_schema",
+            f"{_V2}/text_generation/group/name_schema?name=Qwen3",
             headers={"apikey": "test-key"},
         )
         assert resp.status_code == 404
@@ -370,16 +382,16 @@ class TestGroupNameSchema:
     ) -> None:
         """Test that the group endpoint reflects custom schema state."""
         # Before saving: inferred
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3")
+        resp = api_client.get(f"{_V2}/text_generation/group?name=Qwen3")
         assert resp.json()["name_schema_is_custom"] is False
 
         # After saving custom schema
         api_client.put(
-            f"{_V2}/text_generation/group/Qwen3/name_schema",
+            f"{_V2}/text_generation/group/name_schema?name=Qwen3",
             json={"separator": "_"},
             headers={"apikey": "test-key"},
         )
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3")
+        resp = api_client.get(f"{_V2}/text_generation/group?name=Qwen3")
         data = resp.json()
         assert data["name_schema_is_custom"] is True
         assert data["name_format"]["separator"] == "_"
@@ -423,7 +435,7 @@ class TestNameException:
         backend.update_model(MODEL_REFERENCE_CATEGORY.text_generation, "Qwen3-0.6B", record_data)
         text_group_manager._invalidate_cache()
 
-        resp = api_client.get(f"{_V2}/text_generation/group/Qwen3")
+        resp = api_client.get(f"{_V2}/text_generation/group?name=Qwen3")
         data = resp.json()
         exceptions = data["exception_members"]
         assert len(exceptions) == 1

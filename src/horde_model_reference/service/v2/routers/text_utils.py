@@ -38,6 +38,14 @@ router = APIRouter()
 
 _CATEGORY = MODEL_REFERENCE_CATEGORY.text_generation
 
+# Group names may be HF-style org/model identifiers containing '/', which cannot survive a URL
+# path segment intact (Starlette percent-decodes %2F back into a path separator). Group endpoints
+# therefore take the name as a `name` query parameter rather than a path parameter.
+GroupNameQuery = Annotated[
+    str,
+    Query(alias="name", description="Group name; may contain '/'."),
+]
+
 # Fields that can be shared/edited at group level
 _COMMON_FIELD_KEYS = ("baseline", "description", "url", "nsfw", "tags", "style", "instruct_format")
 
@@ -370,13 +378,13 @@ def parse_name(
 
 
 @router.get(
-    "/text_generation/group/{group_name}",
+    "/text_generation/group",
     response_model=GroupMembersResponse,
     summary="Get all members of a text model group",
     tags=["text_utils"],
 )
 def get_group(
-    group_name: str,
+    group_name: GroupNameQuery,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
 ) -> GroupMembersResponse:
     """Get all models in a text model group with parsed name info and common fields."""
@@ -605,13 +613,13 @@ def compose_name(
 
 
 @router.put(
-    "/text_generation/group/{group_name}/common_fields",
+    "/text_generation/group/common_fields",
     response_model=BatchUpdateResponse,
     summary="Batch-update common fields across all canonical members of a group",
     tags=["text_utils"],
 )
 async def update_group_common_fields(
-    group_name: str,
+    group_name: GroupNameQuery,
     request: CommonFieldsUpdateRequest,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
     apikey: Annotated[str, Depends(header_auth_scheme)],
@@ -945,13 +953,13 @@ def _require_group_schema_store(manager: ModelReferenceManager) -> GroupSchemaSt
 
 
 @router.get(
-    "/text_generation/group/{group_name}/name_schema",
+    "/text_generation/group/name_schema",
     response_model=GroupNameSchemaResponse,
     summary="Get the naming schema for a text model group",
     tags=["text_utils"],
 )
 def get_group_name_schema(
-    group_name: str,
+    group_name: GroupNameQuery,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
 ) -> GroupNameSchemaResponse:
     """Return the persisted naming schema if one exists, otherwise infer from member names."""
@@ -990,13 +998,13 @@ def get_group_name_schema(
 
 
 @router.put(
-    "/text_generation/group/{group_name}/name_schema",
+    "/text_generation/group/name_schema",
     response_model=GroupNameSchemaResponse,
     summary="Save a custom naming schema for a text model group",
     tags=["text_utils"],
 )
 async def update_group_name_schema(
-    group_name: str,
+    group_name: GroupNameQuery,
     request: GroupNameSchemaUpdateRequest,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
     apikey: Annotated[str, Depends(header_auth_scheme)],
@@ -1023,13 +1031,13 @@ async def update_group_name_schema(
 
 
 @router.delete(
-    "/text_generation/group/{group_name}/name_schema",
+    "/text_generation/group/name_schema",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a custom naming schema (revert to inferred)",
     tags=["text_utils"],
 )
 async def delete_group_name_schema(
-    group_name: str,
+    group_name: GroupNameQuery,
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
     apikey: Annotated[str, Depends(header_auth_scheme)],
 ) -> None:
