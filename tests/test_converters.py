@@ -111,3 +111,78 @@ def test_converted_records_have_correct_type(
 
     for _, record in sd_converter._all_converted_records.items():
         assert isinstance(record, ImageGenerationModelRecord)
+
+
+def test_legacy_sd_record_serialization_drops_none_config_keys() -> None:
+    """A round-tripped SD record must match the hand-authored legacy JSON byte-for-byte.
+
+    The legacy GitHub format omits absent optional config-file fields (``md5sum``,
+    ``file_type``). Pydantic's default nested serialization emits them as ``null``, which
+    pollutes the diff produced by the GitHub sync for newly added/modified models. The
+    custom serializers on the config models must drop ``None`` so API-written records stay
+    byte-compatible with the upstream legacy files.
+    """
+    entry = {
+        "name": "PilotModel XL",
+        "baseline": "stable_diffusion_xl",
+        "type": "ckpt",
+        "inpainting": False,
+        "description": "Pilot model for sync fidelity.",
+        "version": "1.0",
+        "style": "realistic",
+        "homepage": "https://example.com/pilot",
+        "nsfw": True,
+        "download_all": False,
+        "config": {
+            "files": [{"path": "pilot_v1.safetensors", "sha256sum": "a" * 64}],
+            "download": [
+                {
+                    "file_name": "pilot_v1.safetensors",
+                    "file_path": "",
+                    "file_url": "https://example.com/pilot_v1.safetensors",
+                }
+            ],
+        },
+        "features_not_supported": ["hires_fix"],
+        "size_on_disk_bytes": 123,
+    }
+
+    dumped = LegacyStableDiffusionRecord.model_validate(entry).model_dump(mode="json")
+
+    assert dumped == entry, "round-trip must reproduce the hand-authored legacy entry exactly"
+    file_entry = dumped["config"]["files"][0]
+    assert "md5sum" not in file_entry
+    assert "file_type" not in file_entry
+    assert set(file_entry) == {"path", "sha256sum"}
+
+
+def test_legacy_sd_record_serialization_keeps_present_config_keys() -> None:
+    """Dropping ``None`` must not remove config-file fields that are actually populated."""
+    entry = {
+        "name": "PilotModel",
+        "baseline": "stable diffusion 1",
+        "type": "ckpt",
+        "inpainting": False,
+        "description": "Pilot ckpt with both checksums.",
+        "version": "1.0",
+        "style": "generalist",
+        "nsfw": False,
+        "download_all": True,
+        "config": {
+            "files": [{"path": "pilot.ckpt", "md5sum": "b" * 32, "sha256sum": "c" * 64}],
+            "download": [
+                {
+                    "file_name": "pilot.ckpt",
+                    "file_path": "",
+                    "file_url": "https://example.com/pilot.ckpt",
+                }
+            ],
+        },
+    }
+
+    dumped = LegacyStableDiffusionRecord.model_validate(entry).model_dump(mode="json")
+
+    file_entry = dumped["config"]["files"][0]
+    assert file_entry["md5sum"] == "b" * 32
+    assert file_entry["sha256sum"] == "c" * 64
+    assert "file_type" not in file_entry

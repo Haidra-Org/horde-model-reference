@@ -384,13 +384,13 @@ To test the sync service with your own forks:
 
 ```bash
 # PowerShell
-$env:HORDE_MODEL_REFERENCE_IMAGE_GITHUB_REPO_OWNER="your-username"
-$env:HORDE_MODEL_REFERENCE_TEXT_GITHUB_REPO_OWNER="your-username"
+$env:HORDE_MODEL_REFERENCE_IMAGE_GITHUB_REPO__OWNER="your-username"
+$env:HORDE_MODEL_REFERENCE_TEXT_GITHUB_REPO__OWNER="your-username"
 python scripts/sync/sync_github_references.py --primary-url http://localhost:19800 --dry-run
 
 # Bash
-export HORDE_MODEL_REFERENCE_IMAGE_GITHUB_REPO_OWNER="your-username"
-export HORDE_MODEL_REFERENCE_TEXT_GITHUB_REPO_OWNER="your-username"
+export HORDE_MODEL_REFERENCE_IMAGE_GITHUB_REPO__OWNER="your-username"
+export HORDE_MODEL_REFERENCE_TEXT_GITHUB_REPO__OWNER="your-username"
 python scripts/sync/sync_github_references.py --primary-url http://localhost:19800 --dry-run
 ```
 

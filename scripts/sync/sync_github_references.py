@@ -24,10 +24,10 @@ Environment variables:
     HORDE_GITHUB_SYNC_WATCH_ENABLE_STARTUP_SYNC - Run sync on startup in watch mode (default: false)
 
     For testing with forks, also set:
-    HORDE_MODEL_REFERENCE_IMAGE_GITHUB_REPO_OWNER - Owner of image repo fork (e.g., 'tazlin')
-    HORDE_MODEL_REFERENCE_IMAGE_GITHUB_REPO_NAME - Name of image repo (if different)
-    HORDE_MODEL_REFERENCE_TEXT_GITHUB_REPO_OWNER - Owner of text repo fork (e.g., 'tazlin')
-    HORDE_MODEL_REFERENCE_TEXT_GITHUB_REPO_NAME - Name of text repo (if different)
+    HORDE_MODEL_REFERENCE_IMAGE_GITHUB_REPO__OWNER - Owner of image repo fork (e.g., 'tazlin')
+    HORDE_MODEL_REFERENCE_IMAGE_GITHUB_REPO__NAME - Name of image repo (if different)
+    HORDE_MODEL_REFERENCE_TEXT_GITHUB_REPO__OWNER - Owner of text repo fork (e.g., 'tazlin')
+    HORDE_MODEL_REFERENCE_TEXT_GITHUB_REPO__NAME - Name of text repo (if different)
 
 Examples:
     # Sync all categories (one-shot mode)
@@ -53,8 +53,8 @@ Examples:
     python scripts/sync_github_references.py --watch --watch-startup-sync
 
     # Test with forks (PowerShell example)
-    $env:HORDE_MODEL_REFERENCE_IMAGE_GITHUB_REPO_OWNER="tazlin"
-    $env:HORDE_MODEL_REFERENCE_TEXT_GITHUB_REPO_OWNER="tazlin"
+    $env:HORDE_MODEL_REFERENCE_IMAGE_GITHUB_REPO__OWNER="tazlin"
+    $env:HORDE_MODEL_REFERENCE_TEXT_GITHUB_REPO__OWNER="tazlin"
     python scripts/sync_github_references.py --primary-url http://localhost:19800 --dry-run
 """
 
@@ -304,6 +304,21 @@ def main() -> int:
     )
 
     parser.add_argument(
+        "--no-pr",
+        action="store_true",
+        default=False,
+        help="Clone/branch/write/commit locally but do NOT push or open a PR (offline preview). "
+        "Unlike --dry-run, this produces the real would-be files and a diff.",
+    )
+
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        help="With --no-pr, write the rendered file(s) and a unified changes.diff to this directory",
+    )
+
+    parser.add_argument(
         "--target-dir",
         type=str,
         default=None,
@@ -344,6 +359,12 @@ def main() -> int:
 
     if args.force:
         github_sync_settings.min_changes_threshold = 0
+
+    if args.no_pr:
+        github_sync_settings.no_pr = True
+
+    if args.output_dir:
+        github_sync_settings.output_dir = args.output_dir
 
     if args.target_dir:
         github_sync_settings.target_clone_dir = args.target_dir

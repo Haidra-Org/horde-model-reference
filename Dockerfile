@@ -20,14 +20,17 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Install dependencies using cache and bind mounts for optimal performance
+# The published image always includes the `sync` extra (PyGithub/GitPython) so the same
+# image can run the GitHub sync service as a sidecar. `git` is already installed below, and
+# these are small pure-Python deps. EXTRA_DEPS can still add others (e.g. redis).
 ARG EXTRA_DEPS=""
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     if [ -n "$EXTRA_DEPS" ]; then \
-        uv sync --frozen --no-dev --no-editable --no-install-project --extra service --extra "$EXTRA_DEPS"; \
+        uv sync --frozen --no-dev --no-editable --no-install-project --extra service --extra sync --extra "$EXTRA_DEPS"; \
     else \
-        uv sync --frozen --no-dev --no-editable --no-install-project --extra service; \
+        uv sync --frozen --no-dev --no-editable --no-install-project --extra service --extra sync; \
     fi
 
 # Copy the project source code
@@ -40,9 +43,9 @@ ARG VERSION=0.0.0+docker
 ENV SETUPTOOLS_SCM_PRETEND_VERSION_FOR_HORDE_MODEL_REFERENCE=${VERSION}
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ -n "$EXTRA_DEPS" ]; then \
-        uv sync --frozen --no-dev --no-editable --extra service --extra "$EXTRA_DEPS"; \
+        uv sync --frozen --no-dev --no-editable --extra service --extra sync --extra "$EXTRA_DEPS"; \
     else \
-        uv sync --frozen --no-dev --no-editable --extra service; \
+        uv sync --frozen --no-dev --no-editable --extra service --extra sync; \
     fi
 
 # Final stage

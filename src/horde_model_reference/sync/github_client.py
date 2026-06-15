@@ -50,6 +50,10 @@ class GitHubSyncClient:
             logger.info("Using GitHub token authentication")
             auth = Auth.Token(self.settings.github_token)
             self._github_client = Github(auth=auth)
+        elif self.settings.no_pr:
+            # Offline preview mode only clones (read-only) and renders a diff; no auth required.
+            logger.info("No GitHub authentication configured; running in offline (--no-pr) mode")
+            self._github_client = None
         else:
             raise RuntimeError("No GitHub authentication method configured")
 
@@ -233,6 +237,8 @@ class GitHubSyncClient:
                         f"{diff.total_changes()} changes but no actual file changes were produced."
                     )
                     return None
+                if self.settings.no_pr:
+                    return self._render_offline_result(branch_name, github_repo_settings)
                 self._push_branch(branch_name)
                 pr_url = self._create_pull_request(
                     category, diff, repo_owner_and_name, branch_name, github_repo_settings
@@ -310,6 +316,8 @@ class GitHubSyncClient:
                         f"{total} changes but no actual file changes were produced."
                     )
                     return None
+                if self.settings.no_pr:
+                    return self._render_offline_result(branch_name, github_repo_settings)
                 self._push_branch(branch_name)
                 pr_url = self._create_multi_category_pull_request(
                     categories_data, repo_name, branch_name, github_repo_settings
@@ -831,6 +839,50 @@ class GitHubSyncClient:
         except Exception as e:
             logger.error(f"Failed to push branch {branch_name}: {e}")
             raise
+
+    def _render_offline_result(self, branch_name: str, github_settings: GithubRepoSettings) -> str:
+        """Render the committed changes without pushing or opening a PR (offline preview).
+
+        Computes the unified diff of the sync branch against the base branch and, when
+        ``output_dir`` is configured, copies each changed file plus a ``changes.diff`` into
+        that directory. This lets operators preview the exact change set the sync would push
+        — for local verification and as a safe pre-flight before a real production run.
+
+        Args:
+            branch_name: The sync branch that was just committed.
+            github_settings: Repo settings (used for the base branch name).
+
+        Returns:
+            A human-readable marker string (not a PR URL) describing the offline render.
+        """
+        if not self._current_repo or not self._temp_dir:
+            raise RuntimeError("No repository cloned")
+
+        base = github_settings.branch
+        diff_text = self._current_repo.git.diff(base, branch_name)
+        changed_files = [
+            line for line in self._current_repo.git.diff(base, branch_name, name_only=True).splitlines() if line
+        ]
+
+        logger.info(f"[NO-PR] Offline render for branch {branch_name} ({len(changed_files)} file(s) changed)")
+        for changed in changed_files:
+            logger.info(f"[NO-PR]   {changed}")
+
+        if self.settings.output_dir:
+            out_dir = Path(self.settings.output_dir)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            for changed in changed_files:
+                src = self._temp_dir / changed
+                dst = out_dir / changed
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                if src.exists():
+                    shutil.copy2(src, dst)
+            (out_dir / "changes.diff").write_text(diff_text, encoding="utf-8")
+            logger.success(f"[NO-PR] Wrote rendered files and changes.diff to {out_dir}")
+        else:
+            logger.info(f"[NO-PR] Diff (not written; set output_dir to persist):\n{diff_text}")
+
+        return f"offline-render (branch {branch_name}, no PR created)"
 
     def _get_authenticated_repo_url(self) -> str:
         """Get the repository URL with authentication token.

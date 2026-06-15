@@ -7,10 +7,35 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_serializer, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    ValidationInfo,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.util import model_name_to_showcase_folder_name
+
+
+def _drop_none_keys(handler: SerializerFunctionWrapHandler, instance: BaseModel) -> dict[str, Any]:
+    """Serialize ``instance`` and drop keys whose value is ``None``.
+
+    The legacy GitHub JSON omits absent optional fields entirely (e.g. a config file
+    entry with only ``path`` + ``sha256sum`` never carries ``md5sum``/``file_type``).
+    Pydantic's default serialization emits those as ``null``, which would pollute the
+    diff produced by the GitHub sync for newly added/modified models. Dropping ``None``
+    keys keeps API-written records byte-compatible with the hand-authored legacy format
+    while preserving field order and any ``extra`` keys.
+    """
+    serialized = handler(instance)
+    if not isinstance(serialized, dict):
+        return serialized
+    return {key: value for key, value in serialized.items() if value is not None}
 
 _ALLOWED_CONFIG_FILENAMES = {"v2-inference-v.yaml", "v1-inference.yaml"}
 _BASELINE_NORMALIZATION_MAP = {
@@ -69,6 +94,10 @@ class LegacyConfigFile(BaseModel):
             _record_issue(info, "has a config file with no sha256sum.")
         return self
 
+    @model_serializer(mode="wrap", when_used="always")
+    def _serialize_without_none(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        return _drop_none_keys(handler, self)
+
 
 class LegacyConfigDownload(BaseModel):
     """A single legacy config download entry."""
@@ -90,6 +119,10 @@ class LegacyConfigDownload(BaseModel):
             if category != MODEL_REFERENCE_CATEGORY.clip:
                 _record_issue(info, "has a download with no file_url.")
         return self
+
+    @model_serializer(mode="wrap", when_used="always")
+    def _serialize_without_none(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        return _drop_none_keys(handler, self)
 
 
 class LegacyConfig(BaseModel):

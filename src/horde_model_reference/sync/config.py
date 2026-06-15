@@ -151,6 +151,15 @@ github_text_repo, and github_branch settings."""
     dry_run: bool = False
     """If True, perform comparison but don't create PRs. Useful for testing."""
 
+    no_pr: bool = False
+    """If True, clone/branch/write/commit the changes locally but do NOT push or open a PR.
+Unlike dry_run (which stops before touching any files), this produces the real would-be files
+and a diff, so the exact change set can be previewed offline. Pairs well with output_dir."""
+
+    output_dir: str | None = None
+    """If set (with no_pr), write the rendered category file(s) and a unified ``changes.diff``
+to this directory for offline inspection. No effect unless no_pr is enabled."""
+
     verbose_logging: bool = False
     """Enable detailed logging for sync operations."""
 
