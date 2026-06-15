@@ -386,6 +386,21 @@ def main() -> int:
         )
         return 1
 
+    # Fail fast on missing GitHub authentication *before* entering the watch loop or a
+    # one-shot run, so a misconfigured deployment exits loudly at startup instead of
+    # silently polling and only erroring when the first change appears. Skipped for
+    # dry-run / offline (--no-pr) runs, which never push or open PRs.
+    if not github_sync_settings.dry_run and not github_sync_settings.no_pr:
+        from horde_model_reference.sync.config import github_app_settings
+
+        if not (github_app_settings.is_configured() or github_sync_settings.github_token):
+            logger.error(
+                "No GitHub authentication configured. Set HORDE_GITHUB_SYNC_GITHUB_TOKEN (a PAT), "
+                "or GITHUB_APP_ID + GITHUB_APP_PRIVATE_KEY_PATH/GITHUB_APP_PRIVATE_KEY (GitHub App). "
+                "Refusing to start to avoid a watch loop that cannot create PRs."
+            )
+            return 1
+
     # Watch mode
     if github_sync_settings.watch_mode:
         watch_manager = WatchModeManager(

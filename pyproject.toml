@@ -63,6 +63,13 @@ version_file = "src/horde_model_reference/_version.py"
 # include = ["horde_model_reference*", "horde_model_reference.*"]
 # exclude = ["horde_model_reference.showcase*", "horde_model_reference.tests*"]
 
+# Bundle the text-generation data files (defaults.json, generation_params.json) into the
+# wheel. Without this they are only present in editable installs, so the GitHub sync's
+# text_generation path fails in the --no-editable Docker image with
+# "Cannot find defaults.json in package data or scripts/legacy_text/".
+[tool.setuptools.package-data]
+"horde_model_reference" = ["data/*.json", "py.typed"]
+
 [tool.setuptools.exclude-package-data]
 "*" = ["*.webp", "*.png", "*.jpg", "*.ckpt", "*.pt", "*.safetensors"]
 

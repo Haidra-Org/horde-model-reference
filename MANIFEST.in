@@ -2,6 +2,7 @@ include *.md
 recursive-include horde_model_reference *.py
 recursive-include horde_model_reference *.md
 recursive-include horde_model_reference *.typed
+recursive-include horde_model_reference *.json
 
 recursive-include tests *.py
 recursive-include tests *.json
