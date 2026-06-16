@@ -290,6 +290,11 @@ class HordeModelReferenceSettings(BaseSettings):
     replicate_mode: ReplicateMode = ReplicateMode.REPLICA
     """Indicates if copies of the model reference are canonical or replicated. Clients should always be replicas."""
 
+    offline: bool = False
+    """Read references straight from local disk and never download (no GitHub / PRIMARY API / Redis). \
+Intended for subprocesses whose parent already downloaded and wrote the converted reference files. \
+When True, primary_api_url, github_seed, and redis are ignored and a LocalReadOnlyBackend is used."""
+
     make_folders: bool = False
     """Whether to create the default model reference folders on initialization."""
 
@@ -469,6 +474,16 @@ Allows service to fully initialize before background tasks begin."""
             f"Validating settings for replicate_mode={self.replicate_mode} and "
             f"canonical_format={self.canonical_format}"
         )
+        if self.offline:
+            logger.info(
+                "offline=True: reading model references from local disk only. "
+                "primary_api_url, github_seed_enabled, and redis are ignored; no network access will occur."
+            )
+            if self.redis.use_redis is True:
+                self.redis.use_redis = False
+            if self.github_seed_enabled:
+                self.github_seed_enabled = False
+
         if self.replicate_mode == ReplicateMode.REPLICA and self.redis.use_redis is True:
             logger.warning(
                 "Redis settings detected in REPLICA mode. "
