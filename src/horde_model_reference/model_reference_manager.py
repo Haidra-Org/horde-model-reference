@@ -18,6 +18,7 @@ from horde_model_reference.backends import (
     FileSystemBackend,
     GitHubBackend,
     HTTPBackend,
+    LocalReadOnlyBackend,
     ModelReferenceBackend,
 )
 from horde_model_reference.group_aliases import GroupAliasStore
@@ -114,6 +115,7 @@ class ModelReferenceManager:
 
     _instance: ModelReferenceManager | None = None
     _replicate_mode: ReplicateMode = ReplicateMode.REPLICA
+    _offline: bool = False
     _prefetch_strategy: PrefetchStrategy = PrefetchStrategy.SYNC
     _deferred_prefetch_handle: DeferredPrefetchHandle | None = None
     _async_prefetch_task: asyncio.Task[None] | None = None
@@ -179,6 +181,7 @@ class ModelReferenceManager:
         base_path: str | Path,
         replicate_mode: ReplicateMode,
         audit_writer: AuditTrailWriter | None,
+        offline: bool = False,
     ) -> ModelReferenceBackend:
         """Create the appropriate backend based on mode and settings.
 
@@ -186,12 +189,23 @@ class ModelReferenceManager:
             base_path: Base path for model reference files.
             replicate_mode: The replication mode.
             audit_writer: Optional audit writer used by write-capable backends.
+            offline: If True, return a read-only local-disk backend that never downloads,
+                regardless of replicate_mode. Used by subprocesses whose parent owns downloading.
 
         Returns:
             ModelReferenceBackend: The configured backend instance.
 
         """
-        logger.debug(f"Creating backend with replicate_mode={replicate_mode}, base_path={base_path}")
+        logger.debug(
+            f"Creating backend with replicate_mode={replicate_mode}, base_path={base_path}, offline={offline}",
+        )
+        if offline:
+            logger.info("Using LocalReadOnlyBackend (offline=True); references are read from disk, never downloaded")
+            return LocalReadOnlyBackend(
+                base_path=base_path,
+                cache_ttl_seconds=horde_model_reference_settings.cache_ttl_seconds,
+            )
+
         if replicate_mode == ReplicateMode.PRIMARY:
             logger.debug("Creating backend for PRIMARY mode")
 
@@ -276,6 +290,7 @@ class ModelReferenceManager:
         base_path: str | Path = horde_model_reference_paths.base_path,
         replicate_mode: ReplicateMode = horde_model_reference_settings.replicate_mode,
         prefetch_strategy: PrefetchStrategy = PrefetchStrategy.LAZY,
+        offline: bool = horde_model_reference_settings.offline,
     ) -> ModelReferenceManager:
         """Create a new instance of ModelReferenceManager.
 
@@ -298,6 +313,10 @@ class ModelReferenceManager:
             prefetch_strategy: Controls whether initial cache warm-up is skipped (LAZY/NONE),
                 performed synchronously, deferred, or executed via background async task.
                 Defaults to PrefetchStrategy.LAZY.
+            offline: If True, read references from local disk only via LocalReadOnlyBackend and never
+                download (no GitHub / PRIMARY API / Redis), regardless of replicate_mode. Intended for
+                subprocesses whose parent already downloaded the reference files.
+                Defaults to horde_model_reference_settings.offline.
 
         Returns:
             ModelReferenceManager: The singleton instance of ModelReferenceManager.
@@ -330,7 +349,14 @@ class ModelReferenceManager:
                         base_path=base_path,
                         replicate_mode=replicate_mode,
                         audit_writer=audit_writer,
+                        offline=offline,
                     )
+
+                # Offline backends are REPLICA-shaped regardless of the requested mode; align the
+                # manager's recorded mode to the backend so the mode-match assertion below holds and
+                # downstream code does not assume PRIMARY write capability.
+                if offline:
+                    replicate_mode = backend.replicate_mode
 
                 backend_mode = backend.replicate_mode
                 if backend_mode != replicate_mode:
@@ -341,6 +367,7 @@ class ModelReferenceManager:
 
                 cls._instance.backend = backend
                 cls._instance._replicate_mode = replicate_mode
+                cls._instance._offline = offline
                 if backend.supports_writes():
                     cls._instance._audit_writer = audit_writer
                     cls._instance._pending_queue_service = cls._build_pending_queue_service(
@@ -377,7 +404,12 @@ class ModelReferenceManager:
                         "ModelReferenceManager is a singleton and has already been instantiated "
                         "with a different backend."
                     )
-                if replicate_mode != cls._instance._replicate_mode:
+                if offline != cls._instance._offline:
+                    raise RuntimeError(
+                        "ModelReferenceManager is a singleton and has already been instantiated with a different "
+                        f"offline setting.\nExisting offline={cls._instance._offline}; new offline={offline}."
+                    )
+                if not offline and replicate_mode != cls._instance._replicate_mode:
                     raise RuntimeError(
                         "ModelReferenceManager is a singleton and has already been instantiated with different "
                         "settings.\nExisting settings: "
@@ -510,6 +542,11 @@ class ModelReferenceManager:
     def prefetch_strategy(self) -> PrefetchStrategy:
         """Return the prefetch strategy originally configured for this manager."""
         return self._prefetch_strategy
+
+    @property
+    def offline(self) -> bool:
+        """Return whether this manager reads from local disk only (never downloads)."""
+        return self._offline
 
     @property
     def pending_queue_service(self) -> PendingQueueService | None:

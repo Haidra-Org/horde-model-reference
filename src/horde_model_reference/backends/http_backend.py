@@ -6,6 +6,7 @@ with fallback to GitHub if the PRIMARY is unavailable.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, override
 
@@ -13,7 +14,7 @@ import httpx
 from loguru import logger
 from tenacity import RetryError
 
-from horde_model_reference import ReplicateMode, horde_model_reference_settings
+from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
 from horde_model_reference.backends.github_backend import GitHubBackend
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
 from horde_model_reference.http_retry import (
@@ -86,6 +87,28 @@ class HTTPBackend(ReplicaBackendBase):
     def _category_api_url(self, category: MODEL_REFERENCE_CATEGORY) -> str:
         """Get the PRIMARY API URL for a category."""
         return f"{self._primary_api_url}/model_references/v2/{category.value}"
+
+    def _persist_to_disk(self, category: MODEL_REFERENCE_CATEGORY, data: dict[str, Any]) -> None:
+        """Write fetched v2 data to disk so offline replicas and restarts can read it.
+
+        The GitHub fallback already writes converted files to disk; this materializes the (otherwise
+        memory-only) PRIMARY-API responses too, so an offline LocalReadOnlyBackend (e.g. a worker
+        subprocess) reading the same base_path sees the references the parent fetched.
+        """
+        base_path = getattr(self._github_backend, "base_path", None)
+        if base_path is None:
+            return
+        try:
+            file_path = horde_model_reference_paths.get_model_reference_file_path(
+                category,
+                base_path=base_path,
+            )
+            if file_path is None:
+                return
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(json.dumps(data), encoding="utf-8")
+        except OSError as e:
+            logger.warning(f"HTTPBackend failed to persist {category} to disk: {e}")
 
     def _legacy_category_api_url(self, category: MODEL_REFERENCE_CATEGORY) -> str:
         """Get the legacy PRIMARY API URL for a category."""
@@ -259,7 +282,10 @@ class HTTPBackend(ReplicaBackendBase):
         if force_refresh or self.should_fetch_data(category):
             data = self._fetch_from_primary(category)
 
-            if data is None and self._enable_github_fallback:
+            if data is not None:
+                # The GitHub fallback writes converted files itself; persist PRIMARY hits too.
+                self._persist_to_disk(category, data)
+            elif self._enable_github_fallback:
                 logger.info(f"Falling back to GitHub for {category}")
                 self._github_fallbacks += 1
                 data = self._github_backend.fetch_category(category, force_refresh=force_refresh)
@@ -316,7 +342,10 @@ class HTTPBackend(ReplicaBackendBase):
                 async with httpx.AsyncClient() as client:
                     data = await self._fetch_from_primary_async(category, client)
 
-            if data is None and self._enable_github_fallback:
+            if data is not None:
+                # The GitHub fallback writes converted files itself; persist PRIMARY hits too.
+                self._persist_to_disk(category, data)
+            elif self._enable_github_fallback:
                 logger.info(f"Falling back to GitHub for {category} (async)")
                 self._github_fallbacks += 1
                 data = await self._github_backend.fetch_category_async(

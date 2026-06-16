@@ -142,6 +142,37 @@ def test_http_backend_primary_success_and_cache(
     assert github_stub.sync_calls == 0
 
 
+def test_http_backend_persists_primary_hits_for_offline_replica(
+    tmp_path: Path,
+    httpx_mock: HTTPXMock,
+) -> None:
+    """PRIMARY hits are written to disk so an offline replica reads them without any download."""
+    from horde_model_reference import horde_model_reference_paths
+    from horde_model_reference.backends.local_readonly_backend import LocalReadOnlyBackend
+
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+    payload = {"a_model": {"name": "a_model"}}
+    github_stub = StubGitHubBackend({})
+    github_stub.base_path = tmp_path  # type: ignore[attr-defined]
+    backend = HTTPBackend(
+        primary_api_url="https://primary",
+        github_backend=cast(GitHubBackend, github_stub),
+        cache_ttl_seconds=60,
+    )
+    httpx_mock.add_response(
+        url="https://primary/model_references/v2/image_generation",
+        json=payload,
+    )
+
+    assert backend.fetch_category(category) == payload
+
+    file_path = horde_model_reference_paths.get_model_reference_file_path(category, base_path=tmp_path)
+    assert file_path is not None and file_path.exists()
+
+    offline = LocalReadOnlyBackend(base_path=tmp_path, cache_ttl_seconds=60)
+    assert offline.fetch_category(category) == payload
+
+
 def test_http_backend_fallback_when_primary_fails(httpx_mock: HTTPXMock) -> None:
     """Fallback should defer to GitHub backend when PRIMARY errors."""
     category = MODEL_REFERENCE_CATEGORY.image_generation
