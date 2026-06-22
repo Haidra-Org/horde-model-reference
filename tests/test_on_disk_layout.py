@@ -20,18 +20,25 @@ from horde_model_reference.model_reference_records import (
     GenericModelRecordConfig,
 )
 from horde_model_reference.on_disk_layout import (
+    PresenceSummary,
     category_folder,
     component_relative_path,
     file_paths_for,
     free_bytes_for,
     is_present,
+    presence_summary,
     resolve_weights_root,
 )
 
 
-def _record(category: MODEL_REFERENCE_CATEGORY, downloads: list[DownloadRecord]) -> GenericModelRecord:
+def _record(
+    category: MODEL_REFERENCE_CATEGORY,
+    downloads: list[DownloadRecord],
+    *,
+    name: str = "m",
+) -> GenericModelRecord:
     return GenericModelRecord(
-        name="m",
+        name=name,
         record_type=category,
         model_classification=ModelClassification(domain=MODEL_DOMAIN.image, purpose=MODEL_PURPOSE.miscellaneous),
         config=GenericModelRecordConfig(download=downloads),
@@ -172,6 +179,60 @@ def test_is_present_follows_symlinks(tmp_path: Path) -> None:
 
     real_target.unlink()
     assert is_present(record, tmp_path) is False
+
+
+def test_presence_summary_partitions_present_missing_and_unknown(tmp_path: Path) -> None:
+    """presence_summary buckets each requested name by on-disk presence and reference membership."""
+    folder = tmp_path / "miscellaneous"
+    folder.mkdir()
+    (folder / "here.bin").write_bytes(b"x")
+    reference = {
+        "Present": _record(MODEL_REFERENCE_CATEGORY.miscellaneous, [_download("here.bin")], name="Present"),
+        "Missing": _record(MODEL_REFERENCE_CATEGORY.miscellaneous, [_download("absent.bin")], name="Missing"),
+    }
+
+    summary = presence_summary(reference, ["Present", "Missing", "NotInReference"], tmp_path)
+
+    assert summary == PresenceSummary(present=("Present",), missing=("Missing",), unknown=("NotInReference",))
+    assert summary.num_present == 1
+    assert summary.num_requested == 3
+
+
+def test_presence_summary_preserves_input_order_within_buckets(tmp_path: Path) -> None:
+    """Each bucket keeps the order in which the requested names were supplied."""
+    folder = tmp_path / "miscellaneous"
+    folder.mkdir()
+    for name in ("a.bin", "b.bin"):
+        (folder / name).write_bytes(b"x")
+    reference = {
+        "A": _record(MODEL_REFERENCE_CATEGORY.miscellaneous, [_download("a.bin")], name="A"),
+        "B": _record(MODEL_REFERENCE_CATEGORY.miscellaneous, [_download("b.bin")], name="B"),
+        "Gone": _record(MODEL_REFERENCE_CATEGORY.miscellaneous, [_download("gone.bin")], name="Gone"),
+    }
+
+    summary = presence_summary(reference, ["B", "A", "Gone"], tmp_path)
+
+    assert summary.present == ("B", "A")
+    assert summary.missing == ("Gone",)
+
+
+def test_presence_summary_honours_extra_roots(tmp_path: Path) -> None:
+    """A model present only in an extra root is reported present, mirroring is_present."""
+    primary = tmp_path / "primary"
+    extra = tmp_path / "extra"
+    (extra / "miscellaneous").mkdir(parents=True)
+    (extra / "miscellaneous" / "a.bin").write_bytes(b"x")
+    reference = {"A": _record(MODEL_REFERENCE_CATEGORY.miscellaneous, [_download("a.bin")], name="A")}
+
+    assert presence_summary(reference, ["A"], primary).missing == ("A",)
+    assert presence_summary(reference, ["A"], primary, extra_roots=[extra]).present == ("A",)
+
+
+def test_presence_summary_empty_request_is_empty(tmp_path: Path) -> None:
+    """No requested names yields empty buckets and a zero count."""
+    summary = presence_summary({}, [], tmp_path)
+    assert summary == PresenceSummary(present=(), missing=(), unknown=())
+    assert summary.num_requested == 0
 
 
 def test_free_bytes_for_returns_positive_value(tmp_path: Path) -> None:

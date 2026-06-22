@@ -25,6 +25,7 @@ from __future__ import annotations
 import os
 import shutil
 from collections import deque
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -35,17 +36,19 @@ from horde_model_reference.meta_consts import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterable, Mapping, Sequence
 
     from horde_model_reference.model_reference_records import GenericModelRecord
 
 __all__ = [
     "COMPONENT_PURPOSE_FOLDERS",
+    "PresenceSummary",
     "category_folder",
     "component_relative_path",
     "file_paths_for",
     "free_bytes_for",
     "is_present",
+    "presence_summary",
     "resolve_weights_root",
 ]
 
@@ -185,6 +188,62 @@ def is_present(
         any(Path(os.path.normpath(search_root / relative_path)).exists() for search_root in search_roots)
         for relative_path in relative_paths
     )
+
+
+@dataclass(frozen=True)
+class PresenceSummary:
+    """Which of a requested set of model names are on disk, missing, or absent from the reference.
+
+    The single canonical answer to "of these configured models, which are present?", so consumers (a
+    worker's download plan, its live readiness count, its download-trigger missing-set) all derive
+    presence the same way instead of each re-deriving it (and drifting). ``present`` + ``missing`` +
+    ``unknown`` partition the requested names, preserving input order within each bucket.
+    """
+
+    present: tuple[str, ...]
+    """Names whose every declared file exists on disk (existence-only, not integrity-checked)."""
+    missing: tuple[str, ...]
+    """Names that have a reference record but are not (yet) fully on disk."""
+    unknown: tuple[str, ...]
+    """Requested names with no record in the reference (so presence cannot be determined)."""
+
+    @property
+    def num_present(self) -> int:
+        """How many requested models are present on disk."""
+        return len(self.present)
+
+    @property
+    def num_requested(self) -> int:
+        """Total requested names (present + missing + unknown)."""
+        return len(self.present) + len(self.missing) + len(self.unknown)
+
+
+def presence_summary(
+    reference: Mapping[str, GenericModelRecord],
+    names: Iterable[str],
+    root: Path,
+    *,
+    extra_roots: Sequence[Path] = (),
+) -> PresenceSummary:
+    """Partition *names* into present / missing / unknown against *reference* and the on-disk *root*.
+
+    A name with no record in *reference* lands in ``unknown`` (its presence is undeterminable, distinct
+    from a known model that is simply not downloaded yet). Every other name is routed through
+    :func:`is_present` so the per-record routing (component sibling folders, multi-root search) is applied
+    exactly once, here.
+    """
+    present: list[str] = []
+    missing: list[str] = []
+    unknown: list[str] = []
+    for name in names:
+        record = reference.get(name)
+        if record is None:
+            unknown.append(name)
+        elif is_present(record, root, extra_roots=extra_roots):
+            present.append(name)
+        else:
+            missing.append(name)
+    return PresenceSummary(present=tuple(present), missing=tuple(missing), unknown=tuple(unknown))
 
 
 def free_bytes_for(root: Path) -> int | None:

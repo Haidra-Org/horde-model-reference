@@ -586,11 +586,13 @@ from .model_reference_records import (  # noqa: E402
 )
 from .on_disk_layout import (  # noqa: E402
     COMPONENT_PURPOSE_FOLDERS,
+    PresenceSummary,
     category_folder,
     component_relative_path,
     file_paths_for,
     free_bytes_for,
     is_present,
+    presence_summary,
     resolve_weights_root,
 )
 from .download_engine import (  # noqa: E402
@@ -671,6 +673,7 @@ __all__ = [
     "PopularModelResult",
     "Predicate",
     "PrefetchStrategy",
+    "PresenceSummary",
     "SafetyCheckerFields",
     "SourceSelector",
     "StaticModelProvider",
@@ -699,6 +702,7 @@ __all__ = [
     "horde_model_reference_paths",
     "is_present",
     "md5_of",
+    "presence_summary",
     "register_category",
     "register_image_baseline",
     "register_record_type",
