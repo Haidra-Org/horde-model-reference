@@ -18,6 +18,9 @@ tests/test_data_results/
 converted_*.json
 test.json
 
+scripts/submit_*.py
+
+
 horde_model_reference/legacy/*.json
 *.webp
 *.png
