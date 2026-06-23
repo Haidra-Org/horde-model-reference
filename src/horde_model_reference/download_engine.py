@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import hashlib
 import os
+import threading
 import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -34,6 +36,7 @@ if TYPE_CHECKING:
 
 __all__ = [
     "R2_BY_HASH_PREFIX",
+    "DownloadAborted",
     "DownloadOutcome",
     "ProgressCallback",
     "download_addressed_file",
@@ -46,7 +49,10 @@ __all__ = [
 ]
 
 ProgressCallback = Callable[[int, int], None]
-"""Called with ``(downloaded_bytes, total_bytes)`` after each written chunk."""
+"""Called with ``(downloaded_bytes, total_bytes)`` after each written chunk.
+
+May raise :class:`DownloadAborted` to terminate an in-flight download (e.g. on shutdown or config removal);
+the engine propagates it out of :func:`download_file` and cleans up the partial file."""
 
 UNKNOWN_SHA256_SENTINEL = "FIXME"
 """The ``DownloadRecord.sha256sum`` value meaning "no known hash"; such files are accepted unverified."""
@@ -73,6 +79,26 @@ The mirror is strictly an accelerator, so a transient mirror failure (a 5xx or a
 :data:`_NON_RETRIABLE_STATUSES`) must hand off to the origin *promptly* rather than retrying five times with
 backoff first: otherwise a degraded mirror would make every download slower than having no mirror at all. The
 final candidate (the origin) keeps the full retry budget, since there is nowhere left to fall through to."""
+
+_SEGMENT_THRESHOLD_BYTES = 64 * 1024 * 1024
+"""Files smaller than this are never segmented: the per-connection overhead is not worth it, and aux/config
+files (which dominate the small end) stay on the simple, resumable single-stream path."""
+
+_MIN_SEGMENT_BYTES = 16 * 1024 * 1024
+"""Never cut a file into pieces smaller than this; bounds the segment count for mid-sized files."""
+
+_MAX_CONNECTIONS_PER_FILE = 8
+"""Hard ceiling on concurrent connections to one file, regardless of the configured request, so a
+misconfiguration cannot open an abusive number of sockets to a single host."""
+
+
+class DownloadAborted(Exception):
+    """Raised out of :func:`download_file` when a progress callback aborts an in-flight download.
+
+    The progress callback signals termination by raising this; the engine catches it, stops every segment,
+    removes the partial file, and re-raises so the caller sees a single, uniform abort rather than a torn
+    download left half-written on disk.
+    """
 
 
 @dataclass(frozen=True)
@@ -220,6 +246,179 @@ def _partial_is_complete(url: str, partial_size: int, headers: dict[str, str] | 
     return remote_size > 0 and partial_size == remote_size
 
 
+class _SegmentFailed(Exception):
+    """A single segment could not be fetched after its retries.
+
+    The whole segmented attempt then falls back to the single-stream path. Distinct from a callback abort,
+    which propagates out unchanged instead.
+    """
+
+
+def _total_from_content_range(content_range: str | None) -> int | None:
+    """Parse the total size from a ``Content-Range: bytes 0-0/12345`` header, or None when it is unknown."""
+    if not content_range:
+        return None
+    _, _, total_part = content_range.partition("/")
+    total_part = total_part.strip()
+    if not total_part or total_part == "*":
+        return None
+    try:
+        return int(total_part)
+    except ValueError:
+        return None
+
+
+def _probe_range_support(url: str, extra_headers: dict[str, str] | None) -> tuple[bool, int | None]:
+    """Return ``(server_honours_range, total_bytes)`` from a one-byte ranged GET.
+
+    A ``206`` with a parseable ``Content-Range`` total means the file can be segmented; the one-byte body is
+    discarded. Anything else (notably a ``200``: the server ignored the range and is streaming the whole body)
+    means it cannot, and the caller drops to the single-stream path, which keeps the full retry budget and so
+    surfaces any genuine error exactly as it does today. *extra_headers* (e.g. a gateway ``apikey``) are sent
+    so a gated source is probed under the same authentication it will be fetched with.
+    """
+    headers = dict(extra_headers) if extra_headers else {}
+    headers["Range"] = "bytes=0-0"
+    with requests.get(
+        url,
+        stream=True,
+        headers=headers,
+        allow_redirects=True,
+        timeout=_GET_TIMEOUT_SECONDS,
+    ) as probe:
+        if probe.status_code == 206:
+            return True, _total_from_content_range(probe.headers.get("Content-Range"))
+        return False, None
+
+
+def _plan_segments(total: int, connections: int) -> list[tuple[int, int]]:
+    """Split ``0..total-1`` into contiguous ``[start, end]`` byte ranges for up to *connections* threads.
+
+    The count is clamped by the hard ceiling and by :data:`_MIN_SEGMENT_BYTES` so a mid-sized file is not cut
+    into slivers. The final segment absorbs the remainder so the ranges exactly tile the file.
+    """
+    count = max(1, min(connections, _MAX_CONNECTIONS_PER_FILE, total // _MIN_SEGMENT_BYTES))
+    if count <= 1:
+        return [(0, total - 1)]
+    base = total // count
+    segments: list[tuple[int, int]] = []
+    start = 0
+    for index in range(count):
+        end = total - 1 if index == count - 1 else start + base - 1
+        segments.append((start, end))
+        start = end + 1
+    return segments
+
+
+def _segmented_download(
+    url: str,
+    destination: Path,
+    *,
+    expected_sha256: str | None,
+    progress_callback: ProgressCallback | None,
+    extra_headers: dict[str, str] | None,
+    connections: int,
+    max_retries: int,
+) -> DownloadOutcome | None:
+    """Fetch *url* into *destination* over several concurrent ranged connections; return the outcome or None.
+
+    Returns a :class:`DownloadOutcome` when the segmented path handled the download (success or a finalized
+    result). Returns ``None`` to mean "not applicable, use the single-stream path": the server ignored the
+    range probe, the size is unknown or below the segmentation threshold, or a segment failed transiently
+    (in which case the sparse partial is discarded first). Any exception raised by *progress_callback*
+    (a caller's abort) propagates out unchanged after every segment is stopped and the partial removed.
+
+    Per the Option A resume policy, segmented downloads do not resume: the sparse ``.spart`` is written fresh
+    each attempt (and removed on abort/failure), while the resumable contiguous ``.part`` belongs solely to
+    the single-stream path so the two never read each other's partial.
+    """
+    try:
+        supports_range, total = _probe_range_support(url, extra_headers)
+    except requests.RequestException:
+        return None
+
+    if not supports_range or total is None or total < _SEGMENT_THRESHOLD_BYTES:
+        return None
+    segments = _plan_segments(total, connections)
+    if len(segments) <= 1:
+        return None
+
+    spart = Path(f"{destination}.spart")
+    spart.unlink(missing_ok=True)
+    with spart.open("wb") as handle:
+        handle.truncate(total)
+
+    abort = threading.Event()
+    progress_lock = threading.Lock()
+    downloaded_total = 0
+
+    def report(delta: int) -> None:
+        nonlocal downloaded_total
+        with progress_lock:
+            downloaded_total += delta
+            snapshot = downloaded_total
+        # Called outside the lock; may raise the caller's abort exception, which propagates as this
+        # segment's future result and is re-raised unchanged by the aggregation below.
+        if progress_callback is not None:
+            progress_callback(snapshot, total)
+
+    def fetch_segment(start: int, end: int) -> None:
+        attempts_remaining = max_retries
+        position = start
+        while position <= end:
+            if abort.is_set():
+                return
+            headers = dict(extra_headers) if extra_headers else {}
+            headers["Range"] = f"bytes={position}-{end}"
+            try:
+                with requests.get(
+                    url,
+                    stream=True,
+                    headers=headers,
+                    allow_redirects=True,
+                    timeout=_GET_TIMEOUT_SECONDS,
+                ) as response:
+                    if response.status_code != 206:
+                        # The probe saw range support but this request was not honoured (or errored): treat
+                        # as a segment failure so the whole download retreats to the single-stream path.
+                        raise _SegmentFailed
+                    with spart.open("r+b") as handle:
+                        handle.seek(position)
+                        for chunk in response.iter_content(chunk_size=_CHUNK_SIZE):
+                            if abort.is_set():
+                                return
+                            if not chunk:
+                                continue
+                            handle.write(chunk)
+                            position += len(chunk)
+                            report(len(chunk))
+                    return
+            except requests.RequestException:
+                attempts_remaining -= 1
+                if attempts_remaining <= 0:
+                    raise _SegmentFailed from None
+                time.sleep(_RETRY_SLEEP_SECONDS)
+
+    with ThreadPoolExecutor(max_workers=len(segments)) as pool:
+        futures = [pool.submit(fetch_segment, start, end) for start, end in segments]
+        for future in as_completed(futures):
+            if future.exception() is not None:
+                # One segment failed (or the callback aborted); stop the rest. The pool join on context
+                # exit guarantees every thread has finished before we inspect the file below.
+                abort.set()
+
+    exceptions = [exc for future in futures if (exc := future.exception()) is not None]
+    abort_exc = next((exc for exc in exceptions if not isinstance(exc, _SegmentFailed)), None)
+    if abort_exc is not None:
+        spart.unlink(missing_ok=True)
+        raise abort_exc
+    if exceptions:
+        spart.unlink(missing_ok=True)
+        logger.warning("Segmented download failed; falling back to single-stream: file={}", destination.name)
+        return None
+    return _finalize(spart, destination, total, expected_sha256)
+
+
 def download_file(
     url: str,
     destination: Path,
@@ -229,6 +428,7 @@ def download_file(
     auth_query_token: str | None = None,
     extra_headers: dict[str, str] | None = None,
     max_retries: int = _DEFAULT_MAX_RETRIES,
+    connections: int = 1,
 ) -> DownloadOutcome:
     """Download *url* to *destination*, resuming a prior ``.part`` when the server supports it.
 
@@ -241,15 +441,25 @@ def download_file(
     retry budget, so a caller iterating multiple sources (e.g. a gated mirror then its origin) falls through
     promptly rather than hammering a URL that will never serve it.
 
+    When *connections* is greater than 1 and the file is large enough and the server honours range requests,
+    the bytes are fetched over that many concurrent ranged connections to raise throughput on a single file
+    (a single TCP stream is often window/RTT-limited well below the link). This fast path does not resume an
+    interrupted download; on any unsuitability (small file, no range support, a transient segment failure) it
+    transparently drops to the single-stream behaviour below. ``connections == 1`` is exactly the original
+    single-stream path.
+
     Args:
         url: The file URL.
         destination: The final on-disk path. Parent directories are created as needed.
         expected_sha256: The record's declared hash, or None / ``"FIXME"`` to skip verification.
-        progress_callback: Optional ``(downloaded_bytes, total_bytes)`` callback, invoked per chunk.
+        progress_callback: Optional ``(downloaded_bytes, total_bytes)`` callback, invoked per chunk. May raise
+            to abort the download (see :class:`DownloadAborted`); the abort propagates out unchanged.
         auth_query_token: Optional token appended to the URL query (e.g. a CivitAI API token).
         extra_headers: Optional request headers (e.g. an ``apikey`` header for the gated R2 gateway). Merged
             with the resume ``Range`` header; a ``Range`` key here is overridden when resuming.
         max_retries: Maximum transient-failure retries before giving up.
+        connections: Maximum concurrent connections for a single large file (clamped to
+            :data:`_MAX_CONNECTIONS_PER_FILE`); 1 keeps the simple resumable single-stream path.
 
     Returns:
         A :class:`DownloadOutcome` describing the result.
@@ -258,6 +468,19 @@ def download_file(
     partial = Path(f"{destination}.part")
     destination.parent.mkdir(parents=True, exist_ok=True)
     download_url = _with_auth_token(url, auth_query_token)
+
+    if connections > 1:
+        segmented = _segmented_download(
+            download_url,
+            destination,
+            expected_sha256=expected_sha256,
+            progress_callback=progress_callback,
+            extra_headers=extra_headers,
+            connections=connections,
+            max_retries=max_retries,
+        )
+        if segmented is not None:
+            return segmented
 
     attempts_remaining = max_retries
     while attempts_remaining > 0:
@@ -336,6 +559,7 @@ def download_addressed_file(
     auth_query_token: str | None = None,
     progress_callback: ProgressCallback | None = None,
     use_configured_gateway: bool = True,
+    connections: int = 1,
 ) -> DownloadOutcome:
     """Fetch one file, preferring the gated content-addressed R2 gateway and falling back to *origin_url*.
 
@@ -348,20 +572,24 @@ def download_addressed_file(
     *origin_url*, so an absent or unreachable mirror never blocks a download. The sha256 is verified after every
     attempt regardless of source, so a mismatched mirror object is rejected; a completed-but-corrupt attempt is
     removed before the next source is tried so a later failure cannot leave a bad file behind.
+
+    *connections* applies only to the *origin* fetch: the gateway is the already-fast accelerator and is left
+    single-stream until its Cloudflare Worker is confirmed to pass ``Range`` through to R2 (segmenting a server
+    that buffers the range would help nothing and waste connections).
     """
     if gateway_base_url is None and use_configured_gateway:
         from horde_model_reference import HordeModelReferenceSettings
 
         gateway_base_url = HordeModelReferenceSettings().r2.gateway_url
 
-    candidates: list[tuple[str, dict[str, str] | None, str | None]] = []
+    candidates: list[tuple[str, dict[str, str] | None, str | None, int]] = []
     have_address = bool(sha256) and sha256 != UNKNOWN_SHA256_SENTINEL
     if gateway_base_url and apikey and have_address and gateway_accepts_key(gateway_base_url):
-        candidates.append((gateway_url_for(gateway_base_url, sha256), {"apikey": apikey}, None))
-    candidates.append((origin_url, None, auth_query_token))
+        candidates.append((gateway_url_for(gateway_base_url, sha256), {"apikey": apikey}, None, 1))
+    candidates.append((origin_url, None, auth_query_token, connections))
 
     outcome = DownloadOutcome(success=False, final_path=destination, bytes_written=0, sha256=None)
-    for index, (candidate_url, candidate_headers, candidate_token) in enumerate(candidates):
+    for index, (candidate_url, candidate_headers, candidate_token, candidate_connections) in enumerate(candidates):
         is_last = index == len(candidates) - 1
         outcome = download_file(
             candidate_url,
@@ -371,6 +599,7 @@ def download_addressed_file(
             auth_query_token=candidate_token,
             extra_headers=candidate_headers,
             max_retries=_DEFAULT_MAX_RETRIES if is_last else _FALLBACK_SOURCE_MAX_RETRIES,
+            connections=candidate_connections,
         )
         if outcome.success:
             return outcome
@@ -393,6 +622,7 @@ def _fetch_file_with_fallback(
     auth_query_token: str | None,
     progress_callback: ProgressCallback | None,
     use_configured_gateway: bool,
+    connections: int,
 ) -> DownloadOutcome:
     """Fetch one declared file, preferring the gated R2 gateway and falling back to its origin ``file_url``.
 
@@ -407,6 +637,7 @@ def _fetch_file_with_fallback(
         auth_query_token=auth_query_token,
         progress_callback=progress_callback,
         use_configured_gateway=use_configured_gateway,
+        connections=connections,
     )
 
 
@@ -419,6 +650,7 @@ def download_record_files(
     gateway_base_url: str | None = None,
     apikey: str | None = None,
     use_configured_gateway: bool = True,
+    connections: int = 1,
 ) -> bool:
     """Download every file *record* declares into its category folder under *root*.
 
@@ -441,6 +673,8 @@ def download_record_files(
         apikey: Optional horde API key sent to the gateway; required for the mirror-first path.
         use_configured_gateway: When True, use ``HordeModelReferenceSettings().r2.gateway_url`` if
             *gateway_base_url* is not supplied.
+        connections: Maximum concurrent connections per large file, forwarded to the origin fetch in
+            :func:`download_addressed_file` (the gateway stays single-stream).
 
     Returns:
         True when every declared file is present (and any known hash matched), False otherwise.
@@ -468,6 +702,7 @@ def download_record_files(
             auth_query_token=auth_query_token,
             progress_callback=progress_callback,
             use_configured_gateway=use_configured_gateway,
+            connections=connections,
         )
         if not outcome.success:
             all_succeeded = False

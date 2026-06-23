@@ -11,6 +11,7 @@ import http.server
 import os
 import sys
 import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -20,6 +21,7 @@ import pytest
 
 import horde_model_reference.download_engine as download_engine
 from horde_model_reference.download_engine import (
+    DownloadAborted,
     download_file,
     download_record_files,
     gateway_accepts_key,
@@ -51,6 +53,13 @@ class _ServerState:
     """When set, every GET responds with this status and no body (simulates a gateway 401/403/404)."""
     seen_apikeys: list[str] = field(default_factory=list)
     """The ``apikey`` request header seen on each GET (empty string when absent), for asserting forwarding."""
+    requested_ranges: list[tuple[int, int]] = field(default_factory=list)
+    """Every (start, end) byte range the server was asked for; lets segmented tests assert the split."""
+    delay_ranges: set[int] = field(default_factory=set)
+    """Range *start* offsets whose response is held back by ``delay_seconds`` (forces out-of-order finish)."""
+    delay_seconds: float = 0.0
+    lock: threading.Lock = field(default_factory=threading.Lock)
+    """Guards the counters/lists, which the threading server mutates from several handler threads at once."""
 
 
 class _StatefulServer(http.server.ThreadingHTTPServer):
@@ -78,17 +87,19 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self) -> None:
-        """Respond to GET, honouring Range unless configured to ignore or fail."""
+        """Respond to GET, honouring Range (start and end) unless configured to ignore or fail."""
         state = self._state()
-        state.get_count += 1
-        state.seen_apikeys.append(self.headers.get("apikey", ""))
+        with state.lock:
+            state.get_count += 1
+            get_count = state.get_count
+            state.seen_apikeys.append(self.headers.get("apikey", ""))
 
         if state.force_status is not None:
             self.send_response(state.force_status)
             self.end_headers()
             return
 
-        if state.mode == "fail_then_ok" and state.get_count <= state.fail_times:
+        if state.mode == "fail_then_ok" and get_count <= state.fail_times:
             self.send_response(500)
             self.end_headers()
             return
@@ -96,19 +107,29 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         payload = state.payload
         range_header = self.headers.get("Range")
         if range_header and state.mode != "ignore_range":
-            state.range_get_count += 1
-            start = int(range_header.split("=")[1].split("-")[0])
+            spec = range_header.split("=", 1)[1]
+            start_text, _, end_text = spec.partition("-")
+            start = int(start_text)
+            # An open-ended range (``bytes=start-``) runs to EOF, matching the single-stream resume request;
+            # a closed range (``bytes=start-end``) is honoured exactly, which segmented downloads rely on.
+            end = int(end_text) if end_text else len(payload) - 1
+            with state.lock:
+                state.range_get_count += 1
+                state.requested_ranges.append((start, end))
             if start >= len(payload):
                 self.send_response(416)
                 self.send_header("Content-Range", f"bytes */{len(payload)}")
                 self.end_headers()
                 return
-            remaining = payload[start:]
+            end = min(end, len(payload) - 1)
+            body = payload[start : end + 1]
+            if start in state.delay_ranges:
+                time.sleep(state.delay_seconds)
             self.send_response(206)
-            self.send_header("Content-Range", f"bytes {start}-{len(payload) - 1}/{len(payload)}")
-            self.send_header("Content-Length", str(len(remaining)))
+            self.send_header("Content-Range", f"bytes {start}-{end}/{len(payload)}")
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(remaining)
+            self.wfile.write(body)
             return
 
         self.send_response(200)
@@ -586,6 +607,144 @@ def test_download_file_does_not_retry_definitive_rejection(
 
     assert outcome.success is False
     assert state.get_count == 1
+
+
+_LARGE = 80 * 1024 * 1024
+"""Comfortably above the 64 MiB segmentation threshold and an exact multiple of the 16 MiB minimum, so a
+4-connection request plans exactly four 20 MiB segments."""
+
+
+def test_segmented_download_reassembles_large_file(http_server: tuple[str, _ServerState], tmp_path: Path) -> None:
+    """A large file fetched over several connections is reassembled byte-exactly and validates its sha256."""
+    base_url, state = http_server
+    state.payload = bytes(bytearray((i * 31 + 7) % 256 for i in range(_LARGE)))
+    destination = tmp_path / "model.bin"
+    seen: list[int] = []
+
+    outcome = download_file(
+        f"{base_url}/model.bin",
+        destination,
+        expected_sha256=_sha256(state.payload),
+        progress_callback=lambda downloaded, _total: seen.append(downloaded),
+        connections=4,
+    )
+
+    assert outcome.success is True
+    assert destination.read_bytes() == state.payload
+    assert destination.with_suffix(".sha256").is_file()
+    assert not destination.with_suffix(".bin.spart").exists()
+    assert not destination.with_suffix(".bin.part").exists()
+    # The one-byte probe (0, 0) precedes four distinct segment ranges that tile the whole file.
+    assert (0, 0) in state.requested_ranges
+    segment_ranges = [r for r in state.requested_ranges if r != (0, 0)]
+    assert len(segment_ranges) == 4
+    assert min(start for start, _ in segment_ranges) == 0
+    assert max(end for _, end in segment_ranges) == _LARGE - 1
+    # Aggregated progress is monotonic and ends at the full size despite arriving from several threads.
+    assert seen == sorted(seen)
+    assert seen[-1] == _LARGE
+
+
+def test_segmented_out_of_order_completion_reassembles(http_server: tuple[str, _ServerState], tmp_path: Path) -> None:
+    """Delaying the first segment so later ones land first still reconstructs the exact file (seek is correct)."""
+    base_url, state = http_server
+    state.payload = bytes(bytearray((i * 17 + 3) % 256 for i in range(_LARGE)))
+    state.delay_ranges = {0}
+    state.delay_seconds = 0.5
+    destination = tmp_path / "model.bin"
+
+    outcome = download_file(
+        f"{base_url}/model.bin",
+        destination,
+        expected_sha256=_sha256(state.payload),
+        connections=4,
+    )
+
+    assert outcome.success is True
+    assert destination.read_bytes() == state.payload
+
+
+def test_below_threshold_file_is_not_segmented(http_server: tuple[str, _ServerState], tmp_path: Path) -> None:
+    """A file under the segmentation threshold falls through to a single-stream GET after the size probe."""
+    base_url, state = http_server
+    state.payload = b"y" * (4 * 1024 * 1024)
+    destination = tmp_path / "model.bin"
+
+    outcome = download_file(
+        f"{base_url}/model.bin",
+        destination,
+        expected_sha256=_sha256(state.payload),
+        connections=4,
+    )
+
+    assert outcome.success is True
+    assert destination.read_bytes() == state.payload
+    # Only the one-byte probe is a ranged request; the body itself comes from a single non-range GET.
+    assert state.requested_ranges == [(0, 0)]
+    assert state.get_count == 2
+
+
+def test_segmentation_falls_back_when_server_ignores_range(
+    http_server: tuple[str, _ServerState], tmp_path: Path
+) -> None:
+    """When the probe shows the server ignores Range, the download cleanly uses the single-stream path."""
+    base_url, state = http_server
+    state.payload = b"no ranges here"
+    state.mode = "ignore_range"
+    destination = tmp_path / "model.bin"
+
+    outcome = download_file(
+        f"{base_url}/model.bin",
+        destination,
+        expected_sha256=_sha256(state.payload),
+        connections=4,
+    )
+
+    assert outcome.success is True
+    assert destination.read_bytes() == state.payload
+    assert state.range_get_count == 0
+
+
+def test_connections_one_skips_the_probe_entirely(http_server: tuple[str, _ServerState], tmp_path: Path) -> None:
+    """connections=1 is the original single-stream path: no probe, no range request on a fresh download."""
+    base_url, state = http_server
+    state.payload = bytes(_LARGE)
+    destination = tmp_path / "model.bin"
+
+    outcome = download_file(
+        f"{base_url}/model.bin",
+        destination,
+        expected_sha256=_sha256(state.payload),
+        connections=1,
+    )
+
+    assert outcome.success is True
+    assert state.range_get_count == 0
+    assert state.get_count == 1
+
+
+def test_segmented_abort_from_callback_propagates_and_cleans_up(
+    http_server: tuple[str, _ServerState], tmp_path: Path
+) -> None:
+    """A callback that raises DownloadAborted stops every segment, removes the partial, and re-raises."""
+    base_url, state = http_server
+    state.payload = bytes(_LARGE)
+    destination = tmp_path / "model.bin"
+
+    def abort_after_first(_downloaded: int, _total: int) -> None:
+        raise DownloadAborted
+
+    with pytest.raises(DownloadAborted):
+        download_file(
+            f"{base_url}/model.bin",
+            destination,
+            expected_sha256=_sha256(state.payload),
+            progress_callback=abort_after_first,
+            connections=4,
+        )
+
+    assert not destination.exists()
+    assert not destination.with_suffix(".bin.spart").exists()
 
 
 def test_engine_modules_import_without_torch() -> None:
