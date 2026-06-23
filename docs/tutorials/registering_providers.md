@@ -81,8 +81,11 @@ merged = manager.get_model_reference("image_generation", source=ANY_SOURCE)
 
 ### Collisions and provenance
 
-When several sources are merged, records are de-duplicated by name with the **canonical (or
-earlier-listed) source winning**. Collisions are never silently lost - you can inspect them:
+When several sources are merged, records are de-duplicated by name with the **first source in
+selector order winning**. The canonical source is no longer always first: your explicit ordering
+controls collision precedence, so `["pending", "horde"]` lets a pending beta override canonical
+while the default `["horde"]` is canonical-only. Collisions are never silently lost - you can
+inspect them:
 
 ```python
 q = manager.query("image_generation", source=ANY_SOURCE)

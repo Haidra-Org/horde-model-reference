@@ -34,6 +34,8 @@ Every record shares these base fields:
 | `config`               | `GenericModelRecordConfig`        | Download info                                   |
 | `metadata`             | `GenericModelRecordMetadata`      | Timestamps, authorship                          |
 | `finetune_series`      | `FineTuneSeriesInfo \| None`      | Fine-tune lineage (e.g., "Pony", "Illustrious") |
+| `size_on_disk_bytes`   | `int \| None`                     | Aggregate on-disk size                          |
+| `category`             | `MODEL_REFERENCE_CATEGORY \| None`| Normalised category from `record_type`          |
 
 ## Key Fields by Category
 
@@ -47,7 +49,6 @@ Every record shares these base fields:
 | `style`              | `MODEL_STYLE \| None`                    | Visual style category                                                           |
 | `tags`               | `list[str]`                              | Searchable tags                                                                 |
 | `trigger`            | `list[str]`                              | Trigger words for activation                                                    |
-| `size_on_disk_bytes` | `int \| None`                            | File size                                                                       |
 | `homepage`           | `str \| None`                            | Link to model homepage                                                          |
 | `min_bridge_version` | `int \| None`                            | Minimum AI-Horde-Worker version required                                        |
 
@@ -142,9 +143,22 @@ for download in model.config.download:
     print(f"File: {download.file_name}")
     print(f"URL: {download.file_url}")
     print(f"SHA256: {download.sha256sum}")
+    if download.file_purpose:
+        print(f"  Component role: {download.file_purpose}")  # e.g. "vae", "text_encoders"
+    if download.size_bytes:
+        print(f"  Size: {download.size_bytes:,} bytes")
     if download.known_slow_download:
         print("  (known slow download)")
+
+# Aggregate sizes
+if model.declared_total_size_bytes:
+    print(f"Total: {model.declared_total_size_bytes:,} bytes")
 ```
+
+`file_purpose` drives on-disk component routing: a file with purpose `"vae"` or `"text_encoders"`
+lands in a sibling folder (`vae/` or `text_encoders/`) rather than beside the primary checkpoint,
+matching ComfyUI's component loader conventions. See the
+[`on_disk_layout`][horde_model_reference.on_disk_layout] module for the full routing rules.
 
 ## Baselines
 

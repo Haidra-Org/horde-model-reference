@@ -19,6 +19,7 @@ Unauthenticated and safe to cache.
 | `GET /model_references/v2/info` | API information message. |
 | `GET /model_references/v2/model_categories` | List all category names. |
 | `GET /model_references/v2/{category}` | All models in a category, as `{name: record}`. `404` if unknown/empty. |
+| `GET /model_references/v2/{category}/pending` | Pending (beta) models in a category, as `{name: record}`. Requires `apikey`. `503` if queue disabled. |
 | `GET /model_references/v2/{category}/model/{model_name}` | A single model record. `404` if missing. |
 | `GET /model_references/v2/{category}/search` | Filter/sort/paginate within a category (see [Search](#search)). |
 | `GET /model_references/v2/search` | Search across all categories. |

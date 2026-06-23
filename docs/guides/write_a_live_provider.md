@@ -86,11 +86,14 @@ manager.register_provider(CivitaiProvider())
 # Canonical only (default) - provider not consulted:
 canonical = manager.query("image_generation").to_list()
 
-# Canonical + every provider; canonical wins name collisions:
+# Canonical + every provider; selector order determines collision precedence:
 combined = manager.query("image_generation", source=ANY_SOURCE).to_list()
 
 # Just your source:
 mine = manager.query("image_generation", source="civitai").to_list()
+
+# Explicit ordering - earlier sources win name collisions:
+mine_first = manager.query("image_generation", source=["civitai", "horde"]).to_list()
 ```
 
 Provider failures are isolated: if `fetch_category` raises, the error is logged

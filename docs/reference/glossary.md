@@ -98,8 +98,9 @@ field and the `KNOWN_IMAGE_GENERATION_BASELINE` enum. See
 
 A **provider** is a read-only, third-party source of records you register to
 sit alongside the canonical horde data. Each provider has a unique **source id**
-(e.g. `"civitai"`). Consumers opt in per call with the `source=` argument
-(`"horde"`, `"any"`, a single id, or an ordered list). See
+(e.g. `"civitai"`, `"pending"`). Consumers opt in per call with the `source=`
+argument (`"horde"`, `"any"`, a single id, or an ordered list; earlier ids win
+name collisions). See
 [Registering & Consuming Providers](../tutorials/registering_providers.md) and
 [Model Providers](model_providers.md).
 

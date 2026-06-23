@@ -190,14 +190,65 @@ When a pending change is **applied**, `FileSystemBackend.update_model()`/`delete
 - **Disaster recovery:** If an apply job fails after writing to disk but before `mark_applied`, operators can manually verify the filesystem state and re-run the endpoint. The helper is idempotent regarding backend writes (`update_model` is an upsert).
 - **Tooling:** The pending queue is operated exclusively via HTTP endpoints. Use the frontend UI or direct API calls with appropriate authorization headers. No separate CLI tools are provided for queue operations.
 
+## Beta Model Materialization
+
+Pending-queue changes in `PENDING` or `APPROVED` status are surfaced as "beta" models through two complementary paths:
+
+### HTTP Endpoint
+
+`GET /model_references/v2/{category}/pending` returns beta models as v2 records keyed by model name.
+This is the same shape the canonical category endpoint returns, so REPLICA clients can overlay beta
+data onto canonical data without any format handling:
+
+- Only `CREATE` and `UPDATE` changes are materialized; `DELETE` changes are never surfaced (a beta
+  cannot remove a live model).
+- When several queued changes target the same model name, the most recently updated one wins.
+- Reader authentication is required (any valid Horde API key).
+
+When the deployment's canonical format is `legacy`, stored payloads are round-tripped through the
+canonical legacy→v2 converter (the same code path `GitHubBackend` uses) so beta records never diverge
+from canonical ones.
+
+### PendingModelProvider
+
+The [`PendingModelProvider`][horde_model_reference.providers.pending_provider.PendingModelProvider]
+wraps the `/{category}/pending` endpoint as a read-only `ModelProvider` under the `"pending"` source
+id. REPLICA clients can register it on their manager and opt specific categories into beta through
+the normal multi-source query surface:
+
+```python
+from horde_model_reference import PendingModelProvider, MODEL_REFERENCE_CATEGORY
+
+provider = PendingModelProvider(
+    primary_api_url="https://models.aihorde.net/api",
+    apikey="your-horde-api-key",
+    categories={MODEL_REFERENCE_CATEGORY.image_generation},
+)
+manager.register_provider(provider)
+
+# Beta models override canonical when they share a name
+models = manager.query("image_generation", source=["pending", "horde"]).to_list()
+```
+
+See [Model Providers](model_providers.md) for the full provider API, and [Registering & Consuming Providers](../tutorials/registering_providers.md) for integration patterns.
+
+### Implementation
+
+| Module | Purpose |
+|--------|---------|
+| `pending_queue/materialize.py` | `materialize_pending_records()` — selects winning CREATE/UPDATE changes and converts them to v2 record dicts |
+| `providers/pending_provider.py` | `PendingModelProvider` — cached HTTP provider implementing the `ModelProvider` ABC |
+| `service/v2/routers/references.py` | `read_v2_reference_pending` — the HTTP endpoint, wired before category routes |
+
 ## File References
 
 | Area                   | Files                                                                                                                                                                                        |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Settings & paths       | `src/horde_model_reference/__init__.py`, `src/horde_model_reference/path_consts.py`                                                                                                          |
-| Pending queue service  | `src/horde_model_reference/pending_queue/{models.py,service.py,apply.py}`                                                                                                                    |
+| Pending queue service  | `src/horde_model_reference/pending_queue/{models.py,service.py,apply.py,materialize.py}`                                                                                                     |
 | Router logic           | `src/horde_model_reference/service/v1/routers/create_update.py`, `src/horde_model_reference/service/v2/routers/{references,pending_queue}.py`, `src/horde_model_reference/service/shared.py` |
-| Tests                  | `tests/service/test_v2_api.py`, `tests/pending_queue/test_service.py`, `tests/pending_queue/test_apply.py`, fixtures in `tests/conftest.py`                                                  |
+| Pending provider       | `src/horde_model_reference/providers/pending_provider.py`                                                                                                                                    |
+| Tests                  | `tests/service/test_v2_api.py`, `tests/pending_queue/test_service.py`, `tests/pending_queue/test_apply.py`, `tests/test_pending_materialize.py`, `tests/test_pending_provider.py`, fixtures in `tests/conftest.py` |
 | Docs referencing queue | `docs/reference/model_reference_backend.md`, `docs/reference/api_deployments.md`                                                                                                         |
 
 ## Related Documentation

@@ -41,9 +41,15 @@ graph TD
 
 **`path_consts.py`** provides `HordeModelReferencePaths`, a singleton that computes every filesystem path (base, legacy, showcase, meta, audit, pending queue) and builds filename/URL dictionaries from `CategoryDescriptor` data. All backends and the service layer use it to locate files.
 
-**`model_reference_records.py`** contains the Pydantic model hierarchy (`GenericModelRecord` and its specialized subclasses) and the `@register_record_type(category)` decorator that populates `MODEL_RECORD_TYPE_LOOKUP`. This is the schema contract that backends write to and consumers read from.
+**`model_reference_records.py`** contains the Pydantic model hierarchy (`GenericModelRecord` and its specialized subclasses) and the `@register_record_type(category)` decorator that populates `MODEL_RECORD_TYPE_LOOKUP`. This is the schema contract that backends write to and consumers read from. `DownloadRecord` carries per-file metadata including `file_purpose` for on-disk component routing and `size_bytes` for space estimation.
 
-**`model_reference_manager.py`** hosts the `ModelReferenceManager` singleton, which orchestrates the read/write lifecycle. It selects the backend, wires audit and pending-queue services, and exposes the public API (`get_all_model_references()`, `get_model_reference(category)`, `get_model(category, name)`) in both sync and async variants.
+**`model_reference_manager.py`** hosts the `ModelReferenceManager` singleton, which orchestrates the read/write lifecycle. It selects the backend, wires audit and pending-queue services, and exposes the public API (`get_all_model_references()`, `get_model_reference(category)`, `get_model(category, name)`) in both sync and async variants (with typed overloads per category).
+
+Two additional modules ground the download and on-disk layout subsystems:
+
+**`download_engine.py`** provides a torch-free, resumable HTTP file download with checksum sidecars. Owned by `horde_model_reference` so every consumer (worker, hordelib, third-party tools) shares one implementation instead of re-deriving it.
+
+**`on_disk_layout.py`** provides torch-free knowledge of where canonical model weights live on disk. Answers category folder, component-relative paths, multi-root presence checks, and free-space queries without importing torch or ComfyUI.
 
 ## Subsystem Directory Map
 
@@ -53,7 +59,8 @@ graph TD
 | `service/`       | FastAPI app factory, v1/v2 routers, statistics and pending-queue endpoints |
 | `legacy/`        | Legacy format download, conversion, and validation                         |
 | `audit/`         | Append-only audit trail (events, writer, reader, replay)                   |
-| `pending_queue/` | Propose / approve / apply change queue                                     |
+| `pending_queue/` | Propose / approve / apply change queue, beta materialization               |
+| `providers/`     | Read-only model providers (static, pending-queue beta)                     |
 | `analytics/`     | Statistics computation, caching, audit analysis, text model parsing        |
 | `sync/`          | GitHub synchronization (comparator, PR creation, watch mode)               |
 | `integrations/`  | AI-Horde public API client, runtime data merger                            |

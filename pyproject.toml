@@ -161,6 +161,10 @@ docs = [
     "mkdocstrings-python>=1.18.0",
     "mkdocstrings-python-xref>=1.16.4",
 ]
+r2 = [
+    "boto3>=1.43.35",
+    "boto3-stubs>=1.43.35",
+]
 
 [tool.mypy]
 plugins = [

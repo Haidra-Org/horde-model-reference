@@ -1,0 +1,4 @@
+{
+  "_comment": "Opt-in allowlist for redistributing model files on the gated R2 mirror. A model is mirrored only when its name appears in 'models'. Hosting a weight here is redistribution: add an entry only once you have confirmed the upstream license permits it (there is no category-wide opt-in, so newly added models are never mirrored until individually reviewed). Each entry is either a bare name string, or an object {\"name\": ..., \"license\": ..., \"note\": ...}; the license/note are stamped onto the uploaded object for the audit trail. Empty by default (mirrors nothing).",
+  "models": []
+}

@@ -277,6 +277,40 @@ class PendingQueueSettings(BaseModel):
     """Reserved for future rotation support (matches audit defaults)."""
 
 
+class R2Settings(BaseModel):
+    """Settings for the gated Cloudflare R2 mirror of hostable (non-generation) models.
+
+    Two distinct concerns share this block. ``gateway_url`` is a *client* setting: every download consumer
+    (the worker, hordelib, standalone tools) reads it to enable the mirror-first download path, and it is
+    populated with the deployed gateway's URL. The ``upload_*`` fields are used only by the maintainer-facing
+    upload tool (``scripts/r2_sync``) to authenticate to the R2 bucket and are unset for normal clients.
+    """
+
+    model_config = SettingsConfigDict(use_attribute_docstrings=True)
+
+    gateway_url: str | None = None
+    """Base URL of the deployed gated R2 gateway (the Cloudflare Worker), e.g. ``https://<host>``. \
+When set, download consumers that also pass an apikey try the content-addressed mirror first and fall back to \
+each record's origin URL on any failure. Left None until the gateway is deployed; None disables the mirror path \
+entirely so behaviour is identical to before."""
+
+    upload_bucket: str | None = None
+    """Name of the R2 bucket the devops upload tool pushes objects into. Upload tool only."""
+
+    upload_endpoint_url: str | None = None
+    """S3-compatible endpoint URL for the R2 account (e.g. https://<account>.r2.cloudflarestorage.com). \
+Upload tool only."""
+
+    upload_access_key_id: str | None = None
+    """R2 access key id for the devops upload tool. Upload tool only; prefer providing via the environment."""
+
+    upload_secret_access_key: str | None = None
+    """R2 secret access key for the devops upload tool. Upload tool only; prefer providing via the environment."""
+
+    upload_region: str = "auto"
+    """S3 region for the R2 client. Cloudflare R2 uses ``auto``. Upload tool only."""
+
+
 class HordeModelReferenceSettings(BaseSettings):
     """Settings for the Horde Model Reference package."""
 
@@ -390,6 +424,9 @@ Set lower (e.g., 0.005%) to flag fewer models or higher (e.g., 0.01%) to flag mo
 
     pending_queue: PendingQueueSettings = PendingQueueSettings()
     """Settings controlling the pending change queue (auth lists, storage)."""
+
+    r2: R2Settings = Field(default_factory=R2Settings)
+    """Gated Cloudflare R2 mirror settings: the client gateway URL plus the devops upload tool's credentials."""
 
     cache_hydration_enabled: bool = False
     """Enable background cache hydration to keep audit/statistics caches warm. \

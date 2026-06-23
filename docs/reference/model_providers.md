@@ -13,6 +13,8 @@ library never writes back to a provider.
   third-party source implements.
 - [`StaticModelProvider`][horde_model_reference.providers.static_provider.StaticModelProvider] - a
   ready-to-use, in-memory provider for the common case (records you already have).
+- [`PendingModelProvider`][horde_model_reference.providers.pending_provider.PendingModelProvider] - a
+  built-in provider that surfaces a PRIMARY's pending-queue (beta) models under the `"pending"` source.
 - [`ModelProviderRegistry`][horde_model_reference.providers.registry.ModelProviderRegistry] - the
   thread-safe `source_id -> provider` registry owned by each `ModelReferenceManager`.
 - `source_consts` - the source-selection constants and the `SourceSelector` type.
@@ -28,6 +30,7 @@ Every read API accepts a `source` argument of type `SourceSelector`
 | ----------------------- | ------------------------------------------------------------------- |
 | `"horde"` (default)     | Canonical horde data only. Existing callers are unaffected.         |
 | `"any"`                 | Canonical data merged with **all** registered providers.            |
+| `"pending"`             | The built-in pending-queue (beta) provider.                         |
 | `"civitai"`             | A single provider id.                                               |
 | `["horde", "civitai"]`  | An explicit, ordered set. Earlier ids win name collisions.          |
 
@@ -39,9 +42,10 @@ register under them. Naming an unregistered source id explicitly raises `ValueEr
 
 When more than one source is selected:
 
-1. Records are gathered **canonical-first**, then each provider in selector order.
-2. They are de-duplicated by model name; the **first occurrence wins** (canonical, or the earlier id in
-   an explicit sequence).
+1. Records are gathered in **selector order** (the canonical source is read at its position in the
+   selector rather than always first).
+2. They are de-duplicated by model name; the **first occurrence wins** (so `["pending", "horde"]` lets
+   a pending beta override canonical, while the default `["horde"]` is canonical-only).
 3. Duplicates are retained for inspection - the query builder exposes
    [`duplicate_names()`][horde_model_reference.query.ModelQuery.duplicate_names],
    `has_duplicate_names()`, `where_source()`, `to_list_with_source()`, `sources()`, and
@@ -72,6 +76,19 @@ validate plain dicts against each category's record type (from
 falling back to `GenericModelRecord`). The mapping key is injected as each record's `name`.
 
 See the [`StaticModelProvider`][horde_model_reference.providers.static_provider.StaticModelProvider] API reference for details.
+
+## `PendingModelProvider`
+
+A built-in provider that reads a PRIMARY's pending-queue (beta) models via the
+`GET /{category}/pending` endpoint and exposes them under the `"pending"` source id
+(`PENDING_SOURCE_ID`). It requires a reader-level Horde API key and a configured PRIMARY API URL.
+Responses are cached briefly per category.
+
+This provider replaces the old "run a beta by pointing the GitHub backend at a branch" pattern:
+REPLICA clients can now opt specific categories into beta models through the normal multi-source
+query surface, e.g. `manager.query(category, source=["pending", "horde"])`.
+
+See the [`PendingModelProvider`][horde_model_reference.providers.pending_provider.PendingModelProvider] API reference for construction parameters.
 
 ## `ModelProviderRegistry`
 

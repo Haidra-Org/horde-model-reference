@@ -12,14 +12,17 @@ import os
 import sys
 import threading
 from collections.abc import Iterator
-from dataclasses import dataclass
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
 
+import horde_model_reference.download_engine as download_engine
 from horde_model_reference.download_engine import (
     download_file,
     download_record_files,
+    gateway_accepts_key,
     sha256_of,
 )
 from horde_model_reference.meta_consts import (
@@ -44,6 +47,10 @@ class _ServerState:
     fail_times: int = 0
     get_count: int = 0
     range_get_count: int = 0
+    force_status: int | None = None
+    """When set, every GET responds with this status and no body (simulates a gateway 401/403/404)."""
+    seen_apikeys: list[str] = field(default_factory=list)
+    """The ``apikey`` request header seen on each GET (empty string when absent), for asserting forwarding."""
 
 
 class _StatefulServer(http.server.ThreadingHTTPServer):
@@ -74,6 +81,12 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         """Respond to GET, honouring Range unless configured to ignore or fail."""
         state = self._state()
         state.get_count += 1
+        state.seen_apikeys.append(self.headers.get("apikey", ""))
+
+        if state.force_status is not None:
+            self.send_response(state.force_status)
+            self.end_headers()
+            return
 
         if state.mode == "fail_then_ok" and state.get_count <= state.fail_times:
             self.send_response(500)
@@ -104,9 +117,9 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(payload)
 
 
-@pytest.fixture
-def http_server() -> Iterator[tuple[str, _ServerState]]:
-    """Yield ``(base_url, state)`` for a running local HTTP server, shut down on teardown."""
+@contextmanager
+def _running_server() -> Iterator[tuple[str, _ServerState]]:
+    """Start a local HTTP server and yield ``(base_url, state)``, shutting it down on exit."""
     server = _StatefulServer(("127.0.0.1", 0), _Handler)
     server.state = _ServerState()
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -118,6 +131,24 @@ def http_server() -> Iterator[tuple[str, _ServerState]]:
         server.shutdown()
         server.server_close()
         thread.join()
+
+
+@pytest.fixture
+def http_server() -> Iterator[tuple[str, _ServerState]]:
+    """Yield ``(base_url, state)`` for a running local HTTP server, shut down on teardown."""
+    with _running_server() as running:
+        yield running
+
+
+@pytest.fixture
+def gateway_and_origin() -> Iterator[tuple[tuple[str, _ServerState], tuple[str, _ServerState]]]:
+    """Yield two independent servers ``((gateway_url, gateway_state), (origin_url, origin_state))``.
+
+    Models the gated R2 mirror (first) and the record's origin host (second) so the mirror-first/fallback
+    behaviour of :func:`download_record_files` can be exercised end to end.
+    """
+    with _running_server() as gateway, _running_server() as origin:
+        yield gateway, origin
 
 
 def _sha256(data: bytes) -> str:
@@ -293,6 +324,268 @@ def test_download_record_files_skips_present_files(http_server: tuple[str, _Serv
     assert download_record_files(record, tmp_path) is True
     assert state.get_count == 0
     assert (folder / "a.bin").with_suffix(".sha256").is_file()
+
+
+_ORIGIN_PAYLOAD = b"the genuine model weights payload" * 64
+
+
+def _gateway_record(base_url: str, sha256: str) -> GenericModelRecord:
+    """Return a one-file miscellaneous record whose origin is *base_url* and declared hash is *sha256*."""
+    return _record([DownloadRecord(file_name="a.bin", file_url=f"{base_url}/a.bin", sha256sum=sha256)])
+
+
+def test_gateway_is_preferred_and_apikey_forwarded(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]], tmp_path: Path
+) -> None:
+    """Verify the gated mirror is used first (origin untouched) and the apikey header is forwarded to it."""
+    (gateway_url, gateway_state), (origin_url, origin_state) = gateway_and_origin
+    gateway_state.payload = _ORIGIN_PAYLOAD
+    origin_state.payload = _ORIGIN_PAYLOAD
+    record = _gateway_record(origin_url, _sha256(_ORIGIN_PAYLOAD))
+
+    ok = download_record_files(record, tmp_path, gateway_base_url=gateway_url, apikey="k" * 22)
+
+    assert ok is True
+    assert (tmp_path / "miscellaneous" / "a.bin").read_bytes() == _ORIGIN_PAYLOAD
+    assert gateway_state.get_count >= 1
+    assert origin_state.get_count == 0
+    assert "k" * 22 in gateway_state.seen_apikeys
+
+
+@pytest.mark.parametrize("status", [401, 403, 404, 410])
+def test_gateway_rejection_falls_back_to_origin(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]],
+    tmp_path: Path,
+    status: int,
+) -> None:
+    """Verify an ineligible/absent gateway object (401/403/404/410) falls back transparently to the origin."""
+    (gateway_url, gateway_state), (origin_url, origin_state) = gateway_and_origin
+    gateway_state.force_status = status
+    origin_state.payload = _ORIGIN_PAYLOAD
+    record = _gateway_record(origin_url, _sha256(_ORIGIN_PAYLOAD))
+
+    ok = download_record_files(record, tmp_path, gateway_base_url=gateway_url, apikey="k" * 22)
+
+    assert ok is True
+    assert (tmp_path / "miscellaneous" / "a.bin").read_bytes() == _ORIGIN_PAYLOAD
+    assert gateway_state.get_count == 1  # definitive rejection: tried once, not retried
+    assert origin_state.get_count >= 1
+
+
+def test_gateway_corrupt_object_is_rejected_then_origin_used(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]], tmp_path: Path
+) -> None:
+    """Verify a mirror object whose bytes fail the sha256 is discarded and the origin serves the real file."""
+    (gateway_url, gateway_state), (origin_url, origin_state) = gateway_and_origin
+    gateway_state.payload = b"tampered or stale bytes"
+    origin_state.payload = _ORIGIN_PAYLOAD
+    record = _gateway_record(origin_url, _sha256(_ORIGIN_PAYLOAD))
+
+    ok = download_record_files(record, tmp_path, gateway_base_url=gateway_url, apikey="k" * 22)
+
+    assert ok is True
+    landed = tmp_path / "miscellaneous" / "a.bin"
+    assert landed.read_bytes() == _ORIGIN_PAYLOAD
+    assert not landed.with_suffix(".bin.part").exists()
+    assert gateway_state.get_count >= 1
+    assert origin_state.get_count >= 1
+
+
+@pytest.mark.parametrize(
+    ("url", "accepts"),
+    [
+        ("https://mirror.example", True),
+        ("https://mirror.example/", True),
+        ("http://localhost:8787", True),
+        ("http://127.0.0.1:1234", True),
+        ("http://mirror.example", False),  # plaintext non-local: would leak the key
+        ("ftp://mirror.example", False),
+        ("", False),
+    ],
+)
+def test_gateway_accepts_key_requires_https_or_localhost(url: str, accepts: bool) -> None:
+    """Verify the key is only deemed safe to send to an https gateway (or a localhost dev endpoint)."""
+    assert gateway_accepts_key(url) is accepts
+
+
+def test_insecure_http_gateway_is_skipped_and_key_never_sent(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify a plaintext gateway is never contacted (the apikey is not sent) and the origin serves the file.
+
+    The local test servers run on 127.0.0.1, which is treated as a safe dev endpoint; emptying that set makes the
+    http gateway count as insecure, exactly as a real ``http://`` non-local gateway would.
+    """
+    monkeypatch.setattr(download_engine, "_KEY_SAFE_HTTP_HOSTS", frozenset())
+    (gateway_url, gateway_state), (origin_url, origin_state) = gateway_and_origin
+    gateway_state.payload = _ORIGIN_PAYLOAD  # would serve if it were ever contacted
+    origin_state.payload = _ORIGIN_PAYLOAD
+    record = _gateway_record(origin_url, _sha256(_ORIGIN_PAYLOAD))
+
+    ok = download_record_files(record, tmp_path, gateway_base_url=gateway_url, apikey="k" * 22)
+
+    assert ok is True
+    assert gateway_state.get_count == 0  # insecure gateway never contacted: the key was not sent in the clear
+    assert origin_state.get_count >= 1
+
+
+def test_gateway_skipped_without_apikey(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]], tmp_path: Path
+) -> None:
+    """Verify the mirror path is inert without an apikey: the gateway is never contacted."""
+    (gateway_url, gateway_state), (origin_url, origin_state) = gateway_and_origin
+    gateway_state.force_status = 500  # would fail the request if it were ever attempted
+    origin_state.payload = _ORIGIN_PAYLOAD
+    record = _gateway_record(origin_url, _sha256(_ORIGIN_PAYLOAD))
+
+    ok = download_record_files(record, tmp_path, gateway_base_url=gateway_url, apikey=None)
+
+    assert ok is True
+    assert gateway_state.get_count == 0
+    assert origin_state.get_count >= 1
+
+
+def test_configured_gateway_url_is_used_when_apikey_is_supplied(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify the settings-level gateway URL enables mirror-first downloads when the caller supplies an apikey."""
+    (gateway_url, gateway_state), (origin_url, origin_state) = gateway_and_origin
+    monkeypatch.setenv("HORDE_MODEL_REFERENCE_R2__GATEWAY_URL", gateway_url)
+    gateway_state.payload = _ORIGIN_PAYLOAD
+    origin_state.payload = _ORIGIN_PAYLOAD
+    record = _gateway_record(origin_url, _sha256(_ORIGIN_PAYLOAD))
+
+    ok = download_record_files(record, tmp_path, apikey="k" * 22)
+
+    assert ok is True
+    assert gateway_state.get_count >= 1
+    assert origin_state.get_count == 0
+
+
+def test_configured_gateway_can_be_disabled_per_call(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify callers can force origin-only downloads even when the environment configures a gateway."""
+    (gateway_url, gateway_state), (origin_url, origin_state) = gateway_and_origin
+    monkeypatch.setenv("HORDE_MODEL_REFERENCE_R2__GATEWAY_URL", gateway_url)
+    gateway_state.force_status = 500
+    origin_state.payload = _ORIGIN_PAYLOAD
+    record = _gateway_record(origin_url, _sha256(_ORIGIN_PAYLOAD))
+
+    ok = download_record_files(record, tmp_path, apikey="k" * 22, use_configured_gateway=False)
+
+    assert ok is True
+    assert gateway_state.get_count == 0
+    assert origin_state.get_count >= 1
+
+
+def test_gateway_skipped_for_unhashed_record(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]], tmp_path: Path
+) -> None:
+    """Verify a record with no real sha256 ('FIXME') cannot be content-addressed, so the gateway is skipped."""
+    (gateway_url, gateway_state), (origin_url, origin_state) = gateway_and_origin
+    gateway_state.force_status = 500
+    origin_state.payload = _ORIGIN_PAYLOAD
+    record = _gateway_record(origin_url, "FIXME")
+
+    ok = download_record_files(record, tmp_path, gateway_base_url=gateway_url, apikey="k" * 22)
+
+    assert ok is True
+    assert gateway_state.get_count == 0
+    assert origin_state.get_count >= 1
+
+
+def test_gateway_5xx_falls_back_quickly_without_burning_retries(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]], tmp_path: Path
+) -> None:
+    """Verify a 5xx gateway (a transient status, not a definitive rejection) hands off after a single attempt.
+
+    A degraded mirror must not retry five times with backoff before reaching the origin: that would make the
+    mirror slower than no mirror at all. The non-final candidate gets one attempt; the origin keeps the budget.
+    """
+    (gateway_url, gateway_state), (origin_url, origin_state) = gateway_and_origin
+    gateway_state.force_status = 503
+    origin_state.payload = _ORIGIN_PAYLOAD
+    record = _gateway_record(origin_url, _sha256(_ORIGIN_PAYLOAD))
+
+    ok = download_record_files(record, tmp_path, gateway_base_url=gateway_url, apikey="k" * 22)
+
+    assert ok is True
+    assert (tmp_path / "miscellaneous" / "a.bin").read_bytes() == _ORIGIN_PAYLOAD
+    assert gateway_state.get_count == 1  # one attempt only, despite 503 not being a definitive rejection
+    assert origin_state.get_count >= 1
+
+
+def test_resume_probe_forwards_apikey_on_416(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]], tmp_path: Path
+) -> None:
+    """Verify a complete .part is finalized from the gateway on 416 because the completeness probe is authed.
+
+    The 416 path issues a second GET to read Content-Length; without forwarding the apikey the gated mirror
+    would answer 401, the probe would read no length, and a complete partial would be wrongly discarded.
+    """
+    (gateway_url, gateway_state), (_origin_url, _origin_state) = gateway_and_origin
+    gateway_state.payload = _ORIGIN_PAYLOAD
+    destination = tmp_path / "miscellaneous" / "a.bin"
+    destination.parent.mkdir(parents=True)
+    (tmp_path / "miscellaneous" / "a.bin.part").write_bytes(_ORIGIN_PAYLOAD)  # already complete
+    record = _gateway_record("http://127.0.0.1:1/unused", _sha256(_ORIGIN_PAYLOAD))
+
+    ok = download_record_files(record, tmp_path, gateway_base_url=gateway_url, apikey="k" * 22)
+
+    assert ok is True
+    assert destination.read_bytes() == _ORIGIN_PAYLOAD
+    assert all(seen == "k" * 22 for seen in gateway_state.seen_apikeys if seen != "")
+
+
+def test_last_candidate_corrupt_file_is_removed(http_server: tuple[str, _ServerState], tmp_path: Path) -> None:
+    """Verify a corrupt download from the only/last source leaves no file behind to be trusted on a later run."""
+    base_url, state = http_server
+    state.payload = b"these bytes do not match the declared hash"
+    record = _record([DownloadRecord(file_name="a.bin", file_url=f"{base_url}/a.bin", sha256sum=_sha256(b"real"))])
+
+    assert download_record_files(record, tmp_path) is False
+    landed = tmp_path / "miscellaneous" / "a.bin"
+    assert not landed.exists()
+    assert not landed.with_suffix(".bin.part").exists()
+
+
+def test_on_disk_file_failing_declared_hash_is_revalidated(
+    http_server: tuple[str, _ServerState], tmp_path: Path
+) -> None:
+    """Verify an existing file whose bytes no longer match the declared hash is discarded and re-fetched."""
+    base_url, state = http_server
+    state.payload = b"the correct weights"
+    folder = tmp_path / "miscellaneous"
+    folder.mkdir()
+    (folder / "a.bin").write_bytes(b"corrupt leftover from a past failure")
+    record = _record(
+        [DownloadRecord(file_name="a.bin", file_url=f"{base_url}/a.bin", sha256sum=_sha256(state.payload))],
+    )
+
+    assert download_record_files(record, tmp_path) is True
+    assert (folder / "a.bin").read_bytes() == state.payload
+    assert state.get_count >= 1
+
+
+def test_download_file_does_not_retry_definitive_rejection(
+    http_server: tuple[str, _ServerState], tmp_path: Path
+) -> None:
+    """Verify a 403 returns failure immediately without consuming the retry budget."""
+    base_url, state = http_server
+    state.force_status = 403
+    destination = tmp_path / "model.bin"
+
+    outcome = download_file(f"{base_url}/model.bin", destination, expected_sha256="deadbeef", max_retries=5)
+
+    assert outcome.success is False
+    assert state.get_count == 1
 
 
 def test_engine_modules_import_without_torch() -> None:

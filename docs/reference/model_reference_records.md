@@ -13,9 +13,10 @@
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | Identity            | `record_type` discriminator plus `name`/`version`/`description` fields establish the record’s unique identity and display text. | `MODEL_REFERENCE_CATEGORY`, `ModelClassification`                                                               |
 | Metadata            | Tracks schema version and audit-style provenance (`created_at`, `updated_at`, `created_by`, `updated_by`).                      | `GenericModelRecordMetadata`                                                                                    |
-| Download config     | Normalized download entries, typically checkpoint files, with checksum and slow-download hints.                                 | `GenericModelRecordConfig`, `DownloadRecord`                                                                    |
+| Download config     | Normalized download entries, typically checkpoint files, with checksum, size, and component-routing hints.                      | `GenericModelRecordConfig`, `DownloadRecord`                                                                    |
 | Fine-tuning lineage | Optional `finetune_series` captures source series provenance.                                                                   | `FineTuneSeriesInfo`                                                                                            |
 | Classification      | Defaulted from the category descriptor to keep domain/purpose consistent with category definitions.                             | [`get_category_descriptor`][horde_model_reference.meta_consts.get_category_descriptor] -> `ModelClassification` |
+| Size helpers        | Per-file and aggregate size reporting for space estimation.                                                                     | `size_on_disk_bytes`, `declared_total_size_bytes`, `DownloadRecord.size_bytes`                                  |
 
 > **Environment-aware config:** `get_default_config()` tightens `model_config.extra` to `forbid` in CI (`ai_horde_testing=True`) and `ignore` elsewhere, giving strict validation in tests without blocking backward-compatible ingest in production.
 
@@ -36,6 +37,7 @@ classDiagram
    version
    description
    finetune_series
+   size_on_disk_bytes
    metadata : GenericModelRecordMetadata
    config : GenericModelRecordConfig
    model_classification : ModelClassification
@@ -55,6 +57,7 @@ classDiagram
    file_url
    sha256sum
    file_purpose
+   size_bytes
    known_slow_download
   }
   class FineTuneSeriesInfo {

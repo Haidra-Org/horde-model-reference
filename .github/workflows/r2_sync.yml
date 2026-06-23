@@ -1,0 +1,90 @@
+name: R2 model mirror sync
+
+# Mirrors hostable (non-generation) model files to the gated Cloudflare R2 bucket.
+#
+# - On pull requests touching the tool or the allowlist: run the deterministic unit tests (no bucket, no
+#   network) so a change to the planner/allowlist cannot regress.
+# - On manual dispatch or a schedule: run the real tool against the bucket using repository secrets, then
+#   publish the sha256 backfill report as an artifact for the reference-correction follow-up.
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "scripts/r2_sync/**"
+      - "src/horde_model_reference/annotator_catalog.py"
+      - "tests/test_r2_sync.py"
+      - "tests/test_r2_sync_annotators.py"
+      - "tests/test_annotator_catalog.py"
+      - ".github/workflows/r2_sync.yml"
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "Actually upload (true) or dry-run only (false)"
+        type: boolean
+        default: false
+  schedule:
+    # Weekly drift check (dry-run; see the apply step's condition).
+    - cron: "17 6 * * 1"
+
+jobs:
+  validate:
+    if: github.event_name == 'pull_request'
+    env:
+      AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
+      TESTS_ONGOING: "1"
+      AI_HORDE_TESTING: "1"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install the project (with the r2 group)
+        run: uv sync --locked --all-extras --dev --group r2
+      - name: Run R2 sync tool tests
+        run: uv run pytest tests/test_r2_sync.py tests/test_r2_sync_annotators.py tests/test_annotator_catalog.py -q
+
+  sync:
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    env:
+      AIWORKER_CACHE_HOME: ${{ github.workspace }}/.cache
+      AI_HORDE_TESTING: "0"
+      HORDE_MODEL_REFERENCE_R2__UPLOAD_BUCKET: ${{ secrets.R2_UPLOAD_BUCKET }}
+      HORDE_MODEL_REFERENCE_R2__UPLOAD_ENDPOINT_URL: ${{ secrets.R2_UPLOAD_ENDPOINT_URL }}
+      HORDE_MODEL_REFERENCE_R2__UPLOAD_ACCESS_KEY_ID: ${{ secrets.R2_UPLOAD_ACCESS_KEY_ID }}
+      HORDE_MODEL_REFERENCE_R2__UPLOAD_SECRET_ACCESS_KEY: ${{ secrets.R2_UPLOAD_SECRET_ACCESS_KEY }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8.0.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - name: Install the project (with the r2 group)
+        run: uv sync --locked --all-extras --dev --group r2
+
+      - name: Sync to R2
+        run: |
+          MODE="--dry-run"
+          if [ "${{ github.event.inputs.apply }}" = "true" ]; then MODE="--apply"; fi
+          uv run python -m scripts.r2_sync.sync $MODE --verbose \
+            --cache-dir "${{ github.workspace }}/.r2-cache" \
+            --backfill-report "${{ github.workspace }}/r2_backfill.json" \
+            | tee "${{ github.workspace }}/r2_sync.log"
+
+      - name: Upload backfill report
+        if: always() && hashFiles('r2_backfill.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: r2-backfill-report
+          path: r2_backfill.json
+
+      # Opening the reference-correction PR from r2_backfill.json is the remaining wiring: it must edit the
+      # canonical reference (the Haidra-Org reference repos or the PRIMARY API), which the scripts/sync flow
+      # owns. Until that edit step exists, the corrections are published above as an artifact for a maintainer
+      # (or a follow-up job that reuses scripts/sync) to turn into a PR.

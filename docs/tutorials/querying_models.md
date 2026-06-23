@@ -248,8 +248,10 @@ selector.
 
 ### Collisions and provenance
 
-When more than one source is selected, records are de-duplicated by name and the canonical (or
-earlier-listed) source wins. The builder lets you inspect provenance and collisions:
+When more than one source is selected, records are de-duplicated by name and the **first source
+in selector order** wins. The canonical source keeps its position wherever it appears in the
+selector, so `["pending", "horde"]` lets a pending beta override canonical while the default
+`["horde"]` is canonical-only. The builder lets you inspect provenance and collisions:
 
 ```python
 q = manager.query("image_generation", source=ANY_SOURCE)
