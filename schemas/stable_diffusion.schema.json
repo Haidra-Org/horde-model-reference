@@ -40,6 +40,18 @@
                     ],
                     "default": null,
                     "title": "Known Slow Download"
+                },
+                "size_bytes": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Size Bytes"
                 }
             },
             "required": [
@@ -238,6 +250,7 @@
                 "clip",
                 "codeformer",
                 "controlnet",
+                "controlnet_annotator",
                 "esrgan",
                 "gfpgan",
                 "safety_checker",
@@ -345,6 +358,18 @@
         },
         "model_classification": {
             "$ref": "#/$defs/ModelClassification"
+        },
+        "size_on_disk_bytes": {
+            "anyOf": [
+                {
+                    "type": "integer"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null,
+            "title": "Size On Disk Bytes"
         },
         "inpainting": {
             "anyOf": [
@@ -514,18 +539,6 @@
             ],
             "default": null,
             "title": "Requirements"
-        },
-        "size_on_disk_bytes": {
-            "anyOf": [
-                {
-                    "type": "integer"
-                },
-                {
-                    "type": "null"
-                }
-            ],
-            "default": null,
-            "title": "Size On Disk Bytes"
         }
     },
     "required": [

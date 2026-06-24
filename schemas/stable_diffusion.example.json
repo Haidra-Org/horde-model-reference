@@ -12,6 +12,7 @@
                 }
             ]
         },
+        "size_on_disk_bytes": 123456789,
         "baseline": "stable_diffusion_1",
         "tags": [
             "anime",
@@ -27,8 +28,7 @@
         ],
         "homepage": "https://www.not.a.real_website.com",
         "nsfw": false,
-        "style": "generalist",
-        "size_on_disk_bytes": 123456789
+        "style": "generalist"
     },
     "example model 2": {
         "name": "Example anime model",
@@ -43,6 +43,7 @@
                 }
             ]
         },
+        "size_on_disk_bytes": 123456789,
         "baseline": "stable_diffusion_1",
         "tags": [
             "anime",
@@ -58,7 +59,6 @@
         ],
         "homepage": "https://www.another_fake_website.com",
         "nsfw": true,
-        "style": "anime",
-        "size_on_disk_bytes": 123456789
+        "style": "anime"
     }
 }
