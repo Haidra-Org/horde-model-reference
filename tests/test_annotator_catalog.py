@@ -61,9 +61,16 @@ def test_subfolder_is_threaded_into_both_path_and_url() -> None:
     assert entry.origin_url == "https://huggingface.co/some/Repo/resolve/main/annotator/ckpts/w.pth"
 
 
-def test_hashes_start_unknown_until_backfilled() -> None:
-    """Verify every file's sha256 starts None: the gated mirror only serves a file once its hash is backfilled."""
-    assert all(entry.sha256 is None for entry in ANNOTATOR_FILES)
+def test_every_file_has_a_backfilled_sha256() -> None:
+    """Verify every file carries a real (64-hex lowercase) sha256, so the gated mirror can serve it.
+
+    The hashes were computed from the pinned ``lllyasviel/Annotators`` files and backfilled into the catalog;
+    a file with no hash could not be content-addressed on the mirror.
+    """
+    for entry in ANNOTATOR_FILES:
+        assert entry.sha256 is not None, entry.filename
+        assert len(entry.sha256) == 64 and entry.sha256 == entry.sha256.lower(), entry.filename
+        int(entry.sha256, 16)  # valid hex
 
 
 def test_control_types_cover_every_weighted_preprocessor() -> None:

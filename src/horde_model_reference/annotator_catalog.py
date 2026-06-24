@@ -90,6 +90,7 @@ ANNOTATOR_FILES: tuple[AnnotatorFile, ...] = (
     AnnotatorFile(
         repo=ANNOTATOR_HF_REPO,
         filename="ControlNetHED.pth",
+        sha256="5ca93762ffd68a29fee1af9d495bf6aab80ae86f08905fb35472a083a4c7a8fa",
         control_types=("hed", "fakescribbles"),
         preprocessors=("HEDPreprocessor", "FakeScribblePreprocessor"),
     ),
@@ -97,12 +98,14 @@ ANNOTATOR_FILES: tuple[AnnotatorFile, ...] = (
     AnnotatorFile(
         repo=ANNOTATOR_HF_REPO,
         filename="res101.pth",
+        sha256="1d696b2ef3e8336b057d0c15bc82d2fecef821bfebe5ef9d7671a5ec5dde520b",
         control_types=("depth",),
         preprocessors=("LeReS-DepthMapPreprocessor",),
     ),
     AnnotatorFile(
         repo=ANNOTATOR_HF_REPO,
         filename="latest_net_G.pth",
+        sha256="50ec735d74ed6499562d898f41b49343e521808b8dae589aa3c2f5c9ac9f7462",
         control_types=("depth",),
         preprocessors=("LeReS-DepthMapPreprocessor",),
     ),
@@ -110,18 +113,21 @@ ANNOTATOR_FILES: tuple[AnnotatorFile, ...] = (
     AnnotatorFile(
         repo=ANNOTATOR_HF_REPO,
         filename="body_pose_model.pth",
+        sha256="25a948c16078b0f08e236bda51a385d855ef4c153598947c28c0d47ed94bb746",
         control_types=("openpose",),
         preprocessors=("OpenposePreprocessor",),
     ),
     AnnotatorFile(
         repo=ANNOTATOR_HF_REPO,
         filename="hand_pose_model.pth",
+        sha256="b76b00d1750901abd07b9f9d8c98cc3385b8fe834a26d4b4f0aad439e75fc600",
         control_types=("openpose",),
         preprocessors=("OpenposePreprocessor",),
     ),
     AnnotatorFile(
         repo=ANNOTATOR_HF_REPO,
         filename="facenet.pth",
+        sha256="8beb52e548624ffcc4aed12af7aee7dcbfaeea420c75609fee999fe7add79d43",
         control_types=("openpose",),
         preprocessors=("OpenposePreprocessor",),
     ),
@@ -129,6 +135,7 @@ ANNOTATOR_FILES: tuple[AnnotatorFile, ...] = (
     AnnotatorFile(
         repo=ANNOTATOR_HF_REPO,
         filename="upernet_global_small.pth",
+        sha256="bebfa1264c10381e389d8065056baaadbdadee8ddc6e36770d1ec339dc84d970",
         control_types=("seg",),
         preprocessors=("SemSegPreprocessor",),
     ),
@@ -136,6 +143,7 @@ ANNOTATOR_FILES: tuple[AnnotatorFile, ...] = (
     AnnotatorFile(
         repo=ANNOTATOR_HF_REPO,
         filename="mlsd_large_512_fp32.pth",
+        sha256="5696f168eb2c30d4374bbfd45436f7415bb4d88da29bea97eea0101520fba082",
         control_types=("mlsd", "hough"),
         preprocessors=("M-LSDPreprocessor",),
     ),

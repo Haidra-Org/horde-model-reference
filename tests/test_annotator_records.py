@@ -70,38 +70,31 @@ def test_download_paths_match_comfyui_annotator_layout(tmp_path: Path) -> None:
             assert annotator_root(tmp_path) in on_disk.parents
 
 
-def test_generic_planner_mirrors_annotators_uniformly(tmp_path: Path) -> None:
-    """The annotator category flows through the same planner as any other category: hashes backfilled, uploaded."""
+def test_records_carry_real_hashes_and_are_content_addressed() -> None:
+    """The annotator records ship real sha256s, so the generic planner content-addresses them with no bytes.
+
+    With the catalog backfilled, every file declares a real hash; a planner run against a store already
+    holding those content-addressed objects resolves to ALREADY_PRESENT (no download, no FIXME correction).
+    """
     records = annotator_records()
     names = list(records)
 
-    # Lay the annotator bytes on disk at their resolved paths, so the generic local byte source finds them.
-    class _LocalPaths:
-        def acquire(self, record: ControlNetAnnotatorModelRecord, download: object) -> Path:
-            idx = record.config.download.index(download)  # type: ignore[arg-type]
-            path = file_paths_for(record, tmp_path)[idx]
-            path.parent.mkdir(parents=True, exist_ok=True)
-            if not path.exists():
-                path.write_bytes(download.file_name.encode())  # type: ignore[attr-defined]
-            return path
+    declared = [d.sha256sum for r in records.values() for d in r.config.download]
+    assert all(sha and sha != "FIXME" for sha in declared)
 
-    store = InMemoryObjectStore()
+    # Pre-seed the bucket with each file's content-addressed key, then plan.
+    store = InMemoryObjectStore(present={object_key_for(sha) for sha in declared})
     plan = build_sync_plan(
         {MODEL_REFERENCE_CATEGORY.controlnet_annotator: records},
         allowlist=_allow(*names),
         store=store,
-        byte_source=_LocalPaths(),
-        apply=True,
+        byte_source=_DictMissing(),  # no bytes needed: a known hash already present needs none
+        apply=False,
     )
 
     counts = plan.counts()
-    assert counts[SyncAction.UPLOAD] == len(ANNOTATOR_FILES)
-    # Every file's sha256 was unknown ("FIXME") in the catalog, so each yields a backfill correction.
-    assert len(plan.corrections) == len(ANNOTATOR_FILES)
-    assert {c.category for c in plan.corrections} == {"controlnet_annotator"}
-    # The uploaded objects are content-addressed by the freshly computed hash.
-    for download_name in (d.file_name for r in records.values() for d in r.config.download):
-        assert store.head(object_key_for(_sha256(download_name.encode())))
+    assert counts[SyncAction.ALREADY_PRESENT] == len(ANNOTATOR_FILES)
+    assert not plan.corrections  # nothing to backfill; the hashes are already real
 
 
 def test_non_allowlisted_annotator_is_skipped(tmp_path: Path) -> None:
