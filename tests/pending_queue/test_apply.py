@@ -199,16 +199,46 @@ class _FormatTrackingBackend:
     def supports_legacy_writes(self) -> bool:
         return True
 
-    def update_model(self, category: Any, model_name: str, payload: dict[str, Any], **_: Any) -> None:
+    def update_model(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        payload: dict[str, Any],
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
+    ) -> None:
         self.v2_updates.append(model_name)
 
-    def update_model_legacy(self, category: Any, model_name: str, payload: dict[str, Any], **_: Any) -> None:
+    def update_model_legacy(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        payload: dict[str, Any],
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
+    ) -> None:
         self.legacy_updates.append(model_name)
 
-    def delete_model(self, category: Any, model_name: str, **_: Any) -> None:  # pragma: no cover - unused here
+    def delete_model(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
+    ) -> None:  # pragma: no cover - unused here
         pass
 
-    def delete_model_legacy(self, category: Any, model_name: str, **_: Any) -> None:  # pragma: no cover
+    def delete_model_legacy(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        model_name: str,
+        *,
+        logical_user_id: str | None = None,
+        request_id: str | None = None,
+    ) -> None:  # pragma: no cover - unused here
         pass
 
 
