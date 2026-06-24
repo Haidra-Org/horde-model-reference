@@ -29,6 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from horde_model_reference.annotator_catalog import annotators_for_control_types
 from horde_model_reference.meta_consts import (
     MODEL_REFERENCE_CATEGORY,
     get_category_descriptor,
@@ -38,11 +39,16 @@ from horde_model_reference.meta_consts import (
 if TYPE_CHECKING:
     from collections.abc import Iterable, Mapping, Sequence
 
+    from horde_model_reference.annotator_catalog import AnnotatorFile
     from horde_model_reference.model_reference_records import GenericModelRecord
 
 __all__ = [
     "COMPONENT_PURPOSE_FOLDERS",
     "PresenceSummary",
+    "annotator_file_path",
+    "annotator_root",
+    "annotators_present",
+    "annotators_present_for_control_types",
     "category_folder",
     "component_relative_path",
     "file_paths_for",
@@ -51,6 +57,15 @@ __all__ = [
     "presence_summary",
     "resolve_weights_root",
 ]
+
+_ANNOTATORS_SUBFOLDER = "annotators"
+"""The folder, under the controlnet category folder, that controlnet annotator checkpoints live in.
+
+hordelib's ``comfyui_controlnet_aux`` writes each annotator to ``<weights_root>/controlnet/annotators/`` (its
+``AUX_ANNOTATOR_CKPTS_PATH``), as ``<repo>/<subfolder>/<filename>`` (see
+:class:`horde_model_reference.annotator_catalog.AnnotatorFile`). This is the torch-free mirror of that path so
+presence can be answered without importing hordelib.
+"""
 
 _DEFAULT_CACHE_HOME = "models"
 
@@ -253,3 +268,77 @@ def free_bytes_for(root: Path) -> int | None:
         return shutil.disk_usage(probe).free
     except OSError:
         return None
+
+
+def annotator_root(root: Path) -> Path:
+    """Return the directory controlnet annotator checkpoints live under, given a weights *root*.
+
+    Mirrors hordelib's ``_annotator_ckpts_dir`` fallback (``<weights_root>/controlnet/annotators``): the
+    directory ``comfyui_controlnet_aux`` writes each annotator into. Kept in lockstep with it so a file
+    pre-placed here is found by the detector and its own HuggingFace fetch is skipped.
+    """
+    folder = category_folder(MODEL_REFERENCE_CATEGORY.controlnet) or MODEL_REFERENCE_CATEGORY.controlnet.value
+    return root / folder / _ANNOTATORS_SUBFOLDER
+
+
+def annotator_file_path(
+    annotator: AnnotatorFile,
+    root: Path,
+    *,
+    extra_roots: Sequence[Path] = (),
+) -> Path:
+    """Return *annotator*'s on-disk path, preferring an existing copy across roots (else the primary target).
+
+    Search order is ``[root, *extra_roots]``; the first existing copy wins, matching the multi-root behaviour
+    of :func:`file_paths_for`. When no copy exists, the path under the primary *root* is returned (the
+    download target), so a fresh fetch lands deterministically next to where hordelib expects it.
+    """
+    relative = Path(annotator.relative_path)
+    candidates = [
+        Path(os.path.normpath(annotator_root(search_root) / relative)) for search_root in (root, *extra_roots)
+    ]
+    existing = next((candidate for candidate in candidates if candidate.exists()), None)
+    return existing if existing is not None else candidates[0]
+
+
+def annotators_present(
+    annotators: Iterable[AnnotatorFile],
+    root: Path,
+    *,
+    extra_roots: Sequence[Path] = (),
+) -> bool:
+    """Return whether every given annotator file exists under any root (existence-only).
+
+    An empty *annotators* set is vacuously present: nothing is required, so there is nothing missing. This is
+    the existence-only counterpart to hordelib's verified-marker check, so it answers "are the files here",
+    not "did hordelib verify them for the pinned annotator commit". Callers that need integrity, not mere
+    presence, must defer to the engine.
+    """
+    entries = tuple(annotators)
+    if not entries:
+        return True
+    search_roots = (root, *extra_roots)
+    return all(
+        any(
+            Path(os.path.normpath(annotator_root(search_root) / Path(entry.relative_path))).exists()
+            for search_root in search_roots
+        )
+        for entry in entries
+    )
+
+
+def annotators_present_for_control_types(
+    control_types: Iterable[str],
+    root: Path,
+    *,
+    extra_roots: Sequence[Path] = (),
+) -> bool:
+    """Return whether every annotator file the given *control_types* need is on disk (existence-only).
+
+    Weightless control types (``canny``, ``scribble``) and types unknown to the catalog need no files, so a
+    selection of only those is vacuously present (nothing to fetch). This is the single torch-free answer to
+    "are this controlnet selection's annotators ready", composing
+    :func:`horde_model_reference.annotator_catalog.annotators_for_control_types` with
+    :func:`annotators_present`.
+    """
+    return annotators_present(annotators_for_control_types(control_types), root, extra_roots=extra_roots)

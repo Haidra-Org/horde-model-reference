@@ -23,7 +23,6 @@ from loguru import logger
 from horde_model_reference import HordeModelReferenceSettings
 from horde_model_reference.on_disk_layout import resolve_weights_root
 from scripts.r2_sync.allowlist import RedistributableAllowlist
-from scripts.r2_sync.annotators import AnnotatorByteSource, build_annotator_plan
 from scripts.r2_sync.byte_source import LocalThenOriginByteSource
 from scripts.r2_sync.object_store import InMemoryObjectStore, R2ObjectStore
 from scripts.r2_sync.planner import SyncAction, SyncPlan, build_sync_plan
@@ -45,6 +44,11 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     mode.add_argument("--apply", action="store_true", help="Perform uploads (default is a dry-run plan only).")
     mode.add_argument("--dry-run", action="store_true", help="Plan only; never upload (the default).")
     parser.add_argument("--allowlist", type=Path, default=None, help="Path to the redistributable allowlist JSON.")
+    parser.add_argument(
+        "--no-allowlist",
+        action="store_true",
+        help="Disable allowlist filtering; treat every model/annotator as allowed.",
+    )
     parser.add_argument("--weights-root", type=Path, default=None, help="Local model-weights root to mirror from.")
     parser.add_argument(
         "--extra-root",
@@ -64,17 +68,6 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         ),
     )
     parser.add_argument("--backfill-report", type=Path, default=None, help="Write computed sha256 corrections here.")
-    parser.add_argument(
-        "--annotator-ckpts-dir",
-        type=Path,
-        default=None,
-        help="Local controlnet-annotator checkpoint dir (default: <weights-root>/controlnet/annotators).",
-    )
-    parser.add_argument(
-        "--no-annotators",
-        action="store_true",
-        help="Skip the controlnet-annotator catalog (mirror only the model-reference categories).",
-    )
     parser.add_argument("-v", "--verbose", action="store_true", help="Print every file's outcome, not just totals.")
     return parser.parse_args(argv)
 
@@ -100,11 +93,22 @@ def _build_store(settings: HordeModelReferenceSettings, *, apply: bool) -> Objec
 
 
 def _load_references() -> Mapping[MODEL_REFERENCE_CATEGORY, Mapping[str, GenericModelRecord] | None]:
-    """Load all model references via the manager singleton (fetching from PRIMARY/GitHub as configured)."""
+    """Load all model references via the manager singleton, overlaying the authoritative annotator set.
+
+    The ``controlnet_annotator`` category is canonical on the PRIMARY API only, and the verified list of
+    annotator files lives in :mod:`horde_model_reference.annotator_records` (derived from the pinned package).
+    Overlaying it here lets the mirror tool process annotators uniformly through the generic planner without
+    depending on whether the configured source has been seeded yet, and surfaces their ``FIXME`` hashes for
+    backfill exactly like any other category.
+    """
+    from horde_model_reference.annotator_records import annotator_records
+    from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
     from horde_model_reference.model_reference_manager import ModelReferenceManager
 
     manager = ModelReferenceManager()
-    return manager.get_all_model_references_or_none()
+    references = dict(manager.get_all_model_references_or_none())
+    references[MODEL_REFERENCE_CATEGORY.controlnet_annotator] = annotator_records()
+    return references
 
 
 def _write_backfill_report(plan: SyncPlan, path: Path) -> None:
@@ -154,7 +158,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     """Run the sync tool. Returns a non-zero exit code when any file could not be processed."""
     args = _parse_args(argv)
     settings = HordeModelReferenceSettings()
-    allowlist = RedistributableAllowlist.load(args.allowlist)
+    allowlist: RedistributableAllowlist | None = (
+        None if args.no_allowlist else RedistributableAllowlist.load(args.allowlist)
+    )
     store = _build_store(settings, apply=args.apply)
     weights_root = args.weights_root or resolve_weights_root()
     byte_source = LocalThenOriginByteSource(
@@ -170,17 +176,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         byte_source=byte_source,
         apply=args.apply,
     )
-
-    if not args.no_annotators:
-        annotator_ckpts_dir = args.annotator_ckpts_dir or (weights_root / "controlnet" / "annotators")
-        annotator_plan = build_annotator_plan(
-            allowlist=allowlist,
-            store=store,
-            byte_source=AnnotatorByteSource(ckpts_dir=annotator_ckpts_dir, cache_dir=args.cache_dir),
-            apply=args.apply,
-        )
-        plan.items.extend(annotator_plan.items)
-        plan.corrections.extend(annotator_plan.corrections)
 
     _report(plan, verbose=args.verbose, apply=args.apply)
     if args.backfill_report and plan.corrections:

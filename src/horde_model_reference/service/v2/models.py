@@ -9,6 +9,7 @@ from horde_model_reference.model_reference_records import (
     BlipModelRecord,
     ClipModelRecord,
     CodeformerModelRecord,
+    ControlNetAnnotatorModelRecord,
     ControlNetModelRecord,
     EsrganModelRecord,
     GenericModelRecord,
@@ -46,6 +47,7 @@ ModelRecordUnion = Annotated[
     ImageGenerationModelRecord
     | TextGenerationModelRecord
     | ControlNetModelRecord
+    | ControlNetAnnotatorModelRecord
     | BlipModelRecord
     | ClipModelRecord
     | CodeformerModelRecord
@@ -68,6 +70,7 @@ ModelRecordUnionType = (
     ImageGenerationModelRecord
     | TextGenerationModelRecord
     | ControlNetModelRecord
+    | ControlNetAnnotatorModelRecord
     | BlipModelRecord
     | ClipModelRecord
     | CodeformerModelRecord

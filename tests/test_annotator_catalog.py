@@ -11,6 +11,7 @@ from horde_model_reference.annotator_catalog import (
     ANNOTATOR_FILES,
     ANNOTATOR_HF_REPO,
     AnnotatorFile,
+    annotators_for_control_types,
 )
 
 # The verified set of horde-exposed annotator files that load via custom_hf_download, read from the pinned
@@ -69,3 +70,51 @@ def test_control_types_cover_every_weighted_preprocessor() -> None:
     """Verify the catalog's control types cover all horde control types that actually load annotator weights."""
     covered = {control_type for entry in ANNOTATOR_FILES for control_type in entry.control_types}
     assert {"hed", "fakescribbles", "depth", "openpose", "seg", "mlsd", "hough"} <= covered
+
+
+def test_selecting_depth_returns_both_leres_files() -> None:
+    """A weighted control type that needs several files returns all of them (LeReS depth needs two)."""
+    files = annotators_for_control_types(["depth"])
+    assert {entry.filename for entry in files} == {"res101.pth", "latest_net_G.pth"}
+
+
+def test_selecting_openpose_returns_its_three_estimators() -> None:
+    """OpenPose pulls its body, hand and face estimators together."""
+    files = annotators_for_control_types(["openpose"])
+    assert {entry.filename for entry in files} == {"body_pose_model.pth", "hand_pose_model.pth", "facenet.pth"}
+
+
+def test_weightless_control_types_need_no_files() -> None:
+    """canny/scribble load no weights, so they must select nothing (not be mistaken for 'undeterminable')."""
+    assert annotators_for_control_types(["canny"]) == ()
+    assert annotators_for_control_types(["canny", "scribble"]) == ()
+
+
+def test_empty_selection_is_empty() -> None:
+    """No requested control types selects no files."""
+    assert annotators_for_control_types([]) == ()
+
+
+def test_unknown_control_type_contributes_nothing() -> None:
+    """A control type the catalog does not know about pulls no file (it is not horde-exposed)."""
+    assert annotators_for_control_types(["banana"]) == ()
+
+
+def test_mixed_selection_keeps_only_the_weighted_known_types() -> None:
+    """A mix of weighted, weightless and unknown types yields exactly the weighted-known files."""
+    files = annotators_for_control_types(["hed", "canny", "banana"])
+    assert [entry.filename for entry in files] == ["ControlNetHED.pth"]
+
+
+def test_alias_control_types_dedupe_to_one_file() -> None:
+    """The mlsd and hough aliases share one detector, so requesting both yields a single (un-duplicated) file."""
+    files = annotators_for_control_types(["mlsd", "hough"])
+    assert [entry.filename for entry in files] == ["mlsd_large_512_fp32.pth"]
+
+
+def test_selection_order_follows_the_catalog_not_the_request() -> None:
+    """Output order is the stable catalog order regardless of how the request was ordered."""
+    forward = annotators_for_control_types(["hed", "depth"])
+    reversed_request = annotators_for_control_types(["depth", "hed"])
+    assert forward == reversed_request
+    assert [entry.filename for entry in forward] == ["ControlNetHED.pth", "res101.pth", "latest_net_G.pth"]

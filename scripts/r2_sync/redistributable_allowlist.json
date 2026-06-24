@@ -1,4 +1,51 @@
 {
-  "_comment": "Opt-in allowlist for redistributing model files on the gated R2 mirror. A model is mirrored only when its name appears in 'models'. Hosting a weight here is redistribution: add an entry only once you have confirmed the upstream license permits it (there is no category-wide opt-in, so newly added models are never mirrored until individually reviewed). Each entry is either a bare name string, or an object {\"name\": ..., \"license\": ..., \"note\": ...}; the license/note are stamped onto the uploaded object for the audit trail. Empty by default (mirrors nothing).",
-  "models": []
+  "_comment": "Opt-in allowlist for redistributing model files on the gated R2 mirror. A model is mirrored only when its name appears in 'models' (controlnet annotators are first-class records named annotator_<control type>). Hosting a weight here is redistribution. This list is prepopulated with the current hostable set, every member of which was selected on the basis of being open-source / redistribution-friendly; newly added models are NOT mirrored until their name is added here and their upstream license confirmed. Each entry is either a bare name string, or an object {\"name\": ..., \"license\": ..., \"note\": ...}; a provided license/note is stamped onto the uploaded object for the audit trail.",
+  "models": [
+    "control_canny_sd2",
+    "control_depth_sd2",
+    "control_hed_sd2",
+    "control_openpose_sd2",
+    "control_fakescribbles_sd2",
+    "control_scribble_sd2",
+    "control_canny",
+    "control_depth",
+    "control_hed",
+    "control_hough",
+    "control_mlsd",
+    "control_normal",
+    "control_openpose",
+    "control_fakescribbles",
+    "control_scribble",
+    "control_seg",
+    "control_qr",
+    "control_qr_sdxl",
+
+    "ViT-L/14",
+    "coca_ViT-L-14",
+
+    "BLIP",
+    "BLIP_Large",
+
+    "RealESRGAN_x4plus",
+    "RealESRGAN_x4plus_anime_6B",
+    "RealESRGAN_x2plus",
+    "NMKD_Siax",
+    "4x_AnimeSharp",
+    "4x_NMKD_Superscale_SP",
+
+    "GFPGAN",
+
+    "CodeFormers",
+
+    "safety_checker",
+
+    "layer_diffuse_sd15",
+    "layer_diffuse_sdxl",
+
+    "annotator_hed",
+    "annotator_depth",
+    "annotator_openpose",
+    "annotator_seg",
+    "annotator_mlsd"
+  ]
 }

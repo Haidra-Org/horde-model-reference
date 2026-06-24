@@ -81,6 +81,7 @@ def test_hostable_categories_excludes_generation_and_managed_elsewhere() -> None
     hostable = {str(c) for c in hostable_categories()}
 
     assert "controlnet" in hostable
+    assert "controlnet_annotator" in hostable
     assert "esrgan" in hostable
     assert "safety_checker" in hostable
     assert "miscellaneous" in hostable

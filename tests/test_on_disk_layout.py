@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from horde_model_reference.annotator_catalog import annotators_for_control_types
 from horde_model_reference.meta_consts import (
     MODEL_DOMAIN,
     MODEL_PURPOSE,
@@ -21,6 +22,10 @@ from horde_model_reference.model_reference_records import (
 )
 from horde_model_reference.on_disk_layout import (
     PresenceSummary,
+    annotator_file_path,
+    annotator_root,
+    annotators_present,
+    annotators_present_for_control_types,
     category_folder,
     component_relative_path,
     file_paths_for,
@@ -248,3 +253,83 @@ def test_resolve_weights_root_uses_env_default(tmp_path: Path, monkeypatch: pyte
     (tmp_path / "clip").mkdir()
     monkeypatch.setenv("AIWORKER_CACHE_HOME", os.fspath(tmp_path))
     assert resolve_weights_root() == tmp_path
+
+
+def _place_annotator(root: Path, relative_path: str) -> Path:
+    """Write a stub annotator file at hordelib's expected on-disk location under *root*, returning its path."""
+    target = annotator_root(root) / Path(relative_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"weights")
+    return target
+
+
+def test_annotator_root_mirrors_hordelib_ckpts_dir(tmp_path: Path) -> None:
+    """The annotator dir is ``<weights_root>/controlnet/annotators`` (hordelib's AUX_ANNOTATOR_CKPTS_PATH fallback)."""
+    assert annotator_root(tmp_path) == tmp_path / "controlnet" / "annotators"
+
+
+def test_annotator_file_path_matches_custom_hf_download_layout(tmp_path: Path) -> None:
+    """A file resolves to ``<root>/controlnet/annotators/<repo>/<subfolder>/<filename>`` (what the node expects)."""
+    hed = next(entry for entry in annotators_for_control_types(["hed"]))
+    assert annotator_file_path(hed, tmp_path) == (
+        tmp_path / "controlnet" / "annotators" / "lllyasviel" / "Annotators" / "ControlNetHED.pth"
+    )
+
+
+def test_annotator_file_path_prefers_an_existing_copy_in_an_extra_root(tmp_path: Path) -> None:
+    """When a copy lives only in an extra root, that copy is returned; absent everywhere, the primary target is."""
+    primary = tmp_path / "primary"
+    extra = tmp_path / "extra"
+    hed = next(entry for entry in annotators_for_control_types(["hed"]))
+    existing = _place_annotator(extra, hed.relative_path)
+    assert annotator_file_path(hed, primary, extra_roots=[extra]) == existing
+    # With no copy anywhere, resolution targets the primary root (deterministic download destination).
+    assert annotator_file_path(hed, primary) == annotator_root(primary) / Path(hed.relative_path)
+
+
+def test_annotators_present_is_true_only_when_every_file_exists(tmp_path: Path) -> None:
+    """Presence needs every file: a multi-file detector (LeReS depth) is absent until both files are placed."""
+    depth_files = annotators_for_control_types(["depth"])
+    assert annotators_present(depth_files, tmp_path) is False
+    _place_annotator(tmp_path, depth_files[0].relative_path)
+    assert annotators_present(depth_files, tmp_path) is False  # one of two present is not enough
+    _place_annotator(tmp_path, depth_files[1].relative_path)
+    assert annotators_present(depth_files, tmp_path) is True
+
+
+def test_annotators_present_empty_is_vacuously_true(tmp_path: Path) -> None:
+    """Requiring no files is satisfied even on empty disk: there is nothing that could be missing."""
+    assert annotators_present([], tmp_path) is True
+
+
+def test_annotators_present_searches_extra_roots(tmp_path: Path) -> None:
+    """A file living only in an extra root still counts as present, mirroring is_present's multi-root search."""
+    primary = tmp_path / "primary"
+    extra = tmp_path / "extra"
+    hed = annotators_for_control_types(["hed"])
+    _place_annotator(extra, hed[0].relative_path)
+    assert annotators_present(hed, primary) is False
+    assert annotators_present(hed, primary, extra_roots=[extra]) is True
+
+
+def test_weightless_control_types_are_present_on_empty_disk(tmp_path: Path) -> None:
+    """canny/scribble need no annotator files, so they are 'present' even with nothing on disk (never block)."""
+    assert annotators_present_for_control_types(["canny", "scribble"], tmp_path) is True
+
+
+def test_control_type_presence_requires_its_files_on_disk(tmp_path: Path) -> None:
+    """A weighted control type is absent until its files land; placing them flips it present."""
+    assert annotators_present_for_control_types(["mlsd"], tmp_path) is False
+    mlsd = annotators_for_control_types(["mlsd"])
+    _place_annotator(tmp_path, mlsd[0].relative_path)
+    assert annotators_present_for_control_types(["mlsd"], tmp_path) is True
+    # The "hough" alias resolves to the same file, so it is now present too without a second download.
+    assert annotators_present_for_control_types(["hough"], tmp_path) is True
+
+
+def test_mixed_selection_is_absent_until_the_weighted_member_is_present(tmp_path: Path) -> None:
+    """A weightless + weighted mix is blocked by the weighted member alone (the weightless one never contributes)."""
+    assert annotators_present_for_control_types(["canny", "hed"], tmp_path) is False
+    hed = annotators_for_control_types(["hed"])
+    _place_annotator(tmp_path, hed[0].relative_path)
+    assert annotators_present_for_control_types(["canny", "hed"], tmp_path) is True

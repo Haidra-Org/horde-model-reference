@@ -130,6 +130,7 @@ class MODEL_REFERENCE_CATEGORY(StrEnum):
     clip = auto()
     codeformer = auto()
     controlnet = auto()
+    controlnet_annotator = auto()
     esrgan = auto()
     gfpgan = auto()
     safety_checker = auto()
@@ -285,6 +286,19 @@ register_category(
         domain=MODEL_DOMAIN.image,
         purpose=MODEL_PURPOSE.auxiliary_or_patch,
         github_source="image",
+        on_disk_folder_name="controlnet",
+    ),
+)
+register_category(
+    MODEL_REFERENCE_CATEGORY.controlnet_annotator,
+    CategoryDescriptor(
+        domain=MODEL_DOMAIN.image,
+        purpose=MODEL_PURPOSE.auxiliary_or_patch,
+        # PRIMARY-API canonical only: the comfyui_controlnet_aux detector checkpoints never had a legacy
+        # GitHub reference, and old clients fetch them through the package's own downloader, so there is
+        # nothing to stay backwards-compatible with. Files share the controlnet weights folder (placed under
+        # its ``annotators/`` subdir via each download's file_name) so comfyui_controlnet_aux finds them.
+        has_legacy_format=False,
         on_disk_folder_name="controlnet",
     ),
 )

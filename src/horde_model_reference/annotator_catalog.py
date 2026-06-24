@@ -25,11 +25,16 @@ fetched straight from its HuggingFace origin, exactly as before.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 __all__ = [
     "ANNOTATOR_FILES",
     "ANNOTATOR_HF_REPO",
     "AnnotatorFile",
+    "annotators_for_control_types",
 ]
 
 ANNOTATOR_HF_REPO = "lllyasviel/Annotators"
@@ -135,3 +140,16 @@ ANNOTATOR_FILES: tuple[AnnotatorFile, ...] = (
         preprocessors=("M-LSDPreprocessor",),
     ),
 )
+
+
+def annotators_for_control_types(control_types: Iterable[str]) -> tuple[AnnotatorFile, ...]:
+    """Return the annotator files needed to run the given horde control types (deduplicated, stable order).
+
+    A control type whose preprocessor loads no weights (``canny``, ``scribble``) contributes nothing, so a
+    selection of only those yields an empty tuple: there is genuinely nothing to fetch for them, which a
+    caller must not mistake for "undeterminable". A control type unknown to the catalog likewise contributes
+    nothing (its annotator, if any, is not horde-exposed). Files are returned in :data:`ANNOTATOR_FILES`
+    order and each appears once even when several requested control types share it (e.g. ``mlsd``/``hough``).
+    """
+    wanted = set(control_types)
+    return tuple(entry for entry in ANNOTATOR_FILES if wanted.intersection(entry.control_types))

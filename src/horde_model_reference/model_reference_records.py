@@ -376,6 +376,29 @@ class ControlNetModelRecord(GenericModelRecord):
         return self
 
 
+@register_record_type(MODEL_REFERENCE_CATEGORY.controlnet_annotator)
+class ControlNetAnnotatorModelRecord(GenericModelRecord):
+    """A ControlNet *annotator* (preprocessor) checkpoint group in the model reference.
+
+    These are the detector weights ``comfyui_controlnet_aux`` loads to preprocess an image before a
+    ControlNet runs (pose/depth/edge/etc.). One record groups the file(s) a single preprocessor needs; the
+    files themselves are the ``config.download`` entries, with each ``file_name`` rooted at the controlnet
+    folder's ``annotators/`` subdirectory so a pre-placed file is found and the package skips its own fetch.
+    """
+
+    record_type: MODEL_REFERENCE_CATEGORY | str = MODEL_REFERENCE_CATEGORY.controlnet_annotator
+    """Discriminator field identifying this as a ControlNet annotator model record."""
+
+    model_classification: ModelClassification = Field(
+        default_factory=lambda: _classification_for(MODEL_REFERENCE_CATEGORY.controlnet_annotator),
+    )
+
+    control_types: list[str] = Field(default_factory=list)
+    """The horde control type(s) this annotator serves (e.g. ``["depth"]`` or ``["mlsd", "hough"]``)."""
+    preprocessors: list[str] = Field(default_factory=list)
+    """The ``comfyui_controlnet_aux`` node class(es) that load these files (e.g. ``["OpenposePreprocessor"]``)."""
+
+
 @register_record_type(MODEL_REFERENCE_CATEGORY.text_generation)
 class TextGenerationModelRecord(GenericModelRecord):
     """A text generation model entry in the model reference."""
@@ -631,6 +654,7 @@ __all__ = [
     "BlipModelRecord",
     "ClipModelRecord",
     "CodeformerModelRecord",
+    "ControlNetAnnotatorModelRecord",
     "ControlNetModelRecord",
     "DownloadRecord",
     "EsrganModelRecord",

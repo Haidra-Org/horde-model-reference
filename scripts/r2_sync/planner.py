@@ -130,7 +130,7 @@ def _object_metadata(
     category: str,
     record: GenericModelRecord,
     download: DownloadRecord,
-    allowlist: RedistributableAllowlist,
+    allowlist: RedistributableAllowlist | None,
 ) -> dict[str, str]:
     """Build the provenance metadata stored alongside an uploaded object.
 
@@ -144,7 +144,8 @@ def _object_metadata(
         "file_name": download.file_name,
         "source_url": download.file_url,
     }
-    metadata.update(allowlist.metadata_for(record.name))
+    if allowlist is not None:
+        metadata.update(allowlist.metadata_for(record.name))
     return metadata
 
 
@@ -153,7 +154,7 @@ def _plan_file(
     record: GenericModelRecord,
     download: DownloadRecord,
     *,
-    allowlist: RedistributableAllowlist,
+    allowlist: RedistributableAllowlist | None,
     store: ObjectStore,
     byte_source: ByteSource,
     apply: bool,
@@ -199,7 +200,7 @@ def _plan_file(
 def build_sync_plan(
     references: Mapping[MODEL_REFERENCE_CATEGORY, Mapping[str, GenericModelRecord] | None],
     *,
-    allowlist: RedistributableAllowlist,
+    allowlist: RedistributableAllowlist | None,
     store: ObjectStore,
     byte_source: ByteSource,
     apply: bool,
@@ -224,7 +225,7 @@ def build_sync_plan(
     for category in hostable_categories():
         records = references.get(category) or {}
         for model_name, record in records.items():
-            if not allowlist.allows(model_name=model_name):
+            if allowlist is not None and not allowlist.allows(model_name=model_name):
                 for download in record.config.download:
                     plan.items.append(
                         SyncItem(
