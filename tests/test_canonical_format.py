@@ -593,6 +593,46 @@ class TestCrossFormatWriteRestrictions:
         # This test documents that backend behavior - the service layer tests
         # in test_http_backend.py verify the actual API-level restrictions.
 
+    def test_v2_only_category_is_writable_in_legacy_canonical_mode(
+        self,
+        legacy_canonical_mode: None,
+        restore_manager_singleton: None,
+    ) -> None:
+        """A ``has_legacy_format=False`` category (controlnet_annotator) is writable via v2 even in legacy mode.
+
+        Such a category has no v1 endpoint, so gating it behind ``canonical_format='v2'`` would make it
+        permanently unwritable on a legacy-canonical PRIMARY. The service guard exempts it; ordinary legacy
+        categories remain gated.
+        """
+        from fastapi import HTTPException
+
+        from horde_model_reference import horde_model_reference_settings
+        from horde_model_reference.service.v2.routers.write_validations import assert_v2_write_enabled
+
+        assert horde_model_reference_settings.canonical_format == CanonicalFormat.LEGACY
+
+        class _Backend:
+            def supports_writes(self) -> bool:
+                return True
+
+        class _Manager:
+            backend = _Backend()
+
+        manager = _Manager()
+
+        # A category with a legacy representation is gated off in legacy-canonical mode.
+        with pytest.raises(HTTPException) as legacy_category:
+            assert_v2_write_enabled(manager, MODEL_REFERENCE_CATEGORY.controlnet)  # type: ignore[arg-type]
+        assert legacy_category.value.status_code == 503
+
+        # The v2-only category is allowed (no raise).
+        assert_v2_write_enabled(manager, MODEL_REFERENCE_CATEGORY.controlnet_annotator)  # type: ignore[arg-type]
+
+        # Back-compat: without a category argument, the v2 requirement still applies.
+        with pytest.raises(HTTPException) as no_category:
+            assert_v2_write_enabled(manager)  # type: ignore[arg-type]
+        assert no_category.value.status_code == 503
+
     def test_legacy_writes_unavailable_in_v2_canonical_mode(
         self,
         primary_base: Path,

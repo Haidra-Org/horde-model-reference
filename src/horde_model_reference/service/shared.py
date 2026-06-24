@@ -17,6 +17,7 @@ from horde_model_reference import (
     ai_horde_worker_settings,
     horde_model_reference_settings,
 )
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, get_category_descriptor
 
 header_auth_scheme = APIKeyHeader(name="apikey")
 
@@ -464,18 +465,38 @@ def assert_primary_mode(manager: ModelReferenceManager) -> None:
         )
 
 
+def _category_is_v2_only(category: MODEL_REFERENCE_CATEGORY | str | None) -> bool:
+    """Return whether *category* has no legacy representation, so v2 is its only possible write path.
+
+    Such a category (``has_legacy_format=False``, e.g. ``controlnet_annotator``) has no v1 endpoint, so gating
+    its writes behind ``canonical_format='v2'`` would make it permanently unwritable on a legacy-canonical
+    PRIMARY. These categories are therefore writable via v2 regardless of the deployment's canonical format.
+    """
+    if category is None:
+        return False
+    try:
+        return get_category_descriptor(category).has_legacy_format is False
+    except KeyError:
+        return False
+
+
 def assert_canonical_write_enabled(
     manager: ModelReferenceManager,
     *,
     canonical_format: CanonicalFormat,
+    category: MODEL_REFERENCE_CATEGORY | str | None = None,
 ) -> None:
-    """Ensure that writes are attempted only when the canonical format allows them."""
+    """Ensure that writes are attempted only when the canonical format allows them.
+
+    A category with no legacy representation (``has_legacy_format=False``) is exempt from the v2
+    canonical-format requirement: v2 is its only write path, so it is writable on any PRIMARY.
+    """
     assert_primary_mode(manager)
 
     backend = manager.backend
     expected_format = horde_model_reference_settings.canonical_format
     if canonical_format == CanonicalFormat.v2:
-        if expected_format != canonical_format:
+        if expected_format != canonical_format and not _category_is_v2_only(category):
             raise HTTPException(
                 status_code=503,
                 detail=(

@@ -154,7 +154,7 @@ async def _queue_model_record_request(
 ) -> JSONResponse:
     requestor = await authenticate_queue_requestor(apikey)
     model_name = model_record.name
-    assert_v2_write_enabled(manager)
+    assert_v2_write_enabled(manager, category)
     validate_model_name(model_name)
 
     # Reject backend-prefixed names for text_generation: server auto-generates duplicates
@@ -225,7 +225,7 @@ async def _queue_delete_request(
     route_name: str,
 ) -> JSONResponse:
     requestor = await authenticate_queue_requestor(apikey)
-    assert_v2_write_enabled(manager)
+    assert_v2_write_enabled(manager, category)
     validate_model_name(model_name)
 
     # Reject backend-prefixed names for text_generation: server auto-generates duplicates
