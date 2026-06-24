@@ -251,9 +251,7 @@ def test_byte_source_prefers_local_copy(tmp_path: Path) -> None:
     assert source._origin_fetches == 0
 
 
-def test_byte_source_cache_path_cannot_escape_cache_dir(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_byte_source_cache_path_cannot_escape_cache_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify reference-controlled file names cannot route origin cache writes outside the cache dir."""
     payload = b"downloaded bytes"
     cache_dir = tmp_path / "cache"

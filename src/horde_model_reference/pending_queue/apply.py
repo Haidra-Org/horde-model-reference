@@ -11,10 +11,18 @@ from loguru import logger
 
 from horde_model_reference import CanonicalFormat, ModelReferenceManager, horde_model_reference_settings
 from horde_model_reference.audit.events import AuditOperation
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, get_category_descriptor
 
 from .models import BatchSplitInfo, PendingChangeRecord
 from .service import PendingQueueService
+
+
+def _category_has_no_legacy_format(category: MODEL_REFERENCE_CATEGORY | str) -> bool:
+    """Return whether *category* has no legacy representation, so its only store is the v2 JSON file."""
+    try:
+        return get_category_descriptor(category).has_legacy_format is False
+    except KeyError:
+        return False
 
 
 class BackendUpdateCallable(Protocol):
@@ -165,7 +173,14 @@ def apply_pending_change(
 
     backend = manager.backend
     canonical_format = horde_model_reference_settings.canonical_format
-    if canonical_format == CanonicalFormat.LEGACY:
+    # A category with no legacy representation (has_legacy_format=False, e.g. controlnet_annotator) is stored
+    # only as a v2 JSON file: it has no legacy form to write or read, so it must use the v2 write path even on a
+    # legacy-canonical deployment. Otherwise the change would write to a legacy store the v2 read never consults
+    # (the change is marked applied but the record never appears).
+    use_legacy_writes = canonical_format == CanonicalFormat.LEGACY and not _category_has_no_legacy_format(
+        record.category,
+    )
+    if use_legacy_writes:
         if not backend.supports_legacy_writes():
             raise PendingChangeBackendError(
                 "Backend does not support legacy write operations in this deployment.",

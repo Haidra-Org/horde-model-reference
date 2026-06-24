@@ -185,6 +185,85 @@ def _approved_record(
     )
 
 
+@dataclass
+class _FormatTrackingBackend:
+    """Backend that records which write path (v2 vs legacy) each call took."""
+
+    def __post_init__(self) -> None:
+        self.v2_updates: list[str] = []
+        self.legacy_updates: list[str] = []
+
+    def supports_writes(self) -> bool:
+        return True
+
+    def supports_legacy_writes(self) -> bool:
+        return True
+
+    def update_model(self, category: Any, model_name: str, payload: dict[str, Any], **_: Any) -> None:
+        self.v2_updates.append(model_name)
+
+    def update_model_legacy(self, category: Any, model_name: str, payload: dict[str, Any], **_: Any) -> None:
+        self.legacy_updates.append(model_name)
+
+    def delete_model(self, category: Any, model_name: str, **_: Any) -> None:  # pragma: no cover - unused here
+        pass
+
+    def delete_model_legacy(self, category: Any, model_name: str, **_: Any) -> None:  # pragma: no cover
+        pass
+
+
+def _approved_record_in_category(
+    change_id: int,
+    category: MODEL_REFERENCE_CATEGORY,
+    model_name: str,
+) -> PendingChangeRecord:
+    return PendingChangeRecord(
+        change_id=change_id,
+        category=category,
+        model_name=model_name,
+        operation=AuditOperation.CREATE,
+        payload={"name": model_name},
+        requested_by="user",
+        requested_username="user",
+        status=PendingChangeStatus.APPROVED,
+        batch_id=1,
+    )
+
+
+def test_apply_routes_v2_only_category_to_v2_write_in_legacy_mode(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """In legacy-canonical mode, a has_legacy_format=False category writes via update_model, not legacy.
+
+    Such a category (controlnet_annotator) is stored only as a v2 file; routing it to the legacy write path
+    would mark the change applied while the v2 read never sees it.
+    """
+    from horde_model_reference import CanonicalFormat, horde_model_reference_settings
+
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", CanonicalFormat.LEGACY)
+
+    backend = _FormatTrackingBackend()
+    manager_stub = _DummyManager(backend=cast(Any, backend))
+    queue_service_stub = _DummyQueueService(
+        [
+            _approved_record_in_category(1, MODEL_REFERENCE_CATEGORY.controlnet_annotator, "annotator_hed"),
+            _approved_record_in_category(2, MODEL_REFERENCE_CATEGORY.controlnet, "control_canny"),
+        ]
+    )
+
+    apply_pending_changes(
+        manager=cast(ModelReferenceManager, manager_stub),
+        queue_service=cast(PendingQueueService, queue_service_stub),
+        change_ids=[1, 2],
+        applied_by="approver",
+        applied_username="approver",
+    )
+
+    # The v2-only category took the v2 write path; the ordinary legacy category took the legacy path.
+    assert backend.v2_updates == ["annotator_hed"]
+    assert backend.legacy_updates == ["control_canny"]
+
+
 def test_apply_pending_changes_applies_all_records() -> None:
     """Applies every change when all records are approved and valid."""
     backend = _DummyBackend()
