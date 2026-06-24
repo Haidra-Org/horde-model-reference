@@ -157,6 +157,98 @@ def _apply_model_reference_corrections(
     return True
 
 
+# ── v2-only category corrections (no legacy representation) ───────────────
+
+
+def _is_v2_only_category(category: str) -> bool:
+    """Return whether *category* has no legacy representation (e.g. ``controlnet_annotator``).
+
+    Such a category has no v1 endpoint, so its corrections must go through the v2 per-model API.
+    """
+    try:
+        from horde_model_reference.meta_consts import get_category_descriptor
+
+        return get_category_descriptor(category).has_legacy_format is False
+    except Exception:
+        return False
+
+
+def _patch_config_download(record: dict[str, Any], corrections: list[dict[str, Any]]) -> int:
+    """Update ``sha256sum`` in v2 ``config.download`` entries matching each correction's ``file_name``.
+
+    Returns the number of entries patched.
+    """
+    downloads: list[dict[str, Any]] = record.get("config", {}).get("download", [])
+    patched = 0
+    for corr in corrections:
+        target = corr["file_name"]
+        new_sha = corr["new_sha256"]
+        for dentry in downloads:
+            if dentry.get("file_name") == target:
+                old = dentry.get("sha256sum")
+                if old != new_sha:
+                    dentry["sha256sum"] = new_sha
+                    patched += 1
+                    print(f"    {target}: {old} -> {new_sha}")
+                else:
+                    print(f"    {target}: already correct ({new_sha})")
+                break
+        else:
+            print(f"    WARNING: file '{target}' not found in config.download; skipping.", file=sys.stderr)
+    return patched
+
+
+def _apply_v2_corrections(
+    client: httpx.Client,
+    base_url: str,
+    category: str,
+    entries: list[dict[str, Any]],
+    *,
+    dry_run: bool,
+) -> bool:
+    """Fetch, patch, and PUT each model of a v2-only category via the v2 per-model API. Return True on success.
+
+    Like the v1 path, a successful PUT returns ``202`` (queued for approval); a maintainer applies the batch.
+    """
+    print(f"\nCategory: {category} ({len(entries)} correction(s)) [v2-only]")
+    by_model: dict[str, list[dict[str, Any]]] = {}
+    for entry in entries:
+        by_model.setdefault(entry["model_name"], []).append(entry)
+
+    base = base_url.rstrip("/")
+    ok = True
+    for model_name, corrections in by_model.items():
+        url = f"{base}/api/model_references/v2/{category}/model/{model_name}"
+        try:
+            resp = client.get(url, timeout=30)
+            resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            print(f"  WARNING: could not fetch '{model_name}' ({exc}); skipping.", file=sys.stderr)
+            continue
+
+        record = resp.json()
+        if _patch_config_download(record, corrections) == 0:
+            print(f"  No changes needed for '{model_name}'.")
+            continue
+        if dry_run:
+            print(f"  [DRY-RUN] Would PUT updated record for '{model_name}'.")
+            continue
+
+        try:
+            put = client.put(url, json=record, timeout=30)
+        except httpx.HTTPError as exc:
+            print(f"  FAILED to PUT '{model_name}': {exc}", file=sys.stderr)
+            ok = False
+            continue
+        if put.status_code in (200, 201, 202):
+            verb = "queued for approval" if put.status_code == 202 else "updated"
+            print(f"  OK ({put.status_code}): '{model_name}' {verb}.")
+        else:
+            print(f"  FAILED ({put.status_code}): {put.text}", file=sys.stderr)
+            ok = False
+    return ok
+
+
 # ── main ─────────────────────────────────────────────────────────────────
 
 
@@ -205,7 +297,8 @@ def main() -> int:
 
     with httpx.Client(headers=headers, timeout=args.timeout) as client:
         for category, entries in groups.items():
-            if not _apply_model_reference_corrections(client, args.base_url, category, entries, dry_run=args.dry_run):
+            apply_fn = _apply_v2_corrections if _is_v2_only_category(category) else _apply_model_reference_corrections
+            if not apply_fn(client, args.base_url, category, entries, dry_run=args.dry_run):
                 ok = False
 
     if args.dry_run:
