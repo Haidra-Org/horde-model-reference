@@ -53,9 +53,7 @@ def _group_by_category(report: list[dict[str, Any]]) -> dict[str, list[dict[str,
 # ── model-reference API corrections ──────────────────────────────────────
 
 
-def _fetch_legacy_record(
-    client: httpx.Client, base_url: str, category: str
-) -> dict[str, Any]:
+def _fetch_legacy_record(client: httpx.Client, base_url: str, category: str) -> dict[str, Any]:
     """GET the full legacy JSON dict for *category* from the v1 API."""
     url = f"{base_url.rstrip('/')}/api/model_references/v1/{category}"
     resp = client.get(url, timeout=30)
@@ -63,9 +61,7 @@ def _fetch_legacy_record(
     return resp.json()
 
 
-def _patch_config_files(
-    record: dict[str, Any], corrections: list[dict[str, Any]]
-) -> int:
+def _patch_config_files(record: dict[str, Any], corrections: list[dict[str, Any]]) -> int:
     """Update ``sha256sum`` in ``config.files`` entries matching each correction's ``file_name``.
 
     Returns the number of entries patched.
@@ -93,9 +89,7 @@ def _patch_config_files(
     return patched
 
 
-def _put_legacy_record(
-    client: httpx.Client, base_url: str, category: str, record: dict[str, Any]
-) -> httpx.Response:
+def _put_legacy_record(client: httpx.Client, base_url: str, category: str, record: dict[str, Any]) -> httpx.Response:
     """PUT the updated legacy record back to the v1 API."""
     url = f"{base_url.rstrip('/')}/api/model_references/v1/{category}"
     return client.put(url, json=record, timeout=30)
@@ -168,9 +162,7 @@ def _apply_model_reference_corrections(
 
 def main() -> int:
     """Apply every sha256 correction in the backfill report to the canonical reference. Returns 0 on success."""
-    parser = argparse.ArgumentParser(
-        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         "--apikey",
         help="AI-Horde API key with write access (or set AI_HORDE_API_KEY / HORDE_API_KEY).",
@@ -213,9 +205,7 @@ def main() -> int:
 
     with httpx.Client(headers=headers, timeout=args.timeout) as client:
         for category, entries in groups.items():
-            if not _apply_model_reference_corrections(
-                client, args.base_url, category, entries, dry_run=args.dry_run
-            ):
+            if not _apply_model_reference_corrections(client, args.base_url, category, entries, dry_run=args.dry_run):
                 ok = False
 
     if args.dry_run:

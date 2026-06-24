@@ -13,9 +13,12 @@ on:
       - main
     paths:
       - "scripts/r2_sync/**"
+      - "scripts/seed_annotator_reference.py"
+      - "scripts/apply_backfill_report.py"
       - "src/horde_model_reference/annotator_catalog.py"
+      - "src/horde_model_reference/annotator_records.py"
       - "tests/test_r2_sync.py"
-      - "tests/test_r2_sync_annotators.py"
+      - "tests/test_annotator_records.py"
       - "tests/test_annotator_catalog.py"
       - ".github/workflows/r2_sync.yml"
   workflow_dispatch:
@@ -46,7 +49,7 @@ jobs:
       - name: Install the project (with the r2 group)
         run: uv sync --locked --all-extras --dev --group r2
       - name: Run R2 sync tool tests
-        run: uv run pytest tests/test_r2_sync.py tests/test_r2_sync_annotators.py tests/test_annotator_catalog.py -q
+        run: uv run pytest tests/test_r2_sync.py tests/test_annotator_records.py tests/test_annotator_catalog.py -q
 
   sync:
     if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'

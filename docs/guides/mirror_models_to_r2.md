@@ -38,19 +38,20 @@ carries the audit trail for why each hosted file is allowed to be there.
 
 ### ControlNet annotators
 
-The tool also mirrors the **controlnet-annotator** checkpoints (the `comfyui_controlnet_aux` weights the worker
-pre-fetches), read from `horde_model_reference.annotator_catalog`. These are opted in **by HuggingFace repo**
-(one repo is one licence-review unit); every horde-exposed annotator currently comes from `lllyasviel/Annotators`,
-so a single entry clears them all:
+The **controlnet-annotator** checkpoints (the `comfyui_controlnet_aux` weights the worker pre-fetches) are a
+first-class `controlnet_annotator` category, so the tool mirrors them through the *same* planner as every other
+category: no separate flags, no separate code path. The records are overlaid from
+`horde_model_reference.annotator_records` (derived from the verified `annotator_catalog`), grouped one record per
+preprocessor and named `annotator_<control type>` (`annotator_hed`, `annotator_depth`, `annotator_openpose`,
+`annotator_seg`, `annotator_mlsd`). Opt them in by record name, like any other model:
 
 ```json
-{ "models": ["lllyasviel/Annotators"] }
+{ "models": ["annotator_hed", "annotator_depth", "annotator_openpose", "annotator_seg", "annotator_mlsd"] }
 ```
 
-Pass `--no-annotators` to mirror only the model-reference categories, or `--annotator-ckpts-dir` to point at a
-local annotator checkpoint directory (it defaults to `<weights-root>/controlnet/annotators`). The catalog ships
-each file's hash unset, so the first run computes and backfills them via the same report (paste them into the
-catalog).
+The catalog ships each file's hash unset, so the first run computes and backfills them via the same report (and
+`scripts/apply_backfill_report.py` applies the corrections through the same API path as every category). A
+PRIMARY deployment is seeded once with `scripts/seed_annotator_reference.py`.
 
 ## 2. Dry-run
 

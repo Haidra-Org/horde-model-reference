@@ -44,13 +44,18 @@ its declared hash, so a corrupt object left by a past failure is not trusted for
 ## ControlNet annotators
 
 The ControlNet *annotator* checkpoints (the `comfyui_controlnet_aux` detector weights: HED, LeReS depth, OpenPose,
-UniFormer segmentation, M-LSD) are not model-reference records, but they download the same way and benefit from
-the same mirror. They are made known in the torch-free
-[`annotator_catalog`][horde_model_reference.annotator_catalog], which lists each file with the exact
-repo / subfolder / filename the node expects on disk and its HuggingFace origin URL. The worker pre-fetches these
-through this engine (gateway then origin) *before* the detectors run, so the node finds them present and skips its
-own download; the [upload tool](../guides/mirror_models_to_r2.md) hosts them like any other file. MiDaS (the
-`normal` type) is excluded: it loads via HuggingFace `transformers`, a separate mechanism.
+UniFormer segmentation, M-LSD) are a first-class model-reference category, `controlnet_annotator`, so they are
+mirrored, hash-backfilled and read exactly like every other category, with no bespoke side-channel. The verified
+set lives in the torch-free [`annotator_catalog`][horde_model_reference.annotator_catalog] (each file with the
+exact repo / subfolder / filename the node expects on disk and its HuggingFace origin URL);
+[`annotator_records`][horde_model_reference.annotator_records] bridges it into one record per preprocessor whose
+download files are rooted at the controlnet folder's `annotators/` subdirectory. The category is PRIMARY-API
+canonical (no legacy GitHub source); a PRIMARY is seeded once with `scripts/seed_annotator_reference.py`, and on
+the worker hordelib registers an `AnnotatorModelProvider` so the set is also a queryable
+`source="comfyui_controlnet_aux"`. The worker pre-fetches the files through this engine (gateway then origin)
+*before* the detectors run, so the node finds them present and skips its own download; the
+[upload tool](../guides/mirror_models_to_r2.md) hosts them like any other file. MiDaS (the `normal` type) is
+excluded: it loads via HuggingFace `transformers`, a separate mechanism.
 
 ## The gate
 
