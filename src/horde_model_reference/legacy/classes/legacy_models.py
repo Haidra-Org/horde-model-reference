@@ -81,6 +81,10 @@ class LegacyConfigFile(BaseModel):
     md5sum: str | None = None
     sha256sum: str | None = None
     file_type: str | None = None
+    content_hash: str | None = None
+    """The normalized tensor-region content hash of this component file (distinct from the whole-file
+    ``sha256sum``), used to identify byte-equivalent components for cross-process sharing. ``None`` when
+    unknown or unhashable."""
 
     @model_validator(mode="after")
     def _ensure_sha256sum_for_model_files(self, info: ValidationInfo) -> LegacyConfigFile:
@@ -133,6 +137,10 @@ class LegacyConfig(BaseModel):
 
     files: list[LegacyConfigFile] = Field(default_factory=list)
     download: list[LegacyConfigDownload] = Field(default_factory=list)
+    embedded_component_hashes: dict[str, str] | None = None
+    """Maps a component kind (``vae``, ``text_encoders``) to the normalized tensor-region content hash of
+    that component embedded in the primary checkpoint. ``None`` when the model embeds no shareable
+    component or is unhashable."""
 
     @classmethod
     def _coerce_config_dict(cls, value: object, info: ValidationInfo) -> dict[str, Any]:
@@ -141,7 +149,10 @@ class LegacyConfig(BaseModel):
         if not isinstance(value, dict):
             raise TypeError("config entries must be provided as a mapping")
         raw_dict: dict[str, object] = {str(k): v for k, v in value.items()}
-        if len(raw_dict) > 2:
+        # embedded_component_hashes is a legitimate third config entry; it is not one of the legacy
+        # files/download pair the ">2 entries" heuristic guards against.
+        countable = {key: value for key, value in raw_dict.items() if key != "embedded_component_hashes"}
+        if len(countable) > 2:
             _record_issue(info, "has more than 2 config entries.")
         coerced: dict[str, Any] = {}
         for key in ("files", "download"):
@@ -149,6 +160,8 @@ class LegacyConfig(BaseModel):
             if not isinstance(entries, Iterable):
                 raise TypeError(f"config[{key!s}] must be iterable")
             coerced[key] = list(entries)
+        if raw_dict.get("embedded_component_hashes") is not None:
+            coerced["embedded_component_hashes"] = raw_dict["embedded_component_hashes"]
         return coerced
 
     _coerce_config_dict = model_validator(mode="before")(_coerce_config_dict)  # type: ignore[assignment]  # Pydantic wraps the classmethod in a descriptor proxy
@@ -198,6 +211,11 @@ class LegacyConfig(BaseModel):
         Note: files are always cleared during normalization (new format doesn't use them).
         """
         return len(self.download) == 0
+
+    @model_serializer(mode="wrap", when_used="always")
+    def _serialize_without_none(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        """Drop ``None`` keys so an absent ``embedded_component_hashes`` is omitted, not emitted as null."""
+        return _drop_none_keys(handler, self)
 
 
 class LegacyGenericRecord(BaseModel):

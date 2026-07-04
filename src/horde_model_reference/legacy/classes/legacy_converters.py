@@ -15,6 +15,7 @@ from horde_model_reference import (
     path_consts,
 )
 from horde_model_reference.legacy.classes.legacy_models import (
+    _BASELINE_NORMALIZATION_MAP,
     LegacyClipRecord,
     LegacyGenericRecord,
     LegacyStableDiffusionRecord,
@@ -34,6 +35,70 @@ from horde_model_reference.model_reference_records import (
 from horde_model_reference.util import model_name_to_showcase_folder_name
 
 _SLOW_DOWNLOAD_HOST_SUBSTRINGS = ("civitai",)
+
+_BASELINE_TO_LEGACY_FORM = {normalized: legacy for legacy, normalized in _BASELINE_NORMALIZATION_MAP.items()}
+
+# v2 image-generation record attributes that carry over unchanged to a legacy entry when set.
+_IMAGE_LEGACY_PASSTHROUGH_FIELDS = (
+    "description",
+    "version",
+    "inpainting",
+    "optimization",
+    "tags",
+    "showcases",
+    "min_bridge_version",
+    "trigger",
+    "homepage",
+    "nsfw",
+    "style",
+    "requirements",
+    "size_on_disk_bytes",
+)
+
+
+def image_generation_record_to_legacy_dict(record: GenericModelRecord) -> dict[str, Any]:
+    """Convert a v2 image-generation record to a legacy ``stable_diffusion.json`` entry dict.
+
+    Inverts the legacy-to-v2 config split: each v2 download becomes a legacy ``files`` entry (carrying its
+    ``sha256sum``, ``file_type`` from ``file_purpose`` and the new ``content_hash``) plus a ``download``
+    entry (carrying the URL), and the config's ``embedded_component_hashes`` is preserved. The baseline is
+    mapped back to its legacy string form where one exists (otherwise passed through). The result validates
+    against :class:`LegacyStableDiffusionRecord`.
+
+    The mapping is intentionally lossy in one direction: v2-only metadata that has no legacy counterpart
+    (record ``metadata``, ``model_classification``, ``finetune_series``) is dropped. The goal is a minimal,
+    valid legacy entry that preserves the component hashes for submission to a legacy-canonical PRIMARY, not
+    a byte-perfect round-trip of every field.
+    """
+    files: list[dict[str, Any]] = []
+    download: list[dict[str, Any]] = []
+    for download_record in record.config.download:
+        file_entry: dict[str, Any] = {"path": download_record.file_name, "sha256sum": download_record.sha256sum}
+        if download_record.file_purpose is not None:
+            file_entry["file_type"] = download_record.file_purpose
+        if download_record.content_hash is not None:
+            file_entry["content_hash"] = download_record.content_hash
+        files.append(file_entry)
+        download.append(
+            {"file_name": download_record.file_name, "file_path": "", "file_url": download_record.file_url},
+        )
+
+    config: dict[str, Any] = {"files": files, "download": download}
+    if record.config.embedded_component_hashes:
+        config["embedded_component_hashes"] = dict(record.config.embedded_component_hashes)
+
+    baseline = str(getattr(record, "baseline", ""))
+    entry: dict[str, Any] = {
+        "name": record.name,
+        "baseline": _BASELINE_TO_LEGACY_FORM.get(baseline, baseline),
+        "type": "ckpt",
+        "config": config,
+    }
+    for field in _IMAGE_LEGACY_PASSTHROUGH_FIELDS:
+        value = getattr(record, field, None)
+        if value is not None:
+            entry[field] = value
+    return entry
 
 
 class BaseLegacyConverter:

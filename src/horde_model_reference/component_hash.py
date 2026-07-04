@@ -57,6 +57,7 @@ __all__ = [
     "HttpRangeRegionReader",
     "LocalFileRegionReader",
     "NoComponentTensorsError",
+    "RangeNotSupportedError",
     "RegionReader",
     "UnsupportedComponentError",
     "UnsupportedContainerError",
@@ -110,6 +111,14 @@ class UnsupportedComponentError(ValueError):
 
 class NoComponentTensorsError(LookupError):
     """Raised when a container holds no tensors for the requested component."""
+
+
+class RangeNotSupportedError(RuntimeError):
+    """Raised when a remote host ignores an HTTP ``Range`` request and would return the whole file.
+
+    Reading a tensor past the header from a full-body response would hash the wrong bytes, so this is
+    surfaced rather than silently producing a corrupt hash.
+    """
 
 
 @dataclass(frozen=True)
@@ -210,6 +219,10 @@ class HttpRangeRegionReader:
         headers = {"Range": f"bytes={offset}-{offset + length - 1}"}
         with self._session.get(self._url, headers=headers, stream=True, timeout=self._timeout) as response:
             response.raise_for_status()
+            if offset > 0 and response.status_code != 206:
+                raise RangeNotSupportedError(
+                    f"Host returned status {response.status_code} for a Range request to {self._url}.",
+                )
             remaining = length
             for chunk in response.iter_content(chunk_size=_READ_CHUNK_BYTES):
                 if not chunk:
