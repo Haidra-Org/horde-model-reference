@@ -17,6 +17,18 @@
                     "title": "Sha256Sum",
                     "type": "string"
                 },
+                "content_hash": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Content Hash"
+                },
                 "file_purpose": {
                     "anyOf": [
                         {
@@ -134,6 +146,21 @@
                     },
                     "title": "Download",
                     "type": "array"
+                },
+                "embedded_component_hashes": {
+                    "anyOf": [
+                        {
+                            "additionalProperties": {
+                                "type": "string"
+                            },
+                            "type": "object"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Embedded Component Hashes"
                 }
             },
             "title": "GenericModelRecordConfig",

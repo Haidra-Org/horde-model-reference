@@ -61,6 +61,13 @@ class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
     """The fully qualified URL to download the file from."""
     sha256sum: str = "FIXME"
     """The sha256sum of the file."""
+    content_hash: str | None = None
+    """Normalized, container-independent tensor-region content hash of this component file.
+
+    Distinct from the whole-file :attr:`sha256sum`: it hashes only the component's tensor payload (sorted by
+    name, folding in dtype/shape/bytes and excluding container metadata and key ordering), so byte-equivalent
+    VAE/text-encoder weights shipped in different containers share one hash. Used to identify components that
+    can be shared across processes. ``None`` when unknown or unhashable (e.g. a ``.ckpt`` pickle file)."""
     file_purpose: str | None = None
     """The role this file plays for the model (e.g. ``"vae"`` or ``"text_encoders"``).
 
@@ -81,6 +88,15 @@ class GenericModelRecordConfig(BaseModel):
         default_factory=list,
     )
     """A list of files to download for the model."""
+
+    embedded_component_hashes: dict[str, str] | None = None
+    """Maps a component kind (``"vae"``, ``"text_encoders"``) to the normalized tensor-region content hash of
+    that component embedded in the primary checkpoint file.
+
+    Only monolithic checkpoints (which bundle their VAE/text-encoder inside a single file) declare this.
+    Split-file models instead carry a per-file :attr:`DownloadRecord.content_hash` on each component's
+    download entry, so this is ``None``/absent for them. Also ``None`` when the model has no embedded
+    shareable components or is unhashable (e.g. a ``.ckpt`` pickle file)."""
 
 
 class GenericModelRecordMetadata(BaseModel):

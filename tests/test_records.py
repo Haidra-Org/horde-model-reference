@@ -207,6 +207,41 @@ def test_declared_total_size_is_none_when_undeclared() -> None:
     assert record.declared_total_size_bytes is None
 
 
+def test_component_hash_fields_round_trip() -> None:
+    """Verify content_hash and embedded_component_hashes round-trip and validate under extra='forbid'.
+
+    Tests run with AI_HORDE_TESTING=True, so get_default_config() yields extra='forbid'; constructing and
+    re-validating with the new component-hash fields confirms they are declared on the models rather than
+    silently accepted (or rejected) as extras.
+    """
+    record = _make_generic_record(
+        [
+            DownloadRecord(
+                file_name="ae.safetensors",
+                file_url="https://example.com/ae.safetensors",
+                sha256sum="aaa",
+                content_hash="vae-region-hash",
+                file_purpose="vae",
+            ),
+        ]
+    )
+    record.config.embedded_component_hashes = {"vae": "embedded-vae-hash", "text_encoders": "embedded-te-hash"}
+
+    reloaded = GenericModelRecord.model_validate(record.model_dump())
+    assert reloaded.config.download[0].content_hash == "vae-region-hash"
+    assert reloaded.config.embedded_component_hashes == {
+        "vae": "embedded-vae-hash",
+        "text_encoders": "embedded-te-hash",
+    }
+
+
+def test_component_hash_fields_default_none() -> None:
+    """Verify the new component-hash fields default to None so existing records validate unchanged."""
+    download = DownloadRecord(file_name="a.bin", file_url="https://example.com/a.bin", sha256sum="aaa")
+    assert download.content_hash is None
+    assert GenericModelRecordConfig(download=[download]).embedded_component_hashes is None
+
+
 def test_model_record_union_covers_all_registered_types() -> None:
     """Verify ModelRecordUnionType includes every type registered in MODEL_RECORD_TYPE_LOOKUP.
 
