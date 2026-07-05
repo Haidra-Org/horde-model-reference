@@ -242,7 +242,7 @@ def run(args: argparse.Namespace) -> int:
     allow_set, deny_set = _load_curated(args.curated_json, args.allow, args.deny)
     apikey = _resolve_apikey(args.apikey) if args.submit else ""
 
-    manager = ModelReferenceManager.get_instance()
+    manager = ModelReferenceManager()
     all_references = manager.get_all_model_references(overwrite_existing=args.overwrite_existing)
 
     session = requests.Session()
