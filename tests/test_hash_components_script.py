@@ -47,13 +47,12 @@ def test_split_file_plans_standalone_not_embedded() -> None:
     }
 
 
-def test_monolithic_plans_embedded_vae() -> None:
-    """A monolithic checkpoint (no separate VAE) is probed for an embedded VAE."""
+def test_monolithic_plans_embedded_vae_and_te() -> None:
+    """A monolithic checkpoint (no separate component files) is probed for embedded VAE and text encoders."""
     record = _record([_download("sdxl_finetune.safetensors")])
     tasks = plan_component_hash_tasks(record, skip_existing=False)
-    assert len(tasks) == 1
-    assert tasks[0].embedded is True
-    assert tasks[0].kind is ComponentKind.VAE
+    assert all(task.embedded for task in tasks)
+    assert {task.kind for task in tasks} == {ComponentKind.VAE, ComponentKind.TEXT_ENCODERS}
 
 
 def test_non_safetensors_is_skipped() -> None:
@@ -69,7 +68,11 @@ def test_skip_existing_standalone_hash() -> None:
     assert len(plan_component_hash_tasks(record, skip_existing=False)) == 1
 
 
-def test_skip_existing_embedded_vae() -> None:
-    """skip_existing leaves an already-recorded embedded VAE alone."""
-    record = _record([_download("sdxl_finetune.safetensors")], embedded={"vae": "e" * 64})
+def test_skip_existing_embedded_components() -> None:
+    """skip_existing leaves already-recorded embedded components alone."""
+    record = _record(
+        [_download("sdxl_finetune.safetensors")],
+        embedded={"vae": "e" * 64, "text_encoders": "f" * 64},
+    )
     assert plan_component_hash_tasks(record, skip_existing=True) == []
+    assert len(plan_component_hash_tasks(record, skip_existing=False)) == 2

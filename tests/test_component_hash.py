@@ -17,7 +17,6 @@ import pytest
 from horde_model_reference.component_hash import (
     ComponentKind,
     NoComponentTensorsError,
-    UnsupportedComponentError,
     UnsupportedContainerError,
     component_kind_for_purpose,
     hash_embedded_component_file,
@@ -113,15 +112,22 @@ def test_embedded_vae_matches_standalone(tmp_path: Path, vae_prefix: str) -> Non
     assert hash_embedded_component_file(checkpoint, ComponentKind.VAE) == hash_standalone_component_file(standalone)
 
 
-def test_embedded_text_encoder_unsupported(tmp_path: Path) -> None:
-    """Embedded text-encoder extraction is refused (ComfyUI renames those keys)."""
+def test_embedded_text_encoder_is_hashed(tmp_path: Path) -> None:
+    """Embedded text encoders hash consistently across checkpoints, independent of UNet/VAE and stable."""
+    te = [
+        ("conditioner.embedders.0.weight", "F32", (1, 2), bytes(range(16, 24))),
+        ("conditioner.embedders.1.weight", "F16", (2, 2), bytes(range(1, 9))),
+    ]
     checkpoint = _write(
         tmp_path,
         "ckpt.safetensors",
-        [("conditioner.embedders.0.y", "F32", (1,), bytes(range(50, 54)))],
+        [("model.diffusion_model.x", "F16", (2,), bytes(range(40, 44))), *te],
     )
-    with pytest.raises(UnsupportedComponentError):
-        hash_embedded_component_file(checkpoint, ComponentKind.TEXT_ENCODERS)
+    te_hash = hash_embedded_component_file(checkpoint, ComponentKind.TEXT_ENCODERS)
+    # A different checkpoint carrying the same text encoders (different UNet) hashes equal.
+    other_unet = ("model.diffusion_model.x", "F16", (3,), bytes(range(60, 66)))
+    other = _write(tmp_path, "other.safetensors", [other_unet, *te])
+    assert hash_embedded_component_file(other, ComponentKind.TEXT_ENCODERS) == te_hash
 
 
 def test_embedded_vae_missing_raises(tmp_path: Path) -> None:

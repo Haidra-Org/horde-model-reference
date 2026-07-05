@@ -15,15 +15,17 @@ Two forms are hashed, because a component can appear either as its own file or e
 * **standalone** (:func:`hash_standalone_component`): the file *is* the component (a split-file VAE or
   text-encoder). Every tensor is hashed with its bare key.
 * **embedded** (:func:`hash_embedded_component`): the component's tensors are selected out of a monolithic
-  checkpoint by their known key prefix, and that prefix is stripped so the result equals the standalone
-  hash of the same weights extracted to their own file.
+  checkpoint by their known key prefix, and that prefix is stripped.
 
-Embedded extraction is supported for the **VAE only**. In a monolithic checkpoint ComfyUI does not merely
-prefix the text-encoder weights, it renames and structurally reshuffles them at load time (SD1.5/SDXL fold
+For the **VAE**, the embedded hash equals the standalone hash of the same weights extracted to their own
+file (ComfyUI strips the VAE prefix cleanly, no key renaming). For **text encoders** it does not: in a
+monolithic checkpoint ComfyUI renames and structurally reshuffles them at load (SD1.5/SDXL fold
 ``conditioner.embedders.*`` into ``clip_l``/``clip_g`` and convert the OpenCLIP layout, which fuses/splits
-tensors), so a torch-free file hash cannot reproduce the standalone form without reimplementing that
-loader. Embedded text-encoder hashing therefore raises :class:`UnsupportedComponentError`; text-encoder
-sharing is served by the split-file families (Flux/Qwen/Z-Image), whose encoders are already standalone.
+tensors), so a torch-free file hash cannot reproduce a standalone text-encoder file. The embedded
+text-encoder hash is therefore a stable identity matched only against *other monolithic checkpoints* (which
+all store the encoders the same way) and the lane's representative-checkpoint load, never against a
+standalone text-encoder file. Split-file families (Flux/Qwen/Z-Image) ship their encoders standalone and use
+the standalone hash directly.
 
 This module stays inside :mod:`horde_model_reference`'s torch-free boundary (enforced by
 ``tests/test_torch_free_imports.py``): it parses the safetensors header with the stdlib and hashes byte
@@ -59,7 +61,6 @@ __all__ = [
     "NoComponentTensorsError",
     "RangeNotSupportedError",
     "RegionReader",
-    "UnsupportedComponentError",
     "UnsupportedContainerError",
     "component_kind_for_purpose",
     "hash_embedded_component",
@@ -101,12 +102,22 @@ the strip is a pure leading-substring removal with no key renaming, so stripping
 bare ``encoder.``/``decoder.`` keys a standalone VAE file carries."""
 
 
+_EMBEDDED_TE_PREFIXES: tuple[str, ...] = ("conditioner.embedders.", "cond_stage_model.")
+"""Key prefixes under which a monolithic checkpoint stores its text encoders (SDXL
+``conditioner.embedders.0/1.``, SD1.5 ``cond_stage_model.``). Unlike the VAE, ComfyUI renames and reshuffles
+these keys at load, so this hash does NOT equal a standalone text-encoder file; it is a stable identity for a
+monolithic checkpoint's text encoders, matched only against other monolithic checkpoints (and the lane's
+representative-checkpoint load), which all store them identically."""
+
+
+_EMBEDDED_PREFIXES: dict[ComponentKind, tuple[str, ...]] = {
+    ComponentKind.VAE: _EMBEDDED_VAE_PREFIXES,
+    ComponentKind.TEXT_ENCODERS: _EMBEDDED_TE_PREFIXES,
+}
+
+
 class UnsupportedContainerError(ValueError):
     """Raised when a file is not a parseable safetensors container (e.g. a pickle ``.ckpt``)."""
-
-
-class UnsupportedComponentError(ValueError):
-    """Raised when embedded extraction is requested for a component kind it is not supported for."""
 
 
 class NoComponentTensorsError(LookupError):
@@ -304,13 +315,14 @@ def _select_standalone_tensors(header: dict[str, object]) -> list[ComponentTenso
     return selected
 
 
-def _select_embedded_vae_tensors(header: dict[str, object]) -> list[ComponentTensor]:
-    """Select the VAE tensors from a monolithic checkpoint, stripping the checkpoint prefix to bare keys."""
+def _select_embedded_tensors(header: dict[str, object], kind: ComponentKind) -> list[ComponentTensor]:
+    """Select *kind*'s tensors from a monolithic checkpoint, stripping the checkpoint prefix to bare keys."""
+    prefixes = _EMBEDDED_PREFIXES[kind]
     selected: list[ComponentTensor] = []
     for name, entry in header.items():
         if name == "__metadata__":
             continue
-        prefix = next((candidate for candidate in _EMBEDDED_VAE_PREFIXES if name.startswith(candidate)), None)
+        prefix = next((candidate for candidate in prefixes if name.startswith(candidate)), None)
         if prefix is None:
             continue
         tensor = _tensor_from_entry(name[len(prefix) :], entry)
@@ -362,22 +374,20 @@ def hash_standalone_component(reader: RegionReader) -> str:
 
 
 def hash_embedded_component(reader: RegionReader, kind: ComponentKind) -> str:
-    """Return the normalized content hash of *kind* extracted from a monolithic checkpoint read via *reader*.
+    """Return the content hash of *kind* selected from a monolithic checkpoint read via *reader*.
 
-    Only :attr:`ComponentKind.VAE` is supported; the result equals :func:`hash_standalone_component` of the
-    same VAE extracted to its own file.
+    The embedded VAE hash equals :func:`hash_standalone_component` of the same VAE extracted to its own file
+    (ComfyUI strips the VAE prefix cleanly). The embedded text-encoder hash does NOT equal a standalone
+    text-encoder file (ComfyUI renames those keys at load); it is a stable identity for a monolithic
+    checkpoint's text encoders, matched only against other monolithic checkpoints that store them identically.
+    Both are file-content hashes, independent of platform, device and load-time dtype selection.
 
     Raises:
-        UnsupportedComponentError: *kind* has no supported embedded extraction (any text encoder).
         UnsupportedContainerError: The source is not a parseable safetensors container.
         NoComponentTensorsError: The checkpoint holds no tensors for *kind*.
     """
-    if kind is not ComponentKind.VAE:
-        raise UnsupportedComponentError(
-            f"Embedded extraction is not supported for {kind}; it is served by split-file component files.",
-        )
     header, data_start = _parse_safetensors_header(reader)
-    tensors = _select_embedded_vae_tensors(header)
+    tensors = _select_embedded_tensors(header, kind)
     if not tensors:
         raise NoComponentTensorsError(f"No embedded {kind} tensors found in checkpoint.")
     return _hash_selected(reader, data_start, tensors)

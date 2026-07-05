@@ -60,10 +60,10 @@ def image_generation_record_to_legacy_dict(record: GenericModelRecord) -> dict[s
     """Convert a v2 image-generation record to a legacy ``stable_diffusion.json`` entry dict.
 
     Inverts the legacy-to-v2 config split: each v2 download becomes a legacy ``files`` entry (carrying its
-    ``sha256sum``, ``file_type`` from ``file_purpose`` and the new ``content_hash``) plus a ``download``
-    entry (carrying the URL), and the config's ``embedded_component_hashes`` is preserved. The baseline is
-    mapped back to its legacy string form where one exists (otherwise passed through). The result validates
-    against :class:`LegacyStableDiffusionRecord`.
+    ``sha256sum``, ``file_type`` from ``file_purpose`` and the component ``content_hash``) plus a
+    ``download`` entry (carrying the URL), and the config's ``embedded_component_hashes`` is preserved. The
+    baseline is mapped back to its legacy string form where one exists (otherwise passed through). The result
+    validates against :class:`LegacyStableDiffusionRecord`.
 
     The mapping is intentionally lossy in one direction: v2-only metadata that has no legacy counterpart
     (record ``metadata``, ``model_classification``, ``finetune_series``) is dropped. The goal is a minimal,

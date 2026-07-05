@@ -66,8 +66,10 @@ class DownloadRecord(BaseModel):  # TODO Rename? (record to subrecord?)
 
     Distinct from the whole-file :attr:`sha256sum`: it hashes only the component's tensor payload (sorted by
     name, folding in dtype/shape/bytes and excluding container metadata and key ordering), so byte-equivalent
-    VAE/text-encoder weights shipped in different containers share one hash. Used to identify components that
-    can be shared across processes. ``None`` when unknown or unhashable (e.g. a ``.ckpt`` pickle file)."""
+    VAE/text-encoder weights shipped in different containers share one hash. This cross-platform-stable value
+    (a pure function of the file bytes, independent of device and load-time dtype) is the identity the
+    canonical registry keys on for cross-process sharing. ``None`` when unknown or unhashable (e.g. a
+    ``.ckpt`` pickle file)."""
     file_purpose: str | None = None
     """The role this file plays for the model (e.g. ``"vae"`` or ``"text_encoders"``).
 

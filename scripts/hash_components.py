@@ -46,7 +46,6 @@ from horde_model_reference.component_hash import (
     ComponentKind,
     NoComponentTensorsError,
     RangeNotSupportedError,
-    UnsupportedComponentError,
     UnsupportedContainerError,
     component_kind_for_purpose,
     hash_embedded_component_url,
@@ -61,7 +60,7 @@ if TYPE_CHECKING:
     from horde_model_reference.model_reference_records import GenericModelRecord
 
 _SAFETENSORS_SUFFIX = ".safetensors"
-_EMBEDDED_VAE_KEY = "vae"
+_EMBEDDABLE_KINDS = (ComponentKind.VAE, ComponentKind.TEXT_ENCODERS)
 _DEFAULT_PRIMARY_URL = "https://models.aihorde.net"
 _APIKEY_ENV_VARS = ("AI_HORDE_API_KEY", "HORDE_API_KEY")
 _SUBMIT_OK_STATUSES = frozenset({200, 201, 202})
@@ -88,15 +87,13 @@ def _looks_like_safetensors(file_name: str, file_url: str) -> bool:
 def plan_component_hash_tasks(record: GenericModelRecord, *, skip_existing: bool) -> list[ComponentHashTask]:
     """Plan which components of *record* to hash, without doing any I/O.
 
-    Standalone component files are hashed whole. A model with no separate VAE file is treated as monolithic
-    and its primary safetensors files are probed for an embedded VAE. When *skip_existing* is set, downloads
-    that already carry the relevant hash are left alone.
+    Standalone component files are hashed whole. A model with no standalone file for a component kind is
+    treated as monolithic for that kind, and its primary safetensors files are probed for the embedded VAE
+    and text encoders. When *skip_existing* is set, components that already carry a hash are left alone.
     """
     downloads = record.config.download
-    has_standalone_vae = any(
-        component_kind_for_purpose(download.file_purpose) is ComponentKind.VAE for download in downloads
-    )
-    existing_embedded_vae = (record.config.embedded_component_hashes or {}).get(_EMBEDDED_VAE_KEY)
+    standalone_kinds = {component_kind_for_purpose(download.file_purpose) for download in downloads}
+    embedded_hashes = record.config.embedded_component_hashes or {}
 
     tasks: list[ComponentHashTask] = []
     for index, download in enumerate(downloads):
@@ -107,8 +104,14 @@ def plan_component_hash_tasks(record: GenericModelRecord, *, skip_existing: bool
             if skip_existing and download.content_hash is not None:
                 continue
             tasks.append(ComponentHashTask(index, download.file_url, kind, embedded=False))
-        elif not has_standalone_vae and not (skip_existing and existing_embedded_vae is not None):
-            tasks.append(ComponentHashTask(index, download.file_url, ComponentKind.VAE, embedded=True))
+            continue
+        # Primary checkpoint: probe for each embeddable component that has no standalone file of its own.
+        for embed_kind in _EMBEDDABLE_KINDS:
+            if embed_kind in standalone_kinds:
+                continue
+            if skip_existing and embedded_hashes.get(embed_kind.value) is not None:
+                continue
+            tasks.append(ComponentHashTask(index, download.file_url, embed_kind, embedded=True))
     return tasks
 
 
@@ -120,7 +123,7 @@ def _hash_task(task: ComponentHashTask, *, session: requests.Session) -> str | N
         return hash_standalone_component_url(task.url, session=session)
     except NoComponentTensorsError:
         return None
-    except (UnsupportedContainerError, UnsupportedComponentError) as skip_reason:
+    except UnsupportedContainerError as skip_reason:
         logger.debug("Not hashable ({}): {}", skip_reason, task.url)
         return None
     except (RangeNotSupportedError, requests.RequestException) as fetch_error:
@@ -132,7 +135,7 @@ def _record_hash(record: GenericModelRecord, task: ComponentHashTask, content_ha
     """Store *content_hash* on the record, on the download for a standalone file or in the embedded map."""
     if task.embedded:
         embedded = dict(record.config.embedded_component_hashes or {})
-        embedded[_EMBEDDED_VAE_KEY] = content_hash
+        embedded[task.kind.value] = content_hash
         record.config.embedded_component_hashes = embedded
     else:
         record.config.download[task.download_index].content_hash = content_hash

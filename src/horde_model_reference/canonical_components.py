@@ -1,16 +1,17 @@
 """The canonical set of shareable model components, and how it is derived from the reference.
 
 A component (a VAE or a text encoder) is worth sharing across processes only when several models use the
-byte-identical weights. This module holds the derived answer to "which component content-hashes are worth
+byte-identical weights. This module holds the derived answer to "which component identities are worth
 materialising once and sharing?" plus, for each, where a worker can obtain the standalone file (which model
-carries it, and whether as its own file or embedded in a checkpoint it must slice).
+carries it, and whether as its own file or embedded in a checkpoint it must extract).
 
-The set is derived centrally by the offline hashing pass and served as data, so every worker consumes one
-authoritative answer rather than each re-deriving it (and drifting). Derivation is by frequency with a
-curated override: a component shared by at least ``min_shared_models`` distinct models is promoted, an
-allowlist can force a specific hash in regardless of count, and a denylist can exclude one. The identity is
-the torch-free tensor-region hash from :mod:`horde_model_reference.component_hash`; the kind values match
-``on_disk_layout.COMPONENT_PURPOSE_FOLDERS`` so placement of a materialised file reuses that routing.
+The set is derived centrally and served as data, so every worker consumes one authoritative answer rather
+than each re-deriving it (and drifting). Derivation is by frequency with a curated override: a component
+shared by at least ``min_shared_models`` distinct models is promoted, an allowlist can force a specific hash
+in regardless of count, and a denylist can exclude one. The identity is the torch-free **content hash** (the
+tensor-region file hash), which is identical on every machine; the loaded-module hash is device- and
+dtype-dependent, so it is a machine-local runtime detail only and is never shipped here. The kind values
+match ``on_disk_layout.COMPONENT_PURPOSE_FOLDERS`` so a materialised file's placement reuses that routing.
 
 This module stays torch-free: it is pure reference data and grouping logic over already-computed hashes.
 """
@@ -61,12 +62,13 @@ class CanonicalComponentSource(BaseModel):
 
 
 class CanonicalComponent(BaseModel):
-    """A shareable component promoted to the canonical set, identified by its content hash."""
+    """A shareable component promoted to the canonical set, identified by its content (file) hash."""
 
     model_config = get_default_config()
 
     content_hash: str
-    """The torch-free tensor-region content hash identifying these weights."""
+    """The cross-platform-stable file-content identity the registry keys on (not the machine-dependent
+    loaded-module hash)."""
     kind: ComponentKind
     """The component kind (``vae`` or ``text_encoders``)."""
     shared_by_model_count: int
@@ -98,7 +100,8 @@ def _iter_component_candidates(
     """Yield every ``(content_hash, kind, source)`` a single record contributes.
 
     Split-file components come from each ``DownloadRecord`` that declares a component ``file_purpose`` and a
-    ``content_hash``; embedded components come from the record's ``embedded_component_hashes`` map.
+    ``content_hash``; embedded components come from the record's ``embedded_component_hashes`` map. A component
+    whose content hash is not yet populated contributes nothing.
     """
     config = record.config
     for download in config.download:
@@ -136,15 +139,15 @@ def derive_canonical_registry(
 ) -> CanonicalComponentRegistry:
     """Derive the canonical component set from *records* by frequency, with a curated override.
 
-    A ``(content_hash, kind)`` group is promoted when its hash is in *allow*, or when its hash is not in
+    A ``(content_hash, kind)`` group is promoted when its identity hash is in *allow*, or when it is not in
     *deny* and at least *min_shared_models* distinct models carry it. Sources are collected per group and
     deduplicated, so a worker can pick whichever carrier it already has on disk.
 
     Args:
         records: The reference, keyed by model name.
         min_shared_models: The frequency threshold for automatic promotion.
-        allow: Content hashes to force into the set regardless of count.
-        deny: Content hashes to exclude even when frequent.
+        allow: Module (identity) hashes to force into the set regardless of count.
+        deny: Module (identity) hashes to exclude even when frequent.
     """
     allow_set = set(allow)
     deny_set = set(deny)
