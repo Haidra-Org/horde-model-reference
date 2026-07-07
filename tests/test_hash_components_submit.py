@@ -86,9 +86,28 @@ def test_v2_real_puts_record_with_hash() -> None:
     assert len(session.calls) == 1
     method, url, payload = session.calls[0]
     assert method == "PUT"
-    assert url == "https://primary.invalid/api/model_references/v2/image_generation/MyModel"
+    assert url == "https://primary.invalid/api/model_references/v2/image_generation/model/MyModel"
     assert payload["name"] == "MyModel"
     assert payload["config"]["download"][0]["content_hash"] == "a" * 64
+
+
+def test_v2_url_encodes_model_name_with_spaces() -> None:
+    """A model name with spaces is URL-encoded in the v2 per-model path (the route would 404 otherwise)."""
+    session = _RecordingSession()
+    _submit_record(
+        _record(),
+        "Edge Of Realism",
+        MODEL_REFERENCE_CATEGORY.image_generation,
+        api_version="v2",
+        base_url="https://primary.invalid/",
+        apikey="key",
+        session=session,  # type: ignore[arg-type]
+        dry_run=False,
+        update=False,
+        timeout=1.0,
+    )
+    _method, url, _payload = session.calls[0]
+    assert url == "https://primary.invalid/api/model_references/v2/image_generation/model/Edge%20Of%20Realism"
 
 
 @pytest.fixture
