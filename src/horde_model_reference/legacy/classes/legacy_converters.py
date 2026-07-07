@@ -264,7 +264,13 @@ class BaseLegacyConverter:
                 raise
 
     def _convert_model_record_config(self, legacy_record: LegacyGenericRecord) -> GenericModelRecordConfig:
-        """Convert the config section of a legacy record to the new format."""
+        """Convert the config section of a legacy record to the new format.
+
+        The component-sharing identities (``content_hash`` per file, and the config's
+        ``embedded_component_hashes``) are round-tripped through here: they are written into the legacy form by
+        ``image_generation_record_to_legacy_dict`` and must be restored on read, or a worker reading the legacy
+        reference would silently lose them and the component lane would never see a shareable component.
+        """
         download_records: dict[str, DownloadRecord] = {}
 
         for file_entry in legacy_record.config.files:
@@ -274,6 +280,7 @@ class BaseLegacyConverter:
                     file_url="",
                     sha256sum=file_entry.sha256sum if file_entry.sha256sum else "FIXME",
                     file_purpose=file_entry.file_type,
+                    content_hash=file_entry.content_hash,
                     known_slow_download=any(
                         slow_url in file_entry.path.lower() for slow_url in _SLOW_DOWNLOAD_HOST_SUBSTRINGS
                     ),
@@ -285,7 +292,10 @@ class BaseLegacyConverter:
             else:
                 raise ValueError(f"Unknown download entry: {download_entry.file_name}")
 
-        return GenericModelRecordConfig(download=list(download_records.values()))
+        return GenericModelRecordConfig(
+            download=list(download_records.values()),
+            embedded_component_hashes=legacy_record.config.embedded_component_hashes,
+        )
 
     def _convert_single_record(
         self,

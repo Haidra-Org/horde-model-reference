@@ -889,6 +889,7 @@ dev = [
     { name = "ruff" },
     { name = "settings-doc" },
     { name = "tox" },
+    { name = "tqdm" },
     { name = "types-aiofiles" },
     { name = "types-openpyxl" },
     { name = "types-pygments" },
@@ -896,6 +897,7 @@ dev = [
     { name = "types-redis" },
     { name = "types-requests" },
     { name = "types-tabulate" },
+    { name = "types-tqdm" },
     { name = "types-ujson" },
 ]
 docs = [
@@ -955,6 +957,7 @@ dev = [
     { name = "ruff", specifier = ">=0.14.3" },
     { name = "settings-doc", specifier = ">=4.3.2" },
     { name = "tox", specifier = ">=4.32.0" },
+    { name = "tqdm", specifier = ">=4.68.3" },
     { name = "types-aiofiles", specifier = ">=25.1.0.20251011" },
     { name = "types-openpyxl", specifier = ">=3.1.5.20250919" },
     { name = "types-pygments", specifier = ">=2.19.0.20250809" },
@@ -962,6 +965,7 @@ dev = [
     { name = "types-redis", specifier = ">=4.6.0.20241004" },
     { name = "types-requests", specifier = ">=2.31.0.6" },
     { name = "types-tabulate", specifier = ">=0.9.0.20241207" },
+    { name = "types-tqdm", specifier = ">=4.68.0.20260608" },
     { name = "types-ujson", specifier = ">=5.10.0.20250822" },
 ]
 docs = [
@@ -2274,6 +2278,18 @@ wheels = [
 ]
 
 [[package]]
+name = "tqdm"
+version = "4.68.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/87/d7/0535a28b1f5f24f6612fb3ff1e89fb1a8d160fee0f976e0aa6803862134b/tqdm-4.68.3.tar.gz", hash = "sha256:00dfa48452b6b6cfae3dd9885636c23d3422d1ec97c66d96818cbd5e0821d482", size = 170596, upload-time = "2026-06-17T07:36:52.105Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d8/8e/bb97bb0c71802080bfc8952937d174e49cfc50de5c951dd47b2496f0dcdb/tqdm-4.68.3-py3-none-any.whl", hash = "sha256:39832cc2def2789a6f29df83f172db7416cea70052c0907a57801c5f2fdccb03", size = 78337, upload-time = "2026-06-17T07:36:50.132Z" },
+]
+
+[[package]]
 name = "typer"
 version = "0.26.7"
 source = { registry = "https://pypi.org/simple" }
@@ -2420,6 +2436,18 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/11/af/c100d86897d3fdb010d8f813569fa80355b5cb553f51080e37d4f3c451bb/types_tabulate-0.10.0.20260508.tar.gz", hash = "sha256:8e51f159e8b24976849706ae2ed1dc9adba8ebbd080b17e494ebb66a8cc92c74", size = 8395, upload-time = "2026-05-08T04:47:58.921Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a0/36/443b700f54a585cf8ed4e76d8ad08b12df6914f8782a2788ecd0d8491519/types_tabulate-0.10.0.20260508-py3-none-any.whl", hash = "sha256:b1e1a2d0456fbd655a71690b09a7aaeffdf2978d32049184ea436492aa51d20a", size = 8137, upload-time = "2026-05-08T04:47:57.872Z" },
+]
+
+[[package]]
+name = "types-tqdm"
+version = "4.68.0.20260608"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "types-requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/dc/e0/3facccb1ff69970c73fca7a8028286c233d4c1312c475a65fb3d896f56d9/types_tqdm-4.68.0.20260608.tar.gz", hash = "sha256:e1dfddf8770fbc30ecaf95ae57c286397831235064308f7dfc2b1d6684a76107", size = 18470, upload-time = "2026-06-08T06:26:06.661Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/53/e8/61d95bfd49d1609fb8e8c5e06f4a094183411988a6f448873f5de6602499/types_tqdm-4.68.0.20260608-py3-none-any.whl", hash = "sha256:450a6e7e9e9b604928968927c414b32970e40091213c4180e1ed470905b13eff", size = 24858, upload-time = "2026-06-08T06:26:05.741Z" },
 ]
 
 [[package]]

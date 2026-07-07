@@ -18,6 +18,7 @@ def test_layout_and_engine_import_without_torch_or_comfy() -> None:
         "import horde_model_reference.on_disk_layout\n"
         "import horde_model_reference.download_engine\n"
         "import horde_model_reference.component_hash\n"
+        "import horde_model_reference.canonical_components\n"
         "heavy = [name for name in sys.modules if name == 'torch' or name.split('.')[0] in {'comfy', 'hordelib'}]\n"
         "assert not heavy, f'unexpected heavy imports: {heavy}'\n"
         "print('torch-free-ok')\n"

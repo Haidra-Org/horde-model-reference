@@ -20,6 +20,7 @@ test.json
 
 scripts/submit_*.py
 
+component_hashes/
 
 horde_model_reference/legacy/*.json
 *.webp

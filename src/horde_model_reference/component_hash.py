@@ -27,6 +27,13 @@ all store the encoders the same way) and the lane's representative-checkpoint lo
 standalone text-encoder file. Split-file families (Flux/Qwen/Z-Image) ship their encoders standalone and use
 the standalone hash directly.
 
+Beyond hashing, the VAE embedded in a monolithic checkpoint can be *extracted* to a standalone VAE file
+(:func:`extract_embedded_vae`): the same prefix-stripped tensors are copied byte-for-byte into their own
+container, so the extracted file's standalone hash equals the source checkpoint's embedded VAE hash by
+construction. This lets a consumer materialise a standalone VAE from a monolithic checkpoint without torch.
+Only the VAE is extractable this way, for the same key-renaming reason the embedded text-encoder hash does
+not match a standalone file.
+
 This module stays inside :mod:`horde_model_reference`'s torch-free boundary (enforced by
 ``tests/test_torch_free_imports.py``): it parses the safetensors header with the stdlib and hashes byte
 ranges directly, never importing torch, numpy or the ``safetensors`` package, and never materialising a
@@ -63,6 +70,8 @@ __all__ = [
     "RegionReader",
     "UnsupportedContainerError",
     "component_kind_for_purpose",
+    "extract_embedded_vae",
+    "extract_embedded_vae_file",
     "hash_embedded_component",
     "hash_embedded_component_file",
     "hash_embedded_component_url",
@@ -415,3 +424,68 @@ def hash_embedded_component_url(url: str, kind: ComponentKind, session: requests
     """Content-hash *kind* embedded in a remote checkpoint via HTTP ranges. See :func:`hash_embedded_component`."""
     with HttpRangeRegionReader(url, session=session) as reader:
         return hash_embedded_component(reader, kind)
+
+
+def _write_standalone_safetensors(
+    reader: RegionReader,
+    source_data_start: int,
+    tensors: list[ComponentTensor],
+    dest_path: Path,
+) -> None:
+    """Write *tensors* (already prefix-stripped) as a standalone safetensors file at *dest_path*.
+
+    Tensors are laid out in ascending canonical-name order with tightly packed, contiguous data offsets, so
+    the output bytes are deterministic. The file is written to a sibling temporary path and atomically
+    renamed into place, so a failed or interrupted write never leaves a partial file behind.
+    """
+    ordered = sorted(tensors, key=lambda item: item.canonical_name)
+    header: dict[str, object] = {}
+    cursor = 0
+    for tensor in ordered:
+        length = tensor.end - tensor.begin
+        header[tensor.canonical_name] = {
+            "dtype": tensor.dtype,
+            "shape": list(tensor.shape),
+            "data_offsets": [cursor, cursor + length],
+        }
+        cursor += length
+    header_json = json.dumps(header).encode("utf-8")
+    tmp_path = dest_path.with_name(dest_path.name + ".tmp")
+    with tmp_path.open("wb") as out:
+        out.write(struct.pack("<Q", len(header_json)))
+        out.write(header_json)
+        for tensor in ordered:
+            for chunk in reader.iter_region(source_data_start + tensor.begin, tensor.end - tensor.begin):
+                out.write(chunk)
+    tmp_path.replace(dest_path)
+
+
+def extract_embedded_vae(reader: RegionReader, dest_path: str | Path) -> str:
+    """Extract the VAE embedded in a monolithic checkpoint (read via *reader*) to a standalone file.
+
+    Selects the ``first_stage_model.``/``vae.`` tensors, strips the prefix to bare keys, and writes a
+    standalone VAE safetensors file at *dest_path*. Because the same tensors are written with the same bare
+    keys the embedded hash selects, the written file's :func:`hash_standalone_component` equals the source's
+    :func:`hash_embedded_component` for the VAE by construction; that hash is returned.
+
+    Only the VAE is extractable this way: ComfyUI strips the VAE prefix cleanly, so the standalone file both
+    hashes equal and loads as a VAE. Text encoders are deliberately not extracted (ComfyUI renames their keys
+    at load, so a byte-sliced file would neither hash-match a real text-encoder file nor load as one).
+
+    Raises:
+        UnsupportedContainerError: The source is not a parseable safetensors container.
+        NoComponentTensorsError: The checkpoint holds no VAE tensors.
+    """
+    header, data_start = _parse_safetensors_header(reader)
+    tensors = _select_embedded_tensors(header, ComponentKind.VAE)
+    if not tensors:
+        raise NoComponentTensorsError("No embedded VAE tensors found in checkpoint.")
+    dest = Path(dest_path)
+    _write_standalone_safetensors(reader, data_start, tensors, dest)
+    return hash_standalone_component_file(dest)
+
+
+def extract_embedded_vae_file(source_path: str | Path, dest_path: str | Path) -> str:
+    """Extract the VAE from a local checkpoint file to a standalone VAE file. See :func:`extract_embedded_vae`."""
+    with LocalFileRegionReader(source_path) as reader:
+        return extract_embedded_vae(reader, dest_path)
