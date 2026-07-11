@@ -281,6 +281,11 @@ class CONTROLNET_STYLE(StrEnum):
     control_depth = auto()
     control_qr = auto()
     control_qr_xl = auto()
+    control_lineart = auto()
+    control_lineart_anime = auto()
+    control_normal_bae = auto()
+    control_recolor = auto()
+    control_tile = auto()
 
 
 _CONTROLNET_STYLE_REGISTRY = EnumRegistry(item.value for item in CONTROLNET_STYLE)

@@ -12,10 +12,9 @@ pre-placed file is found and the node skips its own HuggingFace download) and th
 It deliberately carries no torch/transformers/hordelib dependency so the orchestrator, the devops upload tool,
 and hordelib can all share it.
 
-Scope: only the files reachable through ``custom_hf_download`` for the preprocessors in
-``CONTROLNET_IMAGE_PREPROCESSOR_MAP``. The ``normal`` map (MiDaS) is intentionally excluded: it loads via
-HuggingFace ``transformers`` from ``Intel/dpt-hybrid-midas`` into the transformers cache, a different mechanism
-hordelib already handles separately. ``canny`` and ``scribble`` need no weights at all.
+Scope: files reachable through ``custom_hf_download`` for the Horde-exposed preprocessors. Detectors that load
+complete repositories through HuggingFace ``transformers`` are intentionally excluded because they use the hub
+cache rather than the annotator checkpoint layout. Weightless OpenCV/numpy detectors likewise need no records.
 
 The sha256 of each file starts as None ("not yet known"): the devops upload tool computes the real hashes and
 backfills them here, after which the gated content-addressed mirror can serve the file. Until then the file is
@@ -38,7 +37,7 @@ __all__ = [
 ]
 
 ANNOTATOR_HF_REPO = "lllyasviel/Annotators"
-"""The HuggingFace repo every horde-exposed ``custom_hf_download`` annotator file is served from."""
+"""The HuggingFace repo hosting the classic ControlNet annotator checkpoints."""
 
 _HF_RESOLVE_BASE = "https://huggingface.co"
 """Base of the HuggingFace ``resolve`` URL a file is downloaded from (``/<repo>/resolve/main/<path>``)."""
@@ -83,8 +82,9 @@ class AnnotatorFile:
 
 
 # The verified set, read directly from the pinned comfyui_controlnet_aux detectors' ``from_pretrained`` defaults.
-# Every horde-exposed preprocessor that loads weights through ``custom_hf_download`` resolves to lllyasviel/Annotators
-# with an empty subfolder. Keep this list in step with CONTROLNET_IMAGE_PREPROCESSOR_MAP on an annotator pin bump.
+# This catalog is the worker/HIU-side authority for which annotator weights exist and where they live on disk;
+# hordelib's preprocessor map is one downstream consumer of it, not the source of truth. Revisit this list on an
+# annotator pin bump, when a preprocessor's checkpoint default can change.
 ANNOTATOR_FILES: tuple[AnnotatorFile, ...] = (
     # HED edge detector: serves "hed" and (re-used by) the fake-scribble preprocessor.
     AnnotatorFile(
@@ -146,6 +146,66 @@ ANNOTATOR_FILES: tuple[AnnotatorFile, ...] = (
         sha256="5696f168eb2c30d4374bbfd45436f7415bb4d88da29bea97eea0101520fba082",
         control_types=("mlsd", "hough"),
         preprocessors=("M-LSDPreprocessor",),
+    ),
+    # Realistic lineart loads both fine and coarse-mode weights; the coarse mode is a detector parameter,
+    # not a separate control type.
+    AnnotatorFile(
+        repo=ANNOTATOR_HF_REPO,
+        filename="sk_model.pth",
+        sha256="c686ced2a666b4850b4bb6ccf0748031c3eda9f822de73a34b8979970d90f0c6",
+        control_types=("lineart",),
+        preprocessors=("LineArtPreprocessor",),
+    ),
+    AnnotatorFile(
+        repo=ANNOTATOR_HF_REPO,
+        filename="sk_model2.pth",
+        sha256="30a534781061f34e83bb9406b4335da4ff2616c95d22a585c1245aa8363e74e0",
+        control_types=("lineart",),
+        preprocessors=("LineArtPreprocessor",),
+    ),
+    AnnotatorFile(
+        repo=ANNOTATOR_HF_REPO,
+        filename="netG.pth",
+        sha256="ccabdcc3f5cf3c07cf65d58776acb21df7dfda825cdc70c9766a93fd62bfc488",
+        control_types=("lineart_anime",),
+        preprocessors=("AnimeLineArtPreprocessor",),
+    ),
+    AnnotatorFile(
+        repo=ANNOTATOR_HF_REPO,
+        filename="erika.pth",
+        sha256="badbd6baf013cefbd98993307b02cc14a26c770d067416e4fdecc8720b88feeb",
+        control_types=("lineart_anime_denoise",),
+        preprocessors=("Manga2Anime_LineArt_Preprocessor",),
+    ),
+    # PiDiNet serves both soft-edge and scribble renderings from the same checkpoint.
+    AnnotatorFile(
+        repo=ANNOTATOR_HF_REPO,
+        filename="table5_pidinet.pth",
+        sha256="80860ac267258b5f27486e0ef152a211d0b08120f62aeb185a050acc30da486c",
+        control_types=("pidinet", "scribble_pidinet"),
+        preprocessors=("PiDiNetPreprocessor", "Scribble_PiDiNet_Preprocessor"),
+    ),
+    AnnotatorFile(
+        repo="bdsqlsz/qinglong_controlnet-lllite",
+        subfolder="Annotators",
+        filename="7_model.pth",
+        sha256="b9037964149c55156c6adbffdfbd7e8ca7d2ef2a4d90573520efa7f3a1aacf06",
+        control_types=("teed",),
+        preprocessors=("TEEDPreprocessor",),
+    ),
+    AnnotatorFile(
+        repo=ANNOTATOR_HF_REPO,
+        filename="scannet.pt",
+        sha256="03dbf1600c51ee3d45c29f77b77bf1a3b7a24c3452dba62a4ae658f37330c209",
+        control_types=("normal_bae",),
+        preprocessors=("BAE-NormalMapPreprocessor",),
+    ),
+    AnnotatorFile(
+        repo="depth-anything/Depth-Anything-V2-Large",
+        filename="depth_anything_v2_vitl.pth",
+        sha256="a7ea19fa0ed99244e67b624c72b8580b7e9553043245905be58796a608eb9345",
+        control_types=("depth_anything_v2",),
+        preprocessors=("DepthAnythingV2Preprocessor",),
     ),
 )
 

@@ -25,6 +25,14 @@ _EXPECTED_FILENAMES = {
     "facenet.pth",
     "upernet_global_small.pth",
     "mlsd_large_512_fp32.pth",
+    "sk_model.pth",
+    "sk_model2.pth",
+    "netG.pth",
+    "erika.pth",
+    "table5_pidinet.pth",
+    "7_model.pth",
+    "scannet.pt",
+    "depth_anything_v2_vitl.pth",
 }
 
 
@@ -35,11 +43,11 @@ def test_catalog_lists_exactly_the_known_annotator_files() -> None:
     assert set(filenames) == _EXPECTED_FILENAMES
 
 
-def test_every_file_is_from_the_annotators_repo_with_no_subfolder() -> None:
-    """Verify all horde-exposed annotators resolve to lllyasviel/Annotators at the repo root (subfolder '')."""
-    for entry in ANNOTATOR_FILES:
-        assert entry.repo == ANNOTATOR_HF_REPO == "lllyasviel/Annotators"
-        assert entry.subfolder == ""
+def test_classic_files_use_the_annotators_repo_root() -> None:
+    """Verify classic annotator files retain the lllyasviel/Annotators root layout."""
+    classic_entries = [entry for entry in ANNOTATOR_FILES if entry.repo == ANNOTATOR_HF_REPO]
+    assert classic_entries
+    assert all(entry.subfolder == "" for entry in classic_entries)
 
 
 def test_relative_path_matches_custom_hf_download_layout() -> None:
@@ -76,7 +84,23 @@ def test_every_file_has_a_backfilled_sha256() -> None:
 def test_control_types_cover_every_weighted_preprocessor() -> None:
     """Verify the catalog's control types cover all horde control types that actually load annotator weights."""
     covered = {control_type for entry in ANNOTATOR_FILES for control_type in entry.control_types}
-    assert {"hed", "fakescribbles", "depth", "openpose", "seg", "mlsd", "hough"} <= covered
+    assert {
+        "hed",
+        "fakescribbles",
+        "depth",
+        "openpose",
+        "seg",
+        "mlsd",
+        "hough",
+        "lineart",
+        "lineart_anime",
+        "lineart_anime_denoise",
+        "pidinet",
+        "scribble_pidinet",
+        "teed",
+        "normal_bae",
+        "depth_anything_v2",
+    } <= covered
 
 
 def test_selecting_depth_returns_both_leres_files() -> None:

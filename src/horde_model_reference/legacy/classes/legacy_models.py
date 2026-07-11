@@ -437,6 +437,11 @@ class LegacyControlnetRecord(LegacyGenericRecord):
         "control_seg",
         "control_qr",
         "control_qr_xl",
+        "control_lineart",
+        "control_lineart_anime",
+        "control_normal_bae",
+        "control_recolor",
+        "control_tile",
     ]
 
 
