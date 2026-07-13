@@ -218,6 +218,30 @@ class FileSystemBackend(ReplicaBackendBase):
         self.mark_stale(category)
         logger.debug(f"Marked legacy category {category} as modified")
 
+    def _sync_legacy_to_v2(self, category: MODEL_REFERENCE_CATEGORY) -> None:
+        """Re-run the legacy-to-v2 converter for *category* so the v2 file stays in sync.
+
+        Legacy writes (``update_model_legacy``) target the ``legacy/`` subfolder, but
+        REPLICA clients fetch from the v2 endpoint which reads the base-level file.
+        This method bridges that gap by converting the legacy file to v2 after every
+        successful legacy write.
+
+        The conversion is a full-category operation (reads the entire legacy file,
+        converts every record, writes the v2 file). Model writes are infrequent admin
+        operations, so the overhead is negligible.
+        """
+        from horde_model_reference.legacy.convert_all_legacy_dbs import convert_legacy_database_by_category
+
+        try:
+            convert_legacy_database_by_category(
+                category,
+                legacy_path=self.base_path,
+                target_path=self.base_path,
+            )
+            logger.debug(f"Synced legacy->v2 for category {category}")
+        except Exception:
+            logger.exception(f"Failed to sync legacy->v2 for category {category}; v2 file may be stale")
+
     def _read_legacy_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
         """Read legacy CSV file (models.csv format) and convert to dict format.
 
@@ -1141,6 +1165,11 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 self._mark_legacy_category_modified(category, target_write_path)
 
+                # Sync the V2 file so REPLICA clients (which read from the v2 endpoint)
+                # see the change. Without this, legacy writes only land in the legacy/
+                # subfolder and the base-level v2 file goes stale.
+                self._sync_legacy_to_v2(category)
+
             except (OSError, ValueError, TypeError) as e:
                 try:
                     if temp_path.exists():
@@ -1249,6 +1278,9 @@ class FileSystemBackend(ReplicaBackendBase):
 
         self._mark_legacy_category_modified(category, csv_path)
 
+        # Sync the V2 file so REPLICA clients see the change.
+        self._sync_legacy_to_v2(category)
+
     def _delete_text_generation_csv(
         self,
         model_name: str,
@@ -1328,6 +1360,9 @@ class FileSystemBackend(ReplicaBackendBase):
             )
 
         self._mark_legacy_category_modified(category, csv_path)
+
+        # Sync the V2 file so REPLICA clients see the deletion.
+        self._sync_legacy_to_v2(category)
 
     @override
     def delete_model_legacy(
@@ -1439,6 +1474,9 @@ class FileSystemBackend(ReplicaBackendBase):
                     )
 
                 self._mark_legacy_category_modified(category, target_write_path)
+
+                # Sync the V2 file so REPLICA clients see the deletion.
+                self._sync_legacy_to_v2(category)
 
             except (OSError, ValueError, TypeError) as e:
                 try:
