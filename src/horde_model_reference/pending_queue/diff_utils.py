@@ -56,6 +56,7 @@ CRITICAL_FIELDS_BY_CATEGORY: dict[MODEL_REFERENCE_CATEGORY, set[str]] = {
 
 # Fields that contain download URLs across categories
 DOWNLOAD_URL_FIELDS = {"config.download"}
+ALWAYS_CRITICAL_FIELDS = {"licensing"}
 
 
 def compute_field_diffs(
@@ -182,7 +183,7 @@ def has_critical_changes(category: MODEL_REFERENCE_CATEGORY, diffs: list[FieldDi
         True if any diff involves a critical field, False otherwise.
 
     """
-    critical_fields = CRITICAL_FIELDS_BY_CATEGORY.get(category, set())
+    critical_fields = CRITICAL_FIELDS_BY_CATEGORY.get(category, set()) | ALWAYS_CRITICAL_FIELDS
     if not critical_fields:
         return False
 

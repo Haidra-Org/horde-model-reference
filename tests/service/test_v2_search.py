@@ -41,6 +41,13 @@ def primary_manager_for_search(
             "nsfw": False,
             "inpainting": False,
             "tags": ["landscape", "photo"],
+            "licensing": {
+                "license_expression": "MIT",
+                "license_ids": ["MIT"],
+                "commercial_use": "allowed",
+                "redistribution": "allowed_with_conditions",
+                "obligations": ["include_license"],
+            },
         },
     )
     backend.update_model(
@@ -54,6 +61,13 @@ def primary_manager_for_search(
             "nsfw": True,
             "inpainting": False,
             "tags": ["anime"],
+            "licensing": {
+                "license_expression": "CC-BY-NC-4.0",
+                "license_ids": ["CC-BY-NC-4.0"],
+                "commercial_use": "prohibited",
+                "redistribution": "allowed_with_conditions",
+                "obligations": ["attribution", "include_license"],
+            },
         },
     )
     backend.update_model(
@@ -177,6 +191,31 @@ class TestCategorySearch:
         data = resp.json()
         assert data["total"] == 1
         assert data["results"][0]["name"] == "img_inpaint_sd1"
+
+    @pytest.mark.parametrize(
+        ("query_parameters", "expected_names"),
+        [
+            ({"license_id": "MIT"}, {"img_safe_sd1"}),
+            ({"commercial_use": "prohibited"}, {"img_nsfw_xl"}),
+            ({"commercial_use": "unknown"}, {"img_inpaint_sd1"}),
+        ],
+    )
+    def test_search_uses_reviewed_permission_semantics(
+        self,
+        api_client: TestClient,
+        primary_manager_for_search: ModelReferenceManager,
+        query_parameters: dict[str, str],
+        expected_names: set[str],
+    ) -> None:
+        """Verify license filters distinguish affirmative, prohibited, and unaudited records."""
+        response = api_client.get(
+            f"{_V2}/image_generation/search",
+            params=query_parameters,
+        )
+
+        assert response.status_code == 200
+        assert {record["name"] for record in response.json()["results"]} == expected_names
+        assert all("licensing" in record for record in response.json()["results"])
 
     def test_search_tags_none(
         self,

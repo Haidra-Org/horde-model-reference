@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_valid
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from strenum import StrEnum
 
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.1.0"
 
 ai_horde_ci_settings: AIHordeCISettings = AIHordeCISettings()
 """Environment settings for AI Horde CI. See `haidra_core.ai_horde.meta.AIHordeCISettings` for details."""
@@ -277,6 +277,24 @@ class PendingQueueSettings(BaseModel):
     """Reserved for future rotation support (matches audit defaults)."""
 
 
+class LicensingSettings(BaseModel):
+    """Settings controlling normalized licensing persistence and direct editors."""
+
+    model_config = SettingsConfigDict(use_attribute_docstrings=True)
+
+    relative_subdir: str = "licensing"
+    """Relative folder under the model-reference data root used for licensing persistence."""
+
+    root_path_override: str | None = None
+    """Absolute path override for licensing persistence. When set, ``relative_subdir`` is ignored."""
+
+    editor_ids: list[str] = Field(default_factory=list)
+    """Horde user IDs permitted to directly edit license definitions and non-model assets."""
+
+    require_explicit_model_assignments: bool = False
+    """Whether v2 model creates must supply licensing instead of receiving an explicit unknown conclusion."""
+
+
 class R2Settings(BaseModel):
     """Settings for the gated Cloudflare R2 mirror of hostable (non-generation) models.
 
@@ -293,6 +311,9 @@ class R2Settings(BaseModel):
 When set, download consumers that also pass an apikey try the content-addressed mirror first and fall back to \
 each record's origin URL on any failure. Left None until the gateway is deployed; None disables the mirror path \
 entirely so behaviour is identical to before."""
+
+    manifest_ttl_seconds: int = 300
+    """How long each process caches the gateway's public mirrored-hash inventory before refreshing it."""
 
     upload_bucket: str | None = None
     """Name of the R2 bucket the devops upload tool pushes objects into. Upload tool only."""
@@ -424,6 +445,9 @@ Set lower (e.g., 0.005%) to flag fewer models or higher (e.g., 0.01%) to flag mo
 
     pending_queue: PendingQueueSettings = PendingQueueSettings()
     """Settings controlling the pending change queue (auth lists, storage)."""
+
+    licensing: LicensingSettings = LicensingSettings()
+    """Settings controlling first-class licensing data and editor authorization."""
 
     r2: R2Settings = Field(default_factory=R2Settings)
     """Gated Cloudflare R2 mirror settings: the client gateway URL plus the devops upload tool's credentials."""
@@ -614,6 +638,17 @@ from .path_consts import (  # noqa: E402
 )
 
 from .integrations.data_merger import PopularModelResult  # noqa: E402
+from .licensing import (  # noqa: E402
+    LicenseAssignment,
+    LicenseDefinition,
+    LicenseEvidence,
+    LicenseObligation,
+    LicensedAsset,
+    LicensedAssetKind,
+    ModelLicensing,
+    PermissionStatus,
+    unknown_model_licensing,
+)
 from .model_reference_manager import ModelReferenceManager, PrefetchStrategy  # noqa: E402
 from .model_reference_records import (  # noqa: E402
     LoraModelRecord,
@@ -698,15 +733,23 @@ __all__ = [
     "GfpganFields",
     "ImageFields",
     "ImageGenerationQuery",
+    "LicenseAssignment",
+    "LicenseDefinition",
+    "LicenseEvidence",
+    "LicenseObligation",
+    "LicensedAsset",
+    "LicensedAssetKind",
     "LoraModelRecord",
     "MiscellaneousFields",
     "ModelClassification",
+    "ModelLicensing",
     "ModelProvider",
     "ModelProviderRegistry",
     "ModelQuery",
     "ModelReferenceManager",
     "OrderSpec",
     "PendingModelProvider",
+    "PermissionStatus",
     "PopularModelResult",
     "Predicate",
     "PrefetchStrategy",
@@ -747,4 +790,5 @@ __all__ = [
     "sha256_of",
     "strip_backend_prefix",
     "true",
+    "unknown_model_licensing",
 ]

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from horde_model_reference import SCHEMA_VERSION
 from horde_model_reference.meta_consts import (
     CONTROLNET_STYLE,
     KNOWN_IMAGE_GENERATION_BASELINE,
@@ -501,7 +502,7 @@ class TestNestedFields:
     def test_nested_where_on_metadata(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:
         """Test filtering on a nested metadata field."""
         q = build_query(image_models, ImageGenerationModelRecord)
-        results = q.where(metadata__schema_version="2.0.0").to_list()
+        results = q.where(metadata__schema_version=SCHEMA_VERSION).to_list()
         assert len(results) == len(image_models)
 
     def test_nested_missing_segment_raises(self, image_models: dict[str, ImageGenerationModelRecord]) -> None:

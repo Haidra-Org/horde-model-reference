@@ -21,7 +21,8 @@ and the [Pending Queue](../reference/pending_queue.md) concept page.
     ```bash
     curl -H "apikey: $AI_HORDE_API_KEY" \
       https://models.aihorde.net/api/model_references/v2/me/roles
-    # {"user_id":"123","username":"you#123","roles":["requestor"],"is_requestor":true,"is_approver":false}
+    # {"user_id":"123","username":"you#123","roles":["requestor"],
+    #  "is_requestor":true,"is_approver":false,"is_license_editor":false}
     ```
 
     You need `is_requestor: true` to propose, and an `is_approver: true` user (possibly someone else)
@@ -49,7 +50,17 @@ curl -X POST "https://models.aihorde.net/api/model_references/v2/image_generatio
     "baseline": "stable_diffusion_xl",
     "nsfw": false,
     "description": "Example fine-tune",
-    "config": {"download": [{"file_name": "my.safetensors", "sha256sum": "abc...", "file_url": "https://..."}]}
+    "config": {"download": [{"file_name": "my.safetensors", "sha256sum": "abc...", "file_url": "https://..."}]},
+    "licensing": {
+      "license_expression": "OpenRAIL-M",
+      "license_ids": ["OpenRAIL-M"],
+      "commercial_use": "allowed_with_conditions",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["include_license", "responsible_use_restrictions"],
+      "evidence": [{"source": "https://example.org/model/LICENSE"}],
+      "reviewed_by": "123",
+      "reviewed_at": "2026-08-01"
+    }
   }'
 ```
 
@@ -72,6 +83,11 @@ A successful proposal returns **`202 Accepted`** and a `PendingChangeRecord` - i
 
 Common rejections: `409` (model already exists - use `PUT`), `422` (body failed validation, or wrong
 schema for the category), `503` (REPLICA, or wrong canonical format).
+
+Licensing identifiers must already exist in the normalized definition catalog. Query
+`GET /model_references/v2/licensing/licenses` before submitting. During the migration window an omitted assignment
+is stored as explicit `NOASSERTION`/`unknown`; PRIMARY deployments can enable strict assignment requirements after
+backfill. See [Licensing as First-Class Data](../concepts/licensing_data.md).
 
 ### Track your proposal (requestor)
 

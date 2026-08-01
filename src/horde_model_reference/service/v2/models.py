@@ -42,6 +42,9 @@ class UserRolesResponse(BaseModel):
     is_requestor: bool
     """Whether the user has requestor privileges for the pending queue."""
 
+    is_license_editor: bool
+    """Whether the user may directly edit license definitions and non-model assets."""
+
 
 ModelRecordUnion = Annotated[
     ImageGenerationModelRecord

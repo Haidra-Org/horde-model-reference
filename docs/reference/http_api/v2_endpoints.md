@@ -31,6 +31,7 @@ Unauthenticated and safe to cache.
 | `GET /model_references/statistics/{category}` | Aggregated category statistics (see [Statistics](#statistics)). |
 | `GET /model_references/statistics/{category}/deletion-risk` | Usage-informed deletion-risk analysis. |
 | `GET /model_references/v2/me/roles` | The authenticated caller's roles (requires `apikey`). |
+| `GET /model_references/v2/licensing/...` | License definitions, asset conclusions, aggregates, and export. |
 
 !!! note "Why `metadata/metadata`?"
     The all-categories route really is `…/metadata/metadata` -- the metadata router is mounted under a
@@ -78,6 +79,9 @@ uniform fallback (operation ids `read_v2_reference`, `read_v2_single_model`).
 | `limit` | int | 1–500, default 50. |
 | `offset` | int | ≥ 0, default 0. |
 | `source` | str | `horde` (default, canonical), `any` (canonical + providers), or a provider id. |
+| `license_id` | str | Referenced normalized license identifier. |
+| `commercial_use` | enum | `allowed`, `allowed_with_conditions`, `prohibited`, or `unknown`. |
+| `redistribution` | enum | `allowed`, `allowed_with_conditions`, `prohibited`, or `unknown`. |
 
 Response is a `SearchResponse` envelope: `{ "results": [...], "total", "offset", "limit", "has_more" }`.
 
@@ -123,7 +127,7 @@ combining local data with live usage.
 
 ### `GET /model_references/v2/me/roles`
 
-Requires `apikey`. Returns `{ "user_id", "username", "roles": [...], "is_approver", "is_requestor" }`.
+Requires `apikey`. Returns `{ "user_id", "username", "roles": [...], "is_approver", "is_requestor", "is_license_editor" }`.
 Use it to decide which write/queue actions to offer in a client.
 
 ## Write operations
@@ -149,6 +153,9 @@ Notes:
   `delete_v2_model`).
 - For `text_generation`, submit base model names only; backend-prefixed variants are generated
   automatically (submitting one returns `400`). `text_model_group` is auto-filled if omitted.
+- Model records expose a structured `licensing` conclusion. During migration, omitted licensing is persisted as
+  explicit `NOASSERTION`/`unknown`; deployments can require explicit submissions after backfill. Licensing changes
+  are always classified as critical pending-queue diffs.
 
 ### Write status codes
 
@@ -172,4 +179,5 @@ These require a PRIMARY deployment whose canonical format is `v2`; otherwise the
 
 - [v2 Text Utilities](v2_text_utils.md) - the `text_generation` grouping/alias/family/naming toolkit.
 - [Pending Queue endpoints](pending_queue_endpoints.md) - review and apply queued writes.
+- [Licensing endpoints](licensing_endpoints.md) - normalized definitions, assets, filters, and export.
 - [Canonical Format](../../concepts/canonical_format.md) - why writes route to one API version.

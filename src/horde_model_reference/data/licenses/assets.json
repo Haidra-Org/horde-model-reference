@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "updated_at": 1782705600,
+  "records": {
+    "custom_node:comfyqr": {
+      "asset_kind": "custom_node",
+      "asset_identifier": "comfyqr",
+      "display_name": "ComfyQR",
+      "source_url": "https://github.com/coreyryanhanson/ComfyQR",
+      "version": "e31449c",
+      "licensing": {
+        "license_expression": "MIT",
+        "license_ids": ["MIT"],
+        "commercial_use": "allowed",
+        "redistribution": "allowed_with_conditions",
+        "obligations": ["include_license"],
+        "reviewed_by": "hordelib-license-audit",
+        "reviewed_at": "2026-06-29"
+      }
+    },
+    "custom_node:comfyui_controlnet_aux": {
+      "asset_kind": "custom_node",
+      "asset_identifier": "comfyui_controlnet_aux",
+      "display_name": "comfyui_controlnet_aux",
+      "source_url": "https://github.com/Fannovel16/comfyui_controlnet_aux",
+      "version": "e8b689a",
+      "related_assets": ["model:controlnet_annotator"],
+      "licensing": {
+        "license_expression": "Apache-2.0",
+        "license_ids": ["Apache-2.0"],
+        "commercial_use": "allowed",
+        "redistribution": "allowed_with_conditions",
+        "obligations": ["include_license"],
+        "reviewed_by": "hordelib-license-audit",
+        "reviewed_at": "2026-06-29"
+      },
+      "notes": "The node code and the annotator model weights it downloads have distinct licenses."
+    },
+    "custom_node:comfyui_layerdiffuse": {
+      "asset_kind": "custom_node",
+      "asset_identifier": "comfyui_layerdiffuse",
+      "display_name": "comfyui_layerdiffuse",
+      "source_url": "https://github.com/huchenlei/ComfyUI-layerdiffuse",
+      "locations": ["hordelib/nodes/comfyui_layerdiffuse/"],
+      "licensing": {
+        "license_expression": "Apache-2.0",
+        "license_ids": ["Apache-2.0"],
+        "commercial_use": "allowed",
+        "redistribution": "allowed_with_conditions",
+        "obligations": ["include_license"],
+        "reviewed_by": "hordelib-license-audit",
+        "reviewed_at": "2026-06-29"
+      }
+    },
+    "custom_node:facerestore_cf": {
+      "asset_kind": "custom_node",
+      "asset_identifier": "facerestore_cf",
+      "display_name": "facerestore_cf",
+      "source_url": "https://github.com/jokersoul/comfyui-facerestore_cf",
+      "locations": ["hordelib/nodes/facerestore_cf/"],
+      "related_assets": ["model:codeformer:CodeFormers", "model:gfpgan:GFPGAN"],
+      "licensing": {
+        "license_expression": "GPL-3.0-only",
+        "license_ids": ["GPL-3.0-only"],
+        "commercial_use": "allowed_with_conditions",
+        "redistribution": "allowed_with_conditions",
+        "obligations": ["include_license", "disclose_source"],
+        "reviewed_by": "hordelib-license-audit",
+        "reviewed_at": "2026-06-29"
+      },
+      "notes": "The node code license does not override the separate non-commercial CodeFormer weight terms."
+    },
+    "other:hordelib-authored-nodes": {
+      "asset_kind": "other",
+      "asset_identifier": "hordelib-authored-nodes",
+      "display_name": "hordelib-authored nodes",
+      "locations": ["hordelib/nodes/*.py"],
+      "licensing": {
+        "license_expression": "AGPL-3.0-only",
+        "license_ids": ["AGPL-3.0-only"],
+        "commercial_use": "allowed_with_conditions",
+        "redistribution": "allowed_with_conditions",
+        "obligations": ["include_license", "disclose_source", "network_source_disclosure"],
+        "reviewed_by": "hordelib-license-audit",
+        "reviewed_at": "2026-06-29"
+      }
+    },
+    "software_component:comfyui": {
+      "asset_kind": "software_component",
+      "asset_identifier": "comfyui",
+      "display_name": "ComfyUI",
+      "source_url": "https://github.com/comfyanonymous/ComfyUI",
+      "version": "fb991e2c",
+      "locations": ["ComfyUI/"],
+      "licensing": {
+        "license_expression": "GPL-3.0-only",
+        "license_ids": ["GPL-3.0-only"],
+        "commercial_use": "allowed_with_conditions",
+        "redistribution": "allowed_with_conditions",
+        "obligations": ["include_license", "disclose_source"],
+        "reviewed_by": "hordelib-license-audit",
+        "reviewed_at": "2026-06-29"
+      }
+    }
+  }
+}

@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "revision": 1,
+  "updated_at": 1782705600,
+  "records": {
+    "AGPL-3.0-only": {
+      "license_id": "AGPL-3.0-only",
+      "name": "GNU Affero General Public License v3.0 only",
+      "spdx_identifier": "AGPL-3.0-only",
+      "canonical_url": "https://www.gnu.org/licenses/agpl-3.0.html",
+      "commercial_use": "allowed_with_conditions",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["include_license", "disclose_source", "network_source_disclosure"]
+    },
+    "Apache-2.0": {
+      "license_id": "Apache-2.0",
+      "name": "Apache License 2.0",
+      "spdx_identifier": "Apache-2.0",
+      "canonical_url": "https://www.apache.org/licenses/LICENSE-2.0",
+      "commercial_use": "allowed",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["include_license"]
+    },
+    "BSD-3-Clause": {
+      "license_id": "BSD-3-Clause",
+      "name": "BSD 3-Clause License",
+      "spdx_identifier": "BSD-3-Clause",
+      "canonical_url": "https://spdx.org/licenses/BSD-3-Clause.html",
+      "commercial_use": "allowed",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["include_license"]
+    },
+    "CC-BY-4.0": {
+      "license_id": "CC-BY-4.0",
+      "name": "Creative Commons Attribution 4.0 International",
+      "spdx_identifier": "CC-BY-4.0",
+      "canonical_url": "https://creativecommons.org/licenses/by/4.0/",
+      "commercial_use": "allowed_with_conditions",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["attribution", "include_license"]
+    },
+    "CC-BY-NC-4.0": {
+      "license_id": "CC-BY-NC-4.0",
+      "name": "Creative Commons Attribution-NonCommercial 4.0 International",
+      "spdx_identifier": "CC-BY-NC-4.0",
+      "canonical_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+      "commercial_use": "prohibited",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["attribution", "include_license"]
+    },
+    "CC-BY-NC-SA-4.0": {
+      "license_id": "CC-BY-NC-SA-4.0",
+      "name": "Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International",
+      "spdx_identifier": "CC-BY-NC-SA-4.0",
+      "canonical_url": "https://creativecommons.org/licenses/by-nc-sa/4.0/",
+      "commercial_use": "prohibited",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["attribution", "include_license", "share_alike"]
+    },
+    "GPL-3.0-only": {
+      "license_id": "GPL-3.0-only",
+      "name": "GNU General Public License v3.0 only",
+      "spdx_identifier": "GPL-3.0-only",
+      "canonical_url": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "commercial_use": "allowed_with_conditions",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["include_license", "disclose_source"]
+    },
+    "LicenseRef-S-Lab-1.0": {
+      "license_id": "LicenseRef-S-Lab-1.0",
+      "name": "S-Lab License 1.0",
+      "canonical_url": "https://github.com/sczhou/CodeFormer/blob/master/LICENSE",
+      "commercial_use": "prohibited",
+      "redistribution": "prohibited",
+      "restrictions": ["Non-commercial research purposes only."],
+      "notes": "Applies to CodeFormer code and model weights distributed under the upstream terms."
+    },
+    "LicenseRef-OpenPose-NonCommercial": {
+      "license_id": "LicenseRef-OpenPose-NonCommercial",
+      "name": "OpenPose non-commercial model terms",
+      "canonical_url": "https://github.com/CMU-Perceptual-Computing-Lab/openpose/blob/master/LICENSE",
+      "commercial_use": "prohibited",
+      "redistribution": "unknown",
+      "restrictions": ["Commercial use requires a separate license from Carnegie Mellon University."]
+    },
+    "LicenseRef-Research-Only": {
+      "license_id": "LicenseRef-Research-Only",
+      "name": "Research-only upstream terms",
+      "canonical_url": "https://models.aihorde.net/api/model_references/v2/licensing/licenses/LicenseRef-Research-Only",
+      "commercial_use": "prohibited",
+      "redistribution": "unknown",
+      "restrictions": ["No reviewed permission beyond research use is recorded."],
+      "notes": "Project-specific evidence must accompany each assignment using this generalized LicenseRef."
+    },
+    "LicenseRef-thibaud-controlnet-sd21": {
+      "license_id": "LicenseRef-thibaud-controlnet-sd21",
+      "name": "thibaud/controlnet-sd21 custom restricted terms",
+      "canonical_url": "https://huggingface.co/thibaud/controlnet-sd21",
+      "commercial_use": "unknown",
+      "redistribution": "prohibited",
+      "restrictions": ["Models may not be sold, merged, or distributed without prior written agreement."]
+    },
+    "MIT": {
+      "license_id": "MIT",
+      "name": "MIT License",
+      "spdx_identifier": "MIT",
+      "canonical_url": "https://spdx.org/licenses/MIT.html",
+      "commercial_use": "allowed",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["include_license"]
+    },
+    "OpenRAIL-M": {
+      "license_id": "OpenRAIL-M",
+      "name": "CreativeML Open RAIL-M",
+      "canonical_url": "https://huggingface.co/spaces/CompVis/stable-diffusion-license",
+      "commercial_use": "allowed_with_conditions",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["include_license", "responsible_use_restrictions"]
+    },
+    "WTFPL": {
+      "license_id": "WTFPL",
+      "name": "Do What The F*ck You Want To Public License",
+      "spdx_identifier": "WTFPL",
+      "canonical_url": "https://spdx.org/licenses/WTFPL.html",
+      "commercial_use": "allowed",
+      "redistribution": "allowed"
+    }
+  }
+}

@@ -43,4 +43,5 @@ async def get_current_user_roles(
         roles=sorted(roles),
         is_approver="approver" in roles,
         is_requestor="requestor" in roles,
+        is_license_editor="license_editor" in roles,
     )

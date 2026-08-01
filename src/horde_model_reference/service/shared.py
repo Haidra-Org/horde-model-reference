@@ -140,6 +140,7 @@ class Operation(StrEnum):
 
 _requestor_fallback_logged = False
 _approver_fallback_logged = False
+_licensing_editor_fallback_logged = False
 
 
 @dataclass(frozen=True)
@@ -260,6 +261,18 @@ def _queue_approver_allowlist() -> set[str]:
     return _fallback_allowed_users("approver")
 
 
+def _licensing_editor_allowlist() -> set[str]:
+    """Return the independently configured licensing editor allowlist."""
+    global _licensing_editor_fallback_logged
+    allowlist = _normalize_ids(horde_model_reference_settings.licensing.editor_ids)
+    if allowlist:
+        return allowlist
+    if not _licensing_editor_fallback_logged:
+        logger.warning("Licensing editor allowlist is not configured; all direct licensing writes are rejected")
+        _licensing_editor_fallback_logged = True
+    return set()
+
+
 async def authenticate_queue_requestor(apikey: str) -> HordeUserContext:
     """Authenticate a queue requestor using the configured allowlist.
 
@@ -313,6 +326,30 @@ async def authenticate_queue_approver(apikey: str) -> HordeUserContext:
     return context
 
 
+async def authenticate_licensing_editor(apikey: str) -> HordeUserContext:
+    """Authenticate an independently allowlisted licensing editor.
+
+    Args:
+        apikey: AI Horde API key supplied by the caller.
+
+    Returns:
+        The authenticated Horde user context.
+
+    Raises:
+        APIKeyInvalidException: If the allowlist is empty or credentials are invalid.
+        HTTPException: If the user is not an editor or authentication is unavailable.
+    """
+    allowlist = _licensing_editor_allowlist()
+    if not allowlist:
+        raise APIKeyInvalidException()
+    context = await auth_against_horde(apikey, httpx_client, allowed_user_ids=None)
+    if context is None:
+        raise APIKeyInvalidException()
+    if context.user_id not in allowlist:
+        raise HTTPException(status_code=403, detail="You are not on the licensing editor list.")
+    return context
+
+
 async def authenticate_queue_reader(apikey: str) -> HordeUserContext:
     """Authenticate any valid Horde API key for read-only pending queue access.
 
@@ -360,6 +397,9 @@ async def get_user_roles(apikey: str) -> tuple[HordeUserContext | None, set[str]
     requestor_allowlist = _queue_requestor_allowlist()
     if context.user_id in requestor_allowlist:
         roles.add("requestor")
+
+    if context.user_id in _licensing_editor_allowlist():
+        roles.add("license_editor")
 
     return context, roles
 

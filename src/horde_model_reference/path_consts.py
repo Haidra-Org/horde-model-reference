@@ -67,6 +67,9 @@ GROUP_ALIASES_FILENAME: str = "text_generation_group_aliases.json"
 GROUP_FAMILIES_FILENAME: str = "text_generation_group_families.json"
 """Filename for persisted related-group family associations."""
 
+LICENSING_FOLDER_NAME: str = "licensing"
+"""Default folder containing normalized licensing datasets and their audit trail."""
+
 
 class HordeModelReferencePaths:
     """A helper class to manage local and remote model reference paths."""
@@ -121,6 +124,15 @@ class HordeModelReferencePaths:
             return Path(override).expanduser().resolve()
 
         subdir = horde_model_reference_settings.pending_queue.relative_subdir or PENDING_QUEUE_FOLDER_NAME
+        return self.base_path.joinpath(subdir)
+
+    @property
+    def licensing_path(self) -> Path:
+        """Return the root path for normalized licensing persistence."""
+        override = horde_model_reference_settings.licensing.root_path_override
+        if override:
+            return Path(override).expanduser().resolve()
+        subdir = horde_model_reference_settings.licensing.relative_subdir or LICENSING_FOLDER_NAME
         return self.base_path.joinpath(subdir)
 
     @property
@@ -228,6 +240,7 @@ class HordeModelReferencePaths:
         self.meta_v2_path.mkdir(parents=True, exist_ok=True)
         self.audit_path.mkdir(parents=True, exist_ok=True)
         self.pending_queue_path.mkdir(parents=True, exist_ok=True)
+        self.licensing_path.mkdir(parents=True, exist_ok=True)
 
     def _get_file_name(self, model_reference_category: MODEL_REFERENCE_CATEGORY) -> str:
         if model_reference_category not in self.model_reference_filenames:

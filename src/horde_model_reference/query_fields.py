@@ -214,6 +214,7 @@ class GenericFields:
     config: FieldRef = FieldRef("config")
     model_classification: FieldRef = FieldRef("model_classification")
     size_on_disk_bytes: FieldRef = FieldRef("size_on_disk_bytes")
+    licensing: FieldRef = FieldRef("licensing")
 
 
 class ImageFields(GenericFields):

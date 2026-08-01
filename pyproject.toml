@@ -23,6 +23,7 @@ dependencies = [
     "aiofiles>=25.1.0",
     "haidra-core>=0.0.5",
     "httpx>=0.28.1",
+    "license-expression>=30.4.4",
     "loguru>=0.7.3",
     "pydantic>=2.12.3",
     "python-dotenv>=1.1.1",
@@ -40,6 +41,7 @@ dependencies = [
 validate-sd-models = "horde_model_reference.legacy.validate_sd:main"
 download-sd-models = "horde_model_reference.legacy.download_live_legacy_dbs:main"
 migrate-model-layout = "horde_model_reference.cli.migrate_layout:main"
+generate-license-reference = "horde_model_reference.cli.license_report:main"
 
 [project.optional-dependencies]
 redis = [
@@ -68,7 +70,7 @@ version_file = "src/horde_model_reference/_version.py"
 # text_generation path fails in the --no-editable Docker image with
 # "Cannot find defaults.json in package data or scripts/legacy_text/".
 [tool.setuptools.package-data]
-"horde_model_reference" = ["data/*.json", "py.typed"]
+"horde_model_reference" = ["data/*.json", "data/licenses/*.json", "py.typed"]
 
 [tool.setuptools.exclude-package-data]
 "*" = ["*.webp", "*.png", "*.jpg", "*.ckpt", "*.pt", "*.safetensors"]

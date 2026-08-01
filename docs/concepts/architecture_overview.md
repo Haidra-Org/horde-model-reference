@@ -41,13 +41,23 @@ graph TD
 
 **`path_consts.py`** provides `HordeModelReferencePaths`, a singleton that computes every filesystem path (base, legacy, showcase, meta, audit, pending queue) and builds filename/URL dictionaries from `CategoryDescriptor` data. All backends and the service layer use it to locate files.
 
-**`model_reference_records.py`** contains the Pydantic model hierarchy (`GenericModelRecord` and its specialized subclasses) and the `@register_record_type(category)` decorator that populates `MODEL_RECORD_TYPE_LOOKUP`. This is the schema contract that backends write to and consumers read from. `DownloadRecord` carries per-file metadata including `file_purpose` for on-disk component routing and `size_bytes` for space estimation.
+**`model_reference_records.py`** contains the Pydantic model hierarchy (`GenericModelRecord` and its specialized subclasses) and the `@register_record_type(category)` decorator that populates `MODEL_RECORD_TYPE_LOOKUP`. This is the schema contract that backends write to and consumers read from. `DownloadRecord` carries per-file metadata including `file_purpose` for on-disk component routing and `size_bytes` for space estimation. `GenericModelRecord.licensing` carries the reviewed model and per-file licensing conclusion.
 
 **`model_reference_manager.py`** hosts the `ModelReferenceManager` singleton, which orchestrates the read/write lifecycle. It selects the backend, wires audit and pending-queue services, and exposes the public API (`get_all_model_references()`, `get_model_reference(category)`, `get_model(category, name)`) in both sync and async variants (with typed overloads per category).
 
 Two additional modules ground the download and on-disk layout subsystems:
 
-**`download_engine.py`** provides a torch-free, resumable HTTP file download with checksum sidecars. Owned by `horde_model_reference` so every consumer (worker, hordelib, third-party tools) shares one implementation instead of re-deriving it.
+**`licensing.py` and `licensing_store.py`** define normalized license definitions, model/file assignments, and
+non-model assets. Model assignments travel with canonical v2 records; reusable definitions and auxiliary assets
+use versioned JSON tables exposed by the v2 licensing API. See [Licensing as First-Class Data](licensing_data.md).
+
+**`download_engine.py`** provides a torch-free, resumable HTTP file download with checksum sidecars. Its
+long-lived executor threads retain per-thread HTTP sessions so probes, retries, and later files can reuse
+keep-alive connections. Fresh single-stream files are hashed as they are written, avoiding a redundant
+post-transfer disk pass; resumed and out-of-order segmented files are hashed after assembly. Transient HTTP
+errors retry the affected segment before the engine abandons the segmented fast path. The module is owned by
+`horde_model_reference` so every consumer (worker, hordelib, third-party tools) shares one implementation
+instead of re-deriving it.
 
 **`on_disk_layout.py`** provides torch-free knowledge of where canonical model weights live on disk. Answers category folder, component-relative paths, multi-root presence checks, and free-space queries without importing torch or ComfyUI.
 

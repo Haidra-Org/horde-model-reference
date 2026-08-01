@@ -54,6 +54,7 @@ type GenericFieldName = Literal[
     "metadata",
     "config",
     "model_classification",
+    "licensing",
 ]
 
 type ImageGenFieldName = Literal[
@@ -77,6 +78,7 @@ type ImageGenFieldName = Literal[
     "style",
     "requirements",
     "size_on_disk_bytes",
+    "licensing",
 ]
 
 type TextGenFieldName = Literal[
@@ -98,6 +100,7 @@ type TextGenFieldName = Literal[
     "instruct_format",
     "settings",
     "text_model_group",
+    "licensing",
 ]
 
 type ControlNetFieldName = Literal[
@@ -109,6 +112,7 @@ type ControlNetFieldName = Literal[
     "metadata",
     "config",
     "model_classification",
+    "licensing",
     "controlnet_style",
 ]
 

@@ -145,6 +145,19 @@ def _create_minimal_model_dict(
     return model_dict
 
 
+def _mit_licensing_payload() -> dict[str, Any]:
+    """Return a reviewed licensing conclusion backed by the bootstrap catalog."""
+    return {
+        "license_expression": "MIT",
+        "license_ids": ["MIT"],
+        "commercial_use": "allowed",
+        "redistribution": "allowed_with_conditions",
+        "obligations": ["include_license"],
+        "reviewed_by": "test-reviewer",
+        "reviewed_at": "2026-08-01",
+    }
+
+
 def _path_var(variable: PathVariables) -> str:
     """Return the string key for a PathVariables enum value."""
     return variable.value
@@ -280,9 +293,34 @@ class TestCreateModel:
         assert record["operation"] == "create"
         assert record["model_name"] == model_name
         assert record["status"] == "pending"
+        assert record["payload"]["licensing"]["license_expression"] == "NOASSERTION"
+        assert record["payload"]["licensing"]["commercial_use"] == "unknown"
 
         raw_json = primary_manager_for_api.get_raw_model_reference_json(category) or {}
         assert model_name not in raw_json
+
+    def test_create_requires_licensing_when_strict_rollout_is_enabled(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """POST should reject an omitted conclusion after strict rollout is enabled."""
+        from horde_model_reference import horde_model_reference_settings
+
+        monkeypatch.setattr(
+            horde_model_reference_settings.licensing,
+            "require_explicit_model_assignments",
+            True,
+        )
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        response = api_client.post(
+            _model_url(RouteNames.create_model, category),
+            json=_create_minimal_model_dict("strict-license-model", category),
+            headers=_auth_headers(),
+        )
+
+        _assert_error_response(response, 422, "explicit licensing")
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_create_model_already_exists(
@@ -394,6 +432,86 @@ class TestUpdateModel:
         record = _assert_success_response(response, 202)
         assert record["payload"]["metadata"]["created_at"] == 1000000
         assert record["payload"]["metadata"]["created_by"] == "original_user"
+
+    def test_update_omission_preserves_the_reviewed_license_conclusion(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+    ) -> None:
+        """PUT should not erase licensing when an unrelated legacy client updates a model."""
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        model_name = "preserve-license"
+        original_data = _create_minimal_model_dict(model_name, category, description="Original")
+        original_data["licensing"] = _mit_licensing_payload()
+        primary_manager_for_api.backend.update_model(category, model_name, original_data)
+        updated_data = _create_minimal_model_dict(model_name, category, description="Updated")
+
+        response = api_client.put(
+            _model_url(RouteNames.update_model, category, model_name),
+            json=updated_data,
+            headers=_auth_headers(),
+        )
+
+        record = _assert_success_response(response, 202)
+        assert record["payload"]["description"] == "Updated"
+        assert record["payload"]["licensing"]["license_expression"] == "MIT"
+        assert record["payload"]["licensing"]["commercial_use"] == "allowed"
+        assert record["payload"]["licensing"]["reviewed_by"] == "test-reviewer"
+
+    def test_update_cannot_explicitly_clear_a_reviewed_license_conclusion(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+    ) -> None:
+        """PUT should distinguish omission from an explicit destructive null."""
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        model_name = "cannot-clear-license"
+        original_data = _create_minimal_model_dict(model_name, category)
+        original_data["licensing"] = _mit_licensing_payload()
+        primary_manager_for_api.backend.update_model(category, model_name, original_data)
+        updated_data = _create_minimal_model_dict(model_name, category, description="Unrelated edit")
+        updated_data["licensing"] = None
+
+        response = api_client.put(
+            _model_url(RouteNames.update_model, category, model_name),
+            json=updated_data,
+            headers=_auth_headers(),
+        )
+
+        _assert_error_response(response, 422, "cannot be explicitly cleared")
+
+    def test_update_rejects_a_dangling_license_identifier_before_queueing(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+    ) -> None:
+        """PUT should enforce catalog referential integrity at the proposal boundary."""
+        category = MODEL_REFERENCE_CATEGORY.miscellaneous
+        model_name = "dangling-license"
+        primary_manager_for_api.backend.update_model(
+            category,
+            model_name,
+            _create_minimal_model_dict(model_name, category),
+        )
+        updated_data = _create_minimal_model_dict(model_name, category, description="Invalid proposal")
+        updated_data["licensing"] = {
+            "license_expression": "LicenseRef-Missing",
+            "license_ids": ["LicenseRef-Missing"],
+            "commercial_use": "unknown",
+            "redistribution": "unknown",
+        }
+        queue_service = primary_manager_for_api.pending_queue_service
+        assert queue_service is not None
+        pending_before = queue_service.list_changes().total
+
+        response = api_client.put(
+            _model_url(RouteNames.update_model, category, model_name),
+            json=updated_data,
+            headers=_auth_headers(),
+        )
+
+        _assert_error_response(response, 422, "Unknown license definition")
+        assert queue_service.list_changes().total == pending_before
 
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_update_model_validation_error(

@@ -20,6 +20,7 @@ from horde_model_reference import (
     ModelClassification,
     ai_horde_ci_settings,
 )
+from horde_model_reference.licensing import ModelLicensing
 from horde_model_reference.meta_consts import (
     CONTROLNET_STYLE,
     get_category_descriptor,
@@ -175,6 +176,25 @@ class GenericModelRecord(BaseModel):
 
     A declared aggregate; prefer :attr:`declared_total_size_bytes`, which sums per-file sizes when every
     download entry declares one. ``None`` when no size metadata is available."""
+
+    licensing: ModelLicensing | None = None
+    """Reviewed licensing conclusion for the model and optional per-file overrides.
+
+    ``None`` remains accepted when reading pre-2.1 and legacy-derived records. The
+    v2 HTTP surface represents that state explicitly as ``NOASSERTION``/``unknown``.
+    """
+
+    @model_validator(mode="after")
+    def validate_license_file_overrides(self) -> GenericModelRecord:
+        """Validate that license overrides address exact declared download files."""
+        if self.licensing is None or not self.licensing.files:
+            return self
+        declared_file_names = {download.file_name for download in self.config.download}
+        unknown_override_names = set(self.licensing.files) - declared_file_names
+        if unknown_override_names:
+            names = ", ".join(sorted(unknown_override_names))
+            raise ValueError(f"Licensing file overrides are not declared downloads: {names}")
+        return self
 
     @property
     def category(self) -> MODEL_REFERENCE_CATEGORY | None:

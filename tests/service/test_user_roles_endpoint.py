@@ -22,4 +22,5 @@ def test_me_roles_uses_static_route(api_client: TestClient) -> None:
         "roles": ["approver", "requestor"],
         "is_approver": True,
         "is_requestor": True,
+        "is_license_editor": False,
     }

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from horde_model_reference import ModelReferenceManager
+from horde_model_reference.licensing import PermissionStatus, unknown_model_licensing
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import GenericModelRecord
 from horde_model_reference.service.shared import get_model_reference_manager
@@ -46,7 +47,9 @@ def _validate_category(category_name: str) -> MODEL_REFERENCE_CATEGORY:
 
 
 def _serialize_record(record: GenericModelRecord) -> dict[str, Any]:
-    return record.model_dump(mode="json", exclude_none=True)
+    payload = record.model_dump(mode="json", exclude_none=True)
+    payload.setdefault("licensing", unknown_model_licensing().model_dump(mode="json", exclude_none=True))
+    return payload
 
 
 def _apply_generic_filters(
@@ -68,6 +71,9 @@ def _apply_generic_filters(
     exclude_backend_variations: bool,
     quantized: bool | None,
     source: str,
+    license_id: str | None,
+    commercial_use: PermissionStatus | None,
+    redistribution: PermissionStatus | None,
 ) -> SearchResponse:
     """Build a query from parameters, execute, and return a SearchResponse."""
     q = manager.query(category, source=source)
@@ -96,6 +102,17 @@ def _apply_generic_filters(
     if name_contains is not None:
         lower_q = name_contains.lower()
         q = q.filter(lambda r: lower_q in r.name.lower())
+
+    if license_id is not None:
+        q = q.filter(lambda record: record.licensing is not None and license_id in record.licensing.license_ids)
+    if commercial_use is not None:
+        q = q.filter(
+            lambda record: (record.licensing or unknown_model_licensing()).commercial_use is commercial_use,
+        )
+    if redistribution is not None:
+        q = q.filter(
+            lambda record: (record.licensing or unknown_model_licensing()).redistribution is redistribution,
+        )
 
     # Text-generation-specific filters
     if category == MODEL_REFERENCE_CATEGORY.text_generation:
@@ -158,6 +175,9 @@ def search_category(
     source: Annotated[
         str, Query(description="Model source: 'horde' (canonical), 'any', or a registered provider source id")
     ] = "horde",
+    license_id: Annotated[str | None, Query(description="Referenced license definition identifier")] = None,
+    commercial_use: Annotated[PermissionStatus | None, Query(description="Commercial-use conclusion")] = None,
+    redistribution: Annotated[PermissionStatus | None, Query(description="Redistribution conclusion")] = None,
 ) -> SearchResponse:
     """Search models within a specific category with filtering, sorting, and pagination."""
     category = _validate_category(model_category_name)
@@ -180,6 +200,9 @@ def search_category(
             exclude_backend_variations=exclude_backend_variations,
             quantized=quantized,
             source=source,
+            license_id=license_id,
+            commercial_use=commercial_use,
+            redistribution=redistribution,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=f"Unknown source: {exc}") from None
@@ -203,6 +226,9 @@ def search_all(
         int, Query(ge=1, le=MAX_SEARCH_LIMIT, description="Max results to return")
     ] = DEFAULT_SEARCH_LIMIT,
     offset: Annotated[int, Query(ge=0, description="Number of results to skip")] = 0,
+    license_id: Annotated[str | None, Query(description="Referenced license definition identifier")] = None,
+    commercial_use: Annotated[PermissionStatus | None, Query(description="Commercial-use conclusion")] = None,
+    redistribution: Annotated[PermissionStatus | None, Query(description="Redistribution conclusion")] = None,
 ) -> SearchResponse:
     """Search models across all categories with generic filters only."""
     q = manager.query_all()
@@ -227,6 +253,17 @@ def search_all(
         tag_set_none = set(tags_none)
         q = q.filter(
             lambda r: not bool(tag_set_none & set(getattr(r, "tags", None) or [])),
+        )
+
+    if license_id is not None:
+        q = q.filter(lambda record: record.licensing is not None and license_id in record.licensing.license_ids)
+    if commercial_use is not None:
+        q = q.filter(
+            lambda record: (record.licensing or unknown_model_licensing()).commercial_use is commercial_use,
+        )
+    if redistribution is not None:
+        q = q.filter(
+            lambda record: (record.licensing or unknown_model_licensing()).redistribution is redistribution,
         )
 
     if sort_by is not None:
@@ -275,4 +312,14 @@ async def popular_models(
         sort_by=sort_by,
         include_workers=include_workers,
     )
-    return [r.model_dump(mode="json", exclude_none=True) for r in results]
+    serialized_results: list[dict[str, Any]] = []
+    for popular_result in results:
+        result_payload = popular_result.model_dump(mode="json", exclude_none=True)
+        record_payload = result_payload.get("record")
+        if isinstance(record_payload, dict):
+            record_payload.setdefault(
+                "licensing",
+                unknown_model_licensing().model_dump(mode="json", exclude_none=True),
+            )
+        serialized_results.append(result_payload)
+    return serialized_results

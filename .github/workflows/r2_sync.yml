@@ -73,11 +73,13 @@ jobs:
 
       - name: Sync to R2
         run: |
-          MODE="--dry-run"
-          if [ "${{ github.event.inputs.apply }}" = "true" ]; then MODE="--apply"; fi
-          uv run python -m scripts.r2_sync.sync $MODE --verbose \
+          COMMAND="plan"
+          if [ "${{ github.event.inputs.apply }}" = "true" ]; then COMMAND="apply"; fi
+          uv run python -m scripts.r2_sync.sync "$COMMAND" --verbose \
             --cache-dir "${{ github.workspace }}/.r2-cache" \
             --backfill-report "${{ github.workspace }}/r2_backfill.json" \
+            --candidate-report "${{ github.workspace }}/r2_candidates.json" \
+            --manifest-output "${{ github.workspace }}/r2_manifest.json" \
             | tee "${{ github.workspace }}/r2_sync.log"
 
       - name: Upload backfill report
@@ -86,6 +88,16 @@ jobs:
         with:
           name: r2-backfill-report
           path: r2_backfill.json
+
+      - name: Upload reconciliation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r2-reconciliation
+          path: |
+            r2_candidates.json
+            r2_manifest.json
+            r2_sync.log
 
       # Opening the reference-correction PR from r2_backfill.json is the remaining wiring: it must edit the
       # canonical reference (the Haidra-Org reference repos or the PRIMARY API), which the scripts/sync flow

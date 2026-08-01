@@ -24,6 +24,7 @@ from horde_model_reference.backends import (
 from horde_model_reference.group_aliases import GroupAliasStore
 from horde_model_reference.group_families import GroupFamilyStore
 from horde_model_reference.group_schema_store import GroupSchemaStore
+from horde_model_reference.licensing_store import LicensingStore
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, categories_managed_elsewhere
 from horde_model_reference.model_reference_metadata import CategoryMetadata
 from horde_model_reference.model_reference_records import (
@@ -125,6 +126,8 @@ class ModelReferenceManager:
     _group_alias_store: GroupAliasStore | None = None
     _group_family_store: GroupFamilyStore | None = None
     _group_schema_store: GroupSchemaStore | None = None
+    _licensing_store: LicensingStore
+    _licensing_store_refresh_attempted: bool = False
 
     _lock: RLock = RLock()
 
@@ -368,6 +371,20 @@ class ModelReferenceManager:
                 cls._instance.backend = backend
                 cls._instance._replicate_mode = replicate_mode
                 cls._instance._offline = offline
+                backend_base_path = getattr(backend, "base_path", None)
+                licensing_base_path = Path(backend_base_path) if backend_base_path is not None else Path(base_path)
+                licensing_root_path = (
+                    licensing_base_path.resolve() / horde_model_reference_settings.licensing.relative_subdir
+                )
+                if horde_model_reference_settings.licensing.root_path_override:
+                    licensing_root_path = Path(horde_model_reference_settings.licensing.root_path_override).resolve()
+                bootstrap_path = Path(__file__).resolve().parent / "data" / "licenses"
+                cls._instance._licensing_store = LicensingStore(
+                    root_path=licensing_root_path,
+                    bootstrap_path=bootstrap_path,
+                    writable=backend.supports_writes(),
+                )
+                cls._instance._licensing_store_refresh_attempted = False
                 if backend.supports_writes():
                     cls._instance._audit_writer = audit_writer
                     cls._instance._pending_queue_service = cls._build_pending_queue_service(
@@ -567,6 +584,19 @@ class ModelReferenceManager:
     def group_schema_store(self) -> GroupSchemaStore | None:
         """Return the group schema store when in PRIMARY mode."""
         return self._group_schema_store
+
+    @property
+    def licensing_store(self) -> LicensingStore:
+        """Return the normalized licensing store, hydrating HTTP replicas from PRIMARY once."""
+        if isinstance(self.backend, HTTPBackend) and not self._licensing_store_refresh_attempted:
+            export_payload = self.backend.fetch_licensing_export()
+            self._licensing_store_refresh_attempted = True
+            if export_payload is not None:
+                try:
+                    self._licensing_store.refresh_replica_export(export_payload)
+                except (OSError, ValueError) as exception:
+                    logger.warning(f"Failed to refresh replica licensing data: {exception}")
+        return self._licensing_store
 
     @property
     def deferred_prefetch_handle(self) -> DeferredPrefetchHandle | None:

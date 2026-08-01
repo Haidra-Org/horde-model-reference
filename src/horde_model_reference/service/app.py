@@ -16,6 +16,7 @@ import horde_model_reference.service.v1.routers.metadata as v1_metadata
 import horde_model_reference.service.v1.routers.pending_queue as v1_pending_queue
 import horde_model_reference.service.v1.routers.pending_queue_audit as v1_pending_queue_audit
 import horde_model_reference.service.v1.routers.references as v1_references
+import horde_model_reference.service.v2.routers.licensing as v2_licensing
 import horde_model_reference.service.v2.routers.metadata as v2_metadata
 import horde_model_reference.service.v2.routers.pending_queue as v2_pending_queue
 import horde_model_reference.service.v2.routers.pending_queue_audit as v2_pending_queue_audit
@@ -153,6 +154,10 @@ _OPENAPI_TAGS = [
         "description": "Per-category last-updated timestamps for change detection by REPLICA clients.",
     },
     {
+        "name": "licensing",
+        "description": "Normalized license definitions, reviewed asset conclusions, and consumer summaries.",
+    },
+    {
         "name": "user",
         "description": "Authenticated user identity and pending-queue roles (requestor/approver).",
     },
@@ -195,6 +200,7 @@ app.include_router(v2_search.router, prefix=v2_prefix, tags=["v2", "search"])
 app.include_router(v2_pending_queue.router, prefix=v2_prefix, tags=["v2", "pending_queue"])
 app.include_router(v2_pending_queue_audit.router, prefix=v2_prefix, tags=["v2", "pending_queue", "audit"])
 app.include_router(v2_user.router, prefix=v2_prefix, tags=["v2", "user"])
+app.include_router(v2_licensing.router, prefix=v2_prefix, tags=["v2", "licensing"])
 app.include_router(v2_references.router, prefix=v2_prefix, tags=["v2"])
 app.include_router(ref_statistics.router, prefix=statistics_prefix, tags=["v2", "statistics"])
 app.include_router(ref_deletion_risk.router, prefix=statistics_prefix, tags=["v2", "deletion-risk"])

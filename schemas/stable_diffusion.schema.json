@@ -171,7 +171,7 @@
             "description": "Metadata for a generic model record.",
             "properties": {
                 "schema_version": {
-                    "default": "2.0.0",
+                    "default": "2.1.0",
                     "title": "Schema Version",
                     "type": "string"
                 },
@@ -243,6 +243,158 @@
                 "z_image_turbo"
             ],
             "title": "KNOWN_IMAGE_GENERATION_BASELINE",
+            "type": "string"
+        },
+        "LicenseAssignment": {
+            "additionalProperties": false,
+            "description": "Represents a reviewed license conclusion for one declared scope.",
+            "properties": {
+                "license_expression": {
+                    "minLength": 1,
+                    "title": "License Expression",
+                    "type": "string"
+                },
+                "license_ids": {
+                    "default": [],
+                    "items": {
+                        "type": "string"
+                    },
+                    "title": "License Ids",
+                    "type": "array"
+                },
+                "commercial_use": {
+                    "$ref": "#/$defs/PermissionStatus"
+                },
+                "redistribution": {
+                    "$ref": "#/$defs/PermissionStatus"
+                },
+                "obligations": {
+                    "default": [],
+                    "items": {
+                        "$ref": "#/$defs/LicenseObligation"
+                    },
+                    "title": "Obligations",
+                    "type": "array"
+                },
+                "attribution": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Attribution"
+                },
+                "evidence": {
+                    "default": [],
+                    "items": {
+                        "$ref": "#/$defs/LicenseEvidence"
+                    },
+                    "title": "Evidence",
+                    "type": "array"
+                },
+                "reviewed_by": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Reviewed By"
+                },
+                "reviewed_at": {
+                    "anyOf": [
+                        {
+                            "format": "date",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Reviewed At"
+                },
+                "notes": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Notes"
+                }
+            },
+            "required": [
+                "license_expression",
+                "commercial_use",
+                "redistribution"
+            ],
+            "title": "LicenseAssignment",
+            "type": "object"
+        },
+        "LicenseEvidence": {
+            "additionalProperties": false,
+            "description": "Represents one source supporting a scope-specific licensing conclusion.",
+            "properties": {
+                "source": {
+                    "minLength": 1,
+                    "title": "Source",
+                    "type": "string"
+                },
+                "description": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Description"
+                },
+                "checked_at": {
+                    "anyOf": [
+                        {
+                            "format": "date",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Checked At"
+                }
+            },
+            "required": [
+                "source"
+            ],
+            "title": "LicenseEvidence",
+            "type": "object"
+        },
+        "LicenseObligation": {
+            "description": "Represents a common obligation that consumers may need to surface.",
+            "enum": [
+                "attribution",
+                "include_license",
+                "share_alike",
+                "disclose_source",
+                "network_source_disclosure",
+                "responsible_use_restrictions",
+                "other"
+            ],
+            "title": "LicenseObligation",
             "type": "string"
         },
         "MODEL_DOMAIN": {
@@ -321,6 +473,121 @@
             ],
             "title": "ModelClassification",
             "type": "object"
+        },
+        "ModelLicensing": {
+            "additionalProperties": false,
+            "description": "Represents a model-level conclusion with optional per-download-file overrides.",
+            "properties": {
+                "license_expression": {
+                    "minLength": 1,
+                    "title": "License Expression",
+                    "type": "string"
+                },
+                "license_ids": {
+                    "default": [],
+                    "items": {
+                        "type": "string"
+                    },
+                    "title": "License Ids",
+                    "type": "array"
+                },
+                "commercial_use": {
+                    "$ref": "#/$defs/PermissionStatus"
+                },
+                "redistribution": {
+                    "$ref": "#/$defs/PermissionStatus"
+                },
+                "obligations": {
+                    "default": [],
+                    "items": {
+                        "$ref": "#/$defs/LicenseObligation"
+                    },
+                    "title": "Obligations",
+                    "type": "array"
+                },
+                "attribution": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Attribution"
+                },
+                "evidence": {
+                    "default": [],
+                    "items": {
+                        "$ref": "#/$defs/LicenseEvidence"
+                    },
+                    "title": "Evidence",
+                    "type": "array"
+                },
+                "reviewed_by": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Reviewed By"
+                },
+                "reviewed_at": {
+                    "anyOf": [
+                        {
+                            "format": "date",
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Reviewed At"
+                },
+                "notes": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "title": "Notes"
+                },
+                "files": {
+                    "additionalProperties": {
+                        "$ref": "#/$defs/LicenseAssignment"
+                    },
+                    "title": "Files",
+                    "type": "object"
+                }
+            },
+            "required": [
+                "license_expression",
+                "commercial_use",
+                "redistribution"
+            ],
+            "title": "ModelLicensing",
+            "type": "object"
+        },
+        "PermissionStatus": {
+            "description": "Represents the reviewed permission status for a particular activity.",
+            "enum": [
+                "allowed",
+                "allowed_with_conditions",
+                "prohibited",
+                "unknown"
+            ],
+            "title": "PermissionStatus",
+            "type": "string"
         }
     },
     "additionalProperties": false,
@@ -397,6 +664,17 @@
             ],
             "default": null,
             "title": "Size On Disk Bytes"
+        },
+        "licensing": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/ModelLicensing"
+                },
+                {
+                    "type": "null"
+                }
+            ],
+            "default": null
         },
         "inpainting": {
             "anyOf": [

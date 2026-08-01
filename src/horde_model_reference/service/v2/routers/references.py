@@ -7,6 +7,7 @@ from haidra_core.service_base import ContainsMessage
 
 from horde_model_reference import ModelReferenceManager, horde_model_reference_settings
 from horde_model_reference.audit.events import AuditOperation
+from horde_model_reference.licensing import ModelLicensing, unknown_model_licensing
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
@@ -54,6 +55,21 @@ def _check_model_exists(
 
 def _model_payload(record: GenericModelRecord) -> dict[str, Any]:
     return record.model_dump(mode="json", exclude_none=True)
+
+
+def _public_record_payload(record_payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a v2 record payload with explicit fail-closed licensing."""
+    public_payload = dict(record_payload)
+    public_payload.setdefault("licensing", unknown_model_licensing().model_dump(mode="json", exclude_none=True))
+    return public_payload
+
+
+def _public_reference_payload(reference_payload: dict[str, Any]) -> dict[str, Any]:
+    """Return a category payload whose records all carry explicit licensing."""
+    return {
+        model_name: _public_record_payload(model_payload) if isinstance(model_payload, dict) else model_payload
+        for model_name, model_payload in reference_payload.items()
+    }
 
 
 def _enqueue_pending_change(
@@ -194,6 +210,43 @@ async def _queue_model_record_request(
 
     if operation is AuditOperation.UPDATE:
         model_record = _preserve_created_metadata(manager, category, model_name, model_record)
+
+    licensing_was_supplied = "licensing" in model_record.model_fields_set
+    if operation is AuditOperation.CREATE and model_record.licensing is None:
+        if horde_model_reference_settings.licensing.require_explicit_model_assignments:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail="New v2 model records require an explicit licensing conclusion.",
+            )
+        model_record = model_record.model_copy(
+            update={
+                "licensing": unknown_model_licensing(
+                    note="No licensing conclusion was supplied when this model was created.",
+                ),
+            },
+        )
+    if operation is AuditOperation.UPDATE and not licensing_was_supplied:
+        existing_payload = manager.get_raw_model_json(category, model_name)
+        existing_licensing_payload = existing_payload.get("licensing") if existing_payload else None
+        preserved_licensing = (
+            ModelLicensing.model_validate(existing_licensing_payload)
+            if existing_licensing_payload is not None
+            else unknown_model_licensing(note="Legacy record has not received a reviewed license conclusion.")
+        )
+        model_record = model_record.model_copy(update={"licensing": preserved_licensing})
+    elif operation is AuditOperation.UPDATE and model_record.licensing is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="licensing cannot be explicitly cleared; omit it to preserve the current conclusion.",
+        )
+    if model_record.licensing is not None:
+        try:
+            manager.licensing_store.validate_assignment(model_record.licensing)
+        except ValueError as exception:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=str(exception),
+            ) from exception
 
     # Compute related_models for text_generation so UI can display affected variants
     related_models: list[str] | None = None
@@ -399,7 +452,7 @@ async def read_v2_reference(
             detail=f"Model category '{model_category_name}' not found",
         )
 
-    return JSONResponse(content=raw_json, media_type="application/json")
+    return JSONResponse(content=_public_reference_payload(raw_json), media_type="application/json")
 
 
 single_model_route_subpath = f"/{{{PathVariables.model_category_name}}}/model/{{{PathVariables.model_name}}}"
@@ -480,7 +533,7 @@ async def read_v2_single_model(
             detail=f"Model '{model_name}' not found in category '{model_category_name}'",
         )
 
-    return JSONResponse(content=raw_json[model_name], media_type="application/json")
+    return JSONResponse(content=_public_record_payload(raw_json[model_name]), media_type="application/json")
 
 
 pending_route_subpath = f"/{{{PathVariables.model_category_name}}}/pending"
@@ -528,7 +581,7 @@ async def read_v2_reference_pending(
         page.items,
         domain=horde_model_reference_settings.canonical_format,
     )
-    return JSONResponse(content=records, media_type="application/json")
+    return JSONResponse(content=_public_reference_payload(records), media_type="application/json")
 
 
 # ---------------------------------------------------------------------------
@@ -629,7 +682,7 @@ def _register_typed_category_routes(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Model category '{category}' not found",
             )
-        return JSONResponse(content=raw_json, media_type="application/json")
+        return JSONResponse(content=_public_reference_payload(raw_json), media_type="application/json")
 
     async def get_one_handler(
         model_name: str,
@@ -641,7 +694,7 @@ def _register_typed_category_routes(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Model '{model_name}' not found in category '{category}'",
             )
-        return JSONResponse(content=raw_json[model_name], media_type="application/json")
+        return JSONResponse(content=_public_record_payload(raw_json[model_name]), media_type="application/json")
 
     # Swap the documented/validated body type to the category's concrete record.
     create_handler.__annotations__["new_model_record"] = record_type

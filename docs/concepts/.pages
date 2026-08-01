@@ -7,4 +7,5 @@ nav:
   - analytics_pipeline.md
   - integrations.md
   - canonical_format.md
+  - licensing_data.md
   - design_decisions.md

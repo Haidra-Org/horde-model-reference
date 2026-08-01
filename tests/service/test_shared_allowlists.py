@@ -10,13 +10,16 @@ from horde_model_reference.service.shared import HordeUserContext
 
 @pytest.fixture(autouse=True)
 def restore_pending_queue_settings() -> Generator[None]:
-    """Reset pending queue allowlists after each test."""
+    """Reset pending queue and licensing allowlists after each test."""
     settings = horde_model_reference_settings.pending_queue
     original_requestors = list(settings.requestor_ids)
     original_approvers = list(settings.approver_ids)
+    licensing_settings = horde_model_reference_settings.licensing
+    original_licensing_editors = list(licensing_settings.editor_ids)
     yield
     settings.requestor_ids = original_requestors
     settings.approver_ids = original_approvers
+    licensing_settings.editor_ids = original_licensing_editors
 
 
 def test_queue_requestor_allowlist_combines_configured_ids() -> None:
@@ -49,6 +52,14 @@ def test_queue_approver_allowlist_rejects_when_unconfigured() -> None:
     allowlist = shared._queue_approver_allowlist()
 
     assert allowlist == set()
+
+
+def test_licensing_editor_allowlist_is_independent() -> None:
+    """Verify licensing editors do not inherit pending-queue roles."""
+    horde_model_reference_settings.pending_queue.approver_ids = ["111"]
+    horde_model_reference_settings.licensing.editor_ids = ["222"]
+
+    assert shared._licensing_editor_allowlist() == {"222"}
 
 
 @pytest.mark.asyncio
