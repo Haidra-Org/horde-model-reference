@@ -1,13 +1,15 @@
 """Tests for the torch-free download engine, exercised against a real local HTTP server.
 
-The engine uses ``requests``, so the tests drive a small threaded HTTP server that gives full control over
-Range/206/416/200 behaviour, exercising the genuine resume and restart state machine rather than a mock.
+The engine uses pooled ``requests`` sessions, so the tests drive a small threaded HTTP server that gives full
+control over Range/206/416/200 behaviour, exercising the genuine resume and restart state machine rather than
+a mock.
 """
 
 from __future__ import annotations
 
 import hashlib
 import http.server
+import json
 import os
 import sys
 import threading
@@ -18,8 +20,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
+import requests
 
 import horde_model_reference.download_engine as download_engine
+import horde_model_reference.gateway_session as gateway_session
+import horde_model_reference.mirror_inventory as mirror_inventory
 from horde_model_reference.download_engine import (
     DownloadAborted,
     download_file,
@@ -58,6 +63,10 @@ class _ServerState:
     delay_ranges: set[int] = field(default_factory=set)
     """Range *start* offsets whose response is held back by ``delay_seconds`` (forces out-of-order finish)."""
     delay_seconds: float = 0.0
+    segment_failures_remaining: int = 0
+    """Transient 503 responses still owed to non-probe closed range requests."""
+    segment_failure_count: int = 0
+    """Number of transient segment failures served."""
     lock: threading.Lock = field(default_factory=threading.Lock)
     """Guards the counters/lists, which the threading server mutates from several handler threads at once."""
 
@@ -89,6 +98,15 @@ class _Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         """Respond to GET, honouring Range (start and end) unless configured to ignore or fail."""
         state = self._state()
+        if self.path == "/v1/manifest":
+            hashes = {_sha256(state.payload), _sha256(_ORIGIN_PAYLOAD)}
+            body = json.dumps({"schema_version": 1, "objects": {value: {} for value in hashes}}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            return
         with state.lock:
             state.get_count += 1
             get_count = state.get_count
@@ -116,6 +134,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             with state.lock:
                 state.range_get_count += 1
                 state.requested_ranges.append((start, end))
+                fail_segment = end_text != "0" and state.segment_failures_remaining > 0
+                if fail_segment:
+                    state.segment_failures_remaining -= 1
+                    state.segment_failure_count += 1
+            if fail_segment:
+                self.send_response(503)
+                self.end_headers()
+                return
             if start >= len(payload):
                 self.send_response(416)
                 self.send_header("Content-Range", f"bytes */{len(payload)}")
@@ -136,6 +162,15 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(payload)))
         self.end_headers()
         self.wfile.write(payload)
+
+    def do_POST(self) -> None:
+        """Model a pre-session gateway so client rollout compatibility uses the legacy no-redirect header."""
+        if self.path == "/v1/session":
+            self.send_response(503)
+            self.end_headers()
+            return
+        self.send_response(404)
+        self.end_headers()
 
 
 @contextmanager
@@ -198,6 +233,36 @@ def test_fresh_download_writes_file_sidecar_and_reports_progress(
     assert not destination.with_suffix(".bin.part").exists()
     assert seen[-1][0] == len(state.payload)
     assert [d for d, _ in seen] == sorted(d for d, _ in seen)
+
+
+def test_fresh_single_stream_hashes_while_writing(
+    http_server: tuple[str, _ServerState], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A fresh sequential transfer does not reread the installed file just to calculate its sha256."""
+    base_url, state = http_server
+    state.payload = b"hash these bytes while they are already in memory"
+    destination = tmp_path / "model.bin"
+
+    def fail_post_download_hash(_path: Path, _algorithm: str) -> str:
+        raise AssertionError("fresh single-stream download performed a redundant full-file hash pass")
+
+    monkeypatch.setattr(download_engine, "_hash_file", fail_post_download_hash)
+
+    outcome = download_file(
+        f"{base_url}/model.bin",
+        destination,
+        expected_sha256=_sha256(state.payload),
+        connections=1,
+    )
+
+    assert outcome.success is True
+    assert outcome.sha256 == _sha256(state.payload)
+    assert destination.with_suffix(".sha256").is_file()
+
+
+def test_http_session_is_reused_within_a_download_thread() -> None:
+    """Successive requests on one executor thread share a persistent connection pool."""
+    assert download_engine._http_session() is download_engine._http_session()
 
 
 def test_checksum_mismatch_reports_failure(http_server: tuple[str, _ServerState], tmp_path: Path) -> None:
@@ -468,6 +533,46 @@ def test_gateway_skipped_without_apikey(
     assert origin_state.get_count >= 1
 
 
+def test_gateway_skipped_when_inventory_does_not_list_hash(
+    gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A known hash absent from the published inventory goes directly to its authoritative origin."""
+    (gateway_url, gateway_state), (origin_url, origin_state) = gateway_and_origin
+    gateway_state.payload = _ORIGIN_PAYLOAD
+    origin_state.payload = _ORIGIN_PAYLOAD
+    monkeypatch.setattr(mirror_inventory, "mirror_contains", lambda *_args, **_kwargs: False)
+    record = _gateway_record(origin_url, _sha256(_ORIGIN_PAYLOAD))
+
+    assert download_record_files(record, tmp_path, gateway_base_url=gateway_url, apikey="k" * 22)
+    assert gateway_state.get_count == 0
+    assert origin_state.get_count == 1
+
+
+def test_gateway_session_is_cached_and_replaces_long_lived_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A successful session exchange yields a cached bearer token rather than an object-request apikey header."""
+    gateway_session.clear_gateway_session_cache()
+    calls: list[str] = []
+
+    def fake_post(url: str, **_kwargs: object) -> requests.Response:
+        calls.append(url)
+        response = requests.Response()
+        response.status_code = 200
+        response._content = json.dumps(
+            {"token": "hmr1.payload.signature", "expires_at": int(time.time()) + 300},
+        ).encode()
+        return response
+
+    monkeypatch.setattr(gateway_session.requests, "post", fake_post)
+
+    first = gateway_session.gateway_auth_headers("https://gateway.test", "secret-horde-key")
+    second = gateway_session.gateway_auth_headers("https://gateway.test", "secret-horde-key")
+
+    assert first == second == {"Authorization": "Bearer hmr1.payload.signature"}
+    assert calls == ["https://gateway.test/v1/session"]
+
+
 def test_configured_gateway_url_is_used_when_apikey_is_supplied(
     gateway_and_origin: tuple[tuple[str, _ServerState], tuple[str, _ServerState]],
     tmp_path: Path,
@@ -662,6 +767,30 @@ def test_segmented_out_of_order_completion_reassembles(http_server: tuple[str, _
 
     assert outcome.success is True
     assert destination.read_bytes() == state.payload
+
+
+def test_segmented_transient_http_error_retries_only_failed_range(
+    http_server: tuple[str, _ServerState], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A transient range response consumes its retry budget instead of restarting the entire file."""
+    base_url, state = http_server
+    state.payload = bytes(bytearray((i * 13 + 5) % 256 for i in range(_LARGE)))
+    state.segment_failures_remaining = 1
+    destination = tmp_path / "model.bin"
+    monkeypatch.setattr(download_engine, "_RETRY_SLEEP_SECONDS", 0.0)
+
+    outcome = download_file(
+        f"{base_url}/model.bin",
+        destination,
+        expected_sha256=_sha256(state.payload),
+        connections=4,
+    )
+
+    assert outcome.success is True
+    assert destination.read_bytes() == state.payload
+    assert state.segment_failure_count == 1
+    # Probe + four planned ranges + one retry; no full single-stream fallback request.
+    assert state.get_count == 6
 
 
 def test_below_threshold_file_is_not_segmented(http_server: tuple[str, _ServerState], tmp_path: Path) -> None:

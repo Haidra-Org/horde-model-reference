@@ -1,7 +1,7 @@
 """Torch-free model-file download engine: resumable HTTP fetch and checksum sidecars.
 
-The single place that knows how to fetch the files a model record declares: a resumable streaming download
-with retry and atomic ``.part`` rename, plus mtime-keyed sha256/md5 sidecar caching. Owned by
+The single place that knows how to fetch the files a model record declares: a pooled, resumable streaming
+download with retry and atomic ``.part`` rename, plus mtime-keyed sha256/md5 sidecar caching. Owned by
 :mod:`horde_model_reference` so every consumer (the worker download process, hordelib discovery managers,
 third-party tools) shares one implementation instead of re-deriving it.
 
@@ -28,6 +28,7 @@ from urllib.parse import urlparse
 
 import requests
 from loguru import logger
+from requests.adapters import HTTPAdapter
 
 from horde_model_reference.on_disk_layout import file_paths_for
 
@@ -91,6 +92,33 @@ _MAX_CONNECTIONS_PER_FILE = 8
 """Hard ceiling on concurrent connections to one file, regardless of the configured request, so a
 misconfiguration cannot open an abusive number of sockets to a single host."""
 
+_HTTP_POOL_CONNECTIONS = 16
+_HTTP_POOL_MAXSIZE = 32
+_HTTP_SESSION_LOCAL = threading.local()
+"""Per-thread sessions retain urllib3 connection pools across successive model downloads."""
+
+
+def _http_session() -> requests.Session:
+    """Return this thread's persistent HTTP session with a bounded keep-alive pool.
+
+    ``requests``' module-level helpers create and close a session for every call. Download executor threads are
+    long-lived, so retaining one session per thread lets later probes, retries, and files reuse established TCP
+    and TLS connections without sharing mutable ``Session`` state between threads.
+    """
+    session = getattr(_HTTP_SESSION_LOCAL, "session", None)
+    if session is not None:
+        return session
+    session = requests.Session()
+    adapter = HTTPAdapter(
+        pool_connections=_HTTP_POOL_CONNECTIONS,
+        pool_maxsize=_HTTP_POOL_MAXSIZE,
+        max_retries=0,
+    )
+    session.mount("http://", adapter)
+    session.mount("https://", adapter)
+    _HTTP_SESSION_LOCAL.session = session
+    return session
+
 
 class DownloadAborted(Exception):
     """Raised out of :func:`download_file` when a progress callback aborts an in-flight download.
@@ -139,11 +167,13 @@ def _cached_digest(path: Path, sidecar: Path) -> str | None:
     return None
 
 
-def sha256_of(path: Path) -> str:
+def sha256_of(path: Path, *, use_cache: bool = True) -> str:
     """Return the sha256 of *path*, using (and refreshing) a ``.sha256`` sidecar cache.
 
-    The cache is keyed on modification time: a sidecar newer than the file is trusted; otherwise the hash is
-    recomputed and the sidecar rewritten. Writing the sidecar is best-effort.
+    The cache is keyed on modification time: a sidecar newer than the file is trusted when *use_cache* is True;
+    otherwise the hash is recomputed from the bytes. The R2 publisher disables this cache because the digest is
+    the storage identity and must not depend on a stale or manually edited sidecar. Writing the refreshed
+    sidecar is best-effort in either mode.
 
     Raises:
         FileNotFoundError: If *path* is not an existing file.
@@ -151,9 +181,10 @@ def sha256_of(path: Path) -> str:
     if not path.is_file():
         raise FileNotFoundError(f"No file {path}")
     sidecar = path.with_suffix(".sha256")
-    cached = _cached_digest(path, sidecar)
-    if cached is not None:
-        return cached
+    if use_cache:
+        cached = _cached_digest(path, sidecar)
+        if cached is not None:
+            return cached
     logger.info("Calculating sha256sum (this may take a while): file={}", path.name)
     digest = _hash_file(path, "sha256")
     _write_sidecar(sidecar, digest, path.name)
@@ -194,6 +225,8 @@ def gateway_accepts_key(gateway_base_url: str) -> bool:
     intercept. This is the universal guard at the point the key header would be attached.
     """
     parsed = urlparse(gateway_base_url)
+    if parsed.username or parsed.password or parsed.query or parsed.fragment or not parsed.hostname:
+        return False
     if parsed.scheme == "https":
         return True
     return parsed.scheme == "http" and parsed.hostname in _KEY_SAFE_HTTP_HOSTS
@@ -216,10 +249,26 @@ def _checksum_matches(actual_sha256: str, expected_sha256: str | None) -> bool:
     return actual_sha256.lower() == expected_sha256.lower()
 
 
-def _finalize(partial: Path, destination: Path, bytes_written: int, expected_sha256: str | None) -> DownloadOutcome:
-    """Atomically move *partial* onto *destination*, then hash and (when known) validate it."""
+def _finalize(
+    partial: Path,
+    destination: Path,
+    bytes_written: int,
+    expected_sha256: str | None,
+    *,
+    streamed_sha256: str | None = None,
+) -> DownloadOutcome:
+    """Atomically install *partial*, then record and validate its digest.
+
+    A fresh single-stream transfer computes ``streamed_sha256`` while bytes are already passing through memory,
+    avoiding an immediate second full-file disk read. Resumed and segmented transfers still hash after assembly
+    because their byte order was not observed as one complete sequential stream.
+    """
     os.replace(partial, destination)
-    digest = sha256_of(destination)
+    if streamed_sha256 is None:
+        digest = sha256_of(destination)
+    else:
+        digest = streamed_sha256
+        _write_sidecar(destination.with_suffix(".sha256"), digest, destination.name)
     matched = _checksum_matches(digest, expected_sha256)
     if not matched:
         logger.error(
@@ -231,7 +280,13 @@ def _finalize(partial: Path, destination: Path, bytes_written: int, expected_sha
     return DownloadOutcome(success=matched, final_path=destination, bytes_written=bytes_written, sha256=digest)
 
 
-def _partial_is_complete(url: str, partial_size: int, headers: dict[str, str] | None) -> bool:
+def _partial_is_complete(
+    url: str,
+    partial_size: int,
+    headers: dict[str, str] | None,
+    *,
+    allow_redirects: bool,
+) -> bool:
     """Return whether an existing *partial_size* already equals the server's full Content-Length.
 
     *headers* carries the same authentication as the real request (e.g. the gateway ``apikey``); without it a
@@ -239,7 +294,13 @@ def _partial_is_complete(url: str, partial_size: int, headers: dict[str, str] | 
     """
     if not partial_size:
         return False
-    with requests.get(url, stream=True, headers=headers, allow_redirects=True, timeout=_GET_TIMEOUT_SECONDS) as probe:
+    with _http_session().get(
+        url,
+        stream=True,
+        headers=headers,
+        allow_redirects=allow_redirects,
+        timeout=_GET_TIMEOUT_SECONDS,
+    ) as probe:
         if not probe.ok:
             return False
         remote_size = int(probe.headers.get("Content-Length", 0))
@@ -268,7 +329,12 @@ def _total_from_content_range(content_range: str | None) -> int | None:
         return None
 
 
-def _probe_range_support(url: str, extra_headers: dict[str, str] | None) -> tuple[bool, int | None]:
+def _probe_range_support(
+    url: str,
+    extra_headers: dict[str, str] | None,
+    *,
+    allow_redirects: bool,
+) -> tuple[bool, int | None]:
     """Return ``(server_honours_range, total_bytes)`` from a one-byte ranged GET.
 
     A ``206`` with a parseable ``Content-Range`` total means the file can be segmented; the one-byte body is
@@ -279,11 +345,11 @@ def _probe_range_support(url: str, extra_headers: dict[str, str] | None) -> tupl
     """
     headers = dict(extra_headers) if extra_headers else {}
     headers["Range"] = "bytes=0-0"
-    with requests.get(
+    with _http_session().get(
         url,
         stream=True,
         headers=headers,
-        allow_redirects=True,
+        allow_redirects=allow_redirects,
         timeout=_GET_TIMEOUT_SECONDS,
     ) as probe:
         if probe.status_code == 206:
@@ -319,6 +385,7 @@ def _segmented_download(
     extra_headers: dict[str, str] | None,
     connections: int,
     max_retries: int,
+    allow_redirects: bool,
 ) -> DownloadOutcome | None:
     """Fetch *url* into *destination* over several concurrent ranged connections; return the outcome or None.
 
@@ -333,7 +400,7 @@ def _segmented_download(
     the single-stream path so the two never read each other's partial.
     """
     try:
-        supports_range, total = _probe_range_support(url, extra_headers)
+        supports_range, total = _probe_range_support(url, extra_headers, allow_redirects=allow_redirects)
     except requests.RequestException:
         return None
 
@@ -371,17 +438,20 @@ def _segmented_download(
             headers = dict(extra_headers) if extra_headers else {}
             headers["Range"] = f"bytes={position}-{end}"
             try:
-                with requests.get(
+                with _http_session().get(
                     url,
                     stream=True,
                     headers=headers,
-                    allow_redirects=True,
+                    allow_redirects=allow_redirects,
                     timeout=_GET_TIMEOUT_SECONDS,
                 ) as response:
                     if response.status_code != 206:
                         # The probe saw range support but this request was not honoured (or errored): treat
-                        # as a segment failure so the whole download retreats to the single-stream path.
-                        raise _SegmentFailed
+                        # a successful non-range response as a definitive retreat, but let transient HTTP
+                        # errors consume the segment retry budget before throwing away the other ranges.
+                        if response.status_code < 400 or response.status_code in _NON_RETRIABLE_STATUSES:
+                            raise _SegmentFailed
+                        response.raise_for_status()
                     with spart.open("r+b") as handle:
                         handle.seek(position)
                         for chunk in response.iter_content(chunk_size=_CHUNK_SIZE):
@@ -429,6 +499,7 @@ def download_file(
     extra_headers: dict[str, str] | None = None,
     max_retries: int = _DEFAULT_MAX_RETRIES,
     connections: int = 1,
+    allow_redirects: bool = True,
 ) -> DownloadOutcome:
     """Download *url* to *destination*, resuming a prior ``.part`` when the server supports it.
 
@@ -455,11 +526,13 @@ def download_file(
         progress_callback: Optional ``(downloaded_bytes, total_bytes)`` callback, invoked per chunk. May raise
             to abort the download (see :class:`DownloadAborted`); the abort propagates out unchanged.
         auth_query_token: Optional token appended to the URL query (e.g. a CivitAI API token).
-        extra_headers: Optional request headers (e.g. an ``apikey`` header for the gated R2 gateway). Merged
+        extra_headers: Optional request headers (e.g. a bearer token for the gated R2 gateway). Merged
             with the resume ``Range`` header; a ``Range`` key here is overridden when resuming.
         max_retries: Maximum transient-failure retries before giving up.
         connections: Maximum concurrent connections for a single large file (clamped to
             :data:`_MAX_CONNECTIONS_PER_FILE`); 1 keeps the simple resumable single-stream path.
+        allow_redirects: Whether HTTP redirects may be followed. Disable this for requests carrying a
+            privileged header so it cannot be forwarded to another host.
 
     Returns:
         A :class:`DownloadOutcome` describing the result.
@@ -478,6 +551,7 @@ def download_file(
             extra_headers=extra_headers,
             connections=connections,
             max_retries=max_retries,
+            allow_redirects=allow_redirects,
         )
         if segmented is not None:
             return segmented
@@ -489,11 +563,12 @@ def download_file(
         if partial_size:
             headers["Range"] = f"bytes={partial_size}-"
         try:
-            with requests.get(
+            stream_hasher = hashlib.sha256() if partial_size == 0 else None
+            with _http_session().get(
                 download_url,
                 stream=True,
                 headers=headers,
-                allow_redirects=True,
+                allow_redirects=allow_redirects,
                 timeout=_GET_TIMEOUT_SECONDS,
             ) as response:
                 if response.status_code in _NON_RETRIABLE_STATUSES:
@@ -505,7 +580,12 @@ def download_file(
                     return DownloadOutcome(success=False, final_path=destination, bytes_written=0, sha256=None)
 
                 if response.status_code == 416:
-                    if _partial_is_complete(download_url, partial_size, extra_headers):
+                    if _partial_is_complete(
+                        download_url,
+                        partial_size,
+                        extra_headers,
+                        allow_redirects=allow_redirects,
+                    ):
                         return _finalize(partial, destination, partial_size, expected_sha256)
                     partial.unlink(missing_ok=True)
                     continue
@@ -533,10 +613,18 @@ def download_file(
                         if not chunk:
                             continue
                         handle.write(chunk)
+                        if stream_hasher is not None:
+                            stream_hasher.update(chunk)
                         downloaded += len(chunk)
                         if progress_callback is not None:
                             progress_callback(downloaded, total)
-                return _finalize(partial, destination, downloaded, expected_sha256)
+                return _finalize(
+                    partial,
+                    destination,
+                    downloaded,
+                    expected_sha256,
+                    streamed_sha256=stream_hasher.hexdigest() if stream_hasher is not None else None,
+                )
 
         except requests.RequestException:
             attempts_remaining -= 1
@@ -566,26 +654,41 @@ def download_addressed_file(
     This is the record-free entry point: callers that have a plain ``(origin_url, sha256)`` rather than a
     :class:`DownloadRecord` (e.g. the controlnet-annotator prefetch) get the identical mirror-first behaviour.
 
-    The gateway is attempted only when it can actually serve the file: a gateway base URL and an apikey are both
-    configured and a real *sha256* (the content address) is known. Any gateway failure (an ineligible/invalid
-    key, an object not yet mirrored, a 5xx/timeout, or a network error) transparently falls through to
-    *origin_url*, so an absent or unreachable mirror never blocks a download. The sha256 is verified after every
-    attempt regardless of source, so a mismatched mirror object is rejected; a completed-but-corrupt attempt is
-    removed before the next source is tried so a later failure cannot leave a bad file behind.
+    The gateway is attempted only when a safe base URL and apikey are configured, a real *sha256* is known, and
+    the gateway's last valid public inventory contains that hash. The client exchanges the Horde key for a
+    cached, short-lived mirror-only token when sessions are supported. Any inventory, session, or object failure
+    falls through to *origin_url*. The sha256 is verified after every completed attempt, and gateway partials
+    are removed before switching sources.
 
     *connections* applies only to the *origin* fetch: the gateway is the already-fast accelerator and is left
     single-stream until its Cloudflare Worker is confirmed to pass ``Range`` through to R2 (segmenting a server
     that buffers the range would help nothing and waste connections).
     """
-    if gateway_base_url is None and use_configured_gateway:
-        from horde_model_reference import HordeModelReferenceSettings
+    from horde_model_reference import HordeModelReferenceSettings
 
-        gateway_base_url = HordeModelReferenceSettings().r2.gateway_url
+    r2_settings = HordeModelReferenceSettings().r2
+    if gateway_base_url is None and use_configured_gateway:
+        gateway_base_url = r2_settings.gateway_url
+    manifest_ttl_seconds = r2_settings.manifest_ttl_seconds
 
     candidates: list[tuple[str, dict[str, str] | None, str | None, int]] = []
     have_address = bool(sha256) and sha256 != UNKNOWN_SHA256_SENTINEL
+    inventory_contains_hash = False
     if gateway_base_url and apikey and have_address and gateway_accepts_key(gateway_base_url):
-        candidates.append((gateway_url_for(gateway_base_url, sha256), {"apikey": apikey}, None, 1))
+        from horde_model_reference.mirror_inventory import mirror_contains
+
+        assert sha256 is not None
+        inventory_contains_hash = mirror_contains(
+            gateway_base_url,
+            sha256,
+            ttl_seconds=manifest_ttl_seconds,
+        )
+    if gateway_base_url and apikey and have_address and inventory_contains_hash:
+        from horde_model_reference.gateway_session import gateway_auth_headers
+
+        candidates.append(
+            (gateway_url_for(gateway_base_url, sha256), gateway_auth_headers(gateway_base_url, apikey), None, 1),
+        )
     candidates.append((origin_url, None, auth_query_token, connections))
 
     outcome = DownloadOutcome(success=False, final_path=destination, bytes_written=0, sha256=None)
@@ -600,14 +703,14 @@ def download_addressed_file(
             extra_headers=candidate_headers,
             max_retries=_DEFAULT_MAX_RETRIES if is_last else _FALLBACK_SOURCE_MAX_RETRIES,
             connections=candidate_connections,
+            allow_redirects=is_last,
         )
         if outcome.success:
             return outcome
-        # A completed-but-corrupt attempt (sha256 computed but mismatched) has already replaced the
-        # destination; remove the bad file so it is never trusted later (a present file is otherwise skipped
-        # on the next run). This applies even to the final candidate. A transient failure (sha256 is None)
-        # instead keeps its ``.part`` so the next source, or the next run, can resume it.
-        if outcome.sha256 is not None:
+        # Partials belong to one source. A gateway prefix cannot safely be resumed against the origin: even
+        # equal URLs may use different encodings or a damaged prefix could make the origin fail its final hash.
+        # Clear all mirror artifacts before source hand-off. Keep an origin partial only for a future run.
+        if not is_last or outcome.sha256 is not None:
             destination.unlink(missing_ok=True)
             Path(f"{destination}.part").unlink(missing_ok=True)
     return outcome
@@ -659,10 +762,9 @@ def download_record_files(
     :func:`download_file`. Always targets the primary *root*: discovery may search extra directories, but new
     downloads land deterministically under *root*.
 
-    When *gateway_base_url* (or the configured ``r2.gateway_url``) and *apikey* are both supplied, each file is
-    first attempted from the gated, content-addressed R2 gateway and falls back to its origin URL on any failure
-    (see :func:`_fetch_file_with_fallback`). Omitting an apikey (or a record with no real sha256) downloads
-    straight from the origin URL, preserving the prior behaviour for anonymous and standalone callers.
+    When *gateway_base_url* (or the configured ``r2.gateway_url``) and *apikey* are supplied, inventory-listed
+    files are attempted from the content-addressed gateway and fall back to origin on any failure. Omitting an
+    apikey, lacking a real sha256, or not appearing in the inventory uses origin directly.
 
     Args:
         record: The model record whose declared files should be present.
@@ -670,7 +772,7 @@ def download_record_files(
         progress_callback: Optional ``(downloaded_bytes, total_bytes)`` callback, forwarded per file.
         auth_query_token: Optional token appended to each origin file URL's query (e.g. a CivitAI token).
         gateway_base_url: Optional base URL of the gated R2 gateway; enables the mirror-first path.
-        apikey: Optional horde API key sent to the gateway; required for the mirror-first path.
+        apikey: Optional Horde API key exchanged for a short-lived gateway credential; required for mirroring.
         use_configured_gateway: When True, use ``HordeModelReferenceSettings().r2.gateway_url`` if
             *gateway_base_url* is not supplied.
         connections: Maximum concurrent connections per large file, forwarded to the origin fetch in

@@ -1,98 +1,66 @@
 # Mirror models to R2 (maintainers)
 
-This guide is for ecosystem maintainers. It covers uploading hostable model files to the gated Cloudflare R2
-mirror with the `scripts.r2_sync` tool. For *why* the mirror exists and how clients use it, see
-[The gated R2 model mirror](../concepts/gated_r2_mirror.md).
+The mirror is an optional, gated accelerator for hostable auxiliary models. Origin URLs remain authoritative.
+Install the `r2` dependency group and provide `HORDE_MODEL_REFERENCE_R2__UPLOAD_BUCKET`,
+`UPLOAD_ENDPOINT_URL`, `UPLOAD_ACCESS_KEY_ID`, and `UPLOAD_SECRET_ACCESS_KEY` for bucket-aware commands.
 
-## Prerequisites
+## Review candidates
 
-- The `r2` dependency group: `uv sync --group r2` (provides `boto3`).
-- R2 credentials, supplied as settings (env prefix `HORDE_MODEL_REFERENCE_R2__`):
-
-  ```bash
-  export HORDE_MODEL_REFERENCE_R2__UPLOAD_BUCKET=horde-model-mirror
-  export HORDE_MODEL_REFERENCE_R2__UPLOAD_ENDPOINT_URL=https://<account>.r2.cloudflarestorage.com
-  export HORDE_MODEL_REFERENCE_R2__UPLOAD_ACCESS_KEY_ID=...
-  export HORDE_MODEL_REFERENCE_R2__UPLOAD_SECRET_ACCESS_KEY=...
-  ```
-
-## 1. Opt models in
-
-Nothing is mirrored until you opt it in **by name** (hosting a weight is redistribution). There is deliberately
-no category-wide opt-in: that would silently clear every model later added to the category, whatever its
-licence, with nobody reviewing it. Opting a model in is exactly where you record that you reviewed its licence.
-Edit `scripts/r2_sync/redistributable_allowlist.json`, listing each model you have confirmed is licence-clear:
-
-```json
-{
-  "models": [
-    "a-terse-entry-by-name",
-    { "name": "a-reviewed-model", "license": "Apache-2.0", "note": "upstream README permits redistribution" }
-  ]
-}
-```
-
-An entry is either a bare name string or an object with `name` plus the optional `license` / `note` provenance
-fields. When present, the `license` and `note` are stamped onto every object the model uploads, so the bucket
-carries the audit trail for why each hosted file is allowed to be there.
-
-### ControlNet annotators
-
-The **controlnet-annotator** checkpoints (the `comfyui_controlnet_aux` weights the worker pre-fetches) are a
-first-class `controlnet_annotator` category, so the tool mirrors them through the *same* planner as every other
-category: no separate flags, no separate code path. The records are overlaid from
-`horde_model_reference.annotator_records` (derived from the verified `annotator_catalog`), grouped one record per
-preprocessor and named `annotator_<control type>` (`annotator_hed`, `annotator_depth`, `annotator_openpose`,
-`annotator_seg`, `annotator_mlsd`). Opt them in by record name, like any other model:
-
-```json
-{ "models": ["annotator_hed", "annotator_depth", "annotator_openpose", "annotator_seg", "annotator_mlsd"] }
-```
-
-The catalog ships each file's hash unset, so the first run computes and backfills them via the same report (and
-`scripts/apply_backfill_report.py` applies the corrections through the same API path as every category). A
-PRIMARY deployment is seeded once with `scripts/seed_annotator_reference.py`.
-
-## 2. Dry-run
-
-The default run uploads nothing; it reports what *would* happen. Run it with R2 credentials present so
-"already present" is answered truthfully against the live bucket:
+Start with the generated reconciliation report:
 
 ```bash
-uv run python -m scripts.r2_sync.sync --dry-run --verbose
+uv run python -m scripts.r2_sync.sync candidates
 ```
 
-Without R2 credentials a dry-run cannot see the bucket, so it treats every object as absent and over-reports
-uploads (the tool warns loudly when this happens). Note also that a dry-run is not necessarily free: with
-`--cache-dir` set it will fetch bytes from origin hosts to hash any still-`FIXME` record (that is the only way
-to learn the content address). Omit `--cache-dir` to operate on local files only and never download.
+This writes `build/r2_sync/candidates.json`, listing every canonical category/model/file as `approved`,
+`blocked`, or `unreviewed`, plus policy entries that no longer match a canonical model. It does not inspect R2
+or download model bytes. Exact `--category` and repeatable `--model` filters make focused reviews practical.
 
-You will see per-file outcomes and totals: `upload`, `already_present`, `skipped_not_allowlisted`,
-`missing_bytes`, `hash_mismatch`.
+Edit `scripts/r2_sync/redistribution_policy.json` to make a decision. An approval must include:
 
-## 3. Apply
+- the exact model-reference `category` and `name`;
+- `decision: "approved"`;
+- a license expression, review evidence, reviewer, and review date;
+- optional exact `files` scope and required attribution text.
+
+Use `decision: "blocked"` plus a reason when redistribution is disallowed or evidence is insufficient. There
+is no command-line policy bypass, category-wide approval, or bare-name approval. A new reference therefore
+stays origin-only until reviewed, and identical names in different categories cannot grant each other access.
+
+The old `redistributable_allowlist.json` is retained only as migration/audit input and is not an upload policy.
+The canonical `controlnet_annotator` API category is treated exactly like every other category; the sync no
+longer overlays a second built-in catalog that could hide API drift.
+
+## Plan and reconcile
 
 ```bash
-uv run python -m scripts.r2_sync.sync --apply --backfill-report build/r2_backfill.json
+uv run python -m scripts.r2_sync.sync plan --cache-dir build/r2_sync/cache -v
+uv run python -m scripts.r2_sync.sync reconcile --cache-dir build/r2_sync/cache -v
 ```
 
-For each opted-in file the tool:
+`plan` verifies approved declarations and reports uploads without writing. `reconcile` additionally writes the
+inventory that the successful state would publish. With R2 read credentials, both distinguish verified existing
+objects from uploads; without them, they deliberately over-report uploads. Omit `--cache-dir` to forbid origin
+fetches and use local model roots only.
 
-1. uses your local model copy if present (resolved from the weights root; pass `--weights-root` /
-   `--extra-root` to point at it), otherwise downloads it from the origin host (pass `--cache-dir` to cache
-   those fetches),
-2. verifies/computes its sha256,
-3. skips it if the content-addressed object already exists (idempotent), otherwise uploads it to
-   `by-hash/<sha256>` with provenance metadata.
+Filters are intentionally rejected by `apply`: the published inventory must describe the complete approved set,
+not make every unselected object disappear from clients. Use filters to investigate, then apply unfiltered.
 
-## 4. Backfill `FIXME` hashes
+Existing objects count as present only when their content-addressed key, size, and stored SHA-256 metadata agree.
+The uploader always re-hashes actual bytes without trusting checksum sidecar timestamps. Missing or inconsistent
+metadata is repaired by an apply.
 
-Many records still declare `sha256sum: "FIXME"`. The tool computes the real hash for every file it processes and
-writes the corrections to the `--backfill-report` JSON. A CI workflow consumes that report to open a pull
-request correcting the canonical reference, so the gaps self-heal over time. (Until a hash is backfilled, that
-file is served only from origin.)
+## Apply atomically
 
-## Exit code
+```bash
+uv run python -m scripts.r2_sync.sync apply --cache-dir build/r2_sync/cache -v
+```
 
-The tool exits non-zero when any file could not be processed (`missing_bytes` or `hash_mismatch`), so it is safe
-to gate a CI job on it.
+Approved bytes are verified and uploaded to `by-hash/<sha256>` with source, identity, size, license, and review
+metadata. The run always writes candidate and SHA-256 backfill reports. If any approved file is missing or has a
+hash mismatch, it exits nonzero and does **not** publish a new inventory. Otherwise it uploads the complete
+`manifests/current.json` last, so clients see either the previous valid set or the new valid set.
+
+Files whose reference hash is `FIXME` can be uploaded after verification and appear in the backfill report, but
+clients remain origin-only until the canonical reference receives that real hash. Apply the report through the
+normal reference review path.

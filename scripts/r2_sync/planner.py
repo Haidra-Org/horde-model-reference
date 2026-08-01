@@ -2,7 +2,7 @@
 
 This is the pure heart of the tool, free of argparse, boto3 and the model-reference manager so it can be tested
 against an in-memory store and a hand-built byte source. It enforces the four shaping decisions: only
-*hostable* (non-generation) categories, only *allowlisted* models, *content-addressed* keys, and *backfilled*
+*hostable* (non-generation) categories, only explicitly *approved* files, *content-addressed* keys, and *backfilled*
 hashes for records that still carry the ``"FIXME"`` sentinel.
 
 Bytes are acquired lazily: a record that already declares a real sha256 whose object is present is resolved with
@@ -15,15 +15,18 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
+from urllib.parse import urlsplit, urlunsplit
 
 from strenum import StrEnum
 
 from horde_model_reference.download_engine import UNKNOWN_SHA256_SENTINEL, sha256_of
+from horde_model_reference.licensing import LicenseAssignment, PermissionStatus
 from horde_model_reference.meta_consts import (
     MODEL_PURPOSE,
     MODEL_REFERENCE_CATEGORY,
     get_category_descriptor,
 )
+from scripts.r2_sync.allowlist import RedistributionDecision
 from scripts.r2_sync.object_store import object_key_for
 
 if TYPE_CHECKING:
@@ -52,8 +55,10 @@ class SyncAction(StrEnum):
     """The object is absent from the bucket and (in apply mode) was uploaded."""
     ALREADY_PRESENT = "already_present"
     """The content-addressed object already exists in the bucket; nothing to upload."""
-    SKIPPED_NOT_ALLOWLISTED = "skipped_not_allowlisted"
-    """The model is not opted in for redistribution, so it is left on its origin host."""
+    SKIPPED_UNREVIEWED = "skipped_unreviewed"
+    """No category/model/file policy decision exists, so the file remains origin-only."""
+    SKIPPED_BLOCKED = "skipped_blocked"
+    """The redistribution policy explicitly blocks this file from the mirror."""
     MISSING_BYTES = "missing_bytes"
     """Neither a local copy nor an origin download could provide the bytes, so it could not be processed."""
     HASH_MISMATCH = "hash_mismatch"
@@ -90,6 +95,9 @@ class SyncItem:
     sha256: str | None = None
     key: str | None = None
     detail: str | None = None
+    size_bytes: int | None = None
+    license_expression: str | None = None
+    attribution: str | None = None
 
 
 @dataclass
@@ -131,21 +139,39 @@ def _object_metadata(
     record: GenericModelRecord,
     download: DownloadRecord,
     allowlist: RedistributableAllowlist | None,
+    *,
+    actual_sha256: str,
+    size_bytes: int,
+    license_assignment: LicenseAssignment | None,
+    fallback_license_expression: str | None,
+    fallback_attribution: str | None,
 ) -> dict[str, str]:
-    """Build the provenance metadata stored alongside an uploaded object.
-
-    Includes where the object came from (category/model/file/source URL) and the *redistribution* provenance the
-    maintainer recorded when clearing the model (its licence and any note), so the bucket carries the audit trail
-    for why each hosted file is allowed to be there.
-    """
+    """Build the provenance and integrity metadata stored with an uploaded object."""
     metadata = {
         "category": category,
         "model_name": record.name,
         "file_name": download.file_name,
-        "source_url": download.file_url,
+        # Reference URLs should be public, but never persist a query/fragment that could contain a signed token.
+        "source_url": urlunsplit((*urlsplit(download.file_url)[:3], "", "")),
+        "sha256": actual_sha256,
+        "size_bytes": str(size_bytes),
     }
     if allowlist is not None:
-        metadata.update(allowlist.metadata_for(record.name))
+        metadata.update(
+            allowlist.metadata_for(
+                category=category,
+                model_name=record.name,
+                file_name=download.file_name,
+            ),
+        )
+    if license_assignment is not None:
+        metadata["license"] = license_assignment.license_expression
+        if license_assignment.attribution:
+            metadata["attribution"] = license_assignment.attribution
+    elif fallback_license_expression is not None:
+        metadata["license"] = fallback_license_expression
+        if fallback_attribution is not None:
+            metadata["attribution"] = fallback_attribution
     return metadata
 
 
@@ -164,17 +190,55 @@ def _plan_file(
     declared = download.sha256sum
     known_sha = declared if declared and declared != UNKNOWN_SHA256_SENTINEL else None
 
-    # A record that already declares a real hash and whose object is present needs no bytes at all.
+    decision = (
+        allowlist.decision_for(category=category, model_name=record.name, file_name=download.file_name)
+        if allowlist is not None
+        else None
+    )
+    license_assignment = record.licensing.assignment_for_file(download.file_name) if record.licensing else None
+    license_expression = (
+        license_assignment.license_expression
+        if license_assignment is not None
+        else decision.license_expression
+        if decision is not None
+        else None
+    )
+    attribution = (
+        license_assignment.attribution
+        if license_assignment is not None
+        else decision.attribution
+        if decision is not None
+        else None
+    )
+
+    # A known hash with integrity metadata can be resolved without acquiring the bytes.
     if known_sha is not None:
         key = object_key_for(known_sha)
-        if store.head(key):
-            return SyncItem(**base, action=SyncAction.ALREADY_PRESENT, sha256=known_sha, key=key), None
+        existing = store.head(key)
+        existing_hash = existing.metadata.get("sha256", "").lower() if existing is not None else ""
+        declared_size_matches = existing is not None and (
+            download.size_bytes is None or existing.size_bytes == download.size_bytes
+        )
+        if existing_hash == known_sha.lower() and declared_size_matches:
+            return (
+                SyncItem(
+                    **base,
+                    action=SyncAction.ALREADY_PRESENT,
+                    sha256=known_sha,
+                    key=key,
+                    size_bytes=existing.size_bytes,
+                    license_expression=license_expression,
+                    attribution=attribution,
+                ),
+                None,
+            )
 
     path = byte_source.acquire(record, download)
     if path is None:
         return SyncItem(**base, action=SyncAction.MISSING_BYTES, sha256=known_sha), None
 
-    actual_sha = sha256_of(path)
+    actual_sha = sha256_of(path, use_cache=False)
+    size_bytes = path.stat().st_size
     correction: HashCorrection | None = None
     if known_sha is None:
         correction = HashCorrection(
@@ -186,15 +250,65 @@ def _plan_file(
         )
     elif actual_sha.lower() != known_sha.lower():
         detail = f"declared {known_sha} but bytes hash to {actual_sha}"
-        return SyncItem(**base, action=SyncAction.HASH_MISMATCH, sha256=known_sha, detail=detail), None
+        return (
+            SyncItem(
+                **base,
+                action=SyncAction.HASH_MISMATCH,
+                sha256=known_sha,
+                detail=detail,
+                size_bytes=size_bytes,
+                license_expression=license_expression,
+                attribution=attribution,
+            ),
+            None,
+        )
 
     key = object_key_for(actual_sha)
-    if store.head(key):
-        return SyncItem(**base, action=SyncAction.ALREADY_PRESENT, sha256=actual_sha, key=key), correction
+    existing = store.head(key)
+    if existing is not None and existing.metadata.get("sha256", "").lower() == actual_sha.lower():
+        return (
+            SyncItem(
+                **base,
+                action=SyncAction.ALREADY_PRESENT,
+                sha256=actual_sha,
+                key=key,
+                size_bytes=existing.size_bytes,
+                license_expression=license_expression,
+                attribution=attribution,
+            ),
+            correction,
+        )
 
     if apply:
-        store.put(key, path, metadata=_object_metadata(category, record, download, allowlist))
-    return SyncItem(**base, action=SyncAction.UPLOAD, sha256=actual_sha, key=key), correction
+        store.put(
+            key,
+            path,
+            metadata=_object_metadata(
+                category,
+                record,
+                download,
+                allowlist,
+                actual_sha256=actual_sha,
+                size_bytes=size_bytes,
+                license_assignment=license_assignment,
+                fallback_license_expression=license_expression,
+                fallback_attribution=attribution,
+            ),
+        )
+    detail = "repaired missing or inconsistent object metadata" if existing is not None else None
+    return (
+        SyncItem(
+            **base,
+            action=SyncAction.UPLOAD,
+            sha256=actual_sha,
+            key=key,
+            detail=detail,
+            size_bytes=size_bytes,
+            license_expression=license_expression,
+            attribution=attribution,
+        ),
+        correction,
+    )
 
 
 def build_sync_plan(
@@ -205,15 +319,15 @@ def build_sync_plan(
     byte_source: ByteSource,
     apply: bool,
 ) -> SyncPlan:
-    """Plan (and, when *apply*, perform) the R2 mirroring of every allowlisted hostable file in *references*.
+    """Plan (and, when *apply*, perform) mirroring of policy-approved hostable files in *references*.
 
-    Iterates only :func:`hostable_categories`; within each, only models the *allowlist* clears for
+    Iterates only :func:`hostable_categories`; within each, only files the redistribution policy clears for
     redistribution are processed (others are recorded as skipped). Each declared file is routed through
     :func:`_plan_file`, accumulating both the per-file outcome and any sha256 correction to backfill.
 
     Args:
         references: Loaded model references keyed by category (a None value means the category failed to load).
-        allowlist: The opt-in redistributable allowlist.
+        allowlist: The strict category/model/file redistribution policy (legacy parameter name).
         store: The bucket to check/upload against.
         byte_source: Supplies file bytes from a local mirror or the origin host.
         apply: When True, actually upload; when False, only plan (no ``put`` calls).
@@ -225,18 +339,73 @@ def build_sync_plan(
     for category in hostable_categories():
         records = references.get(category) or {}
         for model_name, record in records.items():
-            if allowlist is not None and not allowlist.allows(model_name=model_name):
-                for download in record.config.download:
+            for download in record.config.download:
+                decision = (
+                    allowlist.decision_for(
+                        category=category,
+                        model_name=model_name,
+                        file_name=download.file_name,
+                    )
+                    if allowlist is not None
+                    else None
+                )
+                if decision is None:
                     plan.items.append(
                         SyncItem(
                             category=str(category),
                             model_name=model_name,
                             file_name=download.file_name,
-                            action=SyncAction.SKIPPED_NOT_ALLOWLISTED,
+                            action=SyncAction.SKIPPED_UNREVIEWED,
                         ),
                     )
-                continue
-            for download in record.config.download:
+                    continue
+                if decision.decision is RedistributionDecision.BLOCKED:
+                    plan.items.append(
+                        SyncItem(
+                            category=str(category),
+                            model_name=model_name,
+                            file_name=download.file_name,
+                            action=SyncAction.SKIPPED_BLOCKED,
+                            detail=decision.note,
+                        ),
+                    )
+                    continue
+                effective_assignment = (
+                    record.licensing.assignment_for_file(download.file_name) if record.licensing is not None else None
+                )
+                if effective_assignment is not None and effective_assignment.redistribution in {
+                    PermissionStatus.PROHIBITED,
+                    PermissionStatus.UNKNOWN,
+                }:
+                    plan.items.append(
+                        SyncItem(
+                            category=str(category),
+                            model_name=model_name,
+                            file_name=download.file_name,
+                            action=SyncAction.SKIPPED_BLOCKED,
+                            detail=f"licensing redistribution status is {effective_assignment.redistribution.value}",
+                            license_expression=effective_assignment.license_expression,
+                            attribution=effective_assignment.attribution,
+                        ),
+                    )
+                    continue
+                if (
+                    effective_assignment is not None
+                    and decision.license_expression is not None
+                    and decision.license_expression != effective_assignment.license_expression
+                ):
+                    plan.items.append(
+                        SyncItem(
+                            category=str(category),
+                            model_name=model_name,
+                            file_name=download.file_name,
+                            action=SyncAction.SKIPPED_UNREVIEWED,
+                            detail="legacy policy expression differs from canonical model licensing",
+                            license_expression=effective_assignment.license_expression,
+                            attribution=effective_assignment.attribution,
+                        ),
+                    )
+                    continue
                 item, correction = _plan_file(
                     str(category),
                     record,

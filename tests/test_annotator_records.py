@@ -8,6 +8,7 @@ no annotator-specific code path.
 from __future__ import annotations
 
 import hashlib
+from datetime import date
 from pathlib import Path
 
 from horde_model_reference.annotator_catalog import ANNOTATOR_FILES
@@ -22,7 +23,7 @@ from horde_model_reference.model_reference_records import (
     ControlNetAnnotatorModelRecord,
 )
 from horde_model_reference.on_disk_layout import annotator_root, file_paths_for
-from scripts.r2_sync.allowlist import RedistributableAllowlist, RedistributableEntry
+from scripts.r2_sync.allowlist import RedistributableAllowlist, RedistributableEntry, RedistributionDecision
 from scripts.r2_sync.object_store import InMemoryObjectStore, object_key_for
 from scripts.r2_sync.planner import SyncAction, build_sync_plan
 
@@ -32,7 +33,21 @@ def _sha256(data: bytes) -> str:
 
 
 def _allow(*names: str) -> RedistributableAllowlist:
-    return RedistributableAllowlist(entries={name: RedistributableEntry(name=name) for name in names})
+    category = MODEL_REFERENCE_CATEGORY.controlnet_annotator
+    return RedistributableAllowlist(
+        entries={
+            (category, name): RedistributableEntry(
+                category=category,
+                name=name,
+                decision=RedistributionDecision.APPROVED,
+                license_expression="MIT",
+                evidence=("test evidence",),
+                reviewed_by="test",
+                reviewed_at=date(2026, 1, 1),
+            )
+            for name in names
+        },
+    )
 
 
 def test_category_uses_the_annotator_record_type() -> None:
@@ -108,7 +123,7 @@ def test_non_allowlisted_annotator_is_skipped(tmp_path: Path) -> None:
         byte_source=_DictMissing(),
         apply=False,
     )
-    skipped = {item.model_name for item in plan.items if item.action == SyncAction.SKIPPED_NOT_ALLOWLISTED}
+    skipped = {item.model_name for item in plan.items if item.action == SyncAction.SKIPPED_UNREVIEWED}
     assert cleared not in skipped
     assert skipped == set(records) - {cleared}
 

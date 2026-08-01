@@ -8,12 +8,20 @@ bucket or network.
 from __future__ import annotations
 
 import hashlib
+from datetime import UTC, date, datetime
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 import scripts.r2_sync.byte_source as byte_source_module
 from horde_model_reference.download_engine import DownloadOutcome
+from horde_model_reference.licensing import (
+    LicenseAssignment,
+    ModelLicensing,
+    PermissionStatus,
+    unknown_model_licensing,
+)
 from horde_model_reference.meta_consts import (
     MODEL_DOMAIN,
     MODEL_PURPOSE,
@@ -25,11 +33,14 @@ from horde_model_reference.model_reference_records import (
     GenericModelRecord,
     GenericModelRecordConfig,
 )
-from scripts.r2_sync.allowlist import RedistributableAllowlist, RedistributableEntry
+from scripts.r2_sync.allowlist import RedistributableAllowlist, RedistributableEntry, RedistributionDecision
 from scripts.r2_sync.byte_source import LocalThenOriginByteSource
+from scripts.r2_sync.manifest import build_mirror_manifest
 from scripts.r2_sync.object_store import InMemoryObjectStore, object_key_for
 from scripts.r2_sync.planner import (
     SyncAction,
+    SyncItem,
+    SyncPlan,
     build_sync_plan,
     hostable_categories,
 )
@@ -41,10 +52,29 @@ def _sha256(data: bytes) -> str:
 
 def _allow(*names: str) -> RedistributableAllowlist:
     """Build a per-model allowlist clearing each of *names* for redistribution."""
-    return RedistributableAllowlist(entries={name: RedistributableEntry(name=name) for name in names})
+    entries = {
+        (category, name): RedistributableEntry(
+            category=category,
+            name=name,
+            decision=RedistributionDecision.APPROVED,
+            license_expression="MIT",
+            evidence=("test evidence",),
+            reviewed_by="test",
+            reviewed_at=date(2026, 1, 1),
+        )
+        for category in hostable_categories()
+        for name in names
+    }
+    return RedistributableAllowlist(entries=entries)
 
 
-def _record(name: str, category: MODEL_REFERENCE_CATEGORY, downloads: list[DownloadRecord]) -> GenericModelRecord:
+def _record(
+    name: str,
+    category: MODEL_REFERENCE_CATEGORY,
+    downloads: list[DownloadRecord],
+    *,
+    licensing: ModelLicensing | None = None,
+) -> GenericModelRecord:
     descriptor_purpose = (
         MODEL_PURPOSE.miscellaneous
         if category == MODEL_REFERENCE_CATEGORY.miscellaneous
@@ -55,6 +85,7 @@ def _record(name: str, category: MODEL_REFERENCE_CATEGORY, downloads: list[Downl
         record_type=category,
         model_classification=ModelClassification(domain=MODEL_DOMAIN.image, purpose=descriptor_purpose),
         config=GenericModelRecordConfig(download=downloads),
+        licensing=licensing,
     )
 
 
@@ -109,8 +140,125 @@ def test_non_allowlisted_models_are_skipped(tmp_path: Path) -> None:
         apply=True,
     )
 
-    assert [item.action for item in plan.items] == [SyncAction.SKIPPED_NOT_ALLOWLISTED]
+    assert [item.action for item in plan.items] == [SyncAction.SKIPPED_UNREVIEWED]
     assert byte_source.acquired == []
+
+
+def test_explicitly_blocked_model_is_documented_and_never_acquired(tmp_path: Path) -> None:
+    """A blocked policy decision records its reason without touching model bytes."""
+    payload = b"restricted weights"
+    record = _record(
+        "restricted",
+        MODEL_REFERENCE_CATEGORY.esrgan,
+        [DownloadRecord(file_name="r.bin", file_url="https://origin/r", sha256sum=_sha256(payload))],
+    )
+    category = MODEL_REFERENCE_CATEGORY.esrgan
+    policy = RedistributableAllowlist(
+        entries={
+            (category, record.name): RedistributableEntry(
+                category=category,
+                name=record.name,
+                decision=RedistributionDecision.BLOCKED,
+                note="redistribution is not permitted",
+            ),
+        },
+    )
+    byte_source = _DictByteSource({"r.bin": _write(tmp_path, "r.bin", payload)})
+
+    plan = build_sync_plan(
+        {category: {record.name: record}},
+        allowlist=policy,
+        store=InMemoryObjectStore(),
+        byte_source=byte_source,
+        apply=True,
+    )
+
+    assert plan.items[0].action == SyncAction.SKIPPED_BLOCKED
+    assert plan.items[0].detail == "redistribution is not permitted"
+    assert byte_source.acquired == []
+
+
+def test_policy_approval_cannot_override_unknown_canonical_redistribution(tmp_path: Path) -> None:
+    """Verify stale operational approval cannot turn an unaudited model into a hosted artifact."""
+    payload = b"unaudited weights"
+    record = _record(
+        "unaudited",
+        MODEL_REFERENCE_CATEGORY.esrgan,
+        [DownloadRecord(file_name="unknown.bin", file_url="https://origin/unknown", sha256sum=_sha256(payload))],
+        licensing=unknown_model_licensing(),
+    )
+    byte_source = _DictByteSource({"unknown.bin": _write(tmp_path, "unknown.bin", payload)})
+
+    plan = build_sync_plan(
+        {MODEL_REFERENCE_CATEGORY.esrgan: {record.name: record}},
+        allowlist=_allow(record.name),
+        store=InMemoryObjectStore(),
+        byte_source=byte_source,
+        apply=True,
+    )
+
+    assert plan.items[0].action == SyncAction.SKIPPED_BLOCKED
+    assert plan.items[0].license_expression == "NOASSERTION"
+    assert "unknown" in str(plan.items[0].detail)
+    assert byte_source.acquired == []
+
+
+def test_file_override_blocks_only_the_restricted_artifact(tmp_path: Path) -> None:
+    """Verify file-level licensing takes precedence without suppressing a separately cleared file."""
+    allowed_payload = b"allowed weights"
+    restricted_payload = b"restricted weights"
+    licensing = ModelLicensing(
+        license_expression="MIT",
+        license_ids=("MIT",),
+        commercial_use=PermissionStatus.ALLOWED,
+        redistribution=PermissionStatus.ALLOWED_WITH_CONDITIONS,
+        files={
+            "restricted.bin": LicenseAssignment(
+                license_expression="LicenseRef-Restricted",
+                license_ids=("LicenseRef-Restricted",),
+                commercial_use=PermissionStatus.PROHIBITED,
+                redistribution=PermissionStatus.PROHIBITED,
+            ),
+        },
+    )
+    record = _record(
+        "mixed-files",
+        MODEL_REFERENCE_CATEGORY.esrgan,
+        [
+            DownloadRecord(
+                file_name="allowed.bin",
+                file_url="https://origin/allowed",
+                sha256sum=_sha256(allowed_payload),
+            ),
+            DownloadRecord(
+                file_name="restricted.bin",
+                file_url="https://origin/restricted",
+                sha256sum=_sha256(restricted_payload),
+            ),
+        ],
+        licensing=licensing,
+    )
+    byte_source = _DictByteSource(
+        {
+            "allowed.bin": _write(tmp_path, "allowed.bin", allowed_payload),
+            "restricted.bin": _write(tmp_path, "restricted.bin", restricted_payload),
+        },
+    )
+
+    plan = build_sync_plan(
+        {MODEL_REFERENCE_CATEGORY.esrgan: {record.name: record}},
+        allowlist=_allow(record.name),
+        store=InMemoryObjectStore(),
+        byte_source=byte_source,
+        apply=True,
+    )
+
+    actions_by_file = {item.file_name: item.action for item in plan.items}
+    assert actions_by_file == {
+        "allowed.bin": SyncAction.UPLOAD,
+        "restricted.bin": SyncAction.SKIPPED_BLOCKED,
+    }
+    assert byte_source.acquired == ["allowed.bin"]
 
 
 def test_allowlisted_missing_object_is_uploaded_and_present_object_is_skipped(tmp_path: Path) -> None:
@@ -129,7 +277,7 @@ def test_allowlisted_missing_object_is_uploaded_and_present_object_is_skipped(tm
 
     first = build_sync_plan(references, allowlist=allowlist, store=store, byte_source=byte_source, apply=True)
     assert [item.action for item in first.items] == [SyncAction.UPLOAD]
-    assert store.head(object_key_for(sha)) is True
+    assert store.head(object_key_for(sha)) is not None
     assert store.objects[object_key_for(sha)]["model_name"] == "RealESRGAN_x4plus"
 
     second = build_sync_plan(references, allowlist=allowlist, store=store, byte_source=byte_source, apply=True)
@@ -179,7 +327,7 @@ def test_fixme_hash_is_computed_and_backfilled(tmp_path: Path) -> None:
     )
 
     assert [item.action for item in plan.items] == [SyncAction.UPLOAD]
-    assert store.head(object_key_for(sha)) is True
+    assert store.head(object_key_for(sha)) is not None
     assert len(plan.corrections) == 1
     correction = plan.corrections[0]
     assert correction.old_sha256 == "FIXME"
@@ -353,7 +501,7 @@ def test_allowlist_is_per_model_not_per_category(tmp_path: Path) -> None:
 
     by_model = {item.model_name: item.action for item in plan.items}
     assert by_model["Cleared"] == SyncAction.UPLOAD
-    assert by_model["Unreviewed"] == SyncAction.SKIPPED_NOT_ALLOWLISTED
+    assert by_model["Unreviewed"] == SyncAction.SKIPPED_UNREVIEWED
     assert "other.pth" not in byte_source.acquired  # the unreviewed model's bytes are never touched
 
 
@@ -368,9 +516,14 @@ def test_redistribution_provenance_is_stamped_on_uploaded_object(tmp_path: Path)
     )
     allowlist = RedistributableAllowlist(
         entries={
-            "RealESRGAN_x4plus": RedistributableEntry(
+            (MODEL_REFERENCE_CATEGORY.esrgan, "RealESRGAN_x4plus"): RedistributableEntry(
+                category=MODEL_REFERENCE_CATEGORY.esrgan,
                 name="RealESRGAN_x4plus",
-                license="BSD-3-Clause",
+                decision=RedistributionDecision.APPROVED,
+                license_expression="BSD-3-Clause",
+                evidence=("upstream LICENSE",),
+                reviewed_by="test",
+                reviewed_at=date(2026, 1, 1),
                 note="upstream README permits redistribution",
             ),
         },
@@ -387,24 +540,18 @@ def test_redistribution_provenance_is_stamped_on_uploaded_object(tmp_path: Path)
 
     metadata = store.objects[object_key_for(sha)]
     assert metadata["license"] == "BSD-3-Clause"
-    assert metadata["redistribution_note"] == "upstream README permits redistribution"
     assert metadata["source_url"] == "https://origin/x4.pth"
 
 
-def test_allowlist_load_accepts_bare_names_and_objects(tmp_path: Path) -> None:
-    """Verify the allowlist JSON accepts both a bare name string and an object with licence/note provenance."""
+def test_policy_load_rejects_bare_names_and_requires_review_evidence(tmp_path: Path) -> None:
+    """Verify legacy bare-name allowlisting cannot authorize an upload."""
     path = tmp_path / "allow.json"
     path.write_text(
         '{"models": ["Terse", {"name": "Reviewed", "license": "MIT", "note": "ok"}]}',
         encoding="utf-8",
     )
-    allowlist = RedistributableAllowlist.load(path)
-
-    assert allowlist.allows(model_name="Terse")
-    assert allowlist.allows(model_name="Reviewed")
-    assert not allowlist.allows(model_name="Absent")
-    assert allowlist.metadata_for("Terse") == {}
-    assert allowlist.metadata_for("Reviewed") == {"license": "MIT", "redistribution_note": "ok"}
+    with pytest.raises(ValidationError):
+        RedistributableAllowlist.load(path)
 
 
 def test_byte_source_returns_none_without_local_or_cache() -> None:
@@ -417,3 +564,47 @@ def test_byte_source_returns_none_without_local_or_cache() -> None:
     source = LocalThenOriginByteSource(weights_root=Path("/nonexistent-root"), cache_dir=None)
 
     assert source.acquire(record, record.config.download[0]) is None
+
+
+def test_policy_identity_includes_category() -> None:
+    """An approval for a same-named model in one category must not authorize another category."""
+    policy = _allow("same-name")
+    esrgan_entry = policy.entries[(MODEL_REFERENCE_CATEGORY.esrgan, "same-name")]
+    narrowed = RedistributableAllowlist(
+        entries={(MODEL_REFERENCE_CATEGORY.esrgan, "same-name"): esrgan_entry},
+    )
+
+    assert narrowed.allows(
+        category=MODEL_REFERENCE_CATEGORY.esrgan,
+        model_name="same-name",
+        file_name="weights.bin",
+    )
+    assert not narrowed.allows(
+        category=MODEL_REFERENCE_CATEGORY.gfpgan,
+        model_name="same-name",
+        file_name="weights.bin",
+    )
+
+
+def test_manifest_deduplicates_hash_and_preserves_references() -> None:
+    """The published inventory stores one object per hash while retaining every model reference."""
+    sha256 = _sha256(b"shared")
+    plan = SyncPlan(
+        items=[
+            SyncItem(
+                category="esrgan",
+                model_name=model_name,
+                file_name=f"{model_name}.bin",
+                action=SyncAction.ALREADY_PRESENT,
+                sha256=sha256,
+                size_bytes=6,
+                license_expression="MIT",
+            )
+            for model_name in ("one", "two")
+        ],
+    )
+
+    manifest = build_mirror_manifest(plan, generated_at=datetime(2026, 1, 1, tzinfo=UTC))
+
+    assert list(manifest.objects) == [sha256]
+    assert {reference.model_name for reference in manifest.objects[sha256].references} == {"one", "two"}

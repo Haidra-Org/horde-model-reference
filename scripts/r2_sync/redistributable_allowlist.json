@@ -33,7 +33,17 @@
     "4x_AnimeSharp",
     "4x_NMKD_Superscale_SP",
 
+    {"name": "4xNomos8kSC", "license": "CC-BY-4.0", "note": "Phhofm; attribution required"},
+    {"name": "4xLSDIRplus", "license": "CC-BY-4.0", "note": "Phhofm; attribution required"},
+    {"name": "4xNomosWebPhoto_RealPLKSR", "license": "CC-BY-4.0", "note": "Phhofm; attribution required"},
+    {"name": "4xNomos2_realplksr_dysample", "license": "CC-BY-4.0", "note": "Phhofm; attribution required"},
+    {"name": "4xNomos2_hq_dat2", "license": "CC-BY-4.0", "note": "Phhofm; attribution required"},
+    {"name": "2xModernSpanimationV1", "license": "MIT", "note": "TNTwise"},
+
     "GFPGAN",
+
+    {"name": "GFPGANv1.3", "license": "Apache-2.0", "note": "TencentARC; gfpgan category"},
+    {"name": "RestoreFormer", "license": "Apache-2.0", "note": "wzhouxiff; gfpgan category, spandrel-loaded"},
 
     "CodeFormers",
 
@@ -46,6 +56,11 @@
     "annotator_depth",
     "annotator_openpose",
     "annotator_seg",
-    "annotator_mlsd"
+    "annotator_mlsd",
+    {"name": "annotator_lineart", "license": "MIT", "note": "Informative Drawings (carolineec); via lllyasviel/Annotators"},
+    {"name": "annotator_lineart_anime", "license": "MIT", "note": "Anime2Sketch (Mukosame); via lllyasviel/Annotators"},
+    {"name": "annotator_lineart_anime_denoise", "license": "MIT", "note": "MangaLineExtraction (ljsabc); via lllyasviel/Annotators"},
+    {"name": "annotator_pidinet", "license": "Research-only upstream, no explicit SPDX", "note": "PiDiNet (hellozhuo); via lllyasviel/Annotators, same provenance class as the classic annotator set"},
+    {"name": "annotator_normal_bae", "license": "MIT", "note": "surface_normal_uncertainty (baegwangbin); via lllyasviel/Annotators"}
   ]
 }

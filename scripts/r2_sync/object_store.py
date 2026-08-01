@@ -11,6 +11,7 @@ Cloudflare Worker gateway, and the download engine all derive the same key from 
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
@@ -21,10 +22,21 @@ if TYPE_CHECKING:
 
 __all__ = [
     "InMemoryObjectStore",
+    "ObjectInfo",
     "ObjectStore",
     "R2ObjectStore",
     "object_key_for",
 ]
+
+
+@dataclass(frozen=True)
+class ObjectInfo:
+    """Represent the bucket metadata needed to reconcile a content-addressed object."""
+
+    size_bytes: int
+    """Stored object size in bytes."""
+    metadata: dict[str, str]
+    """Custom metadata stored with the object."""
 
 
 def object_key_for(sha256: str) -> str:
@@ -39,11 +51,18 @@ def object_key_for(sha256: str) -> str:
 class ObjectStore(Protocol):
     """The minimal bucket surface the sync tool needs: existence checks and content-addressed uploads."""
 
-    def head(self, key: str) -> bool:
-        """Return whether an object already exists at *key*."""
+    def head(self, key: str) -> ObjectInfo | None:
+        """Return metadata for *key*, or ``None`` when it does not exist."""
         ...
 
-    def put(self, key: str, source_path: Path, *, metadata: dict[str, str]) -> None:
+    def put(
+        self,
+        key: str,
+        source_path: Path,
+        *,
+        metadata: dict[str, str],
+        content_type: str = "application/octet-stream",
+    ) -> None:
         """Upload the bytes at *source_path* to *key*, attaching *metadata* (provenance/license) to the object."""
         ...
 
@@ -53,17 +72,30 @@ class InMemoryObjectStore:
 
     def __init__(self, *, present: set[str] | None = None) -> None:
         """Start with an optional set of keys treated as already *present* in the bucket."""
-        self.objects: dict[str, dict[str, str]] = {key: {} for key in (present or set())}
-        self.sizes: dict[str, int] = {}
+        self.objects: dict[str, dict[str, str]] = {
+            key: {"sha256": key.rsplit("/", maxsplit=1)[-1]} for key in (present or set())
+        }
+        self.sizes: dict[str, int] = dict.fromkeys(present or set(), 0)
+        self.content_types: dict[str, str] = {}
 
-    def head(self, key: str) -> bool:
-        """Return whether *key* has been put (or was pre-seeded as present)."""
-        return key in self.objects
+    def head(self, key: str) -> ObjectInfo | None:
+        """Return metadata for a key that has been put or pre-seeded."""
+        if key not in self.objects:
+            return None
+        return ObjectInfo(size_bytes=self.sizes[key], metadata=dict(self.objects[key]))
 
-    def put(self, key: str, source_path: Path, *, metadata: dict[str, str]) -> None:
+    def put(
+        self,
+        key: str,
+        source_path: Path,
+        *,
+        metadata: dict[str, str],
+        content_type: str = "application/octet-stream",
+    ) -> None:
         """Record *key* with its byte size and *metadata*, as a real upload would."""
         self.objects[key] = dict(metadata)
         self.sizes[key] = source_path.stat().st_size
+        self.content_types[key] = content_type
 
 
 class R2ObjectStore:
@@ -98,23 +130,39 @@ class R2ObjectStore:
             region_name=settings.upload_region,
         )
 
-    def head(self, key: str) -> bool:
-        """Return whether *key* exists in the bucket (a 404 from ``head_object`` means absent)."""
+    def head(self, key: str) -> ObjectInfo | None:
+        """Return metadata for *key* (a 404 from ``head_object`` means absent)."""
         from botocore.exceptions import ClientError
 
         try:
-            self._client.head_object(Bucket=self._bucket, Key=key)
+            response = self._client.head_object(Bucket=self._bucket, Key=key)
         except ClientError as exc:
             if exc.response.get("Error", {}).get("Code") in {"404", "NoSuchKey", "NotFound"}:
-                return False
+                return None
             raise
-        return True
+        return ObjectInfo(
+            size_bytes=int(response["ContentLength"]),
+            metadata={
+                str(metadata_key): str(metadata_value)
+                for metadata_key, metadata_value in response.get("Metadata", {}).items()
+            },
+        )
 
-    def put(self, key: str, source_path: Path, *, metadata: dict[str, str]) -> None:
+    def put(
+        self,
+        key: str,
+        source_path: Path,
+        *,
+        metadata: dict[str, str],
+        content_type: str = "application/octet-stream",
+    ) -> None:
         """Upload *source_path* to *key* with object *metadata* (object metadata values must be strings)."""
         self._client.upload_file(
             str(source_path),
             self._bucket,
             key,
-            ExtraArgs={"Metadata": {k: str(v) for k, v in metadata.items()}},
+            ExtraArgs={
+                "ContentType": content_type,
+                "Metadata": {metadata_key: str(metadata_value) for metadata_key, metadata_value in metadata.items()},
+            },
         )
