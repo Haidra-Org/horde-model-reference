@@ -1,12 +1,15 @@
+from collections.abc import Generator, Iterator
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
+from loguru import logger
 
 from horde_model_reference import ReplicateMode
 from horde_model_reference.backends.replica_backend_base import ReplicaBackendBase
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.util import reset_throttled_log_state
 
 
 class _ReplicaBackendProbe(ReplicaBackendBase):
@@ -199,3 +202,132 @@ def test_fetch_with_cache_helper(monkeypatch: pytest.MonkeyPatch) -> None:
     result = probe._fetch_with_cache(category, mock_fetch, force_refresh=False)
     assert result == {"data": "fetch_3"}
     assert fetch_count == 3
+
+
+@pytest.fixture
+def captured_log_levels() -> Generator[list[tuple[str, str]], None, None]:
+    """Capture (level name, message) pairs from loguru down to TRACE."""
+    records: list[tuple[str, str]] = []
+
+    sink_id = logger.add(
+        lambda message: records.append((message.record["level"].name, message.record["message"])),
+        level="TRACE",
+        format="{message}",
+    )
+    reset_throttled_log_state()
+    try:
+        yield records
+    finally:
+        logger.remove(sink_id)
+        reset_throttled_log_state()
+
+
+@pytest.fixture
+def throttle_clock(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[float]]:
+    """Drive the throttle helper from a controllable monotonic clock."""
+    clock = [1_000.0]
+
+    monkeypatch.setattr("horde_model_reference.util.time.monotonic", lambda: clock[0])
+    yield clock
+
+
+def _levels_for(records: list[tuple[str, str]], needle: str) -> list[str]:
+    return [level for level, message in records if needle in message]
+
+
+def test_cache_store_logging_is_time_boxed(
+    captured_log_levels: list[tuple[str, str]],
+    throttle_clock: list[float],
+) -> None:
+    """Repeated stores of the same category demote their DEBUG lines to TRACE."""
+    probe = _ReplicaBackendProbe(cache_ttl_seconds=None)
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+
+    probe._store_in_cache(category, {"test": "data"})
+    probe._store_in_cache(category, {"test": "data"})
+    probe._store_in_cache(category, {"test": "data"})
+
+    throttle_clock[0] += 30.0
+    probe._store_in_cache(category, {"test": "data"})
+
+    assert _levels_for(captured_log_levels, "Stored image_generation in cache") == [
+        "DEBUG",
+        "TRACE",
+        "TRACE",
+        "DEBUG",
+    ]
+    assert _levels_for(captured_log_levels, "Marked category image_generation as fresh") == [
+        "DEBUG",
+        "TRACE",
+        "TRACE",
+        "DEBUG",
+    ]
+
+
+def test_cache_store_logging_is_throttled_per_category(
+    captured_log_levels: list[tuple[str, str]],
+    throttle_clock: list[float],
+) -> None:
+    """One category's traffic does not suppress another category's first line."""
+    probe = _ReplicaBackendProbe(cache_ttl_seconds=None)
+
+    probe._store_in_cache(MODEL_REFERENCE_CATEGORY.image_generation, {"test": "data"})
+    probe._store_in_cache(MODEL_REFERENCE_CATEGORY.image_generation, {"test": "data"})
+    probe._store_in_cache(MODEL_REFERENCE_CATEGORY.clip, {"test": "data"})
+
+    assert _levels_for(captured_log_levels, "Stored image_generation in cache") == ["DEBUG", "TRACE"]
+    assert _levels_for(captured_log_levels, "Stored clip in cache") == ["DEBUG"]
+
+
+def test_cache_lookup_logging_is_time_boxed(
+    captured_log_levels: list[tuple[str, str]],
+    throttle_clock: list[float],
+) -> None:
+    """Cache hits and misses each get their own time box and are never dropped."""
+    probe = _ReplicaBackendProbe(cache_ttl_seconds=None)
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+
+    probe._get_from_cache(category)
+    probe._get_from_cache(category)
+
+    probe._store_in_cache(category, {"test": "data"})
+    captured_log_levels.clear()
+
+    probe._get_from_cache(category)
+    probe._get_from_cache(category)
+    throttle_clock[0] += 30.0
+    probe._get_from_cache(category)
+
+    assert _levels_for(captured_log_levels, "Cache hit for image_generation") == ["DEBUG", "TRACE", "DEBUG"]
+
+
+def test_cache_miss_logging_is_time_boxed(
+    captured_log_levels: list[tuple[str, str]],
+    throttle_clock: list[float],
+) -> None:
+    """Successive misses on the same category collapse to one DEBUG per interval."""
+    probe = _ReplicaBackendProbe(cache_ttl_seconds=None)
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+
+    probe._get_from_cache(category)
+    probe._get_from_cache(category)
+    throttle_clock[0] += 30.0
+    probe._get_from_cache(category)
+
+    assert _levels_for(captured_log_levels, "Cache miss for image_generation") == ["DEBUG", "TRACE", "DEBUG"]
+
+
+def test_store_of_none_logging_is_time_boxed(
+    captured_log_levels: list[tuple[str, str]],
+    throttle_clock: list[float],
+) -> None:
+    """The negative-store branch is bounded on the same per-category schedule."""
+    probe = _ReplicaBackendProbe(cache_ttl_seconds=None)
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+
+    probe._store_in_cache(category, None)
+    probe._store_in_cache(category, None)
+    throttle_clock[0] += 30.0
+    probe._store_in_cache(category, None)
+
+    assert _levels_for(captured_log_levels, "Stored None for image_generation") == ["DEBUG", "TRACE", "DEBUG"]

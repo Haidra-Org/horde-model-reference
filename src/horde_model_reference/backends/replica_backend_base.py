@@ -19,6 +19,7 @@ from loguru import logger
 from horde_model_reference import ReplicateMode
 from horde_model_reference.backends.base import ModelReferenceBackend
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.util import THROTTLED_LOG_INTERVAL_SECONDS, throttled_log_level
 
 
 class ReplicaBackendBase(ModelReferenceBackend):
@@ -162,7 +163,12 @@ class ReplicaBackendBase(ModelReferenceBackend):
             except Exception:
                 self._last_known_mtimes[category] = 0.0
 
-        logger.debug(f"Marked category {category} as fresh")
+        # Cache bookkeeping runs on every model reference read, so the per-category line is
+        # time boxed at DEBUG and demoted to TRACE in between to keep it out of routine logs.
+        logger.log(
+            throttled_log_level(f"replica_cache.mark_fresh.{category}", THROTTLED_LOG_INTERVAL_SECONDS),
+            f"Marked category {category} as fresh",
+        )
 
     def _invalidate_category_timestamp(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         """Drop timestamp knowledge for *category* without adjusting payloads."""
@@ -450,12 +456,20 @@ class ReplicaBackendBase(ModelReferenceBackend):
                                    or cache invalid (refresh needed).
 
         """
+        # Hits and misses carry separate time boxes so a steady stream of hits cannot hide the
+        # first miss for a category.
         with self._lock:
             if self.is_cache_valid(category):
-                logger.debug(f"Cache hit for {category}")
+                logger.log(
+                    throttled_log_level(f"replica_cache.hit.{category}", THROTTLED_LOG_INTERVAL_SECONDS),
+                    f"Cache hit for {category}",
+                )
                 return self._cache.get(category)
 
-            logger.debug(f"Cache miss for {category}")
+            logger.log(
+                throttled_log_level(f"replica_cache.miss.{category}", THROTTLED_LOG_INTERVAL_SECONDS),
+                f"Cache miss for {category}",
+            )
             return None
 
     def _store_in_cache(self, category: MODEL_REFERENCE_CATEGORY, data: dict[str, Any] | None) -> None:
@@ -475,9 +489,15 @@ class ReplicaBackendBase(ModelReferenceBackend):
             # None values indicate failed loads and should not prevent retries
             if data is not None:
                 self._mark_category_fresh(category)
-                logger.debug(f"Stored {category} in cache")
+                logger.log(
+                    throttled_log_level(f"replica_cache.store.{category}", THROTTLED_LOG_INTERVAL_SECONDS),
+                    f"Stored {category} in cache",
+                )
             else:
-                logger.debug(f"Stored None for {category}, not marking as fresh")
+                logger.log(
+                    throttled_log_level(f"replica_cache.store_none.{category}", THROTTLED_LOG_INTERVAL_SECONDS),
+                    f"Stored None for {category}, not marking as fresh",
+                )
 
     def _invalidate_cache(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         """Invalidate cache for a category without deleting the data.

@@ -329,6 +329,15 @@ the backend already checked the source but no data exists yet, prompting `should
 returning `True` so future calls keep retrying. Use this when a missing file or empty dataset should trigger
 retries without manual stale markers.
 
+### Log Volume of the Cache Helpers
+
+`_get_from_cache()`, `_store_in_cache()` and `_mark_category_fresh()` run on every model reference read, so a
+long-lived client emits thousands of otherwise identical lines per session. Their messages are time boxed with
+`horde_model_reference.util.throttled_log_level()`: the first emission for a given category (and, for lookups,
+for hit versus miss separately) is logged at `DEBUG`, and repeats within
+`util.THROTTLED_LOG_INTERVAL_SECONDS` are logged at `TRACE` instead. No emission is dropped, so enabling a
+`TRACE` sink restores the full per-call stream.
+
 ### `_fetch_with_cache(category, fetch_fn, *, force_refresh=False)` **Fetch Helper**
 
 Use `_fetch_with_cache()` when your backend follows the simple pattern of "return cache unless force refresh,
