@@ -19,8 +19,9 @@ The legacy CSV file (`models.csv`) has the following columns:
 name,parameters_bn,display_name,url,baseline,description,style,tags,instruct_format,settings,context_window,interaction_modes,capabilities
 ```
 
-The written column order is `TEXT_CSV_FIELDNAMES` in `legacy/text_csv_utils.py`, mirrored by the sync
-serializer in `sync/text_generation_serializer.py`.
+The written column order is `TEXT_CSV_FIELDNAMES` in `legacy/text_csv_utils.py`. The sync serializer in
+`sync/text_generation_serializer.py` writes only the first ten columns by default (see
+[Durable Metadata Columns](#durable-metadata-columns)).
 
 ### Column Details
 
@@ -58,8 +59,11 @@ These columns are strict. A cell that is neither empty, valid JSON, nor a JSON *
 `TextCSVIssue` and the whole row is skipped, so a malformed value never yields a half-populated record. This is
 narrower than `settings`, where a parse failure stops conversion outright.
 
-All three are on the `_PRIMARY_AUTHORITATIVE_FIELDS` list in the sync serializer, so a PRIMARY value overwrites
-whatever the GitHub CSV holds.
+These columns are PRIMARY-local. The GitHub sync serializer withholds them by default because the upstream
+`models.csv` schema and its `convert.py` do not define them; set `HORDE_GITHUB_SYNC_EXPORT_TEXT_METADATA_COLUMNS`
+to include them once upstream accepts the wider schema. With that flag on they join
+`_PRIMARY_AUTHORITATIVE_FIELDS` in the sync serializer, so a PRIMARY value overwrites whatever the GitHub CSV
+holds.
 
 Guidance profile assignments are not CSV columns. `instruct_format` remains the only prompting hint in the
 legacy round trip; authored guidance lives in its own catalog

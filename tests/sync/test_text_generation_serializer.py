@@ -19,9 +19,12 @@ import pytest
 
 from horde_model_reference.sync.text_generation_serializer import (
     TEXT_CSV_FIELDNAMES,
+    TEXT_METADATA_CSV_FIELDNAMES,
+    UPSTREAM_TEXT_CSV_FIELDNAMES,
     TextGenerationSerializer,
     _format_parameters_bn,
 )
+from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 
 # ---------------------------------------------------------------------------
 # Reference implementation: a standalone transliteration of convert.py logic.
@@ -520,8 +523,8 @@ class TestReverseConversion:
         }
         row = serializer._record_to_csv_row(name="org/model", record=record)
         csv_keys = set(row.keys())
-        assert csv_keys == set(TEXT_CSV_FIELDNAMES), (
-            f"CSV row should only contain CSV fields, got extra: {csv_keys - set(TEXT_CSV_FIELDNAMES)}"
+        assert csv_keys == set(serializer.fieldnames), (
+            f"CSV row should only contain CSV fields, got extra: {csv_keys - set(serializer.fieldnames)}"
         )
 
     def test_settings_serialized_to_json_string(self, serializer: TextGenerationSerializer) -> None:
@@ -1243,6 +1246,83 @@ class TestFormatParametersBn:
 
 
 # ---------------------------------------------------------------------------
+class TestTextMetadataColumnGating:
+    """The durable text metadata columns stay out of sync artifacts by default."""
+
+    @staticmethod
+    def _record_with_context_window() -> dict[str, Any]:
+        return {
+            "parameters": 7_000_000_000,
+            "url": "https://example.invalid/model",
+            "context_window": {"maximum_tokens": 8192},
+        }
+
+    def test_default_header_matches_upstream_columns(self, serializer: TextGenerationSerializer) -> None:
+        """A default serializer writes exactly the ten upstream columns."""
+        assert serializer.fieldnames == UPSTREAM_TEXT_CSV_FIELDNAMES
+
+        csv_content = serializer._render_csv([])
+        assert csv_content.splitlines()[0] == ",".join(UPSTREAM_TEXT_CSV_FIELDNAMES)
+
+    def test_flag_enables_metadata_columns(self) -> None:
+        """With the flag on, the metadata columns are appended to the header."""
+        serializer = TextGenerationSerializer(include_text_metadata_columns=True)
+        assert serializer.fieldnames == TEXT_CSV_FIELDNAMES
+        assert len(serializer.fieldnames) == 13
+
+        csv_content = serializer._render_csv([])
+        assert csv_content.splitlines()[0] == ",".join(TEXT_CSV_FIELDNAMES)
+
+    def test_context_window_not_emitted_by_default(self, serializer: TextGenerationSerializer) -> None:
+        """A populated context_window is dropped from both CSV and db.json by default."""
+        artifacts = serializer.serialize(
+            primary_base_records={"org/model": self._record_with_context_window()},
+        )
+
+        assert "context_window" not in artifacts.csv_content
+        assert "context_window" not in artifacts.json_content
+
+        row = serializer._record_to_csv_row(name="org/model", record=self._record_with_context_window())
+        assert not set(row) & set(TEXT_METADATA_CSV_FIELDNAMES)
+
+    def test_context_window_emitted_with_flag(self) -> None:
+        """With the flag on, context_window survives into CSV and db.json."""
+        serializer = TextGenerationSerializer(include_text_metadata_columns=True)
+        artifacts = serializer.serialize(
+            primary_base_records={"org/model": self._record_with_context_window()},
+        )
+
+        assert "context_window" in artifacts.csv_content
+        db_dict = json.loads(artifacts.json_content)
+        assert db_dict["org/model"]["context_window"] == {"maximum_tokens": 8192}
+
+    def test_existing_upstream_csv_merges_cleanly(
+        self,
+        serializer: TextGenerationSerializer,
+        tmp_path: Path,
+    ) -> None:
+        """An existing ten-column CSV merges without introducing the metadata columns."""
+        existing_csv = tmp_path / "models.csv"
+        existing_csv.write_text(
+            ",".join(UPSTREAM_TEXT_CSV_FIELDNAMES) + "\n" + "org/model,7,,https://example.invalid/model,,,,,ChatML,\n",
+            encoding="utf-8",
+        )
+
+        artifacts = serializer.serialize(
+            primary_base_records={"org/model": self._record_with_context_window()},
+            existing_csv_path=existing_csv,
+        )
+
+        header, *body = artifacts.csv_content.splitlines()
+        assert header == ",".join(UPSTREAM_TEXT_CSV_FIELDNAMES)
+        assert len(body) == 1
+        db_dict = json.loads(artifacts.json_content)
+        # instruct_format is CSV-only metadata and must survive a merge that PRIMARY cannot supply.
+        assert db_dict["org/model"]["instruct_format"] == "ChatML"
+        assert "context_window" not in db_dict["org/model"]
+
+
+# ---------------------------------------------------------------------------
 # Cross-validation with upstream repo data (optional, skipped if not available)
 # ---------------------------------------------------------------------------
 
@@ -1289,3 +1369,60 @@ class TestUpstreamCrossValidation:
             "Forward conversion of upstream models.csv does not match upstream db.json. "
             "This means our convert.py replication has a bug."
         )
+
+    def test_seeded_primary_roundtrip_reproduces_upstream_files(self, tmp_path: Path) -> None:
+        """A PRIMARY freshly seeded from GitHub must serialize back to the upstream db.json byte-for-byte.
+
+        This is the guarantee that a sync run over an unchanged PRIMARY publishes no content change.
+        The CSV is checked for schema conformance rather than byte equality: the serializer canonicalizes
+        tag order and whitespace, drops a display_name that the forward conversion regenerates, and writes
+        LF terminators, so a handful of upstream rows differ in form while producing the same db.json.
+        """
+        from horde_model_reference import horde_model_reference_settings
+
+        remote_repo_db_file = horde_model_reference_settings.text_github_repo.compose_full_file_url("db.json")
+        remote_repo_csv_file = horde_model_reference_settings.text_github_repo.compose_full_file_url("models.csv")
+
+        import requests
+
+        try:
+            response_db = requests.get(remote_repo_db_file)
+            response_csv = requests.get(remote_repo_csv_file)
+            response_db.raise_for_status()
+            response_csv.raise_for_status()
+        except Exception as e:
+            pytest.skip(f"Upstream repo not accessible: {e}")
+
+        upstream_json = response_db.text
+        upstream_csv = response_csv.text
+
+        upstream_db: dict[str, Any] = json.loads(upstream_json)
+        primary_base_records = {
+            name: record for name, record in upstream_db.items() if not has_legacy_text_backend_prefix(name)
+        }
+
+        existing_csv_path = tmp_path / "models.csv"
+        existing_csv_path.write_text(upstream_csv, encoding="utf-8")
+
+        serializer = TextGenerationSerializer()
+        artifacts = serializer.serialize(
+            primary_base_records=primary_base_records,
+            existing_csv_path=existing_csv_path,
+        )
+
+        assert artifacts.json_content == upstream_json, (
+            "Serializing a freshly seeded PRIMARY changed db.json, which would open a spurious PR."
+        )
+
+        our_header = artifacts.csv_content.splitlines()[0]
+        assert our_header == ",".join(UPSTREAM_TEXT_CSV_FIELDNAMES), (
+            f"Synced models.csv header must match the upstream schema, got: {our_header}"
+        )
+        upstream_header = upstream_csv.splitlines()[0]
+        assert our_header == upstream_header, (
+            f"Upstream models.csv header changed to {upstream_header!r}; the sync schema needs updating."
+        )
+
+        our_names = [row["name"] for row in csv.DictReader(io.StringIO(artifacts.csv_content))]
+        upstream_names = [row["name"] for row in csv.DictReader(io.StringIO(upstream_csv))]
+        assert our_names == upstream_names, "Synced models.csv must neither add, drop, nor reorder rows."

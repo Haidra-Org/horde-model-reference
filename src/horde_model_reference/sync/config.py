@@ -160,6 +160,12 @@ and a diff, so the exact change set can be previewed offline. Pairs well with ou
     """If set (with no_pr), write the rendered category file(s) and a unified ``changes.diff``
 to this directory for offline inspection. No effect unless no_pr is enabled."""
 
+    export_text_metadata_columns: bool = False
+    """If True, include the durable text metadata columns (context_window, interaction_modes, \
+capabilities) in the synced models.csv and db.json. The upstream models.csv schema and its convert.py \
+do not carry these columns, so they are withheld from sync artifacts until the upstream schema is \
+extended to accept them."""
+
     verbose_logging: bool = False
     """Enable detailed logging for sync operations."""
 

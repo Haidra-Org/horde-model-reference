@@ -42,6 +42,7 @@ The sync pipeline has four stages: **detect** changes via metadata polling, **co
 | `watch_mode`             | Enable continuous monitoring                       |
 | `watch_interval_seconds` | Polling interval (default: 60s)                    |
 | `target_clone_dir`       | Persistent clone directory for reuse across runs   |
+| `export_text_metadata_columns` | Include the durable text metadata columns in synced text files (default: off) |
 
 ## Authentication
 
@@ -96,4 +97,5 @@ The `text_generation` category requires extra transformation during sync:
 
 - **Filename**: GitHub uses `db.json` rather than `text_generation.json`
 - **Validation**: `LegacyTextValidator` checks field requirements for the legacy format
+- **Column set**: `models.csv` is written with the ten upstream columns. The durable metadata columns (`context_window`, `interaction_modes`, `capabilities`) are PRIMARY-local and stay out of the synced files unless `export_text_metadata_columns` is enabled, since upstream's `convert.py` does not read them
 - **Backend prefixes**: Each base model is tripled into `{name}`, `aphrodite/{name}`, and `koboldcpp/{model_name}` entries to maintain backward compatibility with workers that look up models by backend-prefixed name

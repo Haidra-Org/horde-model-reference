@@ -34,7 +34,7 @@ from horde_model_reference.text_model_write_processor import (
 # This order determines the key insertion order in parsed row dicts,
 # which in turn controls the field order in db.json records for
 # keys not present in defaults.json.
-TEXT_CSV_FIELDNAMES: list[str] = [
+UPSTREAM_TEXT_CSV_FIELDNAMES: list[str] = [
     "name",
     "parameters_bn",
     "display_name",
@@ -45,10 +45,17 @@ TEXT_CSV_FIELDNAMES: list[str] = [
     "tags",
     "instruct_format",
     "settings",
+]
+
+# Durable text metadata columns. These exist in the PRIMARY-local CSV storage but not in
+# the upstream models.csv schema, so they are only written when explicitly enabled.
+TEXT_METADATA_CSV_FIELDNAMES: list[str] = [
     "context_window",
     "interaction_modes",
     "capabilities",
 ]
+
+TEXT_CSV_FIELDNAMES: list[str] = [*UPSTREAM_TEXT_CSV_FIELDNAMES, *TEXT_METADATA_CSV_FIELDNAMES]
 
 LegacyRecordDict = dict[str, Any]
 
@@ -67,9 +74,6 @@ _PRIMARY_AUTHORITATIVE_FIELDS: frozenset[str] = frozenset(
         "style",
         "tags",
         "settings",
-        "context_window",
-        "interaction_modes",
-        "capabilities",
     }
 )
 
@@ -101,10 +105,37 @@ class TextGenerationSerializer:
     4. Forward-convert merged CSV rows to db.json (replicating convert.py)
     """
 
-    def __init__(self) -> None:
-        """Initialize with bundled defaults and generation params."""
+    def __init__(self, *, include_text_metadata_columns: bool = False) -> None:
+        """Initialize with bundled defaults and generation params.
+
+        Args:
+            include_text_metadata_columns: Whether to carry ``context_window``,
+                ``interaction_modes``, and ``capabilities`` into the synced CSV and
+                db.json. The upstream schema does not define these columns, so they
+                are withheld unless the upstream repository has been extended.
+
+        """
         self._defaults = _get_defaults()
         self._generation_params = _get_generation_params()
+        self._include_text_metadata_columns = include_text_metadata_columns
+        self._fieldnames: list[str] = list(
+            TEXT_CSV_FIELDNAMES if include_text_metadata_columns else UPSTREAM_TEXT_CSV_FIELDNAMES
+        )
+        self._primary_authoritative_fields: frozenset[str] = (
+            _PRIMARY_AUTHORITATIVE_FIELDS | frozenset(TEXT_METADATA_CSV_FIELDNAMES)
+            if include_text_metadata_columns
+            else _PRIMARY_AUTHORITATIVE_FIELDS
+        )
+
+    @property
+    def fieldnames(self) -> list[str]:
+        """The CSV column names this serializer writes, in order.
+
+        Returns:
+            A copy of the ordered column list.
+
+        """
+        return list(self._fieldnames)
 
     def serialize(
         self,
@@ -253,9 +284,10 @@ class TextGenerationSerializer:
         else:
             row["settings"] = ""
 
-        for field_name in ("context_window", "interaction_modes", "capabilities"):
-            field_value = record.get(field_name)
-            row[field_name] = json.dumps(field_value) if isinstance(field_value, dict) and field_value else ""
+        if self._include_text_metadata_columns:
+            for field_name in TEXT_METADATA_CSV_FIELDNAMES:
+                field_value = record.get(field_name)
+                row[field_name] = json.dumps(field_value) if isinstance(field_value, dict) and field_value else ""
 
         return row
 
@@ -333,8 +365,8 @@ class TextGenerationSerializer:
 
         return result
 
-    @staticmethod
     def _merge_row_fields(
+        self,
         existing_row: dict[str, str],
         primary_row: dict[str, str],
     ) -> dict[str, str]:
@@ -354,7 +386,7 @@ class TextGenerationSerializer:
         """
         merged = dict(existing_row)
         for key, value in primary_row.items():
-            if value or key in _PRIMARY_AUTHORITATIVE_FIELDS:
+            if value or key in self._primary_authoritative_fields:
                 merged[key] = value
         return merged
 
@@ -400,8 +432,13 @@ class TextGenerationSerializer:
             row["tags"] = sorted(tags)
 
             row["settings"] = json.loads(row["settings"]) if row["settings"] else {}
-            for field_name in ("context_window", "interaction_modes", "capabilities"):
-                row[field_name] = json.loads(row[field_name]) if row.get(field_name) else None
+            for field_name in TEXT_METADATA_CSV_FIELDNAMES:
+                if self._include_text_metadata_columns:
+                    row[field_name] = json.loads(row[field_name]) if row.get(field_name) else None
+                else:
+                    # A previously written CSV may still carry these columns; drop them so
+                    # the emitted db.json stays within the upstream schema.
+                    row.pop(field_name, None)
 
             if not row.get("display_name"):
                 row["display_name"] = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()
@@ -426,7 +463,7 @@ class TextGenerationSerializer:
         output = io.StringIO()
         writer = csv.DictWriter(
             output,
-            fieldnames=TEXT_CSV_FIELDNAMES,
+            fieldnames=self._fieldnames,
             extrasaction="ignore",
         )
         writer.writeheader()

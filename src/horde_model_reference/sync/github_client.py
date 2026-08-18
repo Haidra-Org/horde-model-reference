@@ -766,7 +766,9 @@ class GitHubSyncClient:
 
             logger.debug(f"Serializing {len(base_records)} base text generation records via CSV pipeline")
 
-            serializer = TextGenerationSerializer()
+            serializer = TextGenerationSerializer(
+                include_text_metadata_columns=self.settings.export_text_metadata_columns,
+            )
             existing_csv_path = self._temp_dir / "models.csv"
             artifacts = serializer.serialize(
                 primary_base_records=base_records,
