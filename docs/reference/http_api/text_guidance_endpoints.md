@@ -71,11 +71,12 @@ managers hydrate from and the input the `generate-guidance-reference` CLI accept
 
 ## Authenticated operations
 
-Both routes require an `apikey` header belonging to a user on the pending-queue requestor allowlist.
+Both routes require an `apikey` header belonging to a user on the pending-queue requestor allowlist and answer
+`503` on a REPLICA, where there is no queue to submit to.
 
 | Method and path | Auth | Success | Description |
 | --- | --- | --- | --- |
-| `POST /migration/preview` | requestor | `200` | Build a draft change set from legacy `instruct_format` labels. |
+| `POST /migration/preview` | requestor, PRIMARY | `200` | Build a draft change set from legacy `instruct_format` labels. |
 | `POST /change-sets` | requestor, PRIMARY | `202` | Validate and enqueue a guidance change set. |
 
 Shared auth failures: `401` when the header is missing or the key is invalid (or no requestor allowlist is
@@ -142,12 +143,14 @@ Errors:
 - `422` when the body fails `TextGuidanceChangeSet` validation (including an empty change set), or when
   `recommended_settings` or an `ai_horde_examples[].parameters` entry uses a key that is not a valid text
   generation setting. The message lists the offending keys.
+- `409` when an `expected_before` value no longer matches the live catalog (the profile or assignment
+  changed after the proposal was reviewed).
+- `422` when the dry run against the live catalog fails for any other reason: unknown or non-canonical
+  models, missing or deprecated profiles, duplicate aliases, or a create for an existing profile. The
+  message is the store's description of the problem.
 - `503` when the deployment is not PRIMARY, or when the pending queue service is not configured.
 
-The change set is also dry-run against the live catalog before enqueueing, so proposals referencing unknown
-models, missing profiles, deprecated profiles, duplicate aliases, or stale `expected_before` values never
-reach an approver. The store raises `ValueError` or `GuidanceConflictError` for these, and the router does not
-translate them, so they currently surface as `500` with the store's message rather than a `4xx`.
+The dry run means proposals with these defects never reach an approver.
 
 ## Applying a guidance change set
 

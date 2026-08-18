@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import RLock
-from typing import Any, cast
+from typing import Any
 
 from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 from horde_model_reference.text_guidance import (
@@ -114,11 +114,8 @@ class TextGuidanceStore:
             primary: TextPromptContract | None = None
             supplemental: list[TextUsageRecipe] = []
             if assignment is not None:
-                primary = cast(TextPromptContract, self._catalog.profiles[assignment.primary_profile_id])
-                supplemental = [
-                    cast(TextUsageRecipe, self._catalog.profiles[profile_id])
-                    for profile_id in assignment.supplemental_profile_ids
-                ]
+                primary = self._contract(assignment.primary_profile_id)
+                supplemental = [self._recipe(profile_id) for profile_id in assignment.supplemental_profile_ids]
             return ResolvedTextGuidance(
                 model_name=model_name,
                 summary=summary,
@@ -127,6 +124,24 @@ class TextGuidanceStore:
                 legacy_instruct_format=legacy_instruct_format,
                 catalog_metadata=self._catalog.metadata,
             )
+
+    def _contract(self, profile_id: str) -> TextPromptContract:
+        """Return the prompt contract stored under ``profile_id``.
+
+        Catalog validation guarantees the kind for assignments made through the store; a catalog file
+        edited by hand can violate it, and that must surface as an error rather than a mistyped object.
+        """
+        profile = self._catalog.profiles[profile_id]
+        if not isinstance(profile, TextPromptContract):
+            raise ValueError(f"Guidance profile '{profile_id}' is not a prompt contract.")
+        return profile
+
+    def _recipe(self, profile_id: str) -> TextUsageRecipe:
+        """Return the usage recipe stored under ``profile_id``."""
+        profile = self._catalog.profiles[profile_id]
+        if not isinstance(profile, TextUsageRecipe):
+            raise ValueError(f"Guidance profile '{profile_id}' is not a usage recipe.")
+        return profile
 
     def preview_change_set(
         self,

@@ -216,6 +216,7 @@ async def preview_legacy_migration(
 ) -> GuidanceMigrationPreview:
     """Build an editable proposal from legacy instruct-format strings without storing it."""
     await authenticate_queue_requestor(apikey)
+    assert_primary_write_enabled(manager)
     records = _canonical_text_models(manager)
     existing_profiles = manager.text_guidance_store.list_profiles(include_deprecated=True)
     known_aliases = {
