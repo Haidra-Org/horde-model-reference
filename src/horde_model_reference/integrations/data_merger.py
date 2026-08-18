@@ -7,6 +7,7 @@ dynamic runtime data from the AI Horde API (status, statistics, workers).
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import UTC, datetime
 
 from pydantic import BaseModel, Field, computed_field
 
@@ -21,6 +22,11 @@ from horde_model_reference.integrations.horde_api_models import (
 )
 
 
+def _utc_timestamp() -> int:
+    """Return the current UTC Unix timestamp."""
+    return int(datetime.now(tz=UTC).timestamp())
+
+
 class WorkerSummary(BaseModel):
     """Summary of a worker serving a model."""
 
@@ -30,6 +36,13 @@ class WorkerSummary(BaseModel):
     online: bool = Field(description="Whether worker is currently online")
     trusted: bool = Field(description="Whether worker is trusted")
     uptime: int = Field(description="Total uptime in seconds")
+    max_length: int | None = Field(default=None, description="Maximum output length advertised by a text worker")
+    max_context_length: int | None = Field(
+        default=None,
+        description="Maximum context length advertised by a text worker",
+    )
+    bridge_agent: str | None = Field(default=None, description="Worker software and version")
+    nsfw: bool | None = Field(default=None, description="Whether the worker accepts NSFW requests")
 
 
 class UsageStats(BaseModel):
@@ -73,6 +86,10 @@ class CombinedModelStatistics(BaseModel):
         default=None,
         description="Worker count from HordeModelStatus (used when worker_summaries not available)",
         exclude=True,  # Don't include in serialization by default
+    )
+    observed_at: int = Field(
+        default_factory=_utc_timestamp,
+        description="UTC Unix timestamp when this runtime projection was assembled",
     )
 
 
@@ -191,6 +208,10 @@ def merge_model_with_horde_data(
                     online=w.online,
                     trusted=w.trusted,
                     uptime=w.uptime,
+                    max_length=w.max_length,
+                    max_context_length=w.max_context_length,
+                    bridge_agent=w.bridge_agent,
+                    nsfw=w.nsfw,
                 )
                 for w in workers_for_model
             }
@@ -204,6 +225,7 @@ def merge_model_with_horde_data(
         worker_summaries=worker_summaries,
         backend_variations=backend_variations_data,
         worker_count_from_status=worker_count_from_status,
+        observed_at=_utc_timestamp(),
     )
 
 

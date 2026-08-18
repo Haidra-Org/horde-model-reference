@@ -58,9 +58,6 @@ route_registry.register_route(
             "description": "Category statistics retrieved successfully",
             "model": CategoryStatistics,
         },
-        404: {
-            "description": "Category not found",
-        },
         500: {
             "description": "Internal server error computing statistics",
         },
@@ -99,7 +96,7 @@ async def get_category_statistics(
         CategoryStatistics containing all computed metrics.
 
     Raises:
-        HTTPException: 404 if category not found, 500 if computation fails.
+        HTTPException: 500 if computation fails.
 
     """
     logger.debug(
@@ -130,11 +127,8 @@ async def get_category_statistics(
         ) from e
 
     if not raw_models:
-        logger.warning(f"Category not found: {model_category_name}")
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Category '{model_category_name}' not found or has no models",
-        )
+        logger.debug(f"Calculating zero-valued statistics for empty category: {model_category_name}")
+        raw_models = {}
 
     # Apply text model grouping if requested
     if group_text_models and model_category_name == MODEL_REFERENCE_CATEGORY.text_generation:
@@ -211,6 +205,7 @@ route_registry.register_route(
             },
         },
         404: {"description": "Model category not found", "model": ErrorResponse},
+        400: {"description": "Category does not have AI Horde runtime statistics", "model": ErrorResponse},
         500: {"description": "Failed to fetch Horde API data", "model": ErrorResponse},
     },
     summary="Get models merged with AI Horde runtime statistics",
@@ -253,9 +248,20 @@ async def read_models_with_stats(
         JSONResponse: Dict of model_name -> enriched_model_data.
 
     Raises:
-        HTTPException: 404 if category not found, 500 if Horde API fails.
+        HTTPException: 400 if the category is unsupported, 404 if it is missing,
+            or 500 if the Horde API fails.
 
     """
+    if model_category_name not in {
+        MODEL_REFERENCE_CATEGORY.image_generation,
+        MODEL_REFERENCE_CATEGORY.text_generation,
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Category '{model_category_name}' does not support Horde statistics. "
+            "Only image_generation and text_generation are supported.",
+        )
+
     # 1. Get reference data (from ModelReferenceManager cache)
     model_names = list(manager.get_model_reference(model_category_name))
     if not model_names:
@@ -267,20 +273,13 @@ async def read_models_with_stats(
     # 2. Get Horde data (from HordeAPIIntegration cache)
     model_type: Literal["image", "text"] | None = None
     try:
-        if model_category_name == MODEL_REFERENCE_CATEGORY.image_generation:
-            model_type = "image"
-        elif model_category_name == MODEL_REFERENCE_CATEGORY.text_generation:
-            model_type = "text"
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Category '{model_category_name}' does not support Horde statistics. "
-                "Only image_generation and text_generation are supported.",
-            )
+        model_type = "image" if model_category_name == MODEL_REFERENCE_CATEGORY.image_generation else "text"
 
         status_data = await horde_api.get_model_status_indexed(model_type)
         stats_data = await horde_api.get_model_stats_indexed(model_type)
         workers_data = await horde_api.get_workers_indexed(model_type) if include_workers else None
+    except HTTPException:
+        raise
     except (HordeAPIDegradedError, RetryError) as e:
         logger.warning(f"AI Horde API unavailable for {model_type}: {e}")
         raise HTTPException(
@@ -308,9 +307,7 @@ async def read_models_with_stats(
     # Filter by min_worker_count
     if min_worker_count is not None:
         models_statistics = {
-            name: data
-            for name, data in models_statistics.items()
-            if data.worker_summaries and len(data.worker_summaries) >= min_worker_count
+            name: data for name, data in models_statistics.items() if data.worker_count >= min_worker_count
         }
 
     # Sort by requested field
@@ -320,7 +317,7 @@ async def read_models_with_stats(
         def sort_key(item: tuple[str, CombinedModelStatistics]) -> float | int | str:
             name, data = item
             if sort_by == "worker_count":
-                return len(data.worker_summaries) if data.worker_summaries else 0
+                return data.worker_count
             if sort_by == "usage_total":
                 return data.usage_stats.total if data.usage_stats else 0
             if sort_by == "usage_month":
