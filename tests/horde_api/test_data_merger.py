@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -490,3 +491,125 @@ def test_popular_model_result_serialization() -> None:
     assert "stats" in data
     assert data["stats"]["worker_count"] == 5
     assert data["stats"]["usage_stats"]["day"] == 1
+
+
+@pytest.fixture
+def sample_text_worker() -> HordeWorker:
+    """Sample Horde API text worker advertising length and context limits."""
+    return HordeWorker(
+        id="worker-text-1",
+        name="Test Text Worker",
+        type="text",
+        performance="12.0",
+        requests_fulfilled=42,
+        kudos_rewards=100.0,
+        kudos_details=HordeKudosDetails(generated=90.0, uptime=10.0),
+        threads=1,
+        uptime=3600,
+        uncompleted_jobs=0,
+        maintenance_mode=False,
+        nsfw=False,
+        trusted=True,
+        flagged=False,
+        online=True,
+        models=["test_model"],
+        team=HordeWorkerTeam(),
+        bridge_agent="AI Horde Worker (KoboldAI):1.2.3",
+        max_length=512,
+        max_context_length=4096,
+    )
+
+
+def test_worker_summary_carries_text_worker_fields(
+    sample_horde_status: list[HordeModelStatus],
+    sample_horde_stats: HordeModelStatsResponse,
+    sample_text_worker: HordeWorker,
+) -> None:
+    """Test that max_length, max_context_length, bridge_agent and nsfw come through the merge."""
+    result = merge_model_with_horde_data(
+        "test_model",
+        sample_horde_status,
+        sample_horde_stats,
+        workers=[sample_text_worker],
+    )
+
+    assert result.worker_summaries is not None
+    summary = result.worker_summaries["worker-text-1"]
+    assert summary.max_length == 512
+    assert summary.max_context_length == 4096
+    assert summary.bridge_agent == "AI Horde Worker (KoboldAI):1.2.3"
+    assert summary.nsfw is False
+
+
+def test_worker_summary_allows_absent_length_fields(
+    sample_horde_status: list[HordeModelStatus],
+    sample_horde_stats: HordeModelStatsResponse,
+    sample_workers: list[HordeWorker],
+) -> None:
+    """Test that image workers without length limits produce None rather than failing validation."""
+    result = merge_model_with_horde_data(
+        "test_model",
+        sample_horde_status,
+        sample_horde_stats,
+        workers=sample_workers,
+    )
+
+    assert result.worker_summaries is not None
+    worker1 = result.worker_summaries["worker-1"]
+    assert worker1.max_length is None
+    assert worker1.max_context_length is None
+    assert worker1.bridge_agent == "AI Horde Worker:1.0.0"
+    assert worker1.nsfw is True
+
+
+def test_merged_statistics_record_recent_observed_at(
+    sample_horde_status: list[HordeModelStatus],
+    sample_horde_stats: HordeModelStatsResponse,
+) -> None:
+    """Test that observed_at is a UTC Unix timestamp taken during the merge."""
+    before = int(datetime.now(tz=UTC).timestamp())
+    result = merge_model_with_horde_data(
+        "test_model",
+        sample_horde_status,
+        sample_horde_stats,
+    )
+    after = int(datetime.now(tz=UTC).timestamp())
+
+    assert before <= result.observed_at <= after
+
+
+def test_combined_statistics_default_observed_at() -> None:
+    """Test that a directly constructed CombinedModelStatistics gets an observed_at default."""
+    before = int(datetime.now(tz=UTC).timestamp())
+    stats = CombinedModelStatistics(worker_count_from_status=1)
+    after = int(datetime.now(tz=UTC).timestamp())
+
+    assert before <= stats.observed_at <= after
+
+
+def test_worker_count_falls_back_to_status_count() -> None:
+    """Test that worker_count uses the status count when worker_summaries is None."""
+    stats = CombinedModelStatistics(worker_count_from_status=7)
+
+    assert stats.worker_summaries is None
+    assert stats.worker_count == 7
+
+
+def test_worker_count_uses_summary_length_when_present() -> None:
+    """Test that worker_count counts worker_summaries, including an empty mapping."""
+    summary = WorkerSummary(
+        id="worker-1",
+        name="Test Worker 1",
+        performance="100.5",
+        online=True,
+        trusted=True,
+        uptime=86400,
+    )
+    stats = CombinedModelStatistics(
+        worker_count_from_status=7,
+        worker_summaries={"worker-1": summary},
+    )
+    assert stats.worker_count == 1
+
+    empty_stats = CombinedModelStatistics(worker_count_from_status=7, worker_summaries={})
+    assert empty_stats.worker_count == 0
