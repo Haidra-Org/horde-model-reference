@@ -102,6 +102,11 @@ class RedisBackend(ModelReferenceBackend):
         if redis_settings.use_pubsub:
             self._setup_pubsub()
 
+    @property
+    def base_path(self) -> Path:
+        """Return the data root of the wrapped filesystem backend."""
+        return self._file_backend.base_path
+
     def _create_sync_pool(self) -> redis.Redis[bytes]:
         """Create synchronous Redis connection pool."""
         return redis.from_url(

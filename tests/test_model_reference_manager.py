@@ -7,7 +7,7 @@ import pytest
 from pydantic import ValidationError
 from pytest import LogCaptureFixture
 
-from horde_model_reference import PrefetchStrategy, ReplicateMode
+from horde_model_reference import PrefetchStrategy, ReplicateMode, horde_model_reference_settings
 from horde_model_reference.backends.base import ModelReferenceBackend
 from horde_model_reference.backends.filesystem_backend import FileSystemBackend
 from horde_model_reference.meta_consts import (
@@ -20,6 +20,12 @@ from horde_model_reference.meta_consts import (
 )
 from horde_model_reference.model_reference_manager import ModelReferenceManager
 from horde_model_reference.model_reference_records import GenericModelRecord, ImageGenerationModelRecord
+from horde_model_reference.path_consts import (
+    GROUP_ALIASES_FILENAME,
+    LICENSING_FOLDER_NAME,
+    PENDING_QUEUE_FOLDER_NAME,
+    TEXT_GUIDANCE_FOLDER_NAME,
+)
 
 
 class _InMemoryReplicaBackend(ModelReferenceBackend):
@@ -1256,3 +1262,60 @@ class TestGetPopularModels:
         assert len(results) == 2
         assert results[0].name == "model_b"
         assert results[1].name == "model_c"
+
+
+@pytest.mark.usefixtures("restore_manager_singleton")
+class TestSideStoreRoots:
+    """Side stores must follow the backend data root, with settings overrides still winning."""
+
+    def test_side_stores_follow_backend_base_path(self, tmp_path: Path) -> None:
+        """Licensing, guidance, group and queue state land under the backend's base path."""
+        backend = FileSystemBackend(base_path=tmp_path, replicate_mode=ReplicateMode.PRIMARY)
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+
+        data_root = tmp_path.resolve()
+        assert manager._licensing_store._root_path == data_root / LICENSING_FOLDER_NAME
+        assert manager._text_guidance_store._root_path == data_root / TEXT_GUIDANCE_FOLDER_NAME
+
+        alias_store = manager.group_alias_store
+        assert alias_store is not None
+        assert alias_store._file_path == data_root / GROUP_ALIASES_FILENAME
+
+        queue_service = manager.pending_queue_service
+        assert queue_service is not None
+        assert queue_service._store._root_path == data_root / PENDING_QUEUE_FOLDER_NAME
+
+    def test_root_path_override_wins_over_backend_base_path(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """An explicit root_path_override still takes precedence over the backend data root."""
+        licensing_override = tmp_path / "elsewhere" / "licensing"
+        queue_override = tmp_path / "elsewhere" / "queue"
+        monkeypatch.setattr(
+            horde_model_reference_settings.licensing,
+            "root_path_override",
+            str(licensing_override),
+        )
+        monkeypatch.setattr(
+            horde_model_reference_settings.pending_queue,
+            "root_path_override",
+            str(queue_override),
+        )
+
+        backend = FileSystemBackend(base_path=tmp_path, replicate_mode=ReplicateMode.PRIMARY)
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.PRIMARY,
+        )
+
+        assert manager._licensing_store._root_path == licensing_override.resolve()
+        queue_service = manager.pending_queue_service
+        assert queue_service is not None
+        assert queue_service._store._root_path == queue_override.resolve()

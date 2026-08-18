@@ -43,6 +43,15 @@ from horde_model_reference.model_reference_records import (
     TextGenerationModelRecord,
     VideoGenerationModelRecord,
 )
+from horde_model_reference.path_consts import (
+    resolve_audit_path,
+    resolve_group_aliases_path,
+    resolve_group_families_path,
+    resolve_group_schemas_path,
+    resolve_licensing_path,
+    resolve_pending_queue_path,
+    resolve_text_guidance_path,
+)
 from horde_model_reference.providers import ModelProvider, ModelProviderRegistry
 from horde_model_reference.query import (
     ControlNetFieldName,
@@ -122,6 +131,7 @@ class ModelReferenceManager:
     _deferred_prefetch_handle: DeferredPrefetchHandle | None = None
     _async_prefetch_task: asyncio.Task[None] | None = None
     _provider_registry: ModelProviderRegistry
+    _data_root: Path
     _audit_writer: AuditTrailWriter | None = None
     _pending_queue_service: PendingQueueService | None = None
     _group_alias_store: GroupAliasStore | None = None
@@ -343,10 +353,17 @@ class ModelReferenceManager:
             if not cls._instance:
                 cls._instance = super().__new__(cls)
 
+                # Side stores hang off the data root the backend actually reads and writes, so a manager
+                # pointed at a non-default location keeps its satellite state alongside its references.
+                # A backend built here uses base_path, so the root is known before construction either way.
+                backend_base_path = getattr(backend, "base_path", None) if backend is not None else None
+                data_root = Path(backend_base_path if backend_base_path is not None else base_path).resolve()
+                cls._instance._data_root = data_root
+
                 audit_writer: AuditTrailWriter | None = None
                 if horde_model_reference_settings.audit.enabled:
                     audit_writer = AuditTrailWriter(
-                        root_path=horde_model_reference_paths.audit_path,
+                        root_path=resolve_audit_path(data_root),
                         max_file_size_bytes=horde_model_reference_settings.audit.max_segment_bytes,
                     )
 
@@ -374,30 +391,17 @@ class ModelReferenceManager:
                 cls._instance.backend = backend
                 cls._instance._replicate_mode = replicate_mode
                 cls._instance._offline = offline
-                backend_base_path = getattr(backend, "base_path", None)
-                licensing_base_path = Path(backend_base_path) if backend_base_path is not None else Path(base_path)
-                licensing_root_path = (
-                    licensing_base_path.resolve() / horde_model_reference_settings.licensing.relative_subdir
-                )
-                if horde_model_reference_settings.licensing.root_path_override:
-                    licensing_root_path = Path(horde_model_reference_settings.licensing.root_path_override).resolve()
+
                 bootstrap_path = Path(__file__).resolve().parent / "data" / "licenses"
                 cls._instance._licensing_store = LicensingStore(
-                    root_path=licensing_root_path,
+                    root_path=resolve_licensing_path(data_root),
                     bootstrap_path=bootstrap_path,
                     writable=backend.supports_writes(),
                 )
                 cls._instance._licensing_store_refresh_attempted = False
-                guidance_root_path = (
-                    licensing_base_path.resolve() / horde_model_reference_settings.text_guidance.relative_subdir
-                )
-                if horde_model_reference_settings.text_guidance.root_path_override:
-                    guidance_root_path = Path(
-                        horde_model_reference_settings.text_guidance.root_path_override,
-                    ).resolve()
                 guidance_bootstrap_path = Path(__file__).resolve().parent / "data" / "guidance"
                 cls._instance._text_guidance_store = TextGuidanceStore(
-                    root_path=guidance_root_path,
+                    root_path=resolve_text_guidance_path(data_root),
                     bootstrap_path=guidance_bootstrap_path,
                     writable=backend.supports_writes(),
                 )
@@ -406,15 +410,16 @@ class ModelReferenceManager:
                     cls._instance._audit_writer = audit_writer
                     cls._instance._pending_queue_service = cls._build_pending_queue_service(
                         audit_writer=audit_writer,
+                        data_root=data_root,
                     )
                     cls._instance._group_alias_store = GroupAliasStore(
-                        file_path=horde_model_reference_paths.group_aliases_path,
+                        file_path=resolve_group_aliases_path(data_root),
                     )
                     cls._instance._group_family_store = GroupFamilyStore(
-                        file_path=horde_model_reference_paths.group_families_path,
+                        file_path=resolve_group_families_path(data_root),
                     )
                     cls._instance._group_schema_store = GroupSchemaStore(
-                        file_path=horde_model_reference_paths.group_schemas_path,
+                        file_path=resolve_group_schemas_path(data_root),
                         alias_store=cls._instance._group_alias_store,
                     )
                 else:
@@ -561,15 +566,25 @@ class ModelReferenceManager:
     def _build_pending_queue_service(
         *,
         audit_writer: AuditTrailWriter | None,
+        data_root: Path,
     ) -> PendingQueueService | None:
-        """Create the pending queue service when enabled."""
+        """Create the pending queue service when enabled.
+
+        Args:
+            audit_writer (AuditTrailWriter | None): The audit writer recording queue operations.
+            data_root (Path): The backend data root the queue persistence hangs off.
+
+        Returns:
+            PendingQueueService | None: The service, or None when queueing is disabled.
+
+        """
         if not horde_model_reference_settings.pending_queue.enabled:
             return None
 
         from horde_model_reference.pending_queue.service import PendingQueueService
         from horde_model_reference.pending_queue.store import PendingQueueStore
 
-        store = PendingQueueStore(root_path=horde_model_reference_paths.pending_queue_path)
+        store = PendingQueueStore(root_path=resolve_pending_queue_path(data_root))
         return PendingQueueService(store=store, audit_writer=audit_writer)
 
     @property
@@ -581,6 +596,16 @@ class ModelReferenceManager:
     def offline(self) -> bool:
         """Return whether this manager reads from local disk only (never downloads)."""
         return self._offline
+
+    @property
+    def data_root(self) -> Path:
+        """Return the backend data root that every side store hangs off."""
+        return self._data_root
+
+    @property
+    def audit_path(self) -> Path:
+        """Return the audit log root for this manager's data root."""
+        return resolve_audit_path(self._data_root)
 
     @property
     def pending_queue_service(self) -> PendingQueueService | None:

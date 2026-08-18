@@ -12,7 +12,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from horde_model_reference import (
     CanonicalFormat,
     ModelReferenceManager,
-    horde_model_reference_paths,
     horde_model_reference_settings,
 )
 from horde_model_reference.pending_queue.audit_view import (
@@ -61,7 +60,7 @@ def build_pending_queue_audit_router(*, tags: Sequence[str]) -> APIRouter:
         require_pending_queue_service(manager)
         domain = _resolve_domain(domain_override)
         dataset = load_pending_queue_audit_dataset(
-            root_path=horde_model_reference_paths.audit_path,
+            root_path=manager.audit_path,
             domain=domain,
         )
         pending = dataset.pending_changes()
@@ -90,7 +89,7 @@ def build_pending_queue_audit_router(*, tags: Sequence[str]) -> APIRouter:
         require_pending_queue_service(manager)
         domain = _resolve_domain(domain_override)
         dataset = load_pending_queue_audit_dataset(
-            root_path=horde_model_reference_paths.audit_path,
+            root_path=manager.audit_path,
             domain=domain,
         )
         summaries, next_cursor = dataset.batches_page(cursor=cursor, limit=limit)
@@ -116,7 +115,7 @@ def build_pending_queue_audit_router(*, tags: Sequence[str]) -> APIRouter:
         require_pending_queue_service(manager)
         domain = _resolve_domain(domain_override)
         dataset = load_pending_queue_audit_dataset(
-            root_path=horde_model_reference_paths.audit_path,
+            root_path=manager.audit_path,
             domain=domain,
         )
         detail = dataset.batch_detail(batch_id)
@@ -154,7 +153,7 @@ def build_pending_queue_audit_router(*, tags: Sequence[str]) -> APIRouter:
 
         # Use cached computation with 5-minute TTL
         result = _get_batch_net_changes_cached(
-            root_path_str=str(horde_model_reference_paths.audit_path),
+            root_path_str=str(manager.audit_path),
             domain=domain,
             batch_id=batch_id,
         )

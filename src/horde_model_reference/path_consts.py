@@ -74,6 +74,85 @@ TEXT_GUIDANCE_FOLDER_NAME: str = "text_guidance"
 """Default folder containing the reusable text guidance catalog."""
 
 
+def _resolve_side_store_root(
+    data_root: Path,
+    *,
+    root_path_override: str | None,
+    relative_subdir: str | None,
+    default_subdir: str,
+) -> Path:
+    """Resolve a side store root against a data root, honoring the settings override.
+
+    Args:
+        data_root (Path): The data root the store should live under when no override is set.
+        root_path_override (str | None): An absolute location that wins over ``data_root``.
+        relative_subdir (str | None): The configured subfolder name, if any.
+        default_subdir (str): The subfolder name used when no subfolder is configured.
+
+    Returns:
+        Path: The resolved store root.
+
+    """
+    if root_path_override:
+        return Path(root_path_override).expanduser().resolve()
+    return data_root.joinpath(relative_subdir or default_subdir)
+
+
+def resolve_audit_path(data_root: Path) -> Path:
+    """Return the audit log root for a given data root."""
+    return _resolve_side_store_root(
+        data_root,
+        root_path_override=horde_model_reference_settings.audit.root_path_override,
+        relative_subdir=horde_model_reference_settings.audit.relative_subdir,
+        default_subdir=AUDIT_FOLDER_NAME,
+    )
+
+
+def resolve_pending_queue_path(data_root: Path) -> Path:
+    """Return the pending queue persistence root for a given data root."""
+    return _resolve_side_store_root(
+        data_root,
+        root_path_override=horde_model_reference_settings.pending_queue.root_path_override,
+        relative_subdir=horde_model_reference_settings.pending_queue.relative_subdir,
+        default_subdir=PENDING_QUEUE_FOLDER_NAME,
+    )
+
+
+def resolve_licensing_path(data_root: Path) -> Path:
+    """Return the normalized licensing root for a given data root."""
+    return _resolve_side_store_root(
+        data_root,
+        root_path_override=horde_model_reference_settings.licensing.root_path_override,
+        relative_subdir=horde_model_reference_settings.licensing.relative_subdir,
+        default_subdir=LICENSING_FOLDER_NAME,
+    )
+
+
+def resolve_text_guidance_path(data_root: Path) -> Path:
+    """Return the reusable text guidance root for a given data root."""
+    return _resolve_side_store_root(
+        data_root,
+        root_path_override=horde_model_reference_settings.text_guidance.root_path_override,
+        relative_subdir=horde_model_reference_settings.text_guidance.relative_subdir,
+        default_subdir=TEXT_GUIDANCE_FOLDER_NAME,
+    )
+
+
+def resolve_group_schemas_path(data_root: Path) -> Path:
+    """Return the text model group naming schemas file for a given data root."""
+    return data_root.joinpath(GROUP_SCHEMAS_FILENAME)
+
+
+def resolve_group_aliases_path(data_root: Path) -> Path:
+    """Return the text model group alias mappings file for a given data root."""
+    return data_root.joinpath(GROUP_ALIASES_FILENAME)
+
+
+def resolve_group_families_path(data_root: Path) -> Path:
+    """Return the related-group family associations file for a given data root."""
+    return data_root.joinpath(GROUP_FAMILIES_FILENAME)
+
+
 class HordeModelReferencePaths:
     """A helper class to manage local and remote model reference paths."""
 
@@ -112,55 +191,37 @@ class HordeModelReferencePaths:
     @property
     def audit_path(self) -> Path:
         """Return the root path for audit log storage."""
-        override = horde_model_reference_settings.audit.root_path_override
-        if override:
-            return Path(override).expanduser().resolve()
-
-        subdir = horde_model_reference_settings.audit.relative_subdir or AUDIT_FOLDER_NAME
-        return self.base_path.joinpath(subdir)
+        return resolve_audit_path(self.base_path)
 
     @property
     def pending_queue_path(self) -> Path:
         """Return the root path for pending queue persistence."""
-        override = horde_model_reference_settings.pending_queue.root_path_override
-        if override:
-            return Path(override).expanduser().resolve()
-
-        subdir = horde_model_reference_settings.pending_queue.relative_subdir or PENDING_QUEUE_FOLDER_NAME
-        return self.base_path.joinpath(subdir)
+        return resolve_pending_queue_path(self.base_path)
 
     @property
     def licensing_path(self) -> Path:
         """Return the root path for normalized licensing persistence."""
-        override = horde_model_reference_settings.licensing.root_path_override
-        if override:
-            return Path(override).expanduser().resolve()
-        subdir = horde_model_reference_settings.licensing.relative_subdir or LICENSING_FOLDER_NAME
-        return self.base_path.joinpath(subdir)
+        return resolve_licensing_path(self.base_path)
 
     @property
     def text_guidance_path(self) -> Path:
         """Return the root path for reusable text guidance persistence."""
-        override = horde_model_reference_settings.text_guidance.root_path_override
-        if override:
-            return Path(override).expanduser().resolve()
-        subdir = horde_model_reference_settings.text_guidance.relative_subdir or TEXT_GUIDANCE_FOLDER_NAME
-        return self.base_path.joinpath(subdir)
+        return resolve_text_guidance_path(self.base_path)
 
     @property
     def group_schemas_path(self) -> Path:
         """Return the path to the text model group naming schemas file."""
-        return self.base_path.joinpath(GROUP_SCHEMAS_FILENAME)
+        return resolve_group_schemas_path(self.base_path)
 
     @property
     def group_aliases_path(self) -> Path:
         """Return the path to the text model group alias mappings file."""
-        return self.base_path.joinpath(GROUP_ALIASES_FILENAME)
+        return resolve_group_aliases_path(self.base_path)
 
     @property
     def group_families_path(self) -> Path:
         """Return the path to the related-group family associations file."""
-        return self.base_path.joinpath(GROUP_FAMILIES_FILENAME)
+        return resolve_group_families_path(self.base_path)
 
     log_folder: Path
 
