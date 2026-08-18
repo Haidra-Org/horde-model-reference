@@ -503,6 +503,48 @@ class TestCreateLegacyModel:
         assert change.payload is not None
         assert change.payload["description"] == "Created via POST"
 
+    def test_create_image_model_preserves_licensing_in_queued_payload(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        legacy_canonical_mode: None,
+        mock_auth_success: None,
+    ) -> None:
+        """POST should preserve a licensing conclusion for later review and apply."""
+        category = MODEL_REFERENCE_CATEGORY.image_generation
+        model_name = "licensed_legacy_model"
+        payload = _create_legacy_model_payload(model_name, category)
+        payload["licensing"] = {
+            "license_expression": "MIT",
+            "license_ids": ["MIT"],
+            "commercial_use": "allowed",
+            "redistribution": "allowed",
+            "obligations": ["attribution", "include_license"],
+            "evidence": [
+                {
+                    "source": "https://example.com/model-card",
+                    "description": "The model card identifies the MIT license.",
+                },
+            ],
+        }
+
+        url = route_registry.url_for(RouteNames.image_generation_model, {}, v1_prefix)
+        response = api_client.post(url, json=payload, headers=_queue_auth_headers())
+
+        assert response.status_code == 202
+        queue_service = v1_canonical_manager.pending_queue_service
+        assert queue_service is not None
+        change = queue_service.get_change(response.json()["change_id"])
+        assert change is not None
+        assert change.payload is not None
+        queued_licensing = change.payload["licensing"]
+        assert queued_licensing["license_expression"] == "MIT"
+        assert queued_licensing["license_ids"] == ["MIT"]
+        assert queued_licensing["commercial_use"] == "allowed"
+        assert queued_licensing["redistribution"] == "allowed"
+        assert queued_licensing["obligations"] == ["attribution", "include_license"]
+        assert queued_licensing["evidence"][0]["source"] == "https://example.com/model-card"
+
     @pytest.mark.parametrize("category", ALL_MODEL_CATEGORIES)
     def test_create_model_conflict(
         self,

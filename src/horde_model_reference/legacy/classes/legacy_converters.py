@@ -98,6 +98,8 @@ def image_generation_record_to_legacy_dict(record: GenericModelRecord) -> dict[s
         value = getattr(record, field, None)
         if value is not None:
             entry[field] = value
+    if record.licensing is not None:
+        entry["licensing"] = record.licensing.model_dump(mode="json", exclude_none=True)
     return entry
 
 
@@ -316,6 +318,7 @@ class BaseLegacyConverter:
             description=legacy_record.description,
             version=legacy_record.version,
             config=model_record_config,
+            licensing=legacy_record.licensing,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
 
@@ -521,6 +524,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             style=legacy_record.style,
             requirements=legacy_record.requirements,
             size_on_disk_bytes=legacy_record.size_on_disk_bytes,
+            licensing=legacy_record.licensing,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
 
@@ -666,6 +670,7 @@ class LegacyClipConverter(BaseLegacyConverter):
             description=legacy_record.description,
             version=legacy_record.version,
             config=model_record_config,
+            licensing=legacy_record.licensing,
             pretrained_name=legacy_record.pretrained_name,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
@@ -791,6 +796,7 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             description=legacy_record.description,
             version=legacy_record.version,
             config=model_record_config,
+            licensing=legacy_record.licensing,
             baseline=legacy_record.baseline,
             parameters=legacy_record.parameters or 0,
             nsfw=legacy_record.nsfw or False,
@@ -864,6 +870,7 @@ class LegacyControlnetConverter(BaseLegacyConverter):
             description=legacy_record.description,
             version=legacy_record.version,
             config=model_record_config,
+            licensing=legacy_record.licensing,
             controlnet_style=controlnet_style,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )

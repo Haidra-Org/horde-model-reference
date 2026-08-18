@@ -36,3 +36,28 @@ def test_get_model_name_variants_does_not_duplicate_without_org() -> None:
     variants = get_model_name_variants("Broken-Tutu-24B")
 
     assert variants.count("koboldcpp/Broken-Tutu-24B") == 1
+
+
+def test_known_image_schedulers_are_registered() -> None:
+    """Every member of the enum is registered, so is_known_image_scheduler agrees with the enum."""
+    for scheduler in meta_consts.KNOWN_IMAGE_SCHEDULER:
+        assert meta_consts.is_known_image_scheduler(scheduler)
+        assert meta_consts.is_known_image_scheduler(str(scheduler))
+
+
+def test_unknown_image_scheduler_is_not_known() -> None:
+    """An unregistered name is not accepted as a schedule."""
+    assert not meta_consts.is_known_image_scheduler("not_a_real_schedule")
+
+
+def test_the_legacy_karras_flag_schedules_are_in_the_vocabulary() -> None:
+    """The two the boolean could express have to be nameable, or legacy records cannot be normalized."""
+    assert meta_consts.is_known_image_scheduler("karras")
+    assert meta_consts.is_known_image_scheduler("normal")
+
+
+def test_registering_an_image_scheduler_is_idempotent() -> None:
+    """Re-registering a known schedule is a no-op rather than an error."""
+    meta_consts.register_image_scheduler(meta_consts.KNOWN_IMAGE_SCHEDULER.karras)
+
+    assert meta_consts.is_known_image_scheduler("karras")

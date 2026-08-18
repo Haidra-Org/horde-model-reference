@@ -19,6 +19,7 @@ from pydantic import (
 )
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.licensing import ModelLicensing
 from horde_model_reference.util import model_name_to_showcase_folder_name
 
 
@@ -235,6 +236,8 @@ class LegacyGenericRecord(BaseModel):
     config: LegacyConfig = Field(default_factory=LegacyConfig)
     available: bool | None = None
     features_not_supported: list[str] | None = None
+    licensing: ModelLicensing | None = None
+    """Reviewed licensing conclusion preserved by legacy-canonical deployments."""
 
     @model_validator(mode="after")
     def _validate_common_rules(self, info: ValidationInfo) -> LegacyGenericRecord:
@@ -337,6 +340,7 @@ class LegacyStableDiffusionRecord(LegacyGenericRecord):
             "nsfw",
             "download_all",
             "requirements",
+            "licensing",
             "config",
             "available",
             "features_not_supported",

@@ -57,7 +57,7 @@
       "asset_kind": "custom_node",
       "asset_identifier": "facerestore_cf",
       "display_name": "facerestore_cf",
-      "source_url": "https://github.com/jokersoul/comfyui-facerestore_cf",
+      "source_url": "https://github.com/mav-rik/comfyui-facerestore_cf",
       "locations": ["hordelib/nodes/facerestore_cf/"],
       "related_assets": ["model:codeformer:CodeFormers", "model:gfpgan:GFPGAN"],
       "licensing": {

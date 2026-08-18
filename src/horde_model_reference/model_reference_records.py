@@ -23,9 +23,11 @@ from horde_model_reference import (
 from horde_model_reference.licensing import ModelLicensing
 from horde_model_reference.meta_consts import (
     CONTROLNET_STYLE,
+    KNOWN_IMAGE_SCHEDULER,
     get_category_descriptor,
     is_known_controlnet_style,
     is_known_image_baseline,
+    is_known_image_scheduler,
     is_known_model_style,
 )
 from horde_model_reference.model_kind_validation import (
@@ -294,12 +296,70 @@ def _apply_policy(
     logger.debug(f"Unknown {field_name} {value} for model {model_name}")
 
 
+SCHEDULERS_REQUIREMENT_KEY = "schedulers"
+"""The requirements key naming the sigma schedules a model needs."""
+
+LEGACY_KARRAS_REQUIREMENT_KEY = "karras"
+"""The requirements key a model used before schedules could be named outright.
+
+It carried a boolean, because the two schedules it could express were the only two a request could ask
+for at the time.
+"""
+
+LEGACY_KARRAS_REQUIREMENT_SCHEDULERS = {
+    True: KNOWN_IMAGE_SCHEDULER.karras,
+    False: KNOWN_IMAGE_SCHEDULER.normal,
+}
+"""What each value of the legacy boolean requirement means in the schedule vocabulary.
+
+`False` maps to `normal` rather than to "no requirement": the flag being off selected a schedule, it did
+not decline to select one, and preserving that keeps a record's meaning unchanged through conversion.
+"""
+
+
+def normalize_scheduler_requirements(
+    requirements: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None,
+) -> dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None:
+    """Convert a legacy boolean schedule requirement into the schedule vocabulary.
+
+    Records written before schedules could be named outright expressed the requirement as a `karras`
+    boolean. Those records are still valid and are normalized here rather than being rejected, so a
+    reference that has not been rewritten keeps meaning what it meant.
+
+    An explicit `schedulers` list wins if both are present, on the same reasoning the request field wins
+    over the request flag: naming a schedule is the more specific statement.
+
+    Args:
+        requirements: The requirements mapping from a record, which may be `None`.
+
+    Returns:
+        The requirements with any legacy boolean replaced, or the original object when there is nothing
+        to convert.
+
+    """
+    if requirements is None or LEGACY_KARRAS_REQUIREMENT_KEY not in requirements:
+        return requirements
+
+    normalized = dict(requirements)
+    legacy_value = normalized.pop(LEGACY_KARRAS_REQUIREMENT_KEY)
+
+    if SCHEDULERS_REQUIREMENT_KEY in normalized or not isinstance(legacy_value, bool):
+        return normalized
+
+    normalized[SCHEDULERS_REQUIREMENT_KEY] = [str(LEGACY_KARRAS_REQUIREMENT_SCHEDULERS[legacy_value])]
+    return normalized
+
+
 kind_policy_registry.register(
     category_key(MODEL_REFERENCE_CATEGORY.image_generation),
     KindPolicy(
         field_policies={
             "baseline": FieldPolicy(severity="error"),
             "style": FieldPolicy(severity="error"),
+            # A warning rather than an error: this reference is fetched by every worker and client, so a
+            # single mistyped schedule in published data must not make the whole file unparseable. The
+            # unknown value is left in place, where it simply matches no schedule a request can resolve.
+            "requirements.schedulers": FieldPolicy(severity="warning"),
         },
     ),
 )
@@ -381,6 +441,30 @@ class ImageGenerationModelRecord(GenericModelRecord):
                 fallback_policy=_ERROR_POLICY,
                 model_name=self.name,
             )
+
+        return self
+
+    @model_validator(mode="after")
+    def validator_normalize_and_check_scheduler_requirements(self) -> ImageGenerationModelRecord:
+        """Normalize a legacy boolean schedule requirement and check the resulting schedules are known."""
+        self.requirements = normalize_scheduler_requirements(self.requirements)
+
+        if self.requirements is None:
+            return self
+
+        required_schedulers = self.requirements.get(SCHEDULERS_REQUIREMENT_KEY)
+        if not isinstance(required_schedulers, list):
+            return self
+
+        for required_scheduler in required_schedulers:
+            if not is_known_image_scheduler(str(required_scheduler)):
+                _apply_policy(
+                    category=self.record_type,
+                    field_name="requirements.schedulers",
+                    value=str(required_scheduler),
+                    fallback_policy=_WARNING_POLICY,
+                    model_name=self.name,
+                )
 
         return self
 

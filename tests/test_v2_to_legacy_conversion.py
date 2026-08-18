@@ -15,6 +15,7 @@ from horde_model_reference.legacy.classes.legacy_converters import (
     image_generation_record_to_legacy_dict,
 )
 from horde_model_reference.legacy.classes.legacy_models import LegacyStableDiffusionRecord
+from horde_model_reference.licensing import ModelLicensing, PermissionStatus
 from horde_model_reference.model_reference_records import (
     DownloadRecord,
     GenericModelRecordConfig,
@@ -78,6 +79,32 @@ def test_monolithic_record_preserves_embedded_hashes() -> None:
     legacy = LegacyStableDiffusionRecord(**legacy_dict)
 
     assert legacy.config.embedded_component_hashes == {"vae": _EMBEDDED_VAE_HASH}
+
+
+def test_model_licensing_survives_legacy_round_trip(tmp_path: Path) -> None:
+    """A reviewed licensing conclusion remains first-class through legacy storage and v2 reads."""
+    licensing = ModelLicensing(
+        license_expression="MIT",
+        license_ids=("MIT",),
+        commercial_use=PermissionStatus.ALLOWED,
+        redistribution=PermissionStatus.ALLOWED,
+        reviewed_by="maintainer",
+    )
+    record = ImageGenerationModelRecord(
+        name="Licensed Model",
+        baseline="stable_diffusion_xl",
+        nsfw=False,
+        licensing=licensing,
+        config=GenericModelRecordConfig(
+            download=[DownloadRecord(file_name="model.safetensors", file_url="https://x/model")],
+        ),
+    )
+
+    legacy_payload = image_generation_record_to_legacy_dict(record)
+    assert legacy_payload["licensing"]["license_expression"] == "MIT"
+
+    converted = _round_trip(record, tmp_path)
+    assert converted.licensing == licensing
 
 
 def _round_trip(record: ImageGenerationModelRecord, tmp_path: Path) -> ImageGenerationModelRecord:

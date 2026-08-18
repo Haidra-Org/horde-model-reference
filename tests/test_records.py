@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from horde_model_reference.meta_consts import (
     KNOWN_IMAGE_GENERATION_BASELINE,
+    KNOWN_IMAGE_SCHEDULER,
     MODEL_DOMAIN,
     MODEL_PURPOSE,
     MODEL_REFERENCE_CATEGORY,
@@ -267,3 +268,97 @@ def test_model_record_union_covers_all_registered_types() -> None:
         f"Record types registered via @register_record_type but missing from ModelRecordUnionType: "
         f"{', '.join(cls.__name__ for cls in missing)}"
     )
+
+
+def _record_with_requirements(
+    requirements: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None,
+) -> ImageGenerationModelRecord:
+    """Build a minimal image generation record carrying the given requirements."""
+    return ImageGenerationModelRecord(
+        name="test_name",
+        baseline=KNOWN_IMAGE_GENERATION_BASELINE.stable_diffusion_1,
+        nsfw=False,
+        requirements=requirements,
+    )
+
+
+def test_scheduler_requirement_accepts_the_whole_vocabulary() -> None:
+    """Every known schedule can be required, since validation now checks against the real resolved one."""
+    every_scheduler = [str(scheduler) for scheduler in KNOWN_IMAGE_SCHEDULER]
+    record = _record_with_requirements({"schedulers": every_scheduler})
+
+    assert record.requirements is not None
+    assert record.requirements["schedulers"] == every_scheduler
+
+
+def test_scheduler_requirement_left_alone_when_already_normalized() -> None:
+    """A record written in the schedule vocabulary passes through untouched."""
+    record = _record_with_requirements({"schedulers": ["karras", "gits"], "clip_skip": 2})
+
+    assert record.requirements == {"schedulers": ["karras", "gits"], "clip_skip": 2}
+
+
+def test_legacy_karras_true_requirement_normalizes_to_the_karras_schedule() -> None:
+    """A record from before schedules could be named keeps its meaning rather than being rejected."""
+    record = _record_with_requirements({"karras": True, "clip_skip": 2})
+
+    assert record.requirements == {"schedulers": ["karras"], "clip_skip": 2}
+
+
+def test_legacy_karras_false_requirement_normalizes_to_the_normal_schedule() -> None:
+    """The flag being off selected a schedule; it did not decline to select one."""
+    record = _record_with_requirements({"karras": False})
+
+    assert record.requirements == {"schedulers": ["normal"]}
+
+
+def test_explicit_schedulers_win_over_the_legacy_flag() -> None:
+    """Naming a schedule is the more specific statement, so it is not overwritten by the flag."""
+    record = _record_with_requirements({"karras": True, "schedulers": ["simple"]})
+
+    assert record.requirements == {"schedulers": ["simple"]}
+
+
+def test_a_non_boolean_legacy_flag_is_dropped_rather_than_guessed() -> None:
+    """The legacy key only ever carried a boolean; anything else states no schedule to preserve."""
+    record = _record_with_requirements({"karras": "yes"})
+
+    assert record.requirements == {}
+
+
+def test_records_without_requirements_are_unaffected() -> None:
+    """Most records carry no requirements at all, and must not gain any."""
+    assert _record_with_requirements(None).requirements is None
+
+
+def test_requirements_without_schedules_are_unaffected() -> None:
+    """Requirements that name no schedule are passed through untouched."""
+    record = _record_with_requirements({"clip_skip": 2, "min_steps": 3})
+
+    assert record.requirements == {"clip_skip": 2, "min_steps": 3}
+
+
+def test_an_unknown_scheduler_requirement_does_not_reject_the_record() -> None:
+    """A mistyped schedule in published data must not make the whole reference unparseable.
+
+    Every worker and client parses this file. The unknown value is kept, where it simply matches no
+    schedule a request can resolve to, rather than taking the reference down.
+    """
+    record = _record_with_requirements({"schedulers": ["not_a_real_schedule"]})
+
+    assert record.requirements == {"schedulers": ["not_a_real_schedule"]}
+
+
+def test_a_malformed_schedulers_value_is_left_alone() -> None:
+    """The requirement is a list; a scalar is not something to iterate over character by character."""
+    record = _record_with_requirements({"schedulers": "karras"})
+
+    assert record.requirements == {"schedulers": "karras"}
+
+
+def test_normalization_does_not_mutate_the_caller_dict() -> None:
+    """Records are built from parsed JSON that a caller may still be holding."""
+    original = {"karras": True}
+    _record_with_requirements(original)
+
+    assert original == {"karras": True}

@@ -299,3 +299,41 @@ def register_controlnet_style(style: CONTROLNET_STYLE | str) -> None:
 def is_known_controlnet_style(style: CONTROLNET_STYLE | str) -> bool:
     """Check if a ControlNet style is known."""
     return _CONTROLNET_STYLE_REGISTRY.is_known(style)
+
+
+class KNOWN_IMAGE_SCHEDULER(StrEnum):
+    """An enum of all the sigma schedules an image generation model may require.
+
+    A schedule decides where in the noise range a sampler's steps land. It changes what an image looks
+    like without changing how many steps are taken, which is why a model can sensibly require one.
+
+    `karras` and `normal` are the two the legacy `karras` boolean could express, and are spelled here so
+    a requirement written in that era normalizes onto this vocabulary without changing meaning.
+    `align_your_steps` and `gits` are built from fixed sigma tables rather than from the model, so they
+    are only defined for the model families those tables were built for.
+    """
+
+    normal = auto()
+    karras = auto()
+    exponential = auto()
+    sgm_uniform = auto()
+    simple = auto()
+    ddim_uniform = auto()
+    beta = auto()
+    linear_quadratic = auto()
+    kl_optimal = auto()
+    align_your_steps = auto()
+    gits = auto()
+
+
+_IMAGE_SCHEDULER_REGISTRY = EnumRegistry(item.value for item in KNOWN_IMAGE_SCHEDULER)
+
+
+def register_image_scheduler(scheduler: KNOWN_IMAGE_SCHEDULER | str) -> None:
+    """Register a new image scheduler."""
+    _IMAGE_SCHEDULER_REGISTRY.register(scheduler)
+
+
+def is_known_image_scheduler(scheduler: KNOWN_IMAGE_SCHEDULER | str) -> bool:
+    """Check if an image scheduler is known."""
+    return _IMAGE_SCHEDULER_REGISTRY.is_known(scheduler)
