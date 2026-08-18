@@ -34,6 +34,7 @@ from horde_model_reference.text_guidance import (
     TextPromptContract,
     TextUsageProfile,
 )
+from horde_model_reference.text_guidance_store import GuidanceConflictError
 from horde_model_reference.text_model_write_processor import get_valid_settings_keys
 
 router = APIRouter(prefix="/text_generation/guidance")
@@ -297,10 +298,15 @@ async def submit_change_set(
     requestor = await authenticate_queue_requestor(apikey)
     assert_primary_write_enabled(manager)
     _validate_change_set_settings(change_set)
-    manager.text_guidance_store.preview_change_set(
-        change_set,
-        canonical_model_names=set(_canonical_text_models(manager)),
-    )
+    try:
+        manager.text_guidance_store.preview_change_set(
+            change_set,
+            canonical_model_names=set(_canonical_text_models(manager)),
+        )
+    except GuidanceConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)) from exc
     resource_id = str(uuid4())
     return require_pending_queue_service(manager).enqueue_change(
         category=MODEL_REFERENCE_CATEGORY.text_generation,

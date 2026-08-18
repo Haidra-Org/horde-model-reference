@@ -115,3 +115,67 @@ def test_model_resolution_distinguishes_published_from_legacy_fallback(
     assert legacy.json()["summary"]["status"] == "legacy_label"
     assert legacy.json()["primary_profile"] is None
     assert projected.status_code == 404
+
+
+def _stale_assignment_change_set() -> dict[str, Any]:
+    """Return a change set whose precondition cannot match an empty catalog."""
+    return TextGuidanceChangeSet(
+        title="Assign a contract",
+        profile_changes=[
+            GuidanceProfileChange(
+                operation="create",
+                profile_id="chatml",
+                profile=TextPromptContract(
+                    profile_id="chatml",
+                    display_name="ChatML",
+                    summary="Serialize messages with role markers.",
+                    interaction_modes=[TextInteractionMode.CHAT],
+                ),
+            ),
+        ],
+        assignment_changes=[
+            GuidanceAssignmentChange(
+                model_name="publisher/model-a",
+                assignment=TextGuidanceAssignment(model_name="publisher/model-a", primary_profile_id="chatml"),
+                expected_before=TextGuidanceAssignment(model_name="publisher/model-a", primary_profile_id="other"),
+            ),
+        ],
+    ).model_dump(mode="json")
+
+
+def test_submit_change_set_reports_stale_precondition_as_conflict(
+    api_client: TestClient,
+    primary_manager_override_factory: Callable[[Callable[[], Any]], Any],
+    mock_auth_success: None,
+) -> None:
+    """A change set reviewed against a superseded catalog state is rejected with 409, not 500."""
+    primary_manager_override_factory(get_model_reference_manager)
+
+    response = api_client.post(
+        f"{_ROOT}/change-sets",
+        json=_stale_assignment_change_set(),
+        headers={"apikey": "test-key"},
+    )
+
+    assert response.status_code == 409
+    assert "changed after review" in response.json()["detail"]
+
+
+def test_submit_change_set_rejects_non_canonical_model_as_unprocessable(
+    api_client: TestClient,
+    primary_manager_override_factory: Callable[[Callable[[], Any]], Any],
+    mock_auth_success: None,
+) -> None:
+    """Assignments for models absent from the canonical text reference are rejected with 422."""
+    primary_manager_override_factory(get_model_reference_manager)
+    payload = _stale_assignment_change_set()
+    payload["assignment_changes"][0]["expected_before"] = None
+
+    response = api_client.post(
+        f"{_ROOT}/change-sets",
+        json=payload,
+        headers={"apikey": "test-key"},
+    )
+
+    assert response.status_code == 422
+    assert "Unknown canonical text model" in response.json()["detail"]
