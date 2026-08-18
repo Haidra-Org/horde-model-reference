@@ -2,6 +2,9 @@
 
 This module is never imported by the production application. Start it explicitly
 with uvicorn while ``HMR_FULL_STACK_DATA_ROOT`` points at a disposable directory.
+The browser test runner is a different origin, so the served app must allow it via
+``HORDE_MODEL_REFERENCE_CORS_ALLOWED_ORIGINS`` (for example ``http://127.0.0.1:4400``);
+without it the browser discards every API response and the UI reports a read-only backend.
 """
 
 from __future__ import annotations
