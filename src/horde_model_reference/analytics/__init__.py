@@ -29,6 +29,7 @@ from horde_model_reference.analytics.text_model_parser import (
     group_text_models_by_base,
     is_quantized_variant,
     normalize_model_name,
+    parameter_size_sort_key,
     parse_text_model_name,
 )
 
@@ -54,5 +55,6 @@ __all__ = [
     "group_text_models_by_base",
     "is_quantized_variant",
     "normalize_model_name",
+    "parameter_size_sort_key",
     "parse_text_model_name",
 ]

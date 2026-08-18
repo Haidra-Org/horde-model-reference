@@ -90,6 +90,44 @@ SIZE_PATTERNS = [
     r"(?<![a-zA-Z])(\d+x\d+[BMK])(?![a-zA-Z])",  # MoE models: 8x7B, 8x22B
 ]
 
+_PARAMETER_SIZE_PATTERN = re.compile(
+    r"^(?:(?P<experts>\d+(?:\.\d+)?)x)?(?P<size>\d+(?:\.\d+)?)(?P<unit>[KMBT])\d*$",
+    re.IGNORECASE,
+)
+_PARAMETER_SIZE_MULTIPLIERS: dict[str, float] = {
+    "K": 1_000.0,
+    "M": 1_000_000.0,
+    "B": 1_000_000_000.0,
+    "T": 1_000_000_000_000.0,
+}
+
+
+def parameter_size_sort_key(parameter_size: str) -> tuple[int, float, str]:
+    """Return a stable numeric ordering key for a parser-produced size label.
+
+    Unknown labels sort alphabetically after recognized parameter sizes. This
+    function interprets only the normalized size token returned by
+    :func:`parse_text_model_name`; it does not infer a size from a model name.
+
+    Args:
+        parameter_size: Normalized parameter-size label such as ``0.5B`` or ``8x7B``.
+
+    Returns:
+        A tuple suitable for passing to :func:`sorted` as its ``key`` argument.
+
+    """
+    normalized_size = parameter_size.strip()
+    match = _PARAMETER_SIZE_PATTERN.fullmatch(normalized_size)
+    if match is None:
+        return (1, 0.0, normalized_size.casefold())
+
+    expert_count = float(match.group("experts") or 1)
+    size_per_expert = float(match.group("size"))
+    unit_multiplier = _PARAMETER_SIZE_MULTIPLIERS[match.group("unit").upper()]
+    total_parameters = expert_count * size_per_expert * unit_multiplier
+    return (0, total_parameters, normalized_size.casefold())
+
+
 # Version patterns (v-prefixed version strings like v0.1, v2.1, V0.420)
 VERSION_PATTERNS = [
     r"(?<![a-zA-Z0-9])([vV]\d+(?:\.\d+)+)(?![a-zA-Z0-9])",  # v2.1, V0.420 (with dots)
@@ -678,7 +716,7 @@ def compute_group_summaries(
         summaries[group_name] = TextModelGroupSummary(
             group_name=group_name,
             member_count=len(member_names),
-            available_sizes=sorted(sizes),
+            available_sizes=sorted(sizes, key=parameter_size_sort_key),
             available_quants=sorted(quants),
             common_baseline=baselines.pop() if len(baselines) == 1 else None,
             any_nsfw=any_nsfw,

@@ -17,6 +17,7 @@ from horde_model_reference import ModelReferenceManager
 from horde_model_reference.analytics.text_model_parser import (
     get_base_model_name,
     infer_name_format,
+    parameter_size_sort_key,
     parse_text_model_name,
 )
 from horde_model_reference.audit.events import AuditOperation
@@ -421,6 +422,9 @@ def get_group(
         if backend_prefix:
             parse_target = key[len(backend_prefix) + 1 :]
 
+        if "/" in parse_target:
+            parse_target = parse_target.split("/", 1)[1]
+
         parsed = parse_text_model_name(parse_target)
 
         member = GroupMemberInfo(
@@ -465,24 +469,7 @@ def get_group(
 
     common_fields = _compute_common_fields(canonical_members)
 
-    # Sort sizes numerically where possible
-    def _size_sort_key(s: str) -> float:
-        try:
-            # Handle "8x7B" style MoE sizes
-            if "x" in s.upper():
-                parts = s.upper().replace("B", "").replace("M", "").replace("K", "").split("X")
-                return float(parts[0]) * float(parts[1])
-            numeric = s.upper().replace("B", "").replace("M", "").replace("K", "")
-            multiplier = 1.0
-            if s.upper().endswith("M"):
-                multiplier = 0.001
-            elif s.upper().endswith("K"):
-                multiplier = 0.000001
-            return float(numeric) * multiplier
-        except (ValueError, IndexError):
-            return 0.0
-
-    sorted_sizes = sorted(sizes, key=_size_sort_key)
+    sorted_sizes = sorted(sizes, key=parameter_size_sort_key)
     sorted_variants = sorted(variants, key=lambda v: v or "")
     sorted_quants = sorted(quants, key=lambda q: q or "")
     sorted_versions = sorted(versions, key=lambda ver: ver or "")
@@ -731,7 +718,8 @@ def _collect_group_health_issues(
             GroupHealthIssue(
                 group_name=group_name,
                 issue_type="singleton_group",
-                message="Group has only 1 canonical model - may not need a group",
+                message="Group currently contains one canonical model",
+                severity="info",
             )
         )
 
@@ -881,7 +869,7 @@ def list_groups_summary(
                 family_name=family_name,
                 alias_canonical=alias_canonical,
                 aliases=aliases,
-                available_sizes=sorted(sizes),
+                available_sizes=sorted(sizes, key=parameter_size_sort_key),
                 health_issues=health_issues,
             )
         )

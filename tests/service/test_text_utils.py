@@ -166,6 +166,7 @@ class TestGetGroup:
         assert "0.6B" in sizes
         assert "4B" in sizes
         assert "8B" in sizes
+        assert sizes.index("0.6B") < sizes.index("4B") < sizes.index("8B")
 
     def test_group_usage_counts(self, api_client: TestClient, text_group_manager: ModelReferenceManager) -> None:
         """Test that usage counts by size, variant, and quant are correct and returned for a text model group."""
@@ -782,13 +783,19 @@ class TestGroupsHealth:
         assert "issue_counts_by_type" in data
         assert data["total_groups_checked"] >= 2
 
-    def test_singleton_group_flagged(self, api_client: TestClient, text_group_manager: ModelReferenceManager) -> None:
-        """A group with only one canonical member should have a 'singleton_group' issue."""
+    def test_singleton_group_is_context_not_a_warning(
+        self,
+        api_client: TestClient,
+        text_group_manager: ModelReferenceManager,
+    ) -> None:
+        """A valid singleton should be visible without being presented as unhealthy."""
         resp = api_client.get(f"{_V2}/text_generation/groups/health")
         data = resp.json()
         llama_issues = [i for i in data["issues"] if i["group_name"] == "Llama-3"]
-        issue_types = [i["issue_type"] for i in llama_issues]
-        assert "singleton_group" in issue_types
+        singleton_issue = next(i for i in llama_issues if i["issue_type"] == "singleton_group")
+
+        assert singleton_issue["severity"] == "info"
+        assert "may not need" not in singleton_issue["message"]
 
     def test_healthy_group_no_issues(self, api_client: TestClient, text_group_manager: ModelReferenceManager) -> None:
         """A multi-member group with consistent data should have no issues or only info-level ones."""

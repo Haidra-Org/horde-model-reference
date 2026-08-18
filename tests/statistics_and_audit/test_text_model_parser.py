@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from horde_model_reference.analytics.text_model_parser import (
     ExtraPartType,
+    compute_group_summaries,
     get_base_model_name,
     get_model_size,
     get_model_variant,
@@ -11,8 +12,39 @@ from horde_model_reference.analytics.text_model_parser import (
     infer_name_format,
     is_quantized_variant,
     normalize_model_name,
+    parameter_size_sort_key,
     parse_text_model_name,
 )
+
+
+class TestParameterSizeSorting:
+    """Verify parameter labels follow their represented model size."""
+
+    def test_sorts_decimal_sizes_by_parameter_count(self) -> None:
+        """Sort decimal and multi-digit billion labels numerically."""
+        sizes = ["0.5B", "1.8B", "100B", "8B"]
+
+        assert sorted(sizes, key=parameter_size_sort_key) == ["0.5B", "1.8B", "8B", "100B"]
+
+    def test_normalizes_units_and_mixture_of_experts(self) -> None:
+        """Compare units and mixture-of-experts totals on one parameter scale."""
+        sizes = ["8x7B", "1.5B", "125M", "70B"]
+
+        assert sorted(sizes, key=parameter_size_sort_key) == ["125M", "1.5B", "8x7B", "70B"]
+
+    def test_unknown_labels_use_alphabetical_fallback(self) -> None:
+        """Keep unrecognized labels deterministic without guessing their meaning."""
+        sizes = ["Unknown-Z", "Unknown-A"]
+
+        assert sorted(sizes, key=parameter_size_sort_key) == ["Unknown-A", "Unknown-Z"]
+
+    def test_group_summary_exposes_parameter_order_not_lexical_order(self) -> None:
+        """Return size pills in the order users understand as increasing capacity."""
+        models = {f"Example-{size}": {"text_model_group": "Example"} for size in ["0.5B", "1.8B", "100B", "8B"]}
+
+        summary = compute_group_summaries(models)["Example"]
+
+        assert summary.available_sizes == ["0.5B", "1.8B", "8B", "100B"]
 
 
 class TestParseTextModelName:
