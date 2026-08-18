@@ -4,5 +4,6 @@ nav:
   - v2_endpoints.md
   - licensing_endpoints.md
   - v2_text_utils.md
+  - text_guidance_endpoints.md
   - pending_queue_endpoints.md
   - v1_endpoints.md

@@ -27,6 +27,20 @@ auth and errors. Writes here require a PRIMARY deployment and an `apikey`.
 | `GET /model_references/v2/text_generation/groups/health` | - | Aggregate health issues across groups, with counts by issue type. |
 | `PUT /model_references/v2/text_generation/group/{group_name}/common_fields` | requestor | Batch-update shared fields across all canonical members. Returns `202`; one `PendingChangeRecord` per member sharing a `batch_id`. |
 
+### Guidance in group responses
+
+`GET /group/{group_name}` reports where each member stands in the guidance catalog.
+
+Each `GroupMemberInfo` carries `guidance`, a `TextGuidanceSummary` with `status`
+(`published`, `legacy_label`, or `undocumented`), `primary_profile_id`, and `supplemental_profile_ids`.
+Backend-duplicate members (`is_backend_duplicate: true`) get `null` instead, since guidance is assigned to
+canonical names only.
+
+`GroupMembersResponse.guidance_coverage` is a map from each `TextGuidanceStatus` to the number of
+non-duplicate members in that state. Every status key is always present, including zero counts, so a client
+can render the breakdown without filling gaps. See
+[Text guidance endpoints](text_guidance_endpoints.md).
+
 ## Naming schema
 
 A group's naming schema defines how part fields (base, size, variant, quant, version) compose into

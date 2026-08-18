@@ -80,6 +80,36 @@ classDiagram
 - `ControlNetModelRecord` validates `controlnet_style` via [`is_known_controlnet_style`][horde_model_reference.meta_consts.is_known_controlnet_style], defaulting to warnings so new control types can appear without breaking ingestion pipelines.
 - Validators normalize optional list fields (`tags`, `showcases`, `trigger`) to empty lists to simplify downstream consumers and serialization.
 
+## Image Scheduler Requirements
+
+`requirements.schedulers` is a list of sigma schedule names drawn from [`KNOWN_IMAGE_SCHEDULER`][horde_model_reference.meta_consts.KNOWN_IMAGE_SCHEDULER]: `normal`, `karras`, `exponential`, `sgm_uniform`, `simple`, `ddim_uniform`, `beta`, `linear_quadratic`, `kl_optimal`, `align_your_steps`, and `gits`. The vocabulary is registry-backed, so a deployment can add one with `register_image_scheduler()`; `is_known_image_scheduler()` performs the check.
+
+Records written before schedules could be named carried a `karras` boolean instead. `normalize_scheduler_requirements()` runs as a model validator on `ImageGenerationModelRecord` and rewrites it:
+
+| Legacy value | Normalized `requirements.schedulers` |
+| ------------ | ------------------------------------ |
+| `karras: true` | `["karras"]` |
+| `karras: false` | `["normal"]` |
+
+`false` means the `normal` schedule rather than "no requirement", because turning the flag off selected a schedule. The legacy key is always removed. An explicit `schedulers` list wins when both keys are present: naming a schedule is the more specific statement, and the boolean is dropped without being applied. A non-boolean `karras` value is also dropped.
+
+Unknown scheduler names raise a `KindPolicy` warning rather than a validation error (`"requirements.schedulers": FieldPolicy(severity="warning")`). This file is fetched by every worker and client, so one mistyped schedule must not make the whole reference unparseable. The unknown value stays in the record, where it matches no schedule a request can resolve.
+
+## Text Generation Durable Metadata
+
+`TextGenerationModelRecord` carries reviewed claims that outlive any single worker's configuration. Their types live in `text_guidance.py`.
+
+| Field | Type | Meaning |
+| ----- | ---- | ------- |
+| `context_window` | `TextContextWindow \| None` | Publisher-advertised `maximum_tokens` (>= 1) with optional `sources` and `qualification`. Distinct from the limits a worker currently offers. |
+| `interaction_modes` | `dict[TextInteractionMode, SupportClaim] \| None` | Reviewed `completion`/`instruction`/`chat` support. |
+| `capabilities` | `dict[TextCapability, SupportClaim] \| None` | Reviewed `tool_calling`/`structured_output` support. |
+| `guidance` | `TextGuidanceSummary \| None` | Read-only projection of the guidance catalog. |
+
+A `SupportClaim` is a `status` (`supported`, `unsupported`, `unknown`) plus optional `sources` and `qualification`. A missing key is not a negative claim: it means the question has not been reviewed.
+
+`guidance` is never stored on the record and is not accepted on write. The v2 service excludes it from persisted payloads and attaches it to responses from the catalog, so it always reflects current assignments. See [Text Model Usage Guidance](../concepts/text_guidance.md).
+
 ## Extending for a New Category
 
 1. Define a new subclass extending `GenericModelRecord` with category-specific fields and validators.

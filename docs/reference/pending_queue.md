@@ -176,6 +176,26 @@ When a pending change is **applied**, `FileSystemBackend.update_model()`/`delete
     - Backend emits audit event: `category=<model_category>`, `operation=CREATE|UPDATE|DELETE`.
     - Filesystem backend triggers `mark_stale()` so cached JSON reloads on the next request.
 
+## Resource Kinds
+
+The queue carries more than model edits. `PendingChangeRecord.resource_kind` (`PendingResourceKind`) selects the apply path, and `resource_id` holds a stable identifier for resources that have no model name:
+
+| `resource_kind` | `model_name` | `resource_id` | Apply path |
+| --------------- | ------------ | ------------- | ---------- |
+| `model_reference` (default) | The model being changed | `None` | `backend.update_model`/`delete_model`, or the `_legacy` variants |
+| `text_guidance` | `guidance:<resource_id>` compatibility label | UUID of the submitted change set | `TextGuidanceStore.apply_change_set` |
+
+The default keeps every previously serialized record valid: a stored record with no `resource_kind` loads as `model_reference`.
+
+Consequences of a non-model kind:
+
+- `apply.py` dispatches on `resource_kind` before touching the backend. A `text_guidance` record validates its payload as a `TextGuidanceChangeSet`, applies it against the current canonical text model names, then calls `mark_applied`. A failure clears the apply reservation and raises `PendingChangePayloadError` (missing payload) or `PendingChangeBackendError` (validation, conflict, or write failure).
+- `materialize.select_beta_changes` skips anything that is not `model_reference`, so guidance proposals never appear as beta models.
+- `PendingChangeDiffService` renders a `text_guidance` record as the current catalog against the prospective catalog produced by `TextGuidanceStore.preview_change_set`, and marks it `is_critical=True`.
+- `PendingQueueFilter.resource_kinds` narrows listings to one or more kinds.
+
+Submission for guidance uses `POST /model_references/v2/text_generation/guidance/change-sets`; see [Text guidance endpoints](http_api/text_guidance_endpoints.md) and [Text Model Usage Guidance](../concepts/text_guidance.md).
+
 ## Authentication & Authorization Flow
 
 - `authenticate_queue_requestor` and `authenticate_queue_approver` (in `src/horde_model_reference/service/shared.py`) call the AI Horde API (`v2/find_user`) and match user ids against the configured allow-lists. Requestors inherit approver access so they can promote their own changes if desired.
