@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import urllib.parse
 from enum import auto
-from typing import Any
+from typing import Annotated, Any
 
 from haidra_core.ai_horde.meta import AIHordeCISettings
 from haidra_core.ai_horde.settings import AIHordeWorkerSettings
 from loguru import logger
 from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from strenum import StrEnum
 
 SCHEMA_VERSION = "2.1.0"
@@ -468,16 +469,29 @@ clients receive stale data instead of waiting for fresh data. Default 1 hour."""
     """Delay in seconds before first hydration run after service startup. \
 Allows service to fully initialize before background tasks begin."""
 
-    cors_allowed_origins: list[str] = Field(default_factory=list)
+    cors_allowed_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
     """List of allowed origins for CORS. Warns if unset or empty, as it falls back to the FastAPI default behavior. \
         See https://fastapi.tiangolo.com/tutorial/cors/#use-corsmiddleware for details."""
 
     @field_validator("cors_allowed_origins", mode="before")
     def validate_cors_origins(cls, v: Any) -> list[str]:  # noqa: ANN401
         if isinstance(v, str):
-            origins = [origin.strip() for origin in v.split(",") if origin.strip()]
-            logger.debug(f"Parsed CORS allowed origins from string: {origins}")
-            return origins
+            stripped_value = v.strip()
+            if stripped_value.startswith("["):
+                try:
+                    decoded_value = json.loads(stripped_value)
+                except json.JSONDecodeError as exception:
+                    raise ValueError(
+                        "CORS allowed origins must be a comma-separated string or a valid JSON array."
+                    ) from exception
+                if not isinstance(decoded_value, list):
+                    raise ValueError("CORS allowed origins JSON must contain an array.")
+                v = decoded_value
+            else:
+                origins = [origin.strip() for origin in stripped_value.split(",") if origin.strip()]
+                logger.debug(f"Parsed CORS allowed origins from string: {origins}")
+                return origins
+
         if isinstance(v, (list, tuple)):
             origins = [str(origin).strip() for origin in v if str(origin).strip()]
             logger.debug(f"Parsed CORS allowed origins from list/tuple: {origins}")
