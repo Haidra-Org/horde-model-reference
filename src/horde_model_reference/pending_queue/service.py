@@ -28,6 +28,7 @@ from horde_model_reference.pending_queue.models import (
     PendingChangeStatus,
     PendingQueueFilter,
     PendingQueuePage,
+    PendingResourceKind,
     ensure_seq,
     now_ts,
 )
@@ -56,6 +57,8 @@ class PendingQueueService:
         notes: str | None = None,
         request_metadata: dict[str, Any] | None = None,
         related_models: list[str] | None = None,
+        resource_kind: PendingResourceKind = PendingResourceKind.MODEL_REFERENCE,
+        resource_id: str | None = None,
     ) -> PendingChangeRecord:
         """Create a new pending change entry."""
         record = PendingChangeRecord(
@@ -69,6 +72,8 @@ class PendingQueueService:
             notes=notes,
             request_metadata=request_metadata,
             related_models=related_models,
+            resource_kind=resource_kind,
+            resource_id=resource_id,
         )
         persisted = self._store.enqueue_change(record)
         self._write_audit_event(

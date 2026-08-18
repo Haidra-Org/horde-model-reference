@@ -42,6 +42,7 @@ validate-sd-models = "horde_model_reference.legacy.validate_sd:main"
 download-sd-models = "horde_model_reference.legacy.download_live_legacy_dbs:main"
 migrate-model-layout = "horde_model_reference.cli.migrate_layout:main"
 generate-license-reference = "horde_model_reference.cli.license_report:main"
+generate-guidance-reference = "horde_model_reference.cli.text_guidance_report:main"
 
 [project.optional-dependencies]
 redis = [
@@ -70,7 +71,13 @@ version_file = "src/horde_model_reference/_version.py"
 # text_generation path fails in the --no-editable Docker image with
 # "Cannot find defaults.json in package data or scripts/legacy_text/".
 [tool.setuptools.package-data]
-"horde_model_reference" = ["data/*.json", "data/licenses/*.json", "py.typed"]
+"horde_model_reference" = [
+    "data/*.json",
+    "data/licenses/*.json",
+    "data/guidance/*.json",
+    "data/guidance/*.md",
+    "py.typed",
+]
 
 [tool.setuptools.exclude-package-data]
 "*" = ["*.webp", "*.png", "*.jpg", "*.ckpt", "*.pt", "*.safetensors"]

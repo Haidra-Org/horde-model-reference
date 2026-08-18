@@ -38,6 +38,7 @@ from .models import (
     PendingChangeStatus,
     PendingQueueFilter,
     PendingQueuePage,
+    PendingResourceKind,
 )
 from .service import PendingQueueService
 from .store import PendingQueueStore
@@ -69,6 +70,7 @@ __all__ = [
     "PendingQueuePage",
     "PendingQueueService",
     "PendingQueueStore",
+    "PendingResourceKind",
     "PurgeEvent",
     "RejectEvent",
     "apply_pending_change",

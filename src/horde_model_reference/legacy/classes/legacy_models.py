@@ -20,6 +20,7 @@ from pydantic import (
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.licensing import ModelLicensing
+from horde_model_reference.text_guidance import SupportClaim, TextCapability, TextContextWindow, TextInteractionMode
 from horde_model_reference.util import model_name_to_showcase_folder_name
 
 
@@ -374,6 +375,9 @@ class LegacyTextGenerationRecord(LegacyGenericRecord):
     tags: list[str] | None = None
     instruct_format: str | None = None
     settings: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] | None = None
+    context_window: TextContextWindow | None = None
+    interaction_modes: dict[TextInteractionMode, SupportClaim] | None = None
+    capabilities: dict[TextCapability, SupportClaim] | None = None
 
     @model_validator(mode="after")
     def _validate_text_generation_rules(self, info: ValidationInfo) -> LegacyTextGenerationRecord:

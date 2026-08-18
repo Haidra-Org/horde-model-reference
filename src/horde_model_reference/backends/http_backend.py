@@ -114,6 +114,31 @@ class HTTPBackend(ReplicaBackendBase):
             logger.warning(f"PRIMARY licensing export was not valid JSON: {exception}")
         return None
 
+    def fetch_text_guidance_export(self) -> dict[str, Any] | None:
+        """Return the reusable text guidance export from PRIMARY when available."""
+        url = f"{self._primary_api_url}/model_references/v2/text_generation/guidance/export"
+        try:
+            for attempt in http_retry_sync(
+                max_attempts=self._retry_max_attempts,
+                min_wait=self._retry_backoff_seconds,
+            ):
+                with attempt:
+                    response = httpx.get(url, timeout=self._timeout_seconds)
+                    if is_retryable_status_code(response.status_code):
+                        raise RetryableHTTPStatusError(response)
+                    if response.status_code != 200:
+                        logger.warning(f"PRIMARY text guidance export returned {response.status_code}")
+                        return None
+                    export_payload: dict[str, Any] = response.json()
+                    return export_payload
+        except (RetryError, RetryableHTTPStatusError):
+            logger.warning(
+                f"Failed to fetch text guidance export from PRIMARY after {self._retry_max_attempts} attempts",
+            )
+        except ValueError as exception:
+            logger.warning(f"PRIMARY text guidance export was not valid JSON: {exception}")
+        return None
+
     def _category_api_url(self, category: MODEL_REFERENCE_CATEGORY) -> str:
         """Get the PRIMARY API URL for a category."""
         return f"{self._primary_api_url}/model_references/v2/{category.value}"

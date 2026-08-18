@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, cast
 
 import pytest
@@ -15,8 +16,23 @@ from horde_model_reference.pending_queue.apply import (
     PendingChangeStateError,
     apply_pending_changes,
 )
-from horde_model_reference.pending_queue.models import MarkAppliedResult, PendingChangeRecord, PendingChangeStatus
+from horde_model_reference.pending_queue.models import (
+    MarkAppliedResult,
+    PendingChangeRecord,
+    PendingChangeStatus,
+    PendingResourceKind,
+)
 from horde_model_reference.pending_queue.service import PendingQueueService
+from horde_model_reference.text_guidance import (
+    GuidanceAssignmentChange,
+    GuidanceProfileChange,
+    TextGuidanceAssignment,
+    TextGuidanceChangeSet,
+    TextGuidanceStatus,
+    TextInteractionMode,
+    TextPromptContract,
+)
+from horde_model_reference.text_guidance_store import TextGuidanceStore
 
 
 @dataclass
@@ -319,6 +335,68 @@ def test_apply_pending_changes_applies_all_records() -> None:
     assert backend.updated and backend.deleted
     assert result.failed_change_id is None
     assert result.failed_error is None
+
+
+def test_approved_guidance_change_publishes_catalog_without_mutating_model_files(tmp_path: Path) -> None:
+    """The shared queue applies guidance as its own resource while exact model data remains untouched."""
+    backend = _DummyBackend()
+    guidance_store = TextGuidanceStore(root_path=tmp_path / "guidance")
+    manager_stub = _DummyManager(backend=backend)
+    manager_stub.text_guidance_store = guidance_store  # type: ignore[attr-defined]
+    manager_stub.get_raw_model_reference_json = (  # type: ignore[attr-defined,method-assign]
+        lambda _category: {"publisher/model-7b": {"name": "publisher/model-7b"}}
+    )
+    change_set = TextGuidanceChangeSet(
+        title="Document and assign ChatML",
+        profile_changes=[
+            GuidanceProfileChange(
+                operation="create",
+                profile_id="chatml",
+                profile=TextPromptContract(
+                    profile_id="chatml",
+                    display_name="ChatML",
+                    summary="Serialize messages with role markers.",
+                    interaction_modes=[TextInteractionMode.CHAT],
+                ),
+            ),
+        ],
+        assignment_changes=[
+            GuidanceAssignmentChange(
+                model_name="publisher/model-7b",
+                assignment=TextGuidanceAssignment(
+                    model_name="publisher/model-7b",
+                    primary_profile_id="chatml",
+                ),
+            ),
+        ],
+    )
+    record = _approved_record(
+        17,
+        operation=AuditOperation.UPDATE,
+        payload=change_set.model_dump(mode="json"),
+        model_name="guidance:proposal-17",
+    ).model_copy(
+        update={
+            "category": MODEL_REFERENCE_CATEGORY.text_generation,
+            "resource_kind": PendingResourceKind.TEXT_GUIDANCE,
+            "resource_id": "proposal-17",
+        },
+    )
+    queue_service_stub = _DummyQueueService([record])
+
+    result = apply_pending_changes(
+        manager=cast(ModelReferenceManager, manager_stub),
+        queue_service=cast(PendingQueueService, queue_service_stub),
+        change_ids=[17],
+        applied_by="approver-id",
+        applied_username="approver",
+    )
+
+    resolved = guidance_store.resolve("publisher/model-7b", legacy_instruct_format=None)
+    assert resolved.summary.status is TextGuidanceStatus.PUBLISHED
+    assert result.applied_records[0].status is PendingChangeStatus.APPLIED
+    assert backend.updated == []
+    assert backend.deleted == []
 
 
 def test_apply_pending_changes_stops_on_first_error() -> None:

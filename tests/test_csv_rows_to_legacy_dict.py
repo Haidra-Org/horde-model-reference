@@ -455,7 +455,10 @@ class TestWriteLegacyTextCsvRoundtrip:
         write_legacy_text_csv(rows, csv_path)
 
         first_line = csv_path.read_text(encoding="utf-8").split("\n")[0].strip()
-        expected = "name,parameters_bn,display_name,url,baseline,description,style,tags,instruct_format,settings"
+        expected = (
+            "name,parameters_bn,display_name,url,baseline,description,style,tags,instruct_format,settings,"
+            "context_window,interaction_modes,capabilities"
+        )
         assert first_line == expected
 
 

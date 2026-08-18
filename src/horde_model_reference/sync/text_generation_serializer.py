@@ -45,6 +45,9 @@ TEXT_CSV_FIELDNAMES: list[str] = [
     "tags",
     "instruct_format",
     "settings",
+    "context_window",
+    "interaction_modes",
+    "capabilities",
 ]
 
 LegacyRecordDict = dict[str, Any]
@@ -64,6 +67,9 @@ _PRIMARY_AUTHORITATIVE_FIELDS: frozenset[str] = frozenset(
         "style",
         "tags",
         "settings",
+        "context_window",
+        "interaction_modes",
+        "capabilities",
     }
 )
 
@@ -247,6 +253,10 @@ class TextGenerationSerializer:
         else:
             row["settings"] = ""
 
+        for field_name in ("context_window", "interaction_modes", "capabilities"):
+            field_value = record.get(field_name)
+            row[field_name] = json.dumps(field_value) if isinstance(field_value, dict) and field_value else ""
+
         return row
 
     def _strip_auto_tags(
@@ -390,6 +400,8 @@ class TextGenerationSerializer:
             row["tags"] = sorted(tags)
 
             row["settings"] = json.loads(row["settings"]) if row["settings"] else {}
+            for field_name in ("context_window", "interaction_modes", "capabilities"):
+                row[field_name] = json.loads(row[field_name]) if row.get(field_name) else None
 
             if not row.get("display_name"):
                 row["display_name"] = re.sub(r" +", " ", re.sub(r"[-_]", " ", model_name)).strip()

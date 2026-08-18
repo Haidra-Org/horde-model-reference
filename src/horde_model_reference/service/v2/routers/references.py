@@ -54,20 +54,38 @@ def _check_model_exists(
 
 
 def _model_payload(record: GenericModelRecord) -> dict[str, Any]:
-    return record.model_dump(mode="json", exclude_none=True)
+    return record.model_dump(mode="json", exclude_none=True, exclude={"guidance"})
 
 
-def _public_record_payload(record_payload: dict[str, Any]) -> dict[str, Any]:
+def _public_record_payload(
+    record_payload: dict[str, Any],
+    *,
+    model_name: str | None = None,
+    manager: ModelReferenceManager | None = None,
+) -> dict[str, Any]:
     """Return a v2 record payload with explicit fail-closed licensing."""
     public_payload = dict(record_payload)
     public_payload.setdefault("licensing", unknown_model_licensing().model_dump(mode="json", exclude_none=True))
+    record_type = public_payload.get("record_type")
+    if manager is not None and model_name is not None and record_type == MODEL_REFERENCE_CATEGORY.text_generation:
+        legacy_format = public_payload.get("instruct_format")
+        public_payload["guidance"] = manager.text_guidance_store.summary_for_model(
+            model_name,
+            legacy_instruct_format=legacy_format if isinstance(legacy_format, str) else None,
+        ).model_dump(mode="json")
     return public_payload
 
 
-def _public_reference_payload(reference_payload: dict[str, Any]) -> dict[str, Any]:
+def _public_reference_payload(
+    reference_payload: dict[str, Any],
+    *,
+    manager: ModelReferenceManager | None = None,
+) -> dict[str, Any]:
     """Return a category payload whose records all carry explicit licensing."""
     return {
-        model_name: _public_record_payload(model_payload) if isinstance(model_payload, dict) else model_payload
+        model_name: _public_record_payload(model_payload, model_name=model_name, manager=manager)
+        if isinstance(model_payload, dict)
+        else model_payload
         for model_name, model_payload in reference_payload.items()
     }
 
@@ -452,7 +470,7 @@ async def read_v2_reference(
             detail=f"Model category '{model_category_name}' not found",
         )
 
-    return JSONResponse(content=_public_reference_payload(raw_json), media_type="application/json")
+    return JSONResponse(content=_public_reference_payload(raw_json, manager=manager), media_type="application/json")
 
 
 single_model_route_subpath = f"/{{{PathVariables.model_category_name}}}/model/{{{PathVariables.model_name}}}"
@@ -533,7 +551,10 @@ async def read_v2_single_model(
             detail=f"Model '{model_name}' not found in category '{model_category_name}'",
         )
 
-    return JSONResponse(content=_public_record_payload(raw_json[model_name]), media_type="application/json")
+    return JSONResponse(
+        content=_public_record_payload(raw_json[model_name], model_name=model_name, manager=manager),
+        media_type="application/json",
+    )
 
 
 pending_route_subpath = f"/{{{PathVariables.model_category_name}}}/pending"
@@ -581,7 +602,7 @@ async def read_v2_reference_pending(
         page.items,
         domain=horde_model_reference_settings.canonical_format,
     )
-    return JSONResponse(content=_public_reference_payload(records), media_type="application/json")
+    return JSONResponse(content=_public_reference_payload(records, manager=manager), media_type="application/json")
 
 
 # ---------------------------------------------------------------------------

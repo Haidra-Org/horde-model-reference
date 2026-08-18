@@ -38,6 +38,13 @@ from horde_model_reference.model_kind_validation import (
     category_key,
     kind_policy_registry,
 )
+from horde_model_reference.text_guidance import (
+    SupportClaim,
+    TextCapability,
+    TextContextWindow,
+    TextGuidanceSummary,
+    TextInteractionMode,
+)
 
 
 def _classification_for(category: MODEL_REFERENCE_CATEGORY | str) -> ModelClassification:
@@ -546,6 +553,14 @@ class TextGenerationModelRecord(GenericModelRecord):
     """The base model group name for grouping model variants together."""
     name_schema_exception: str | None = None
     """If set, this model does not follow the group's naming schema. The value is the reason."""
+    context_window: TextContextWindow | None = None
+    """Durable publisher-advertised context window, distinct from current worker limits."""
+    interaction_modes: dict[TextInteractionMode, SupportClaim] | None = None
+    """Reviewed completion, instruction, and chat support claims."""
+    capabilities: dict[TextCapability, SupportClaim] | None = None
+    """Reviewed durable capability claims; missing keys remain unknown."""
+    guidance: TextGuidanceSummary | None = None
+    """Read-only published-guidance summary added by v2 service responses."""
 
 
 class TextModelGroupNameSchema(BaseModel):

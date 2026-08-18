@@ -25,7 +25,7 @@ from horde_model_reference import CanonicalFormat, horde_model_reference_paths
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.legacy.convert_all_legacy_dbs import convert_legacy_database_by_category
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
-from horde_model_reference.pending_queue.models import PendingChangeRecord
+from horde_model_reference.pending_queue.models import PendingChangeRecord, PendingResourceKind
 
 _BETA_OPERATIONS = frozenset({AuditOperation.CREATE, AuditOperation.UPDATE})
 """Queue operations that contribute a usable beta model. ``DELETE`` is intentionally
@@ -47,6 +47,8 @@ def select_beta_changes(
     """
     latest: dict[str, PendingChangeRecord] = {}
     for change in changes:
+        if change.resource_kind is not PendingResourceKind.MODEL_REFERENCE:
+            continue
         if change.operation not in _BETA_OPERATIONS or change.payload is None:
             continue
         current = latest.get(change.model_name)

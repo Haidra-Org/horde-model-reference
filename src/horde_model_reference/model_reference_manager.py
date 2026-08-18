@@ -66,6 +66,7 @@ from horde_model_reference.source_consts import (
     SourceSelector,
     normalize_source_selector,
 )
+from horde_model_reference.text_guidance_store import TextGuidanceStore
 
 if TYPE_CHECKING:
     from horde_model_reference.integrations.data_merger import PopularModelResult
@@ -128,6 +129,8 @@ class ModelReferenceManager:
     _group_schema_store: GroupSchemaStore | None = None
     _licensing_store: LicensingStore
     _licensing_store_refresh_attempted: bool = False
+    _text_guidance_store: TextGuidanceStore
+    _text_guidance_store_refresh_attempted: bool = False
 
     _lock: RLock = RLock()
 
@@ -385,6 +388,20 @@ class ModelReferenceManager:
                     writable=backend.supports_writes(),
                 )
                 cls._instance._licensing_store_refresh_attempted = False
+                guidance_root_path = (
+                    licensing_base_path.resolve() / horde_model_reference_settings.text_guidance.relative_subdir
+                )
+                if horde_model_reference_settings.text_guidance.root_path_override:
+                    guidance_root_path = Path(
+                        horde_model_reference_settings.text_guidance.root_path_override,
+                    ).resolve()
+                guidance_bootstrap_path = Path(__file__).resolve().parent / "data" / "guidance"
+                cls._instance._text_guidance_store = TextGuidanceStore(
+                    root_path=guidance_root_path,
+                    bootstrap_path=guidance_bootstrap_path,
+                    writable=backend.supports_writes(),
+                )
+                cls._instance._text_guidance_store_refresh_attempted = False
                 if backend.supports_writes():
                     cls._instance._audit_writer = audit_writer
                     cls._instance._pending_queue_service = cls._build_pending_queue_service(
@@ -597,6 +614,19 @@ class ModelReferenceManager:
                 except (OSError, ValueError) as exception:
                     logger.warning(f"Failed to refresh replica licensing data: {exception}")
         return self._licensing_store
+
+    @property
+    def text_guidance_store(self) -> TextGuidanceStore:
+        """Return text guidance storage, hydrating HTTP replicas from PRIMARY once."""
+        if isinstance(self.backend, HTTPBackend) and not self._text_guidance_store_refresh_attempted:
+            export_payload = self.backend.fetch_text_guidance_export()
+            self._text_guidance_store_refresh_attempted = True
+            if export_payload is not None:
+                try:
+                    self._text_guidance_store.refresh_replica_export(export_payload)
+                except (OSError, ValueError) as exception:
+                    logger.warning(f"Failed to refresh replica text guidance data: {exception}")
+        return self._text_guidance_store
 
     @property
     def deferred_prefetch_handle(self) -> DeferredPrefetchHandle | None:

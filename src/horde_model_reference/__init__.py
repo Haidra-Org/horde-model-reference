@@ -296,6 +296,18 @@ class LicensingSettings(BaseModel):
     """Whether v2 model creates must supply licensing instead of receiving an explicit unknown conclusion."""
 
 
+class TextGuidanceSettings(BaseModel):
+    """Settings controlling reusable text guidance persistence."""
+
+    model_config = SettingsConfigDict(use_attribute_docstrings=True)
+
+    relative_subdir: str = "text_guidance"
+    """Relative folder under the model-reference data root containing the guidance catalog."""
+
+    root_path_override: str | None = None
+    """Absolute path override for text guidance persistence."""
+
+
 class R2Settings(BaseModel):
     """Settings for the gated Cloudflare R2 mirror of hostable (non-generation) models.
 
@@ -449,6 +461,9 @@ Set lower (e.g., 0.005%) to flag fewer models or higher (e.g., 0.01%) to flag mo
 
     licensing: LicensingSettings = LicensingSettings()
     """Settings controlling first-class licensing data and editor authorization."""
+
+    text_guidance: TextGuidanceSettings = TextGuidanceSettings()
+    """Settings controlling reusable text-model guidance persistence."""
 
     r2: R2Settings = Field(default_factory=R2Settings)
     """Gated Cloudflare R2 mirror settings: the client gateway URL plus the devops upload tool's credentials."""

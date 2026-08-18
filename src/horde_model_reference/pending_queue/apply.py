@@ -12,8 +12,10 @@ from loguru import logger
 from horde_model_reference import CanonicalFormat, ModelReferenceManager, horde_model_reference_settings
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, get_category_descriptor
+from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
+from horde_model_reference.text_guidance import TextGuidanceChangeSet
 
-from .models import BatchSplitInfo, PendingChangeRecord
+from .models import BatchSplitInfo, PendingChangeRecord, PendingResourceKind
 from .service import PendingQueueService
 
 
@@ -170,6 +172,38 @@ def apply_pending_change(
         if "does not exist" in str(exc):
             raise PendingChangeNotFoundError(f"Change {change_id} not found.") from exc
         raise PendingChangeStateError(str(exc)) from exc
+
+    if record.resource_kind is PendingResourceKind.TEXT_GUIDANCE:
+        payload = record.payload
+        if payload is None:
+            queue_service.clear_apply_reservation(change_id=change_id, reservation_id=reservation_id)
+            raise PendingChangePayloadError(f"Guidance change {change_id} is missing its change-set payload.")
+        try:
+            change_set = TextGuidanceChangeSet.model_validate(payload)
+            text_models = manager.get_raw_model_reference_json(MODEL_REFERENCE_CATEGORY.text_generation) or {}
+            canonical_model_names = {
+                model_name for model_name in text_models if not has_legacy_text_backend_prefix(model_name)
+            }
+            manager.text_guidance_store.apply_change_set(
+                change_set,
+                canonical_model_names=canonical_model_names,
+                editor_id=applied_by,
+            )
+        except Exception as exc:
+            queue_service.clear_apply_reservation(change_id=change_id, reservation_id=reservation_id)
+            raise PendingChangeBackendError(str(exc)) from exc
+
+        try:
+            mark_result = queue_service.mark_applied(
+                change_id=change_id,
+                applied_by=applied_by,
+                applied_username=applied_username,
+                job_id=reservation_id,
+            )
+        except Exception as exc:
+            queue_service.clear_apply_reservation(change_id=change_id, reservation_id=reservation_id)
+            raise PendingChangeBackendError(str(exc)) from exc
+        return PendingChangeApplyResult(record=mark_result.record, batch_split=mark_result.batch_split)
 
     backend = manager.backend
     canonical_format = horde_model_reference_settings.canonical_format

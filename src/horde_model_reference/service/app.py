@@ -22,6 +22,7 @@ import horde_model_reference.service.v2.routers.pending_queue as v2_pending_queu
 import horde_model_reference.service.v2.routers.pending_queue_audit as v2_pending_queue_audit
 import horde_model_reference.service.v2.routers.references as v2_references
 import horde_model_reference.service.v2.routers.search as v2_search
+import horde_model_reference.service.v2.routers.text_guidance as v2_text_guidance
 import horde_model_reference.service.v2.routers.text_utils as v2_text_utils
 import horde_model_reference.service.v2.routers.user as v2_user
 from horde_model_reference import BackendInfo, ReplicateMode, horde_model_reference_settings
@@ -142,6 +143,10 @@ _OPENAPI_TAGS = [
         ),
     },
     {
+        "name": "text_guidance",
+        "description": "Reusable prompting contracts, usage recipes, and exact-model assignments.",
+    },
+    {
         "name": "pending_queue",
         "description": "Propose -> approve -> apply workflow for model changes on PRIMARY deployments.",
     },
@@ -196,6 +201,7 @@ app.add_middleware(
 
 
 app.include_router(v2_text_utils.router, prefix=v2_prefix, tags=["v2", "text_utils"])
+app.include_router(v2_text_guidance.router, prefix=v2_prefix, tags=["v2", "text_guidance"])
 app.include_router(v2_search.router, prefix=v2_prefix, tags=["v2", "search"])
 app.include_router(v2_pending_queue.router, prefix=v2_prefix, tags=["v2", "pending_queue"])
 app.include_router(v2_pending_queue_audit.router, prefix=v2_prefix, tags=["v2", "pending_queue", "audit"])

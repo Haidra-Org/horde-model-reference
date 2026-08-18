@@ -33,6 +33,13 @@ class PendingChangeStatus(StrEnum):
     REJECTED = "rejected"
 
 
+class PendingResourceKind(StrEnum):
+    """Kinds of resources carried by the shared review queue."""
+
+    MODEL_REFERENCE = "model_reference"
+    TEXT_GUIDANCE = "text_guidance"
+
+
 class PendingChangeRecord(BaseModel):
     """Single pending change tracked by the queue."""
 
@@ -42,6 +49,10 @@ class PendingChangeRecord(BaseModel):
         "with the next available ID in enqueue_change(). After persistence, this is the canonical "
         "identifier used to approve, reject, apply, and audit-trail this change.",
     )
+    resource_kind: PendingResourceKind = PendingResourceKind.MODEL_REFERENCE
+    """Resource dispatcher; defaults preserve all previously serialized queue records."""
+    resource_id: str | None = None
+    """Stable non-model resource identifier when ``model_name`` is only a compatibility label."""
     category: MODEL_REFERENCE_CATEGORY
     model_name: str
     operation: AuditOperation
@@ -102,6 +113,7 @@ class PendingQueueFilter(BaseModel):
     batch_id: int | None = None
     model_name: str | None = None
     requested_by: set[str] | None = None
+    resource_kinds: set[PendingResourceKind] | None = None
 
 
 class PendingBatchResult(BaseModel):

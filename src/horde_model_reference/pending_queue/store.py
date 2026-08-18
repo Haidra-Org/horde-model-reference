@@ -203,6 +203,8 @@ class PendingQueueStore:
             return False
         if queue_filter.requested_by and record.requested_by not in queue_filter.requested_by:
             return False
+        if queue_filter.resource_kinds and record.resource_kind not in queue_filter.resource_kinds:
+            return False
         if queue_filter.model_name:
             lowered = queue_filter.model_name.lower()
             return lowered in record.model_name.lower()

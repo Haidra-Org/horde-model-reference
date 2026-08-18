@@ -70,6 +70,9 @@ GROUP_FAMILIES_FILENAME: str = "text_generation_group_families.json"
 LICENSING_FOLDER_NAME: str = "licensing"
 """Default folder containing normalized licensing datasets and their audit trail."""
 
+TEXT_GUIDANCE_FOLDER_NAME: str = "text_guidance"
+"""Default folder containing the reusable text guidance catalog."""
+
 
 class HordeModelReferencePaths:
     """A helper class to manage local and remote model reference paths."""
@@ -133,6 +136,15 @@ class HordeModelReferencePaths:
         if override:
             return Path(override).expanduser().resolve()
         subdir = horde_model_reference_settings.licensing.relative_subdir or LICENSING_FOLDER_NAME
+        return self.base_path.joinpath(subdir)
+
+    @property
+    def text_guidance_path(self) -> Path:
+        """Return the root path for reusable text guidance persistence."""
+        override = horde_model_reference_settings.text_guidance.root_path_override
+        if override:
+            return Path(override).expanduser().resolve()
+        subdir = horde_model_reference_settings.text_guidance.relative_subdir or TEXT_GUIDANCE_FOLDER_NAME
         return self.base_path.joinpath(subdir)
 
     @property
@@ -241,6 +253,7 @@ class HordeModelReferencePaths:
         self.audit_path.mkdir(parents=True, exist_ok=True)
         self.pending_queue_path.mkdir(parents=True, exist_ok=True)
         self.licensing_path.mkdir(parents=True, exist_ok=True)
+        self.text_guidance_path.mkdir(parents=True, exist_ok=True)
 
     def _get_file_name(self, model_reference_category: MODEL_REFERENCE_CATEGORY) -> str:
         if model_reference_category not in self.model_reference_filenames:

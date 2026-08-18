@@ -741,6 +741,9 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
                 "settings": csv_row.settings,
                 "display_name": csv_row.display_name,
                 "parameters": csv_row.parameters,
+                "context_window": csv_row.context_window,
+                "interaction_modes": csv_row.interaction_modes,
+                "capabilities": csv_row.capabilities,
             }
 
             validation_issues: list[str] = []
@@ -806,6 +809,9 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             tags=legacy_record.tags or [],
             instruct_format=legacy_record.instruct_format,
             settings=legacy_record.settings,
+            context_window=legacy_record.context_window,
+            interaction_modes=legacy_record.interaction_modes,
+            capabilities=legacy_record.capabilities,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
 

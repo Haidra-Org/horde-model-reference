@@ -11,7 +11,7 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 from loguru import logger
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from horde_model_reference import ModelReferenceManager
 from horde_model_reference.analytics.text_model_parser import (
@@ -34,6 +34,7 @@ from horde_model_reference.service.shared import (
 )
 from horde_model_reference.service.v2.routers.write_validations import assert_primary_write_enabled
 from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
+from horde_model_reference.text_guidance import TextGuidanceStatus, TextGuidanceSummary
 
 router = APIRouter()
 
@@ -99,6 +100,7 @@ class GroupMemberInfo(BaseModel):
     instruct_format: str | None = None
     is_backend_duplicate: bool = False
     backend_prefix: str | None = None
+    guidance: TextGuidanceSummary | None = None
 
 
 class NameFormatInfo(BaseModel):
@@ -138,6 +140,7 @@ class GroupMembersResponse(BaseModel):
     name_schema_is_custom: bool = False
     exception_members: list[NameExceptionInfo] = []
     related_family: GroupFamilyResponse | None = None
+    guidance_coverage: dict[TextGuidanceStatus, int] = Field(default_factory=dict)
 
 
 class DistinctBaselinesResponse(BaseModel):
@@ -451,6 +454,16 @@ def get_group(
             instruct_format=data.get("instruct_format"),
             is_backend_duplicate=is_dup,
             backend_prefix=backend_prefix,
+            guidance=(
+                manager.text_guidance_store.summary_for_model(
+                    key,
+                    legacy_instruct_format=data.get("instruct_format")
+                    if isinstance(data.get("instruct_format"), str)
+                    else None,
+                )
+                if not is_dup
+                else None
+            ),
         )
         members.append(member)
 
@@ -538,6 +551,16 @@ def get_group(
         name_schema_is_custom=name_schema_is_custom,
         exception_members=exception_members,
         related_family=related_family,
+        guidance_coverage={
+            guidance_status: sum(
+                1
+                for member in members
+                if not member.is_backend_duplicate
+                and member.guidance is not None
+                and member.guidance.status is guidance_status
+            )
+            for guidance_status in TextGuidanceStatus
+        },
     )
 
 

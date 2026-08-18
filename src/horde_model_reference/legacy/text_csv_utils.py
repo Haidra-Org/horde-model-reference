@@ -39,6 +39,9 @@ TEXT_CSV_FIELDNAMES: list[str] = [
     "tags",
     "instruct_format",
     "settings",
+    "context_window",
+    "interaction_modes",
+    "capabilities",
 ]
 
 
@@ -59,6 +62,9 @@ class TextCSVRow:
     instruct_format: str
     settings: SettingsMapping | None
     display_name: str
+    context_window: dict[str, Any] | None = None
+    interaction_modes: dict[str, Any] | None = None
+    capabilities: dict[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -118,6 +124,27 @@ def parse_legacy_text_csv(stream: IO[str]) -> tuple[list[TextCSVRow], list[TextC
         else:
             settings = None
 
+        durable_metadata: dict[str, dict[str, Any] | None] = {}
+        invalid_metadata = False
+        for field_name in ("context_window", "interaction_modes", "capabilities"):
+            serialized = (raw_row.get(field_name) or "").strip()
+            if not serialized:
+                durable_metadata[field_name] = None
+                continue
+            try:
+                parsed_value = json.loads(serialized)
+            except json.JSONDecodeError as exc:
+                issues.append(TextCSVIssue(identifier, f"invalid {field_name} JSON: {exc.msg}; row skipped"))
+                invalid_metadata = True
+                break
+            if not isinstance(parsed_value, dict):
+                issues.append(TextCSVIssue(identifier, f"invalid {field_name}: expected a JSON object; row skipped"))
+                invalid_metadata = True
+                break
+            durable_metadata[field_name] = parsed_value
+        if invalid_metadata:
+            continue
+
         row = TextCSVRow(
             name=raw_name,
             parameters_bn=parameters_bn,
@@ -132,6 +159,9 @@ def parse_legacy_text_csv(stream: IO[str]) -> tuple[list[TextCSVRow], list[TextC
             instruct_format=(raw_row.get("instruct_format") or ""),
             settings=settings,
             display_name=(raw_row.get("display_name") or ""),
+            context_window=durable_metadata["context_window"],
+            interaction_modes=durable_metadata["interaction_modes"],
+            capabilities=durable_metadata["capabilities"],
         )
         rows.append(row)
 
@@ -224,6 +254,9 @@ def csv_rows_to_legacy_dict(
         row["style"] = csv_row.style
 
         row["instruct_format"] = csv_row.instruct_format
+        row["context_window"] = csv_row.context_window
+        row["interaction_modes"] = csv_row.interaction_modes
+        row["capabilities"] = csv_row.capabilities
 
         # Remove empty values - matches convert.py: {k: v for k, v in row.items() if v}
         row = {k: v for k, v in row.items() if v}
@@ -317,6 +350,9 @@ def legacy_record_to_csv_row(name: str, record: dict[str, Any]) -> TextCSVRow:
         instruct_format=str(record.get("instruct_format", "") or ""),
         settings=settings,
         display_name=display_name,
+        context_window=cast(dict[str, Any] | None, record.get("context_window")),
+        interaction_modes=cast(dict[str, Any] | None, record.get("interaction_modes")),
+        capabilities=cast(dict[str, Any] | None, record.get("capabilities")),
     )
 
 
@@ -346,6 +382,11 @@ def write_legacy_text_csv(rows: list[TextCSVRow], csv_path: Path) -> None:
             "tags": ",".join(row.tags) if row.tags else "",
             "instruct_format": row.instruct_format,
             "settings": json.dumps(row.settings, separators=(",", ": ")) if row.settings else "",
+            "context_window": json.dumps(row.context_window, separators=(",", ": ")) if row.context_window else "",
+            "interaction_modes": (
+                json.dumps(row.interaction_modes, separators=(",", ": ")) if row.interaction_modes else ""
+            ),
+            "capabilities": json.dumps(row.capabilities, separators=(",", ": ")) if row.capabilities else "",
         }
         writer.writerow(csv_dict)
 
