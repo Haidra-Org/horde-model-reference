@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Annotated
 from uuid import uuid4
 
@@ -22,23 +21,22 @@ from horde_model_reference.service.shared import (
 from horde_model_reference.service.v2.routers.write_validations import assert_primary_write_enabled
 from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 from horde_model_reference.text_guidance import (
-    GuidanceAssignmentChange,
-    GuidanceProfileChange,
     GuidanceProfileKind,
     ResolvedTextGuidance,
     TextGuidanceAssignment,
     TextGuidanceCatalog,
     TextGuidanceCatalogMetadata,
     TextGuidanceChangeSet,
-    TextInteractionMode,
-    TextPromptContract,
     TextUsageProfile,
+)
+from horde_model_reference.text_guidance_migration import (
+    GuidanceMigrationPreview,
+    build_legacy_migration_change_set,
 )
 from horde_model_reference.text_guidance_store import GuidanceConflictError
 from horde_model_reference.text_model_write_processor import get_valid_settings_keys
 
 router = APIRouter(prefix="/text_generation/guidance")
-_PROFILE_SLUG_PATTERN = re.compile(r"[^a-z0-9]+")
 
 
 class TextUsageProfileSummary(BaseModel):
@@ -67,14 +65,6 @@ class TextGuidanceAssignmentPage(BaseModel):
     items: list[TextGuidanceAssignment]
     total: int
     metadata: TextGuidanceCatalogMetadata
-
-
-class GuidanceMigrationPreview(BaseModel):
-    """Reviewable proposal synthesized from legacy instruct-format labels."""
-
-    change_set: TextGuidanceChangeSet | None
-    source_model_count: int
-    format_count: int
 
 
 def _canonical_text_models(manager: ModelReferenceManager) -> dict[str, dict[str, object]]:
@@ -217,70 +207,10 @@ async def preview_legacy_migration(
     """Build an editable proposal from legacy instruct-format strings without storing it."""
     await authenticate_queue_requestor(apikey)
     assert_primary_write_enabled(manager)
-    records = _canonical_text_models(manager)
-    existing_profiles = manager.text_guidance_store.list_profiles(include_deprecated=True)
-    known_aliases = {
-        alias.casefold(): profile.profile_id
-        for profile in existing_profiles
-        for alias in [profile.display_name, *profile.aliases]
-    }
-    profiles_by_label: dict[str, TextPromptContract] = {}
-    assignments: list[GuidanceAssignmentChange] = []
-
-    for model_name, record in records.items():
-        raw_label = record.get("instruct_format")
-        if not isinstance(raw_label, str) or not raw_label.strip():
-            continue
-        label = raw_label.strip()
-        profile_id = known_aliases.get(label.casefold())
-        if profile_id is None:
-            slug = _PROFILE_SLUG_PATTERN.sub("-", label.casefold()).strip("-") or "prompt-contract"
-            profile_id = slug
-            suffix = 2
-            reserved_ids = {profile.profile_id for profile in existing_profiles} | set(profiles_by_label)
-            while profile_id in reserved_ids:
-                profile_id = f"{slug}-{suffix}"
-                suffix += 1
-            profiles_by_label[profile_id] = TextPromptContract(
-                profile_id=profile_id,
-                display_name=label,
-                aliases=[label],
-                summary=f"Review and document the legacy {label} prompt contract.",
-                interaction_modes=[TextInteractionMode.INSTRUCTION],
-            )
-            known_aliases[label.casefold()] = profile_id
-        current_assignment = manager.text_guidance_store.get_assignment(model_name)
-        if current_assignment is None:
-            assignments.append(
-                GuidanceAssignmentChange(
-                    model_name=model_name,
-                    assignment=TextGuidanceAssignment(model_name=model_name, primary_profile_id=profile_id),
-                    expected_before=None,
-                ),
-            )
-
-    profile_changes = [
-        GuidanceProfileChange(
-            operation="create",
-            profile_id=profile.profile_id,
-            profile=profile,
-            expected_before=None,
-        )
-        for profile in profiles_by_label.values()
-    ]
-    change_set = (
-        TextGuidanceChangeSet(
-            title="Migrate legacy instruct-format guidance",
-            profile_changes=profile_changes,
-            assignment_changes=assignments,
-        )
-        if profile_changes or assignments
-        else None
-    )
-    return GuidanceMigrationPreview(
-        change_set=change_set,
-        source_model_count=len(assignments),
-        format_count=len(profile_changes),
+    return build_legacy_migration_change_set(
+        _canonical_text_models(manager),
+        existing_profiles=manager.text_guidance_store.list_profiles(include_deprecated=True),
+        current_assignment=manager.text_guidance_store.get_assignment,
     )
 
 

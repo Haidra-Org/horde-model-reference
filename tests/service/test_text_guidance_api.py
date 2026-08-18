@@ -5,8 +5,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi.testclient import TestClient
 
+from horde_model_reference import (
+    MODEL_REFERENCE_CATEGORY,
+    CanonicalFormat,
+    ModelReferenceManager,
+    horde_model_reference_settings,
+)
 from horde_model_reference.service.shared import get_model_reference_manager
 from horde_model_reference.text_guidance import (
     GuidanceAssignmentChange,
@@ -179,3 +186,75 @@ def test_submit_change_set_rejects_non_canonical_model_as_unprocessable(
 
     assert response.status_code == 422
     assert "Unknown canonical text model" in response.json()["detail"]
+
+
+def _text_record(name: str, instruct_format: str | None) -> dict[str, object]:
+    """Build a minimal canonical text generation record."""
+    record: dict[str, object] = {
+        "name": name,
+        "record_type": "text_generation",
+        "model_classification": {"domain": "text", "purpose": "generation"},
+        "parameters": 8_000_000_000,
+        "baseline": "qwen3",
+        "nsfw": False,
+    }
+    if instruct_format is not None:
+        record["instruct_format"] = instruct_format
+    return record
+
+
+def test_migration_preview_reaches_publication_through_the_queue(
+    api_client: TestClient,
+    primary_manager_override_factory: Callable[[Callable[[], ModelReferenceManager]], ModelReferenceManager],
+    mock_auth_success: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A previewed legacy migration publishes guidance without rewriting canonical model records."""
+    monkeypatch.setattr(horde_model_reference_settings, "canonical_format", CanonicalFormat.v2)
+    manager = primary_manager_override_factory(get_model_reference_manager)
+    for model_name, instruct_format in (
+        ("publisher/model-a", "ChatML"),
+        ("publisher/model-b", "ChatML"),
+        ("publisher/model-c", None),
+    ):
+        manager.backend.update_model(
+            MODEL_REFERENCE_CATEGORY.text_generation,
+            model_name,
+            _text_record(model_name, instruct_format),
+        )
+    manager._invalidate_cache()
+    reference_path = manager.backend.get_category_file_path(MODEL_REFERENCE_CATEGORY.text_generation)
+    reference_bytes_before = reference_path.read_bytes()
+    headers = {"apikey": "test-key"}
+
+    preview = api_client.post(f"{_ROOT}/migration/preview", headers=headers)
+    assert preview.status_code == 200
+    preview_payload = preview.json()
+    assert preview_payload["format_count"] == 1
+    assert preview_payload["source_model_count"] == 2
+
+    submission = api_client.post(f"{_ROOT}/change-sets", json=preview_payload["change_set"], headers=headers)
+    assert submission.status_code == 202
+    change_id = submission.json()["change_id"]
+
+    approval = api_client.post(
+        "/api/model_references/v2/pending_queue/batches",
+        json={"batch_title": "seed guidance", "approved_ids": [change_id]},
+        headers=headers,
+    )
+    assert approval.status_code == 200
+
+    applied = api_client.post(
+        f"/api/model_references/v2/pending_queue/changes/{change_id}/apply",
+        json={},
+        headers=headers,
+    )
+    assert applied.status_code == 200
+    assert applied.json()["record"]["status"] == "applied"
+
+    resolved = api_client.get(f"{_ROOT}/model", params={"name": "publisher/model-a"})
+    assert resolved.status_code == 200
+    assert resolved.json()["summary"]["status"] == "published"
+    unlabeled = api_client.get(f"{_ROOT}/model", params={"name": "publisher/model-c"})
+    assert unlabeled.json()["summary"]["status"] == "undocumented"
+    assert reference_path.read_bytes() == reference_bytes_before

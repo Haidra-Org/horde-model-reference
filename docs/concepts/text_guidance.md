@@ -77,6 +77,29 @@ Submission validates before enqueueing: unknown text generation settings keys in
 an unsatisfiable proposal never reaches an approver. Applying bumps the catalog `revision`, stamps profile and
 assignment `metadata`, and writes `catalog.json` atomically.
 
+## Seeding
+
+Both the preview route and `scripts/seed_text_guidance.py` call
+`horde_model_reference.text_guidance_migration.build_legacy_migration_change_set`, so an offline seed and a
+live preview propose the same contracts and assignments.
+
+The script generates the packaged bootstrap catalog rather than editing a deployment:
+
+```bash
+uv run python scripts/seed_text_guidance.py   --primary-api-url https://models.aihorde.net/api   --output src/horde_model_reference/data/guidance/catalog.json   --timestamp 1700000000
+```
+
+Use `--input` with a saved canonical `text_generation` reference to run without network access. Records are
+sorted by model name and backend-prefixed projections are dropped, so the emitted catalog and its regenerated
+`README.md` do not depend on the order the source reference iterates in. `--timestamp` pins every generated
+`created_at`/`updated_at`; without it the emitted timestamps are `null`, which keeps reruns byte-identical.
+The change set is applied to a throwaway store, so the script cannot touch a live catalog.
+
+Generated contracts are placeholders: each carries a summary asking for the label to be documented. A
+deployment that wants the same content reviewed instead of shipped should take the preview route path
+(`POST /text_generation/guidance/migration/preview`, edit, `POST /text_generation/guidance/change-sets`,
+approve, apply) so every profile lands through the queue.
+
 ## Where guidance appears in ordinary reads
 
 `TextGenerationModelRecord` gained `context_window`, `interaction_modes`, and `capabilities` as durable
