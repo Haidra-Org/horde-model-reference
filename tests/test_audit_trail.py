@@ -35,6 +35,25 @@ def _read_events(category_dir: Path) -> list[dict[str, Any]]:
     return events
 
 
+def _legacy_image_payload(name: str, description: str) -> dict[str, Any]:
+    """Return a minimal image record that can round-trip through legacy->v2."""
+    return {
+        "name": name,
+        "description": description,
+        "type": "ckpt",
+        "baseline": "stable diffusion 1",
+        "config": {
+            "files": [{"path": f"{name}.safetensors", "sha256sum": "a" * 64}],
+            "download": [
+                {
+                    "file_name": f"{name}.safetensors",
+                    "file_url": f"https://example.com/{name}.safetensors",
+                },
+            ],
+        },
+    }
+
+
 def test_audit_trail_writer_rotates_files(tmp_path: Path) -> None:
     """AuditTrailWriter should rotate files once the size threshold is exceeded."""
     audit_root = tmp_path / "audit"
@@ -73,17 +92,11 @@ def test_filesystem_backend_emits_audit_events_for_crud(primary_base: Path, tmp_
     category = MODEL_REFERENCE_CATEGORY.image_generation
     model_name = "audit_test_model"
 
-    create_payload = {
-        "name": model_name,
-        "description": "initial",
-    }
+    create_payload = _legacy_image_payload(model_name, "initial")
     backend.update_model_legacy(category, model_name, create_payload, logical_user_id="u-123")
 
-    update_payload = {
-        "name": model_name,
-        "description": "updated",
-        "extra": "value",
-    }
+    update_payload = _legacy_image_payload(model_name, "updated")
+    update_payload["extra"] = "value"
     backend.update_model_legacy(category, model_name, update_payload, logical_user_id="u-123")
 
     backend.delete_model_legacy(category, model_name, logical_user_id="u-123")

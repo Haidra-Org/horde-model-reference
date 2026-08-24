@@ -91,7 +91,9 @@ def generate_env_example(target_file: Path | str | None = None) -> str:
         print_title("AI Horde CI Settings")
         get_env_file_string("haidra_core.ai_horde.meta.AIHordeCISettings")
 
-    result_string = result.getvalue()
+    # settings-doc output currently includes multiple trailing blank lines. Keep
+    # the generated file stable and POSIX-friendly with exactly one final newline.
+    result_string = result.getvalue().rstrip() + "\n"
 
     timestamp_line = result_string.splitlines()[TIMESTAMP_LINE_INDEX]
 
