@@ -231,14 +231,17 @@ def test_get_all_model_references_returns_empty_dicts_when_missing(
     assert MODEL_REFERENCE_CATEGORY.miscellaneous.value in caplog.text
 
 
-def test_filesystem_backend_separates_legacy_and_v2_formats(primary_base: Path) -> None:
+def test_filesystem_backend_separates_legacy_and_v2_formats(
+    primary_base: Path,
+    v2_canonical_mode: None,
+) -> None:
     """Ensure FileSystemBackend properly separates legacy and v2 format files.
 
     This test verifies that:
     - fetch_category() reads from v2 files (base_path/stable_diffusion.json)
     - get_legacy_json() reads from legacy files (base_path/legacy/stable_diffusion.json)
     - get_legacy_json_string() reads from legacy files (base_path/legacy/stable_diffusion.json)
-    - Both formats can coexist with different data
+    - Both formats can coexist with different data when v2 is canonical
     """
     category = MODEL_REFERENCE_CATEGORY.image_generation
 

@@ -12,7 +12,12 @@ import httpx
 from loguru import logger
 from strenum import StrEnum
 
-from horde_model_reference import ReplicateMode, horde_model_reference_paths, horde_model_reference_settings
+from horde_model_reference import (
+    CanonicalFormat,
+    ReplicateMode,
+    horde_model_reference_paths,
+    horde_model_reference_settings,
+)
 from horde_model_reference.audit import AuditTrailWriter
 from horde_model_reference.backends import (
     FileSystemBackend,
@@ -243,8 +248,14 @@ class ModelReferenceManager:
             if horde_model_reference_settings.github_seed_enabled:
                 logger.info("GitHub seeding enabled for PRIMARY mode")
 
-                all_paths = filesystem_backend.get_all_category_file_paths()
-                missing_categories = [cat for cat, path in all_paths.items() if path is None or not path.exists()]
+                if horde_model_reference_settings.canonical_format == CanonicalFormat.LEGACY:
+                    # In legacy-canonical mode, legacy files are the source of truth.
+                    # Looking only at v2 paths can skip a missing/reseeded models.csv
+                    # while an old projection happens to exist.
+                    missing_categories = filesystem_backend.get_missing_canonical_source_categories()
+                else:
+                    all_paths = filesystem_backend.get_all_category_file_paths()
+                    missing_categories = [cat for cat, path in all_paths.items() if path is None or not path.exists()]
 
                 if missing_categories:
                     logger.info(f"Missing categories detected: {missing_categories}. Seeding from GitHub...")
@@ -254,17 +265,21 @@ class ModelReferenceManager:
                         replicate_mode=ReplicateMode.PRIMARY,
                     )
 
-                    github_backend.fetch_all_categories(force_refresh=True)
+                    # Seed only missing canonical sources. Overwriting every legacy
+                    # category would discard local canonical changes merely because
+                    # one unrelated category was absent.
+                    for category in missing_categories:
+                        github_backend.fetch_category(category, force_refresh=True)
                     logger.info("GitHub seeding completed")
-
-                    # Populate metadata after seeding
-                    logger.info("Populating metadata after GitHub seeding")
-                    filesystem_backend.ensure_all_metadata_populated()
                 else:
                     logger.debug("All files exist, skipping GitHub seeding")
-                    # Files exist but seeding was skipped, so run metadata population
-                    logger.info("Running metadata population check (seeding was skipped)")
-                    filesystem_backend.ensure_all_metadata_populated()
+
+                # A manual text reseed (or a newer non-text legacy source) must
+                # refresh v2 even when every v2 file already exists. Converters
+                # avoid rewriting byte-identical projections.
+                filesystem_backend.reconcile_legacy_projections()
+                logger.info("Running metadata population check after projection reconciliation")
+                filesystem_backend.ensure_all_metadata_populated()
 
             if horde_model_reference_settings.redis.use_redis:
                 from horde_model_reference.backends.redis_backend import RedisBackend

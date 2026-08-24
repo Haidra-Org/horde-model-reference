@@ -19,7 +19,7 @@ import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 from loguru import logger
 
@@ -142,6 +142,8 @@ class TextGenerationSerializer:
         *,
         primary_base_records: dict[str, LegacyRecordDict],
         existing_csv_path: Path | None = None,
+        existing_csv_content: str | None = None,
+        preserve_absent_existing_records: bool = True,
     ) -> TextGenerationSyncArtifacts:
         """Produce models.csv and db.json from PRIMARY base records.
 
@@ -149,11 +151,19 @@ class TextGenerationSerializer:
             primary_base_records: Model records keyed by base name (no backend prefixes).
             existing_csv_path: Path to existing models.csv in the cloned repo.
                 If provided and exists, row order of unchanged models is preserved.
+            existing_csv_content: Existing models.csv content fetched before a repository
+                is cloned. This is mutually exclusive with ``existing_csv_path``.
+            preserve_absent_existing_records: Whether rows missing from PRIMARY are
+                retained. Compatibility callers default to retaining them; the GitHub
+                sync disables this so the merge cannot conceal source divergence.
 
         Returns:
             Artifacts containing CSV and JSON file contents.
 
         """
+        if existing_csv_path is not None and existing_csv_content is not None:
+            raise ValueError("Provide either existing_csv_path or existing_csv_content, not both")
+
         base_records: dict[str, LegacyRecordDict] = {}
         for name, record in primary_base_records.items():
             if has_legacy_text_backend_prefix(name):
@@ -170,13 +180,17 @@ class TextGenerationSerializer:
         }
 
         existing_rows: list[dict[str, str]] = []
-        if existing_csv_path is not None and existing_csv_path.exists():
+        if existing_csv_content is not None:
+            existing_rows = self._read_existing_csv_content(existing_csv_content)
+            logger.debug(f"Read {len(existing_rows)} existing CSV rows from supplied content")
+        elif existing_csv_path is not None and existing_csv_path.exists():
             existing_rows = self._read_existing_csv(existing_csv_path)
             logger.debug(f"Read {len(existing_rows)} existing CSV rows from {existing_csv_path}")
 
         merged_rows = self._apply_changes(
             existing_rows=existing_rows,
             primary_csv_rows=primary_csv_rows,
+            preserve_absent_existing_records=preserve_absent_existing_records,
         )
 
         csv_content = self._render_csv(merged_rows)
@@ -203,12 +217,16 @@ class TextGenerationSerializer:
             List of row dicts in file order.
 
         """
-        rows: list[dict[str, str]] = []
         with open(csv_path, newline="", encoding="utf-8") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                rows.append(dict(row))
-        return rows
+            return self._read_existing_csv_stream(csvfile)
+
+    def _read_existing_csv_content(self, csv_content: str) -> list[dict[str, str]]:
+        """Parse existing CSV content preserving row order."""
+        return self._read_existing_csv_stream(io.StringIO(csv_content))
+
+    def _read_existing_csv_stream(self, stream: IO[str]) -> list[dict[str, str]]:
+        """Parse an existing CSV stream preserving row order."""
+        return [dict(row) for row in csv.DictReader(stream)]
 
     def _record_to_csv_row(
         self,
@@ -330,6 +348,7 @@ class TextGenerationSerializer:
         *,
         existing_rows: list[dict[str, str]],
         primary_csv_rows: dict[str, dict[str, str]],
+        preserve_absent_existing_records: bool = True,
     ) -> list[dict[str, str]]:
         """Merge PRIMARY data into existing CSV rows, preserving order and CSV-only fields.
 
@@ -342,6 +361,7 @@ class TextGenerationSerializer:
         Args:
             existing_rows: Ordered list of CSV row dicts from the existing file.
             primary_csv_rows: PRIMARY records converted to CSV rows, keyed by name.
+            preserve_absent_existing_records: Whether existing-only rows survive.
 
         Returns:
             Merged list of CSV row dicts.
@@ -350,15 +370,26 @@ class TextGenerationSerializer:
         remaining_primary = dict(primary_csv_rows)
         result: list[dict[str, str]] = []
 
-        for existing_row in existing_rows:
+        # Upstream currently contains a few duplicate CSV names. convert.py uses
+        # last-write-wins semantics when generating db.json, so merge a PRIMARY
+        # update into the last occurrence (the effective row) and leave earlier
+        # duplicate rows untouched.
+        last_existing_index = {
+            row.get("name", ""): index for index, row in enumerate(existing_rows) if row.get("name", "")
+        }
+
+        for index, existing_row in enumerate(existing_rows):
             row_name = existing_row.get("name", "")
-            if row_name in remaining_primary:
+            if row_name in remaining_primary and last_existing_index.get(row_name) == index:
                 primary_row = remaining_primary.pop(row_name)
                 merged = self._merge_row_fields(existing_row, primary_row)
                 result.append(merged)
             else:
-                # Model absent from PRIMARY - preserve from existing CSV
-                result.append(existing_row)
+                if row_name in primary_csv_rows or preserve_absent_existing_records:
+                    # Keep earlier duplicates for a present PRIMARY model. For an
+                    # absent model, retain the row only when the caller explicitly
+                    # requests the compatibility safety net.
+                    result.append(existing_row)
 
         for new_row in remaining_primary.values():
             result.append(new_row)

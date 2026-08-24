@@ -35,7 +35,7 @@ from horde_model_reference.legacy.text_csv_utils import (
     parse_legacy_text_csv_file,
     write_legacy_text_csv,
 )
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, get_category_descriptor
 from horde_model_reference.model_reference_metadata import CategoryMetadata, MetadataManager, OperationType
 
 
@@ -123,6 +123,17 @@ class FileSystemBackend(ReplicaBackendBase):
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path.write_text("{}")
                 logger.info(f"Created empty file for {category} (no legacy format available)")
+
+        # In legacy-canonical deployments the base-level v2 files are projections,
+        # not independent state. Always reconcile text, and rebuild other projections
+        # whose canonical source is newer, so an externally reseeded legacy file
+        # cannot leave a stale v2 API behind. When GitHub seeding is enabled the
+        # manager performs this after downloading any missing canonical sources.
+        if (
+            horde_model_reference_settings.canonical_format == CanonicalFormat.LEGACY
+            and not skip_startup_metadata_population
+        ):
+            self.reconcile_legacy_projections()
 
         # Populate metadata on startup if not skipped
         if not skip_startup_metadata_population:
@@ -218,6 +229,22 @@ class FileSystemBackend(ReplicaBackendBase):
         self.mark_stale(category)
         logger.debug(f"Marked legacy category {category} as modified")
 
+    def _restore_legacy_file_after_projection_failure(
+        self,
+        category: MODEL_REFERENCE_CATEGORY,
+        file_path: Path,
+        previous_content: bytes | None,
+    ) -> None:
+        """Roll back a canonical write when its required v2 projection fails."""
+        if previous_content is None:
+            with contextlib.suppress(OSError):
+                file_path.unlink()
+        else:
+            restore_path = file_path.with_suffix(file_path.suffix + ".restore.tmp")
+            restore_path.write_bytes(previous_content)
+            restore_path.replace(file_path)
+        self._invalidate_legacy_cache(category)
+
     def _sync_legacy_to_v2(self, category: MODEL_REFERENCE_CATEGORY) -> None:
         """Re-run the legacy-to-v2 converter for *category* so the v2 file stays in sync.
 
@@ -249,6 +276,56 @@ class FileSystemBackend(ReplicaBackendBase):
             raise RuntimeError(f"Failed to sync legacy category {category.value} to v2")
 
         logger.debug(f"Synced legacy->v2 for category {category}")
+
+    def get_missing_canonical_source_categories(self) -> list[MODEL_REFERENCE_CATEGORY]:
+        """Return legacy-backed categories whose canonical source file is absent."""
+        missing: list[MODEL_REFERENCE_CATEGORY] = []
+        for category in MODEL_REFERENCE_CATEGORY:
+            if not get_category_descriptor(category).has_legacy_format:
+                continue
+            legacy_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
+            if not legacy_path.exists():
+                missing.append(category)
+        return missing
+
+    def reconcile_legacy_projections(self) -> list[MODEL_REFERENCE_CATEGORY]:
+        """Rebuild stale v2 projections from available canonical legacy sources.
+
+        Missing legacy files are deliberately skipped: converters treat a missing
+        input as an empty dataset, which must never erase an existing projection.
+        Text is always reconciled because CSV reseeds may preserve timestamps and
+        exact lockstep is required. Other existing projections are rebuilt only
+        when their canonical file is newer.
+        """
+        if horde_model_reference_settings.canonical_format != CanonicalFormat.LEGACY:
+            return []
+
+        reconciled: list[MODEL_REFERENCE_CATEGORY] = []
+        for category in MODEL_REFERENCE_CATEGORY:
+            if not get_category_descriptor(category).has_legacy_format:
+                continue
+            legacy_path = horde_model_reference_paths.get_legacy_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
+            if not legacy_path.exists():
+                continue
+            v2_path = horde_model_reference_paths.get_model_reference_file_path(
+                category,
+                base_path=self.base_path,
+            )
+            if (
+                category != MODEL_REFERENCE_CATEGORY.text_generation
+                and v2_path.exists()
+                and legacy_path.stat().st_mtime_ns <= v2_path.stat().st_mtime_ns
+            ):
+                continue
+            self._sync_legacy_to_v2(category)
+            reconciled.append(category)
+        return reconciled
 
     def _read_legacy_csv_to_dict(self, file_path: Path) -> dict[str, Any]:
         """Read legacy CSV file (models.csv format) and convert to dict format.
@@ -1026,7 +1103,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
                 self._mark_category_modified(category, file_path)
 
-            except (OSError, ValueError, TypeError) as e:
+            except (OSError, RuntimeError, ValueError, TypeError) as e:
                 try:
                     if temp_path.exists():
                         temp_path.unlink()
@@ -1104,6 +1181,7 @@ class FileSystemBackend(ReplicaBackendBase):
                 raise FileNotFoundError(f"No legacy file path configured for category {category}")
 
             existing_data: dict[str, Any]
+            previous_file_content = legacy_file_path.read_bytes() if legacy_file_path.exists() else None
             if legacy_file_path.exists():
                 try:
                     with open(legacy_file_path, encoding="utf-8") as f:
@@ -1144,6 +1222,18 @@ class FileSystemBackend(ReplicaBackendBase):
                 else:
                     temp_path.replace(target_write_path)
 
+                # Do not report or audit success until the required projection is
+                # durable. A failed projection rolls the canonical write back.
+                try:
+                    self._sync_legacy_to_v2(category)
+                except Exception:
+                    self._restore_legacy_file_after_projection_failure(
+                        category,
+                        target_write_path,
+                        previous_file_content,
+                    )
+                    raise
+
                 logger.info(f"Updated legacy model {model_name} in category {category} at {target_write_path}")
 
                 self._metadata_manager.record_legacy_operation(
@@ -1171,10 +1261,6 @@ class FileSystemBackend(ReplicaBackendBase):
                         request_id=request_id,
                     )
 
-                # Sync the V2 file so REPLICA clients (which read from the v2 endpoint)
-                # see the change. Without this, legacy writes only land in the legacy/
-                # subfolder and the base-level v2 file goes stale.
-                self._sync_legacy_to_v2(category)
                 self._mark_legacy_category_modified(category, target_write_path)
 
             except (OSError, ValueError, TypeError) as e:
@@ -1213,6 +1299,7 @@ class FileSystemBackend(ReplicaBackendBase):
             category,
             base_path=self.base_path,
         )
+        previous_file_content = csv_path.read_bytes() if csv_path.exists() else None
 
         # Read existing CSV rows
         existing_rows: list[TextCSVRow] = []
@@ -1250,6 +1337,12 @@ class FileSystemBackend(ReplicaBackendBase):
         csv_path.parent.mkdir(parents=True, exist_ok=True)
         write_legacy_text_csv(existing_rows, csv_path)
 
+        try:
+            self._sync_legacy_to_v2(category)
+        except Exception:
+            self._restore_legacy_file_after_projection_failure(category, csv_path, previous_file_content)
+            raise
+
         # Regenerate the full dict for cache
         full_data = csv_rows_to_legacy_dict(existing_rows, with_backend_prefixes=True)
         content = json.dumps(full_data, indent=2, ensure_ascii=False)
@@ -1283,8 +1376,6 @@ class FileSystemBackend(ReplicaBackendBase):
                 request_id=request_id,
             )
 
-        # Sync the V2 file so REPLICA clients see the change.
-        self._sync_legacy_to_v2(category)
         self._mark_legacy_category_modified(category, csv_path)
 
     def _delete_text_generation_csv(
@@ -1314,6 +1405,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
         if not csv_path.exists():
             raise FileNotFoundError(f"Legacy CSV file not found: {csv_path}")
+        previous_file_content = csv_path.read_bytes()
 
         existing_rows, parse_issues = parse_legacy_text_csv_file(csv_path)
         for issue in parse_issues:
@@ -1333,6 +1425,12 @@ class FileSystemBackend(ReplicaBackendBase):
 
         # Write CSV back
         write_legacy_text_csv(existing_rows, csv_path)
+
+        try:
+            self._sync_legacy_to_v2(category)
+        except Exception:
+            self._restore_legacy_file_after_projection_failure(category, csv_path, previous_file_content)
+            raise
 
         # Regenerate the full dict for cache
         full_data = csv_rows_to_legacy_dict(existing_rows, with_backend_prefixes=True)
@@ -1365,8 +1463,6 @@ class FileSystemBackend(ReplicaBackendBase):
                 request_id=request_id,
             )
 
-        # Sync the V2 file so REPLICA clients see the deletion.
-        self._sync_legacy_to_v2(category)
         self._mark_legacy_category_modified(category, csv_path)
 
     @override
@@ -1434,6 +1530,7 @@ class FileSystemBackend(ReplicaBackendBase):
 
             deleted_snapshot = copy.deepcopy(existing_data[model_name])
             del existing_data[model_name]
+            previous_file_content = target_write_path.read_bytes()
 
             temp_path = target_write_path.with_suffix(f".tmp.{time.time()}")
             try:
@@ -1455,6 +1552,16 @@ class FileSystemBackend(ReplicaBackendBase):
                         backup_path.unlink()
                 else:
                     temp_path.replace(target_write_path)
+
+                try:
+                    self._sync_legacy_to_v2(category)
+                except Exception:
+                    self._restore_legacy_file_after_projection_failure(
+                        category,
+                        target_write_path,
+                        previous_file_content,
+                    )
+                    raise
 
                 logger.info(f"Deleted legacy model {model_name} from category {category} at {target_write_path}")
 
@@ -1478,11 +1585,9 @@ class FileSystemBackend(ReplicaBackendBase):
                         request_id=request_id,
                     )
 
-                # Sync the V2 file so REPLICA clients see the deletion.
-                self._sync_legacy_to_v2(category)
                 self._mark_legacy_category_modified(category, target_write_path)
 
-            except (OSError, ValueError, TypeError) as e:
+            except (OSError, RuntimeError, ValueError, TypeError) as e:
                 try:
                     if temp_path.exists():
                         temp_path.unlink()

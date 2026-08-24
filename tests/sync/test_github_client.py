@@ -10,6 +10,7 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pytest_httpx import HTTPXMock
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.sync import GitHubSyncClient, ModelReferenceDiff
@@ -249,3 +250,98 @@ class TestFetchGithubDataUrlResolution:
 
             with pytest.raises(ValueError, match="No known GitHub URL"):
                 synchronizer.fetch_github_data(category=fake_cat)  # type: ignore
+
+
+class TestPrimaryProjectionInputs:
+    """The sync reads canonical text data and emits legacy-compatible JSON."""
+
+    def test_primary_api_version_is_explicit(self, httpx_mock: HTTPXMock) -> None:
+        """Callers can fetch both text representations for lockstep validation."""
+        from scripts.sync.sync_github_references import GithubSynchronizer  # pyrefly: ignore [missing-import]
+
+        api_url = "https://primary.example/api"
+        text_url = f"{api_url}/model_references/v2/text_generation"
+        image_url = f"{api_url}/model_references/v1/image_generation"
+        httpx_mock.add_response(url=text_url, json={"org/model": {"parameters": 7_000_000_000}})
+        httpx_mock.add_response(url=image_url, json={"image": {"name": "image"}})
+
+        synchronizer = GithubSynchronizer()
+        synchronizer.fetch_primary_data(
+            api_url=api_url,
+            category=MODEL_REFERENCE_CATEGORY.text_generation,
+            api_version="v2",
+        )
+        synchronizer.fetch_primary_data(api_url=api_url, category=MODEL_REFERENCE_CATEGORY.image_generation)
+
+        assert [str(request.url) for request in httpx_mock.get_requests()] == [text_url, image_url]
+
+    def test_invalid_primary_api_version_is_rejected(self) -> None:
+        """A typo cannot silently select an unintended representation."""
+        from scripts.sync.sync_github_references import GithubSynchronizer  # pyrefly: ignore [missing-import]
+
+        with pytest.raises(ValueError, match="Unsupported PRIMARY API version"):
+            GithubSynchronizer().fetch_primary_data(
+                api_url="https://primary.example/api",
+                category=MODEL_REFERENCE_CATEGORY.text_generation,
+                api_version="v3",
+            )
+
+    def test_primary_nulls_are_omitted_recursively(self, httpx_mock: HTTPXMock) -> None:
+        """Legacy GitHub output never gains explicit null optional fields."""
+        from scripts.sync.sync_github_references import GithubSynchronizer  # pyrefly: ignore [missing-import]
+
+        api_url = "https://primary.example/api"
+        endpoint = f"{api_url}/model_references/v1/image_generation"
+        httpx_mock.add_response(
+            url=endpoint,
+            json={
+                "image": {
+                    "name": "image",
+                    "config": {"files": [{"path": "model.safetensors", "md5sum": None}]},
+                },
+            },
+        )
+
+        data = GithubSynchronizer().fetch_primary_data(
+            api_url=api_url,
+            category=MODEL_REFERENCE_CATEGORY.image_generation,
+        )
+
+        assert data["image"]["config"]["files"] == [{"path": "model.safetensors"}]
+
+    def test_text_serialization_uses_csv_for_fields_not_membership(self) -> None:
+        """The merge base cannot conceal a model missing from PRIMARY v2."""
+        from scripts.sync.sync_github_references import GithubSynchronizer  # pyrefly: ignore [missing-import]
+
+        existing_csv = (
+            "name,parameters_bn,display_name,url,baseline,description,style,tags,instruct_format,settings\n"
+            "legacy/preserved,7,,,,,,,,\n"
+        )
+        serialized, artifacts = GithubSynchronizer().serialize_text_generation(
+            {"org/new": {"name": "org/new", "parameters": 3_000_000_000}},
+            existing_csv_content=existing_csv,
+        )
+
+        assert "legacy/preserved" not in serialized
+        assert "org/new" in serialized
+        assert "legacy/preserved,7" not in artifacts.csv_content
+
+    def test_text_lockstep_accepts_identical_projection(self) -> None:
+        """An exact v1 match permits the v2-led export."""
+        from scripts.sync.sync_github_references import GithubSynchronizer  # pyrefly: ignore [missing-import]
+
+        data = {"org/model": {"name": "org/model", "parameters": 7_000_000_000}}
+        GithubSynchronizer().assert_text_projections_in_lockstep(
+            v1_data=data,
+            projected_v2_data=data,
+        )
+
+    def test_text_lockstep_rejects_divergence(self) -> None:
+        """The exporter cannot hide a stale v1 or v2 projection."""
+        from scripts.sync.sync_github_references import GithubSynchronizer  # pyrefly: ignore [missing-import]
+
+        with pytest.raises(RuntimeError, match="not in lockstep"):
+            GithubSynchronizer().assert_text_projections_in_lockstep(
+                v1_data={},
+                projected_v2_data={"org/model": {"name": "org/model"}},
+            )

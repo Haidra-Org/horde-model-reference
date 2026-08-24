@@ -711,6 +711,55 @@ class TestApplyChanges:
         result = serializer._apply_changes(existing_rows=existing, primary_csv_rows=primary_csv_rows)
         names = [row["name"] for row in result]
         assert "org/B" in names, "Model absent from PRIMARY should be preserved"
+
+    def test_merge_updates_last_duplicate_row(self, serializer: TextGenerationSerializer) -> None:
+        """PRIMARY updates the duplicate row that controls convert.py output."""
+        existing = [
+            {
+                "name": "org/A",
+                "parameters_bn": "7",
+                "display_name": "",
+                "url": "",
+                "baseline": "",
+                "description": "shadowed row",
+                "style": "",
+                "tags": "",
+                "instruct_format": "",
+                "settings": "",
+            },
+            {
+                "name": "org/A",
+                "parameters_bn": "7",
+                "display_name": "",
+                "url": "",
+                "baseline": "",
+                "description": "effective row",
+                "style": "",
+                "tags": "",
+                "instruct_format": "ChatML",
+                "settings": "",
+            },
+        ]
+        primary = {
+            "org/A": {
+                "name": "org/A",
+                "parameters_bn": "7",
+                "display_name": "",
+                "url": "",
+                "baseline": "",
+                "description": "updated",
+                "style": "",
+                "tags": "",
+                "instruct_format": "",
+                "settings": "",
+            },
+        }
+
+        result = serializer._apply_changes(existing_rows=existing, primary_csv_rows=primary)
+
+        assert result[0]["description"] == "shadowed row"
+        assert result[1]["description"] == "updated"
+        assert result[1]["instruct_format"] == "ChatML"
         assert len(result) == 2
 
     def test_merge_updates_modified_fields(self, serializer: TextGenerationSerializer) -> None:
@@ -841,6 +890,38 @@ class TestEndToEnd:
         # Existing order preserved: Aeala first, then acrastt, then new model appended
         assert names[0] == "Aeala/Enterredaas-33b"
         assert names[1] == "acrastt/Marx-3B-V3"
+
+    def test_serialize_with_existing_csv_content(
+        self,
+        serializer: TextGenerationSerializer,
+        sample_primary_records: dict[str, dict[str, Any]],
+    ) -> None:
+        """Pre-clone serialization can merge the fetched upstream CSV text."""
+        existing_csv = (
+            "name,parameters_bn,display_name,url,baseline,description,style,tags,instruct_format,settings\n"
+            "legacy/Preserved,7,,,,,,,,\n"
+        )
+
+        artifacts = serializer.serialize(
+            primary_base_records=sample_primary_records,
+            existing_csv_content=existing_csv,
+        )
+
+        rows = list(csv.DictReader(io.StringIO(artifacts.csv_content)))
+        assert rows[0]["name"] == "legacy/Preserved"
+
+    def test_existing_csv_sources_are_mutually_exclusive(
+        self,
+        serializer: TextGenerationSerializer,
+        tmp_path: Path,
+    ) -> None:
+        """Callers cannot accidentally provide two different merge bases."""
+        with pytest.raises(ValueError, match="either existing_csv_path or existing_csv_content"):
+            serializer.serialize(
+                primary_base_records={},
+                existing_csv_path=tmp_path / "models.csv",
+                existing_csv_content="name,parameters_bn\n",
+            )
 
     def test_csv_roundtrip_produces_identical_json(
         self,

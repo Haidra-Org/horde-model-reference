@@ -561,9 +561,13 @@ class GitHubBackend(ReplicaBackendBase):
             overwrite_existing: If True, overwrite existing files.
 
         """
-        self._download_legacy(category, overwrite_existing=overwrite_existing)
+        downloaded_path = self._download_legacy(category, overwrite_existing=overwrite_existing)
+        if downloaded_path is None or not downloaded_path.exists():
+            raise RuntimeError(f"Failed to download canonical legacy source for {category.value}")
 
-        convert_legacy_database_by_category(category, self.base_path, self.base_path)
+        converted = convert_legacy_database_by_category(category, self.base_path, self.base_path)
+        if not converted:
+            raise RuntimeError(f"Failed to convert canonical legacy source for {category.value}")
 
     def _download_and_convert_all(self, overwrite_existing: bool = False) -> None:
         """Download all legacy files and convert them."""
@@ -600,6 +604,7 @@ class GitHubBackend(ReplicaBackendBase):
             category,
             base_path=self.base_path,
         )
+        download_temp_path = target_file_path.with_suffix(target_file_path.suffix + ".download.tmp")
 
         needs_refresh = self.needs_refresh(category)
         if needs_refresh:
@@ -639,11 +644,11 @@ class GitHubBackend(ReplicaBackendBase):
                         # Handle CSV format for text_generation category
                         if category == MODEL_REFERENCE_CATEGORY.text_generation:
                             target_file_path.parent.mkdir(parents=True, exist_ok=True)
-                            with open(target_file_path, "wb") as f:
+                            with open(download_temp_path, "wb") as f:
                                 f.write(response.content)
 
                             try:
-                                data = self._read_legacy_csv_to_dict(target_file_path)
+                                data = self._read_legacy_csv_to_dict(download_temp_path)
                                 raw_json_str = ujson.dumps(data, escape_forward_slashes=False, indent=4)
                             except Exception as e:
                                 raise ValueError(f"Failed to parse {category} CSV: {e}") from e
@@ -651,11 +656,15 @@ class GitHubBackend(ReplicaBackendBase):
                             data = ujson.loads(response.content)
                             target_file_path.parent.mkdir(parents=True, exist_ok=True)
                             raw_json_str = response.content.decode("utf-8")
-                            with open(target_file_path, "wb") as f:
+                            with open(download_temp_path, "wb") as f:
                                 f.write(response.content)
 
                 if data is None or raw_json_str is None:
                     raise ValueError(f"Failed to download {category}: No data retrieved")
+
+                # Parsing and validation succeeded; only now replace the canonical
+                # source so a failed download cannot poison the next startup.
+                download_temp_path.replace(target_file_path)
 
                 self._times_downloaded[category] += 1
                 if self._times_downloaded[category] > 1:
@@ -670,6 +679,10 @@ class GitHubBackend(ReplicaBackendBase):
                 return target_file_path
 
             except (RetryError, OSError, ujson.JSONDecodeError, ValueError):
+                try:
+                    download_temp_path.unlink(missing_ok=True)
+                except OSError:
+                    logger.warning(f"Failed to remove temporary download {download_temp_path}")
                 logger.warning(f"Failed to download {category} after {self.retry_max_attempts} attempts")
                 return None
 

@@ -6,6 +6,7 @@ at module import time and cannot be easily changed during test runs.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Any, override
 
@@ -151,6 +152,103 @@ class TestFileSystemBackendLegacyWrites:
         )
 
         assert backend.supports_legacy_writes() is False
+
+    def test_startup_rebuilds_v2_after_manual_legacy_reseed(
+        self,
+        primary_base: Path,
+        legacy_path: Path,
+        legacy_canonical_mode: None,
+    ) -> None:
+        """An existing v2 file cannot prevent a canonical models.csv reseed from taking effect."""
+        v2_path = primary_base / "text_generation.json"
+        v2_path.write_text('{"stale/model": {"name": "stale/model"}}', encoding="utf-8")
+        csv_path = legacy_path / "models.csv"
+        csv_path.write_text(
+            "name,parameters_bn,display_name,url,baseline,description,style,tags,instruct_format,settings\n"
+            "org/reseeded,7,,,,,,,,\n",
+            encoding="utf-8",
+        )
+        v2_mtime = v2_path.stat().st_mtime_ns
+        os.utime(csv_path, ns=(v2_mtime + 1_000_000_000, v2_mtime + 1_000_000_000))
+
+        FileSystemBackend(base_path=primary_base, replicate_mode=ReplicateMode.PRIMARY)
+
+        projected = json.loads(v2_path.read_text(encoding="utf-8"))
+        assert "org/reseeded" in projected
+        assert "stale/model" not in projected
+
+    def test_missing_legacy_source_is_not_reconciled_to_empty_v2(
+        self,
+        primary_base: Path,
+        legacy_canonical_mode: None,
+    ) -> None:
+        """A missing canonical input must not erase an existing derived file."""
+        v2_path = primary_base / "text_generation.json"
+        stale_but_recoverable = {"recoverable/model": {"name": "recoverable/model"}}
+        v2_path.write_text(json.dumps(stale_but_recoverable), encoding="utf-8")
+
+        backend = FileSystemBackend(base_path=primary_base, replicate_mode=ReplicateMode.PRIMARY)
+
+        assert MODEL_REFERENCE_CATEGORY.text_generation in backend.get_missing_canonical_source_categories()
+        projected = json.loads(v2_path.read_text(encoding="utf-8"))
+        assert "recoverable/model" in projected
+
+    def test_legacy_json_write_rolls_back_when_projection_fails(
+        self,
+        primary_base: Path,
+        legacy_path: Path,
+        legacy_canonical_mode: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A failed v2 conversion cannot leave canonical JSON partially committed."""
+        backend = FileSystemBackend(base_path=primary_base, replicate_mode=ReplicateMode.PRIMARY)
+        legacy_file = legacy_path / "stable_diffusion.json"
+        original = {"original": create_test_legacy_model("original")}
+        legacy_file.write_text(json.dumps(original), encoding="utf-8")
+        monkeypatch.setattr(
+            backend,
+            "_sync_legacy_to_v2",
+            lambda _category: (_ for _ in ()).throw(RuntimeError("projection failed")),
+        )
+
+        with pytest.raises(RuntimeError, match="projection failed"):
+            backend.update_model_legacy(
+                MODEL_REFERENCE_CATEGORY.image_generation,
+                "new-model",
+                create_test_legacy_model("new-model"),
+            )
+
+        assert json.loads(legacy_file.read_text(encoding="utf-8")) == original
+
+    def test_legacy_csv_write_rolls_back_when_projection_fails(
+        self,
+        primary_base: Path,
+        legacy_path: Path,
+        legacy_canonical_mode: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Text CSV and its v2 projection behave as one logical write."""
+        backend = FileSystemBackend(base_path=primary_base, replicate_mode=ReplicateMode.PRIMARY)
+        csv_path = legacy_path / "models.csv"
+        original = (
+            "name,parameters_bn,display_name,url,baseline,description,style,tags,instruct_format,settings\n"
+            "org/original,7,,,,,,,,\n"
+        )
+        csv_path.write_text(original, encoding="utf-8")
+        monkeypatch.setattr(
+            backend,
+            "_sync_legacy_to_v2",
+            lambda _category: (_ for _ in ()).throw(RuntimeError("projection failed")),
+        )
+
+        with pytest.raises(RuntimeError, match="projection failed"):
+            backend.update_model_legacy(
+                MODEL_REFERENCE_CATEGORY.text_generation,
+                "org/new-model",
+                {"name": "org/new-model", "parameters": 3_000_000_000},
+            )
+
+        assert csv_path.read_text(encoding="utf-8") == original
 
     def test_update_model_legacy_creates_file(
         self,

@@ -25,7 +25,7 @@ Automated tool for keeping GitHub legacy model reference repositories in sync wi
 
 ## Overview
 
-The GitHub sync service compares model references from a PRIMARY instance (v1 API) with GitHub legacy repositories and automatically creates pull requests when drift is detected. This ensures GitHub repos stay up-to-date with the canonical PRIMARY source.
+The GitHub sync service compares model references from a PRIMARY instance with GitHub legacy repositories and automatically creates pull requests when drift is detected. Text generation is projected from v2 through the existing upstream CSV and must exactly match PRIMARY v1 before publication; other categories currently use their v1 legacy projections.
 
 The service can operate in two modes:
 
@@ -35,7 +35,7 @@ The service can operate in two modes:
 ## Architecture
 
 ```text
-PRIMARY (v1 API) ────► Comparator ◄──── GitHub (legacy repos)
+PRIMARY (text v2 + v1 guard / other v1) ─► Comparator ◄──── GitHub (legacy repos)
                            │
                            ▼
                      Detect Drift
@@ -604,7 +604,7 @@ comparator = ModelReferenceComparator()
 # Create GitHub client (automatically selects best auth method)
 with GitHubSyncClient() as client:
     # Fetch data
-    primary_data = {...}  # Fetch from PRIMARY v1 API
+    primary_data = {...}  # Fetch text v2 with a v1 lockstep guard, or another category's v1 projection
     github_data = {...}   # Fetch from GitHub
 
     # Compare
@@ -887,7 +887,7 @@ Pydantic settings for configuration:
 
 Command-line interface for sync operations:
 
-- Fetches data from PRIMARY v1 API
+- Projects PRIMARY text v2 to legacy and verifies it against v1; fetches other legacy projections from v1
 - Fetches data from GitHub
 - Compares and detects drift
 - Creates PRs when needed

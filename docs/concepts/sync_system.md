@@ -7,7 +7,7 @@ The sync system keeps legacy GitHub repositories in sync with the PRIMARY instan
 ```mermaid
 sequenceDiagram
     participant WM as WatchModeManager
-    participant API as PRIMARY v1 API
+    participant API as PRIMARY API
     participant Comp as Comparator
     participant GH as GitHubSyncClient
     participant Repo as GitHub Repository
@@ -15,7 +15,7 @@ sequenceDiagram
     WM->>API: poll /metadata/last_updated
     API-->>WM: timestamp
     WM->>WM: timestamp changed?
-    WM->>API: fetch category data (v1 legacy format)
+    WM->>API: fetch text v2 and v1, or legacy category data (v1)
     WM->>Repo: fetch current GitHub data
     WM->>Comp: compare(primary_data, github_data)
     Comp-->>WM: ModelReferenceDiff
@@ -34,7 +34,7 @@ The sync pipeline has four stages: **detect** changes via metadata polling, **co
 
 | Setting                  | Purpose                                            |
 | ------------------------ | -------------------------------------------------- |
-| `primary_api_url`        | PRIMARY instance v1 API base URL (required)        |
+| `primary_api_url`        | PRIMARY instance API base URL (required)           |
 | `github_token`           | Personal access token with repo write permissions  |
 | `categories_to_sync`     | Whitelist of categories (defaults to all)          |
 | `min_changes_threshold`  | Minimum changes needed to create a PR (default: 1) |
@@ -68,7 +68,7 @@ The sync client handles the git workflow for publishing changes:
 
 1. **Clone or reuse** - clones the target repo to a temp directory, or reuses a persistent clone (verified by remote URL and branch). Persistent clones are reset to `origin/{branch}` before each run.
 2. **Branch** - creates `sync/{category}/{timestamp}` (or `sync/multi-category/{timestamp}` for batched syncs). A context manager ensures the original branch is restored on exit.
-3. **Transform** - writes the PRIMARY data as JSON. For `text_generation`, applies `LegacyTextValidator` and generates backend-prefix duplicates (`aphrodite/`, `koboldcpp/`) to match the legacy GitHub format.
+3. **Transform** - writes the PRIMARY data as legacy JSON. For `text_generation`, projects v2 through the committed `models.csv`, verifies that result exactly matches PRIMARY v1, and regenerates backend-prefix duplicates (`aphrodite/`, `koboldcpp/`). A mismatch aborts the entire scan rather than publishing a partial PR. Optional JSON `null` values are omitted from every legacy artifact.
 4. **Commit and push** - commits with a structured message listing added/removed/modified models, then pushes using the authenticated URL.
 5. **PR creation** - creates a pull request via the GitHub API, closes any existing sync PRs for the same category, and applies configured labels and reviewers.
 
@@ -95,7 +95,8 @@ When multiple categories map to the same GitHub repository, the client can batch
 
 The `text_generation` category requires extra transformation during sync:
 
+- **Lockstep source**: Text is exported from PRIMARY v2 for forward compatibility, but its legacy projection must exactly match PRIMARY v1 before anything is published. This keeps the exporter ready for `CANONICAL=v2` without hiding divergence while production remains `CANONICAL=legacy`
 - **Filename**: GitHub uses `db.json` rather than `text_generation.json`
-- **Validation**: `LegacyTextValidator` checks field requirements for the legacy format
+- **Merge base**: The current upstream `models.csv` is fetched before comparison. It preserves legacy-only columns, duplicate-row last-write-wins behavior, and stable ordering
 - **Column set**: `models.csv` is written with the ten upstream columns. The durable metadata columns (`context_window`, `interaction_modes`, `capabilities`) are PRIMARY-local and stay out of the synced files unless `export_text_metadata_columns` is enabled, since upstream's `convert.py` does not read them
 - **Backend prefixes**: Each base model is tripled into `{name}`, `aphrodite/{name}`, and `koboldcpp/{model_name}` entries to maintain backward compatibility with workers that look up models by backend-prefixed name

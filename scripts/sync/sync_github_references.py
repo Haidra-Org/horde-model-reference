@@ -2,7 +2,7 @@
 r"""CLI script for syncing model references from PRIMARY to GitHub legacy repositories.
 
 This script:
-1. Fetches current state from PRIMARY v1 API
+1. Fetches text state from PRIMARY v2 and validates its legacy projection against v1
 2. Fetches current state from GitHub legacy repos
 3. Compares and detects drift
 4. Creates PRs to sync changes back to GitHub
@@ -63,7 +63,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from typing import Any
+from typing import Any, cast
 
 import httpx
 from loguru import logger
@@ -104,7 +104,7 @@ if github_sync_settings.verbose_logging:
 class GithubSynchronizer:
     """Helper class for syncing model references from PRIMARY to GitHub.
 
-    Fetches data from both PRIMARY (v1 API) and GitHub (raw file URLs)
+    Fetches data from both PRIMARY and GitHub (raw file URLs)
     using httpx with json.loads() for both sides, ensuring comparison
     consistency. Previous versions used GitHubBackend (which parses with
     ujson), causing false-positive diffs when ujson and json produced
@@ -119,22 +119,29 @@ class GithubSynchronizer:
         *,
         api_url: str,
         category: MODEL_REFERENCE_CATEGORY,
+        api_version: str = "v1",
         timeout: int = 30,
     ) -> dict[str, dict[str, Any]]:
-        """Fetch model reference data from PRIMARY v1 API.
+        """Fetch model reference data from PRIMARY.
+
+        The caller selects v1 or v2 explicitly. Text sync fetches both so it can
+        assert lockstep before exporting; other categories currently use v1.
 
         Args:
             api_url: Base URL of PRIMARY API (e.g., https://models.aihorde.net/).
             category (MODEL_REFERENCE_CATEGORY): The category to fetch.
+            api_version: PRIMARY representation to fetch (``v1`` or ``v2``).
             timeout: Request timeout in seconds.
 
         Returns:
-            Dictionary of model records in legacy format.
+            Dictionary of model records from the selected API representation.
 
         Raises:
             httpx.HTTPError: If the request fails.
         """
-        endpoint = f"{api_url.rstrip('/')}/model_references/v1/{category}"
+        if api_version not in {"v1", "v2"}:
+            raise ValueError(f"Unsupported PRIMARY API version: {api_version}")
+        endpoint = f"{api_url.rstrip('/')}/model_references/{api_version}/{category}"
         logger.debug(f"Fetching PRIMARY data from {endpoint}")
 
         try:
@@ -144,7 +151,11 @@ class GithubSynchronizer:
                     if is_retryable_status_code(response.status_code):
                         raise RetryableHTTPStatusError(response)
                     response.raise_for_status()
-                    data: dict[str, dict[str, Any]] = response.json()
+                    raw_data: dict[str, dict[str, Any]] = response.json()
+                    # The legacy GitHub schemas omit optional values rather than
+                    # representing them as JSON null. Normalize at the sync boundary
+                    # so a stale/null-polluted v1 file cannot create a noisy PR.
+                    data = {name: cast(dict[str, Any], _drop_none_values(record)) for name, record in raw_data.items()}
                     logger.debug(f"Fetched {len(data)} models for {category} from PRIMARY")
                     return data
 
@@ -239,9 +250,27 @@ class GithubSynchronizer:
 
         raise RuntimeError("GitHub db.json retry loop completed without making an HTTP attempt")
 
+    def fetch_github_models_csv(self, *, timeout: int = 30) -> str:
+        """Download the committed text models.csv used for lossless merging."""
+        repo = horde_model_reference_settings.text_github_repo
+        models_csv_url = repo.compose_full_file_url("models.csv")
+        logger.debug(f"Fetching GitHub models.csv from {models_csv_url}")
+
+        for attempt in http_retry_sync(max_attempts=3, min_wait=1.0, max_wait=15.0):
+            with attempt, httpx.Client(timeout=timeout) as client:
+                response = client.get(models_csv_url)
+                if is_retryable_status_code(response.status_code):
+                    raise RetryableHTTPStatusError(response)
+                response.raise_for_status()
+                return response.text
+
+        raise RuntimeError("GitHub models.csv retry loop completed without making an HTTP attempt")
+
     def serialize_text_generation(
         self,
         primary_data: dict[str, dict[str, Any]],
+        *,
+        existing_csv_content: str,
     ) -> tuple[dict[str, dict[str, Any]], TextGenerationSyncArtifacts]:
         """Run PRIMARY text_generation data through the serializer.
 
@@ -249,7 +278,9 @@ class GithubSynchronizer:
         comparator can diff against GitHub's existing db.json accurately.
 
         Args:
-            primary_data: Raw PRIMARY v1 API data (may include backend prefixes).
+            primary_data: Raw PRIMARY v2 API data (may include backend prefixes).
+            existing_csv_content: Current upstream models.csv. It carries legacy-only
+                values and row ordering that are not recoverable from API records.
 
         Returns:
             Tuple of (serialized db.json dict, serialization artifacts).
@@ -258,13 +289,44 @@ class GithubSynchronizer:
             TextGenerationSerializer,
         )
 
-        serializer = TextGenerationSerializer()
+        serializer = TextGenerationSerializer(
+            include_text_metadata_columns=github_sync_settings.export_text_metadata_columns,
+        )
         artifacts: TextGenerationSyncArtifacts = serializer.serialize(
             primary_base_records=primary_data,
+            existing_csv_content=existing_csv_content,
+            preserve_absent_existing_records=False,
         )
         serialized_dict: dict[str, dict[str, Any]] = json.loads(artifacts.json_content)
         logger.debug(f"Serialized {len(primary_data)} PRIMARY records -> {len(serialized_dict)} db.json entries")
         return serialized_dict, artifacts
+
+    def assert_text_projections_in_lockstep(
+        self,
+        *,
+        v1_data: dict[str, dict[str, Any]],
+        projected_v2_data: dict[str, dict[str, Any]],
+    ) -> None:
+        """Refuse to export when PRIMARY's two text representations disagree."""
+        diff = ModelReferenceComparator().compare_categories(
+            category=MODEL_REFERENCE_CATEGORY.text_generation,
+            primary_data=projected_v2_data,
+            github_data=v1_data,
+        )
+        if diff.has_changes():
+            raise RuntimeError(
+                "PRIMARY text v1 is not in lockstep with the legacy projection of v2; "
+                "refusing to publish a GitHub compatibility artifact.\n" + diff.summary()
+            )
+
+
+def _drop_none_values(value: object) -> object:
+    """Recursively omit JSON null values for legacy GitHub compatibility."""
+    if isinstance(value, dict):
+        return {key: _drop_none_values(item) for key, item in value.items() if item is not None}
+    if isinstance(value, list):
+        return [_drop_none_values(item) for item in value if item is not None]
+    return value
 
 
 def main() -> int:
@@ -448,6 +510,7 @@ def run_sync_once() -> int:
         MODEL_REFERENCE_CATEGORY,
         tuple[ModelReferenceDiff, dict[str, dict[str, Any]], TextGenerationSyncArtifacts | None],
     ] = {}
+    scan_failed = False
 
     for category in MODEL_REFERENCE_CATEGORY:
         if not github_sync_settings.should_sync_category(category):
@@ -455,17 +518,32 @@ def run_sync_once() -> int:
             continue
 
         try:
-            primary_data = github_synchronizer.fetch_primary_data(
-                api_url=primary_api_url,
-                category=category,
-                timeout=30,
-            )
-
             if category == MODEL_REFERENCE_CATEGORY.text_generation:
                 # For text_generation, compare the serialized output (what actually
-                # gets committed) against GitHub's existing db.json. This avoids
-                # false positives from intermediate representation differences.
-                serialized_dict, artifacts = github_synchronizer.serialize_text_generation(primary_data)
+                # gets committed) against GitHub's existing db.json. The current CSV
+                # must participate in serialization because it carries legacy-only
+                # fields, duplicate-row semantics, and stable row ordering.
+                github_models_csv = github_synchronizer.fetch_github_models_csv()
+                primary_data = github_synchronizer.fetch_primary_data(
+                    api_url=primary_api_url,
+                    category=category,
+                    api_version="v2",
+                    timeout=30,
+                )
+                serialized_dict, artifacts = github_synchronizer.serialize_text_generation(
+                    primary_data,
+                    existing_csv_content=github_models_csv,
+                )
+                primary_v1_data = github_synchronizer.fetch_primary_data(
+                    api_url=primary_api_url,
+                    category=category,
+                    api_version="v1",
+                    timeout=30,
+                )
+                github_synchronizer.assert_text_projections_in_lockstep(
+                    v1_data=primary_v1_data,
+                    projected_v2_data=serialized_dict,
+                )
                 github_db_json = github_synchronizer.fetch_github_db_json()
 
                 diff = comparator.compare_categories(
@@ -474,6 +552,12 @@ def run_sync_once() -> int:
                     github_data=github_db_json,
                 )
             else:
+                primary_data = github_synchronizer.fetch_primary_data(
+                    api_url=primary_api_url,
+                    category=category,
+                    api_version="v1",
+                    timeout=30,
+                )
                 github_data = github_synchronizer.fetch_github_data(category=category)
                 artifacts = None
 
@@ -490,7 +574,12 @@ def run_sync_once() -> int:
                 logger.info(f"✓ {category}: No changes needed")
 
         except Exception as e:
+            scan_failed = True
             logger.error(f"✗ {category}: Failed to scan - {e}")
+
+    if scan_failed:
+        logger.error("One or more categories failed to scan; refusing to create partial sync PRs")
+        return 1
 
     if not category_changes:
         logger.success("\n✓ No changes detected across any categories")
