@@ -849,6 +849,59 @@ class TestLegacyPendingQueueAdmin:
         legacy_data = _read_legacy_model_file(primary_base, category)
         assert legacy_data[model_name]["description"] == "new"
 
+        v2_data = v1_canonical_manager.get_raw_model_reference_json(category)
+        assert v2_data is not None
+        assert v2_data[model_name]["description"] == "new"
+
+    def test_apply_keeps_change_approved_when_legacy_to_v2_projection_fails(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+        mock_auth_success: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A promotion cannot retire its beta record before the canonical v2 projection exists."""
+        category = MODEL_REFERENCE_CATEGORY.image_generation
+        model_name = "legacy_projection_failure"
+        original_payload = _create_legacy_model_payload(model_name, category, description="old")
+        updated_payload = _create_legacy_model_payload(model_name, category, description="new")
+        _create_legacy_json_file(primary_base, category, {model_name: original_payload})
+
+        change_id = _enqueue_legacy_pending_change(
+            v1_canonical_manager,
+            model_name=model_name,
+            category=category,
+            operation=AuditOperation.UPDATE,
+            payload=updated_payload,
+        )
+        queue_service = v1_canonical_manager.pending_queue_service
+        assert queue_service is not None
+        queue_service.process_batch(
+            approver_id=_V1_QUEUE_USER_ID,
+            approver_username=_V1_QUEUE_USERNAME,
+            batch_title="failed legacy projection",
+            approved_ids=[change_id],
+            rejected_ids=None,
+            reject_reason=None,
+        )
+        monkeypatch.setattr(
+            "horde_model_reference.legacy.convert_all_legacy_dbs.convert_legacy_database_by_category",
+            lambda *_args, **_kwargs: False,
+        )
+
+        response = api_client.post(
+            f"{self._base_url}/changes/{change_id}/apply",
+            headers=_queue_auth_headers(),
+            json={"job_id": "failed-projection"},
+        )
+
+        assert response.status_code == 503
+        change = queue_service.get_change(change_id)
+        assert change is not None
+        assert change.status is PendingChangeStatus.APPROVED
+        assert change.applied_job_id is None
+
     def test_pending_queue_works_in_v2_mode(
         self,
         api_client: TestClient,

@@ -93,9 +93,14 @@ def create_test_legacy_model(name: str) -> dict[str, Any]:
         "name": name,
         "description": f"Test model {name}",
         "version": "1.0",
+        "type": "ckpt",
+        "baseline": "stable diffusion 1",
+        "inpainting": False,
+        "style": "generalist",
+        "nsfw": False,
         "config": {
             "files": [
-                {"path": f"{name}.ckpt", "sha256sum": "abc123"},
+                {"path": f"{name}.ckpt", "sha256sum": "a" * 64},
             ],
             "download": [
                 {"file_name": f"{name}.ckpt", "file_url": f"https://example.com/{name}.ckpt"},

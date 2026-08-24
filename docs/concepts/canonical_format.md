@@ -174,6 +174,9 @@ The canonical format should not be changed while the system is in production wit
 **Cause:** Data was written via one API but the canonical source is the other.
 
 **Solution:** Always write via the canonical format's API. Both APIs read from the same underlying data, so reads should be consistent.
+Legacy canonical writes regenerate the v2 projection synchronously. If that conversion fails, the write operation reports
+failure rather than claiming that the record was fully published; pending-queue application therefore leaves the change
+approved and retryable instead of retiring its beta overlay.
 
 ## Environment Variable Reference
 

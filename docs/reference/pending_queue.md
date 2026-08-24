@@ -175,6 +175,10 @@ When a pending change is **applied**, `FileSystemBackend.update_model()`/`delete
     - Emits audit event: `action="apply"`, `category="pending_queue"`.
     - Backend emits audit event: `category=<model_category>`, `operation=CREATE|UPDATE|DELETE`.
     - Filesystem backend triggers `mark_stale()` so cached JSON reloads on the next request.
+    - A legacy write must successfully regenerate the corresponding v2 category before cache invalidation and before
+      the queue entry can become `applied`. A converter exception or unsuccessful result fails the apply request and
+      restores the queue entry to `approved`, preventing a promoted model from disappearing between the pending
+      overlay and canonical v2 reads.
 
 ## Resource Kinds
 
