@@ -450,6 +450,8 @@ class LegacyControlnetRecord(LegacyGenericRecord):
         "control_normal_bae",
         "control_recolor",
         "control_tile",
+        "control_shuffle",
+        "control_color",
     ]
 
 

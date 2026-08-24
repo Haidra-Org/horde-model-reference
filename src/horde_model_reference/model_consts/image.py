@@ -286,6 +286,8 @@ class CONTROLNET_STYLE(StrEnum):
     control_normal_bae = auto()
     control_recolor = auto()
     control_tile = auto()
+    control_shuffle = auto()
+    control_color = auto()
 
 
 _CONTROLNET_STYLE_REGISTRY = EnumRegistry(item.value for item in CONTROLNET_STYLE)
