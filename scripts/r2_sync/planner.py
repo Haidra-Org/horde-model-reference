@@ -219,7 +219,7 @@ def _plan_file(
         declared_size_matches = existing is not None and (
             download.size_bytes is None or existing.size_bytes == download.size_bytes
         )
-        if existing_hash == known_sha.lower() and declared_size_matches:
+        if existing is not None and existing_hash == known_sha.lower() and declared_size_matches:
             return (
                 SyncItem(
                     **base,

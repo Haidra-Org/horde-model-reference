@@ -210,7 +210,8 @@ markers = [
 ]
 
 [tool.pyrefly]
-project-includes = ["src/horde_model_reference", "tests"]
+project-includes = ["src/horde_model_reference", "scripts", "tests"]
 search-path = ["src", "tests"]
+site-package-path = ["."]
 replace_imports_with_any = ["settings_doc.*"]
 permissive-ignores = true

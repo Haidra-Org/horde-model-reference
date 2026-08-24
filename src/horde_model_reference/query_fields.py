@@ -247,6 +247,10 @@ class TextFields(GenericFields):
     settings: FieldRef = FieldRef("settings")
     text_model_group: FieldRef = FieldRef("text_model_group")
     name_schema_exception: FieldRef = FieldRef("name_schema_exception")
+    context_window: FieldRef = FieldRef("context_window")
+    interaction_modes: FieldRef = FieldRef("interaction_modes")
+    capabilities: FieldRef = FieldRef("capabilities")
+    guidance: FieldRef = FieldRef("guidance")
 
 
 class ControlNetFields(GenericFields):

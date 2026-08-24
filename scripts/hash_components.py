@@ -45,7 +45,8 @@ import sys
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING
+from types import TracebackType
+from typing import TYPE_CHECKING, Protocol, Self
 from urllib.parse import quote
 
 import requests
@@ -488,20 +489,54 @@ def _load_curated(
 class _NullBar:
     """A no-op stand-in for a tqdm bar, used when tqdm is not installed so the pass still runs."""
 
-    def update(self, _count: int = 1) -> None:
+    def update(self, n: float | None = 1) -> bool | None:
         """Ignore progress updates."""
+        del n
+        return None
 
-    def set_postfix_str(self, _text: str) -> None:
+    def set_postfix_str(self, s: str = "", refresh: bool = True) -> None:
         """Ignore the per-item label."""
+        del s, refresh
 
     def __enter__(self) -> _NullBar:
         return self
 
-    def __exit__(self, *_exc: object) -> bool:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
+        del exc_type, exc_value, traceback
         return False
 
 
-def _progress_bar(total: int, desc: str) -> object:
+class _ProgressBar(Protocol):
+    """Common tqdm and no-op progress operations used by the hashing pass."""
+
+    def update(self, n: float | None = 1) -> bool | None:
+        """Advance the progress bar."""
+        ...
+
+    def set_postfix_str(self, s: str = "", refresh: bool = True) -> None:
+        """Set the current item label."""
+        ...
+
+    def __enter__(self) -> Self:
+        """Enter the progress context."""
+        ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
+        """Exit the progress context."""
+        ...
+
+
+def _progress_bar(total: int, desc: str) -> _ProgressBar:
     """Return a tqdm progress bar, or a no-op bar when tqdm is unavailable."""
     if _tqdm is not None:
         return _tqdm(total=total, desc=desc, unit="component")

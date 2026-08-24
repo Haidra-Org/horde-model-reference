@@ -466,6 +466,7 @@ def test_byte_source_replaces_bad_cached_file(tmp_path: Path, monkeypatch: pytes
     resolved = source.acquire(second_record, second_record.config.download[0])
 
     assert resolved == poisoned
+    assert resolved is not None
     assert resolved.read_bytes() == good
     assert source._origin_fetches == 2
 

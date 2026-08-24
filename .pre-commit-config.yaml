@@ -20,6 +20,8 @@ repos:
         pass_filenames: false
         additional_dependencies:
           - aiofiles
+          - boto3
+          - boto3-stubs
           - fastapi[standard]
           - fakeredis
           - gitpython
@@ -27,6 +29,7 @@ repos:
           - httpx
           - loguru
           - lxml-stubs
+          - license-expression
           - pydantic
           - pydantic-settings
           - PyGithub
@@ -37,6 +40,7 @@ repos:
           - settings-doc
           - strenum
           - tenacity
+          - tqdm
           - typing-extensions
           - ujson
           - types-aiofiles

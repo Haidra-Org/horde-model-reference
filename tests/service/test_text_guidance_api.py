@@ -224,6 +224,7 @@ def test_migration_preview_reaches_publication_through_the_queue(
         )
     manager._invalidate_cache()
     reference_path = manager.backend.get_category_file_path(MODEL_REFERENCE_CATEGORY.text_generation)
+    assert reference_path is not None
     reference_bytes_before = reference_path.read_bytes()
     headers = {"apikey": "test-key"}
 

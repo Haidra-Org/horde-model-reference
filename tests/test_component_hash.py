@@ -102,7 +102,7 @@ def test_bytes_are_significant(tmp_path: Path) -> None:
 def test_embedded_vae_matches_standalone(tmp_path: Path, vae_prefix: str) -> None:
     """An embedded VAE hashes equal to the same VAE extracted to a standalone file."""
     standalone = _write(tmp_path, "vae.safetensors", _CANONICAL_STANDALONE)
-    embedded_tensors = [
+    embedded_tensors: list[tuple[str, str, tuple[int, ...], bytes]] = [
         ("model.diffusion_model.x", "F16", (2,), bytes(range(40, 44))),
         (f"{vae_prefix}decoder.conv_in.weight", "F16", (2, 2), bytes(range(1, 9))),
         ("conditioner.embedders.0.y", "F32", (1,), bytes(range(50, 54))),

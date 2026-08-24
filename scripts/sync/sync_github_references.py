@@ -145,9 +145,10 @@ class GithubSynchronizer:
                         raise RetryableHTTPStatusError(response)
                     response.raise_for_status()
                     data: dict[str, dict[str, Any]] = response.json()
+                    logger.debug(f"Fetched {len(data)} models for {category} from PRIMARY")
+                    return data
 
-            logger.debug(f"Fetched {len(data)} models for {category} from PRIMARY")
-            return data
+            raise RuntimeError("PRIMARY retry loop completed without making an HTTP attempt")
 
         except (RetryError, httpx.HTTPError) as e:
             logger.error(f"Failed to fetch PRIMARY data for {category}: {e}")
@@ -195,9 +196,10 @@ class GithubSynchronizer:
                         raise RetryableHTTPStatusError(response)
                     response.raise_for_status()
                     data: dict[str, dict[str, Any]] = response.json()
+                    logger.debug(f"Fetched {len(data)} models for {category} from GitHub ({github_url})")
+                    return data
 
-            logger.debug(f"Fetched {len(data)} models for {category} from GitHub ({github_url})")
-            return data
+            raise RuntimeError("GitHub retry loop completed without making an HTTP attempt")
 
         except (RetryError, httpx.HTTPError) as e:
             logger.error(f"Failed to fetch GitHub data for {category}: {e}")
@@ -232,9 +234,10 @@ class GithubSynchronizer:
                     raise RetryableHTTPStatusError(response)
                 response.raise_for_status()
                 data: dict[str, dict[str, Any]] = response.json()
+                logger.debug(f"Fetched {len(data)} models from GitHub db.json")
+                return data
 
-        logger.debug(f"Fetched {len(data)} models from GitHub db.json")
-        return data
+        raise RuntimeError("GitHub db.json retry loop completed without making an HTTP attempt")
 
     def serialize_text_generation(
         self,

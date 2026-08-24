@@ -56,7 +56,7 @@ def _read_safetensors(path: Path) -> dict[str, tuple[str, tuple[int, ...], bytes
 
 def _checkpoint(tmp_path: Path, vae_prefix: str) -> Path:
     """Write a monolithic checkpoint embedding a UNet tensor, a text-encoder tensor, and a two-tensor VAE."""
-    tensors = [
+    tensors: list[tuple[str, str, tuple[int, ...], bytes]] = [
         ("model.diffusion_model.x", "F16", (2,), bytes(range(40, 44))),
         (f"{vae_prefix}decoder.conv_in.weight", "F16", (2, 2), bytes(range(1, 9))),
         ("conditioner.embedders.0.y", "F32", (1,), bytes(range(50, 54))),

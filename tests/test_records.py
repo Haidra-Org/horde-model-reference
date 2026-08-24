@@ -358,7 +358,7 @@ def test_a_malformed_schedulers_value_is_left_alone() -> None:
 
 def test_normalization_does_not_mutate_the_caller_dict() -> None:
     """Records are built from parsed JSON that a caller may still be holding."""
-    original = {"karras": True}
+    original: dict[str, int | float | str | list[int] | list[float] | list[str] | bool] = {"karras": True}
     _record_with_requirements(original)
 
     assert original == {"karras": True}

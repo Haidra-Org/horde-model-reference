@@ -84,6 +84,7 @@ def test_profiles_are_reused_and_resolved_for_exact_models(tmp_path: Path) -> No
 
     assert first.summary.status is TextGuidanceStatus.PUBLISHED
     assert first.primary_profile is not None
+    assert second.primary_profile is not None
     assert first.primary_profile.profile_id == second.primary_profile.profile_id == "chatml"
     assert [profile.profile_id for profile in first.supplemental_profiles] == ["roleplay"]
     assert second.supplemental_profiles == []
@@ -155,7 +156,9 @@ def test_review_precondition_detects_a_changed_touched_record(tmp_path: Path) ->
     with pytest.raises(GuidanceConflictError, match="changed after review"):
         store.apply_change_set(stale, canonical_model_names=set(), editor_id="maintainer-3")
 
-    assert store.get_profile("chatml").summary == "A more accurate published explanation."
+    published = store.get_profile("chatml")
+    assert published is not None
+    assert published.summary == "A more accurate published explanation."
 
 
 def test_legacy_label_is_a_distinct_fallback_state(tmp_path: Path) -> None:

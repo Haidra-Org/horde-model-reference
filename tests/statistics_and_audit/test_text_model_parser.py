@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from horde_model_reference.analytics.text_model_parser import (
     ExtraPartType,
     compute_group_summaries,
@@ -40,7 +42,9 @@ class TestParameterSizeSorting:
 
     def test_group_summary_exposes_parameter_order_not_lexical_order(self) -> None:
         """Return size pills in the order users understand as increasing capacity."""
-        models = {f"Example-{size}": {"text_model_group": "Example"} for size in ["0.5B", "1.8B", "100B", "8B"]}
+        models: dict[str, dict[str, Any]] = {
+            f"Example-{size}": {"text_model_group": "Example"} for size in ["0.5B", "1.8B", "100B", "8B"]
+        }
 
         summary = compute_group_summaries(models)["Example"]
 

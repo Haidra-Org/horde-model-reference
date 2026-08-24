@@ -186,7 +186,6 @@ class TextUsageProfileBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     profile_id: str
-    kind: GuidanceProfileKind
     display_name: str
     aliases: list[str] = Field(default_factory=list)
     summary: str
