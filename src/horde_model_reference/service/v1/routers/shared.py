@@ -18,6 +18,7 @@ from horde_model_reference.legacy.classes.legacy_models import (
     LegacyTextGenerationRecord,
 )
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.model_aliases import resolve_model_alias
 from horde_model_reference.service.shared import (
     APIKeyInvalidException,
     Operation,
@@ -47,14 +48,25 @@ def _direct_write_allowlist() -> set[str]:
     return allowlist
 
 
-def _check_legacy_model_exists(
+def _resolve_legacy_storage_key(
     manager: ModelReferenceManager,
     category: MODEL_REFERENCE_CATEGORY,
     model_name: str,
-) -> bool:
-    """Check if a model exists in the given category."""
+) -> str | None:
+    """Return the legacy mapping key for a model body name without renaming public v1 keys."""
     existing_models = manager.backend.get_legacy_json(category)
-    return existing_models is not None and model_name in existing_models
+    if existing_models is None:
+        return None
+    if model_name in existing_models:
+        return model_name
+    canonical_name = resolve_model_alias(category, model_name)
+    matching_keys = [
+        storage_key
+        for storage_key, record in existing_models.items()
+        if isinstance(record, dict)
+        and resolve_model_alias(category, str(record.get("name", ""))) == canonical_name
+    ]
+    return matching_keys[0] if len(matching_keys) == 1 else None
 
 
 async def _create_or_update_legacy_model(
@@ -117,7 +129,8 @@ async def _create_or_update_legacy_model(
     queue_service = manager.pending_queue_service
 
     # Validate model existence before proceeding
-    model_exists = _check_legacy_model_exists(manager, category, model_name)
+    storage_model_name = _resolve_legacy_storage_key(manager, category, model_name)
+    model_exists = storage_model_name is not None
 
     if operation == Operation.create and model_exists:
         raise HTTPException(
@@ -148,7 +161,7 @@ async def _create_or_update_legacy_model(
         # Enqueue the change
         change_record = queue_service.enqueue_change(
             category=category,
-            model_name=model_name,
+            model_name=storage_model_name or model_name,
             operation=audit_operation,
             payload=model_record.model_dump(mode="json"),
             requestor_id=requestor.user_id,
@@ -177,7 +190,7 @@ async def _create_or_update_legacy_model(
     try:
         manager.backend.update_model_legacy_from_base_model(
             category,
-            model_name,
+            storage_model_name or model_name,
             model_record,
             logical_user_id=auth_context.user_id,
         )
@@ -249,7 +262,8 @@ async def _delete_legacy_model(
 
     # Validate model exists
     existing_models = manager.backend.get_legacy_json(category)
-    if existing_models is None or model_name not in existing_models:
+    storage_model_name = _resolve_legacy_storage_key(manager, category, model_name)
+    if existing_models is None or storage_model_name is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model '{model_name}' not found in category '{category}'",
@@ -270,9 +284,9 @@ async def _delete_legacy_model(
         # Enqueue the deletion with the existing model data as payload
         change_record = queue_service.enqueue_change(
             category=category,
-            model_name=model_name,
+            model_name=storage_model_name,
             operation=AuditOperation.DELETE,
-            payload=existing_models[model_name],
+            payload=existing_models[storage_model_name],
             requestor_id=requestor.user_id,
             requestor_username=requestor.username,
             notes=None,
@@ -299,7 +313,7 @@ async def _delete_legacy_model(
     try:
         manager.backend.delete_model_legacy(
             category,
-            model_name,
+            storage_model_name,
             logical_user_id=auth_context.user_id,
         )
         logger.info(f"Deleted legacy model '{model_name}' from category '{category}'")

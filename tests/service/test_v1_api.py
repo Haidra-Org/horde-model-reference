@@ -656,6 +656,39 @@ class TestUpdateLegacyModel:
         legacy_data = _read_legacy_model_file(primary_base, category)
         assert legacy_data[model_name]["description"] == "Original"
 
+    def test_update_preserves_a_deprecated_legacy_mapping_key(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+        legacy_canonical_mode: None,
+        mock_auth_success: None,
+    ) -> None:
+        """A canonical body name must update the old v1 map key instead of creating a duplicate."""
+        category = MODEL_REFERENCE_CATEGORY.controlnet
+        legacy_key = "control_qr_sdxl"
+        canonical_name = "control_qr_xl"
+        original_payload = _create_legacy_model_payload(canonical_name, category, description="Original")
+        original_payload["type"] = canonical_name
+        _create_legacy_json_file(primary_base, category, {legacy_key: original_payload})
+        updated_payload = {**original_payload, "description": "Updated"}
+
+        response = api_client.put(
+            route_registry.url_for(_get_create_route_for_category(category), {}, v1_prefix),
+            json=updated_payload,
+            headers={"apikey": "test_key"},
+        )
+
+        assert response.status_code == 202
+        assert response.json()["model_name"] == legacy_key
+        queue_service = v1_canonical_manager.pending_queue_service
+        assert queue_service is not None
+        change = queue_service.get_change(response.json()["change_id"])
+        assert change is not None
+        assert change.model_name == legacy_key
+        assert change.payload is not None
+        assert change.payload["name"] == canonical_name
+
 
 class TestDeleteLegacyModel:
     """Tests for DELETE /{category}/{model_name} endpoint.
