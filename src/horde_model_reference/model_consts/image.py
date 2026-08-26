@@ -24,6 +24,7 @@ class KNOWN_IMAGE_GENERATION_BASELINE(StrEnum):
     flux_dev = auto()  # FIXME
     qwen_image = auto()
     z_image_turbo = auto()
+    krea2_turbo = auto()
 
 
 @dataclass(frozen=True)
@@ -161,6 +162,14 @@ register_image_baseline(
     BaselineDescriptor(
         native_resolution=1024,
         alternative_names=("z_image_turbo", "z image turbo", "zimage-turbo", "zimage"),
+    ),
+)
+
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.krea2_turbo,
+    BaselineDescriptor(
+        native_resolution=1024,
+        alternative_names=("krea_2_turbo", "krea2"),
     ),
 )
 
