@@ -31,6 +31,7 @@ from horde_model_reference.group_families import GroupFamilyStore
 from horde_model_reference.group_schema_store import GroupSchemaStore
 from horde_model_reference.licensing_store import LicensingStore
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, categories_managed_elsewhere
+from horde_model_reference.model_aliases import model_name_candidates
 from horde_model_reference.model_reference_metadata import CategoryMetadata
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
@@ -1410,7 +1411,11 @@ class ModelReferenceManager:
         if model_reference is None:
             return None
 
-        return model_reference.get(model_name)
+        for candidate_name in model_name_candidates(category, model_name):
+            model_record = model_reference.get(candidate_name)
+            if model_record is not None:
+                return model_record
+        return None
 
     def get_model(
         self,
@@ -1441,7 +1446,14 @@ class ModelReferenceManager:
             source=source,
         )
 
-        model_record = model_reference.get(model_name)
+        model_record = next(
+            (
+                model_reference[candidate_name]
+                for candidate_name in model_name_candidates(category, model_name)
+                if candidate_name in model_reference
+            ),
+            None,
+        )
         if model_record is None:
             raise RuntimeError(f"Model {model_name} not found in category {category}.")
 
@@ -1494,7 +1506,11 @@ class ModelReferenceManager:
         if category_json is None:
             return None
 
-        return category_json.get(model_name)
+        for candidate_name in model_name_candidates(category, model_name):
+            model_record = category_json.get(candidate_name)
+            if model_record is not None:
+                return model_record
+        return None
 
     def _get_typed_models(
         self,

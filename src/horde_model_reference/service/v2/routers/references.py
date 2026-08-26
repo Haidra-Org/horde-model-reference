@@ -9,6 +9,7 @@ from horde_model_reference import ModelReferenceManager, horde_model_reference_s
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.licensing import ModelLicensing, unknown_model_licensing
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.model_aliases import resolve_model_alias
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
     GenericModelRecord,
@@ -537,22 +538,16 @@ async def read_v2_single_model(
     Raises:
         HTTPException: 404 if category or model not found.
     """
-    raw_json = manager.get_raw_model_reference_json(model_category_name)
-
-    if raw_json is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Model category '{model_category_name}' not found",
-        )
-
-    if model_name not in raw_json:
+    canonical_model_name = resolve_model_alias(model_category_name, model_name)
+    raw_model = manager.get_raw_model_json(model_category_name, canonical_model_name)
+    if raw_model is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Model '{model_name}' not found in category '{model_category_name}'",
         )
 
     return JSONResponse(
-        content=_public_record_payload(raw_json[model_name], model_name=model_name, manager=manager),
+        content=_public_record_payload(raw_model, model_name=canonical_model_name, manager=manager),
         media_type="application/json",
     )
 
@@ -680,7 +675,8 @@ def _register_typed_category_routes(
         manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
         apikey: Annotated[str, Depends(header_auth_scheme)],
     ) -> JSONResponse:
-        if new_model_record.name != model_name:
+        canonical_model_name = resolve_model_alias(category, model_name)
+        if new_model_record.name != canonical_model_name:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Model name in the path must match the payload when queuing updates.",
@@ -709,13 +705,14 @@ def _register_typed_category_routes(
         model_name: str,
         manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
     ) -> JSONResponse:
-        raw_json = manager.get_raw_model_reference_json(category)
-        if raw_json is None or model_name not in raw_json:
+        canonical_model_name = resolve_model_alias(category, model_name)
+        raw_model = manager.get_raw_model_json(category, canonical_model_name)
+        if raw_model is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Model '{model_name}' not found in category '{category}'",
             )
-        return JSONResponse(content=_public_record_payload(raw_json[model_name]), media_type="application/json")
+        return JSONResponse(content=_public_record_payload(raw_model), media_type="application/json")
 
     # Swap the documented/validated body type to the category's concrete record.
     create_handler.__annotations__["new_model_record"] = record_type
@@ -930,7 +927,8 @@ async def update_v2_model(
     - Preserves original `created_at` and `created_by` metadata
     - Updates `updated_at` timestamp
     """
-    if new_model_record.name != model_name:
+    canonical_model_name = resolve_model_alias(model_category_name, model_name)
+    if new_model_record.name != canonical_model_name:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Model name in the path must match the payload when queuing updates.",
@@ -995,7 +993,7 @@ async def delete_v2_model(
     return await _queue_delete_request(
         manager=manager,
         category=model_category_name,
-        model_name=model_name,
+        model_name=resolve_model_alias(model_category_name, model_name),
         apikey=apikey,
         route_name="delete_v2_model",
     )

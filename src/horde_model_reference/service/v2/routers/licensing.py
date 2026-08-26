@@ -22,6 +22,7 @@ from horde_model_reference.licensing import (
 )
 from horde_model_reference.licensing_store import LicensingDatasetMetadata
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.model_aliases import resolve_model_alias
 from horde_model_reference.service.shared import (
     WRITE_ERROR_RESPONSES,
     authenticate_licensing_editor,
@@ -437,14 +438,15 @@ def get_model_licensing(
     manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
 ) -> LicensedAssetView:
     """Return the detailed licensing view for one canonical model."""
-    model_record = manager.get_model_or_none(category, model_name)
+    canonical_model_name = resolve_model_alias(category, model_name)
+    model_record = manager.get_model_or_none(category, canonical_model_name)
     if model_record is None:
         raise HTTPException(status_code=404, detail=f"Model not found: {category.value}/{model_name}")
     model_licensing = model_record.licensing or unknown_model_licensing()
     return LicensedAssetView(
         asset_kind="model",
-        asset_identifier=f"{category.value}:{model_name}",
-        display_name=model_name,
+        asset_identifier=f"{category.value}:{canonical_model_name}",
+        display_name=canonical_model_name,
         category=category,
         source_url=model_record.primary_download_url,
         licensing=model_licensing,

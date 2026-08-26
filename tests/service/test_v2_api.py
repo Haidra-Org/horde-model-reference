@@ -242,6 +242,22 @@ class TestGetSingleModel:
         assert data["name"] == model_name
         assert "model_classification" in data
 
+    def test_get_single_model_accepts_a_deprecated_alias(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+    ) -> None:
+        """GET should resolve a deprecated identifier to its canonical record."""
+        category = MODEL_REFERENCE_CATEGORY.controlnet
+        canonical_name = "control_qr_xl"
+        model_data = _create_minimal_model_dict(canonical_name, category)
+        model_data["controlnet_style"] = canonical_name
+        primary_manager_for_api.backend.update_model(category, canonical_name, model_data)
+
+        response = api_client.get(_model_url(RouteNames.get_single_model, category, "control_qr_sdxl"))
+
+        assert _assert_success_response(response)["name"] == canonical_name
+
     def test_get_single_model_not_found(
         self,
         api_client: TestClient,
@@ -397,6 +413,29 @@ class TestUpdateModel:
         stored_record = primary_manager_for_api.get_raw_model_reference_json(category)
         assert stored_record is not None
         assert stored_record[model_name]["description"] == "Original"
+
+    def test_update_through_a_deprecated_alias_targets_the_canonical_record(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+    ) -> None:
+        """PUT through an alias should enqueue only the canonical model name."""
+        category = MODEL_REFERENCE_CATEGORY.controlnet
+        canonical_name = "control_qr_xl"
+        original_data = _create_minimal_model_dict(canonical_name, category, description="Original")
+        original_data["controlnet_style"] = canonical_name
+        primary_manager_for_api.backend.update_model(category, canonical_name, original_data)
+        updated_data = _create_minimal_model_dict(canonical_name, category, description="Updated")
+        updated_data["controlnet_style"] = canonical_name
+
+        response = api_client.put(
+            _model_url(RouteNames.update_model, category, "control_qr_sdxl"),
+            json=updated_data,
+            headers=_auth_headers(),
+        )
+
+        record = _assert_success_response(response, 202)
+        assert record["model_name"] == canonical_name
 
     def test_update_preserves_created_metadata(
         self,
