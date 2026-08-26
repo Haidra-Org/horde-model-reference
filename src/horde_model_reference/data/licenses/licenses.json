@@ -92,6 +92,16 @@
       "restrictions": ["No reviewed permission beyond research use is recorded."],
       "notes": "Project-specific evidence must accompany each assignment using this generalized LicenseRef."
     },
+    "LicenseRef-Stable-Cascade-NC-Community": {
+      "license_id": "LicenseRef-Stable-Cascade-NC-Community",
+      "name": "Stability AI Non-Commercial Research Community License",
+      "canonical_url": "https://huggingface.co/stabilityai/stable-cascade/blob/main/LICENSE",
+      "commercial_use": "prohibited",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["attribution", "include_license", "responsible_use_restrictions"],
+      "restrictions": ["Use, distribution, and derivative works are limited to non-commercial uses.", "Hosted services and APIs require separate permission from Stability AI."],
+      "notes": "The Stable Cascade repository labels this as stable-cascade-nc-community."
+    },
     "LicenseRef-thibaud-controlnet-sd21": {
       "license_id": "LicenseRef-thibaud-controlnet-sd21",
       "name": "thibaud/controlnet-sd21 custom restricted terms",
@@ -113,6 +123,14 @@
       "license_id": "OpenRAIL-M",
       "name": "CreativeML Open RAIL-M",
       "canonical_url": "https://huggingface.co/spaces/CompVis/stable-diffusion-license",
+      "commercial_use": "allowed_with_conditions",
+      "redistribution": "allowed_with_conditions",
+      "obligations": ["include_license", "responsible_use_restrictions"]
+    },
+    "OpenRAIL++-M": {
+      "license_id": "OpenRAIL++-M",
+      "name": "CreativeML Open RAIL++-M",
+      "canonical_url": "https://huggingface.co/stabilityai/stable-diffusion-2/blob/main/LICENSE-MODEL",
       "commercial_use": "allowed_with_conditions",
       "redistribution": "allowed_with_conditions",
       "obligations": ["include_license", "responsible_use_restrictions"]
