@@ -674,7 +674,7 @@ class TestUpdateLegacyModel:
         updated_payload = {**original_payload, "description": "Updated"}
 
         response = api_client.put(
-            route_registry.url_for(_get_create_route_for_category(category), {}, v1_prefix),
+            route_registry.url_for(_get_create_route_for_category(category), {}, v1_prefix),  # type: ignore
             json=updated_payload,
             headers={"apikey": "test_key"},
         )

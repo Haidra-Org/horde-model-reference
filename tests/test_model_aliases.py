@@ -24,7 +24,7 @@ def test_key_rename_moves_only_the_canonical_mapping_key() -> None:
         "unrelated": {"name": "unrelated"},
     }
 
-    renamed = rename_model_record_key(source, old_name="control_qr_sdxl", new_name="control_qr_xl")
+    renamed = rename_model_record_key(source, old_name="control_qr_sdxl", new_name="control_qr_xl")  # type: ignore
 
     assert "control_qr_sdxl" not in renamed
     assert renamed["control_qr_xl"] == source["control_qr_sdxl"]
