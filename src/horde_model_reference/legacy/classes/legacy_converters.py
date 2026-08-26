@@ -387,6 +387,7 @@ class BaseLegacyConverter:
             self._all_converted_records,
             indent=4,
             default=lambda o: o.model_dump(
+                mode="json",
                 exclude_none=True,
                 exclude_unset=False,
                 by_alias=True,
@@ -586,6 +587,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             self._all_converted_records,
             indent=4,
             default=lambda o: o.model_dump(
+                mode="json",
                 exclude_none=True,
                 exclude_unset=True,
                 exclude_defaults=True,

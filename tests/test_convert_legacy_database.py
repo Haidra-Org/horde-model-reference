@@ -111,6 +111,33 @@ def test_all_base_legacy_converters(
         assert len(converted) > 0
 
 
+def test_base_converter_serializes_licensing_evidence_dates(
+    primary_base: Path,
+    legacy_path: Path,
+    minimal_legacy_generic_data: dict[str, Any],
+) -> None:
+    """License evidence dates must be JSON-serialized during legacy-to-v2 projection."""
+    model_data = minimal_legacy_generic_data["test_generic_1"]
+    model_data["licensing"] = {
+        "license_expression": "Apache-2.0",
+        "license_ids": ["Apache-2.0"],
+        "commercial_use": "allowed",
+        "redistribution": "allowed",
+        "evidence": [{"source": "https://example.com/LICENSE", "checked_at": "2026-08-26"}],
+    }
+    (legacy_path / "gfpgan.json").write_text(json.dumps(minimal_legacy_generic_data, indent=2))
+
+    converter = BaseLegacyConverter(
+        model_reference_category=MODEL_REFERENCE_CATEGORY.gfpgan,
+        legacy_folder_path=primary_base,
+        target_file_folder=primary_base,
+    )
+    converter.convert_to_new_format()
+
+    converted = json.loads((primary_base / "gfpgan.json").read_text())
+    assert converted["test_generic_1"]["licensing"]["evidence"][0]["checked_at"] == "2026-08-26"
+
+
 def test_validate_converted_stable_diffusion_database(
     primary_base: Path,
     populated_legacy_path: Path,
