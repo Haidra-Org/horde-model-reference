@@ -409,7 +409,7 @@ class LegacyCodeformerRecord(LegacyGenericRecord):
 class LegacyEsrganRecord(LegacyGenericRecord):
     """ESRGAN legacy record with category-specific normalization."""
 
-    type: Literal["realesrgan"] = "realesrgan"
+    type: Literal["realesrgan", "esrgan"] = "realesrgan"
 
 
 class LegacyGfpganRecord(LegacyGenericRecord):
