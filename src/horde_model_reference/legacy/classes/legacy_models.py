@@ -438,6 +438,7 @@ class LegacyControlnetRecord(LegacyGenericRecord):
         "control_depth",
         "control_hed",
         "control_mlsd",
+        "control_hough",
         "control_normal",
         "control_openpose",
         "control_fakescribbles",
