@@ -63,8 +63,7 @@ def _resolve_legacy_storage_key(
     matching_keys = [
         storage_key
         for storage_key, record in existing_models.items()
-        if isinstance(record, dict)
-        and resolve_model_alias(category, str(record.get("name", ""))) == canonical_name
+        if isinstance(record, dict) and resolve_model_alias(category, str(record.get("name", ""))) == canonical_name
     ]
     return matching_keys[0] if len(matching_keys) == 1 else None
 
