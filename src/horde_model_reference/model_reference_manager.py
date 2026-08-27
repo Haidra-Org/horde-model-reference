@@ -861,15 +861,23 @@ class ModelReferenceManager:
     ) -> dict[str, GenericModelRecord] | None:
         """Return a model reference object from a JSON dictionary, or None if conversion failed.
 
+        With ``safe_mode`` off, a record that fails validation is logged and dropped and the remaining
+        records are returned: this reference is fetched by every worker and client, so one malformed
+        entry in published data must not cost the caller the whole category. With ``safe_mode`` on, the
+        first failure propagates, for callers that need the file to be wholly valid.
+
         Args:
             category: The target model reference category to convert.
             file_json_dict: The dict object representing the model reference.
-            safe_mode: Whether to raise exceptions on failure. If False, exceptions are caught
-                and None is returned. Defaults to False.
+            safe_mode: Whether to raise exceptions on failure. If False, exceptions are caught and the
+                offending record is skipped. Defaults to False.
 
         Returns:
             dict[str, GenericModelRecord] | None: The dict representing the model reference,
                 or None if conversion failed.
+
+        Raises:
+            pydantic.ValidationError: If a record fails validation and `safe_mode` is True.
 
         """
         if file_json_dict is None:
@@ -883,8 +891,14 @@ class ModelReferenceManager:
         try:
             record_type = MODEL_RECORD_TYPE_LOOKUP.get(category, GenericModelRecord)
             model_reference: dict[str, GenericModelRecord] = {}
-            for model_value in file_json_dict.values():
-                model_instance = record_type.model_validate(model_value)
+            for model_key, model_value in file_json_dict.items():
+                try:
+                    model_instance = record_type.model_validate(model_value)
+                except Exception as record_error:
+                    if safe_mode:
+                        raise
+                    logger.error(f"Skipping invalid {category} model {model_key!r}: {record_error}")
+                    continue
                 model_reference[model_instance.name] = model_instance
 
             return model_reference

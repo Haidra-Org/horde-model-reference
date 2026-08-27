@@ -288,6 +288,14 @@ def _field_policy_for(
     return policy.field_policies.get(field_name, fallback)
 
 
+_ALREADY_REPORTED_UNKNOWN_VALUES: set[tuple[str, str, str]] = set()
+"""The (category, field, value) triples already reported at warning level in this process.
+
+An unknown value recurs on every record carrying it and on every reparse of the reference, so without
+this the log would be dominated by repeats of a single fact.
+"""
+
+
 def _apply_policy(
     *,
     category: MODEL_REFERENCE_CATEGORY | str,
@@ -299,6 +307,14 @@ def _apply_policy(
     field_policy = _field_policy_for(category, field_name, fallback_policy)
     if field_policy.severity == "error":
         raise ValueError(f"Unknown {field_name}: {value}")
+
+    report_key = (category_key(category), field_name, value)
+    if report_key not in _ALREADY_REPORTED_UNKNOWN_VALUES:
+        _ALREADY_REPORTED_UNKNOWN_VALUES.add(report_key)
+        logger.warning(
+            f"Unknown {field_name} {value!r} (first seen on model {model_name}); the value is kept as written.",
+        )
+        return
 
     logger.debug(f"Unknown {field_name} {value} for model {model_name}")
 
@@ -361,7 +377,12 @@ kind_policy_registry.register(
     category_key(MODEL_REFERENCE_CATEGORY.image_generation),
     KindPolicy(
         field_policies={
-            "baseline": FieldPolicy(severity="error"),
+            # A warning rather than an error, on the same reasoning as the schedulers below, plus one of
+            # its own: a client pinned to an older release of this package has an older baseline
+            # vocabulary, and rejecting the record would cost it the entire image reference every time a
+            # newer baseline is published. The unknown value is kept verbatim, where it resolves to no
+            # baseline the client knows and the model is simply unusable to it.
+            "baseline": FieldPolicy(severity="warning"),
             "style": FieldPolicy(severity="error"),
             # A warning rather than an error: this reference is fetched by every worker and client, so a
             # single mistyped schedule in published data must not make the whole file unparseable. The

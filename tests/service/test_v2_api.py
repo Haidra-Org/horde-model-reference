@@ -381,6 +381,28 @@ class TestCreateModel:
 
         assert response.status_code == 422
 
+    def test_create_image_generation_model_rejects_unknown_baseline(
+        self,
+        api_client: TestClient,
+        primary_manager_for_api: ModelReferenceManager,
+    ) -> None:
+        """POST should return 422 for a baseline this package does not know.
+
+        Record parsing keeps unknown baselines so older readers stay functional, which leaves the
+        authoritative source as the only place able to tell a new baseline from a typo.
+        """
+        category = MODEL_REFERENCE_CATEGORY.image_generation
+        model_data = _create_minimal_model_dict("future_baseline_model", category)
+        model_data["baseline"] = "some_future_baseline"
+
+        response = api_client.post(
+            _model_url(RouteNames.create_model, category),
+            json=model_data,
+            headers=_auth_headers(),
+        )
+
+        _assert_error_response(response, 422, "Unknown baseline")
+
 
 class TestUpdateModel:
     """Tests for PUT /{category}/model/{model_name} endpoint."""

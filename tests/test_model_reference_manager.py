@@ -691,7 +691,34 @@ class TestModelReferenceConversion:
             category, file_json_dict, safe_mode=False
         )
 
-        assert non_safe_mode_result is None, "Expected None result for invalid input in non-safe mode"
+        assert non_safe_mode_result == {}, "Expected the invalid record to be skipped in non-safe mode"
+
+    def test_file_json_dict_to_model_reference_skips_only_the_bad_record(
+        self,
+        model_reference_manager: ModelReferenceManager,
+    ) -> None:
+        """One invalid record must not cost the caller the rest of the category."""
+        category = MODEL_REFERENCE_CATEGORY.image_generation
+        file_json_dict = {
+            "good_model": {
+                "name": "good_model",
+                "baseline": "stable_diffusion_1",
+                "nsfw": False,
+            },
+            "bad_model": {
+                "description": "An invalid model without a name or a baseline",
+            },
+            "future_baseline_model": {
+                "name": "future_baseline_model",
+                "baseline": "some_future_baseline",
+                "nsfw": False,
+            },
+        }
+
+        result = model_reference_manager._file_json_dict_to_model_reference(category, file_json_dict, safe_mode=False)
+
+        assert result is not None
+        assert set(result) == {"good_model", "future_baseline_model"}
 
     def test_model_reference_to_json_dict(self, model_reference_manager: ModelReferenceManager) -> None:
         """Test conversion from model reference to dict (for JSON serialization)."""

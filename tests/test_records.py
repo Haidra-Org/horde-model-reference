@@ -43,27 +43,28 @@ def test_image_generation_model_record() -> None:
 
 
 def test_image_generation_model_record_unknown_baseline() -> None:
-    """Tests the ImageGeneration_ModelRecord class with an unknown baseline."""
-    with pytest.raises(ValidationError, match="Unknown baseline:"):
-        ImageGenerationModelRecord(
-            name="test_name",
-            description="test_description",
-            version="test_version",
-            style=MODEL_STYLE.realistic,
-            model_classification=ModelClassification(
-                domain=MODEL_DOMAIN.image,
-                purpose=MODEL_PURPOSE.generation,
-            ),
-            inpainting=False,
-            baseline="unknown_baseline",
-            tags=["test_tag"],
-            nsfw=False,
-            config=GenericModelRecordConfig(
-                download=[
-                    DownloadRecord(file_name="test_file_name", file_url="test_file_url", sha256sum="test_sha256sum"),
-                ],
-            ),
-        )
+    """Tests the ImageGeneration_ModelRecord class keeps an unknown baseline verbatim."""
+    record = ImageGenerationModelRecord(
+        name="test_name",
+        description="test_description",
+        version="test_version",
+        style=MODEL_STYLE.realistic,
+        model_classification=ModelClassification(
+            domain=MODEL_DOMAIN.image,
+            purpose=MODEL_PURPOSE.generation,
+        ),
+        inpainting=False,
+        baseline="some_future_baseline",
+        tags=["test_tag"],
+        nsfw=False,
+        config=GenericModelRecordConfig(
+            download=[
+                DownloadRecord(file_name="test_file_name", file_url="test_file_url", sha256sum="test_sha256sum"),
+            ],
+        ),
+    )
+
+    assert record.baseline == "some_future_baseline"
 
 
 def test_image_generation_model_record_unknown_style() -> None:

@@ -18,10 +18,11 @@ def test_policy_registry_registers_once() -> None:
         registry.register("demo", policy)
 
 
-def test_image_generation_unknown_baseline_raises() -> None:
-    """ImageGenerationModelRecord should reject unknown baselines."""
-    with pytest.raises(ValueError):
-        ImageGenerationModelRecord(name="test-model", baseline="unknown", nsfw=False)
+def test_image_generation_unknown_baseline_is_kept() -> None:
+    """ImageGenerationModelRecord should keep an unknown baseline verbatim rather than reject the record."""
+    record = ImageGenerationModelRecord(name="test-model", baseline="some_future_baseline", nsfw=False)
+
+    assert record.baseline == "some_future_baseline"
 
 
 def test_image_generation_unknown_style_raises() -> None:

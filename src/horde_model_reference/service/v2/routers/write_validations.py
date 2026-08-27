@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from fastapi import HTTPException, status
+
 from horde_model_reference import CanonicalFormat, ModelReferenceManager
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, is_known_image_baseline
+from horde_model_reference.model_reference_records import GenericModelRecord, ImageGenerationModelRecord
 from horde_model_reference.service.shared import assert_canonical_write_enabled, assert_primary_mode
 
 
@@ -17,6 +20,36 @@ def assert_v2_write_enabled(
     v2 canonical-format requirement, since v2 is its only possible write path.
     """
     assert_canonical_write_enabled(manager, canonical_format=CanonicalFormat.v2, category=category)
+
+
+def assert_known_image_baseline(
+    category: MODEL_REFERENCE_CATEGORY | str,
+    model_record: GenericModelRecord,
+) -> None:
+    """Reject an image generation submission whose baseline is not a known one.
+
+    Record parsing keeps an unknown baseline so that a reader on an older baseline vocabulary can still
+    load the reference, which leaves the authoritative source as the only place able to tell a new
+    baseline apart from a typo.
+
+    Raises:
+        HTTPException: 422 if the record names a baseline this package does not know.
+
+    """
+    if category != MODEL_REFERENCE_CATEGORY.image_generation:
+        return
+    if not isinstance(model_record, ImageGenerationModelRecord):
+        return
+    if is_known_image_baseline(str(model_record.baseline)):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail=(
+            f"Unknown baseline '{model_record.baseline}'. Add the baseline to horde-model-reference before "
+            "submitting models that use it."
+        ),
+    )
 
 
 def assert_primary_write_enabled(manager: ModelReferenceManager) -> None:

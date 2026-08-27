@@ -58,7 +58,7 @@ def test_fetch_category_skips_invalid_records(httpx_mock: HTTPXMock) -> None:
         url=_PENDING_URL,
         json={
             "good": {"baseline": "stable_diffusion_1", "nsfw": False},
-            "bad": {"baseline": "NotARealBaseline"},
+            "bad": {"description": "no baseline and no nsfw flag"},
         },
     )
     provider = _provider()
@@ -67,6 +67,22 @@ def test_fetch_category_skips_invalid_records(httpx_mock: HTTPXMock) -> None:
 
     assert records is not None
     assert set(records) == {"good"}
+
+
+def test_fetch_category_keeps_unknown_baseline(httpx_mock: HTTPXMock) -> None:
+    """A baseline this package does not know is kept, so an older client keeps the rest of the payload."""
+    httpx_mock.add_response(
+        url=_PENDING_URL,
+        json={"future_model": {"baseline": "some_future_baseline", "nsfw": False}},
+    )
+    provider = _provider()
+
+    records = provider.fetch_category(_CATEGORY)
+
+    assert records is not None
+    record = records["future_model"]
+    assert isinstance(record, ImageGenerationModelRecord)
+    assert record.baseline == "some_future_baseline"
 
 
 def test_fetch_category_non_200_returns_none(httpx_mock: HTTPXMock) -> None:

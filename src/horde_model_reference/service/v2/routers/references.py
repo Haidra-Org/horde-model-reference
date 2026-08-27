@@ -37,7 +37,10 @@ from horde_model_reference.service.shared import (
     validate_model_name,
 )
 from horde_model_reference.service.v2.models import ModelRecordUnion
-from horde_model_reference.service.v2.routers.write_validations import assert_v2_write_enabled
+from horde_model_reference.service.v2.routers.write_validations import (
+    assert_known_image_baseline,
+    assert_v2_write_enabled,
+)
 
 router = APIRouter(
     responses={**READ_ERROR_RESPONSES},
@@ -190,6 +193,7 @@ async def _queue_model_record_request(
     requestor = await authenticate_queue_requestor(apikey)
     model_name = model_record.name
     assert_v2_write_enabled(manager, category)
+    assert_known_image_baseline(category, model_record)
     validate_model_name(model_name)
 
     # Reject backend-prefixed names for text_generation: server auto-generates duplicates

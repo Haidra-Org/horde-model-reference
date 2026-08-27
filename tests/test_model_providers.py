@@ -550,8 +550,26 @@ def test_static_provider_from_raw_raises_on_invalid_record() -> None:
     with pytest.raises(ValidationError):
         StaticModelProvider.from_raw(
             "civitai",
-            {MODEL_REFERENCE_CATEGORY.image_generation: {"bad": {"baseline": "NotARealBaseline"}}},
+            {MODEL_REFERENCE_CATEGORY.image_generation: {"bad": {"description": "no baseline, no nsfw flag"}}},
         )
+
+
+def test_static_provider_from_raw_keeps_unknown_baseline() -> None:
+    """A baseline this package does not know is kept rather than rejected."""
+    provider = StaticModelProvider.from_raw(
+        "civitai",
+        {
+            MODEL_REFERENCE_CATEGORY.image_generation: {
+                "future_model": {"baseline": "some_future_baseline", "nsfw": False},
+            },
+        },
+    )
+
+    records = provider.fetch_category(MODEL_REFERENCE_CATEGORY.image_generation)
+    assert records is not None
+    record = records["future_model"]
+    assert isinstance(record, ImageGenerationModelRecord)
+    assert record.baseline == "some_future_baseline"
 
 
 @pytest.mark.parametrize("reserved", [HORDE_SOURCE_ID, ANY_SOURCE, ""])
