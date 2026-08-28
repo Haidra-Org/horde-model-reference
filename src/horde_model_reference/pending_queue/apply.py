@@ -16,6 +16,7 @@ from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, get_cate
 from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 from horde_model_reference.text_guidance import TextGuidanceChangeSet
 
+from .materialize import referenced_image_baselines
 from .models import BatchSplitInfo, PendingChangeRecord, PendingResourceKind
 from .service import PendingQueueService
 
@@ -26,16 +27,6 @@ def _category_has_no_legacy_format(category: MODEL_REFERENCE_CATEGORY | str) -> 
         return get_category_descriptor(category).has_legacy_format is False
     except KeyError:
         return False
-
-
-def _referenced_image_baselines(manager: ModelReferenceManager) -> set[str]:
-    """Return every baseline name the canonical image generation reference still points at."""
-    records = manager.get_raw_model_reference_json(MODEL_REFERENCE_CATEGORY.image_generation) or {}
-    return {
-        record["baseline"]
-        for record in records.values()
-        if isinstance(record, dict) and isinstance(record.get("baseline"), str)
-    }
 
 
 class BackendUpdateCallable(Protocol):
@@ -192,7 +183,7 @@ def apply_pending_change(
         try:
             manager.image_baseline_store.apply_change_set(
                 ImageBaselineChangeSet.model_validate(payload),
-                referenced_baselines=_referenced_image_baselines(manager),
+                referenced_baselines=referenced_image_baselines(manager, queue_service),
                 editor_id=applied_by,
             )
         except Exception as exc:

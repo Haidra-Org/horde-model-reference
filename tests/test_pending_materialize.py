@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from types import SimpleNamespace
 from typing import Any
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY, CanonicalFormat
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.pending_queue.materialize import (
     materialize_pending_records,
+    referenced_image_baselines,
     select_beta_changes,
 )
 from horde_model_reference.pending_queue.models import PendingChangeRecord
@@ -75,6 +77,28 @@ def test_materialize_empty_when_nothing_selected() -> None:
         domain=CanonicalFormat.v2,
     )
     assert records == {}
+
+
+def test_referenced_baselines_include_live_beta_models() -> None:
+    """A baseline cannot be deleted while a pending model is served against it."""
+    pending = _change(
+        "beta",
+        AuditOperation.CREATE,
+        {"name": "beta", "baseline": "future_baseline", "nsfw": False},
+    )
+    manager = SimpleNamespace(
+        get_model_reference=lambda category: {
+            "canonical": SimpleNamespace(baseline="stable_diffusion_1"),
+        },
+    )
+    queue_service = SimpleNamespace(
+        list_changes=lambda **kwargs: SimpleNamespace(items=[pending]),
+    )
+
+    assert referenced_image_baselines(manager, queue_service) == {
+        "stable_diffusion_1",
+        "future_baseline",
+    }
 
 
 def test_materialize_legacy_converts_to_v2(

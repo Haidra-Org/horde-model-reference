@@ -27,7 +27,9 @@ All three set a weak `ETag` of `W/"image-baselines-{revision}"` for inexpensive 
 
 A change set carries a `title` and a non-empty list of `upsert`/`delete` changes. Each change may carry
 `expected_before`, the value the proposal was reviewed against; a mismatch is refused with 409. A delete is refused
-while a canonical image model still names the baseline. Other validation failures are 422.
+while a canonical or live beta image model still names the baseline. The reference check is repeated when an
+approved change is applied, so a model proposed after the baseline change cannot be stranded by it. Other validation
+failures are 422.
 
 Submissions require PRIMARY mode and an `apikey` header, and are applied through the shared pending queue like any
 other reviewed change. Applying one registers the baseline in the running process, so the v2 model-create route
