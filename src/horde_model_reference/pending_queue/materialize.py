@@ -17,7 +17,7 @@ import json
 import tempfile
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from loguru import logger
 
@@ -25,7 +25,16 @@ from horde_model_reference import CanonicalFormat, horde_model_reference_paths
 from horde_model_reference.audit.events import AuditOperation
 from horde_model_reference.legacy.convert_all_legacy_dbs import convert_legacy_database_by_category
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
-from horde_model_reference.pending_queue.models import PendingChangeRecord, PendingResourceKind
+from horde_model_reference.pending_queue.models import (
+    PendingChangeRecord,
+    PendingChangeStatus,
+    PendingQueueFilter,
+    PendingResourceKind,
+)
+
+if TYPE_CHECKING:
+    from horde_model_reference import ModelReferenceManager
+    from horde_model_reference.pending_queue.service import PendingQueueService
 
 _BETA_OPERATIONS = frozenset({AuditOperation.CREATE, AuditOperation.UPDATE})
 """Queue operations that contribute a usable beta model. ``DELETE`` is intentionally
@@ -88,6 +97,44 @@ def materialize_pending_records(
         return payloads
 
     return _convert_legacy_payloads_to_v2(category, payloads)
+
+
+def referenced_image_baselines(
+    manager: ModelReferenceManager,
+    queue_service: PendingQueueService,
+) -> set[str]:
+    """Return baseline names referenced by canonical or live beta image models.
+
+    Pending and approved model changes are served as beta records, so they participate in the same
+    referential-integrity rule as canonical records. Applying changes are included because their
+    queue transition and the baseline change can race in separate workers.
+    """
+    category = MODEL_REFERENCE_CATEGORY.image_generation
+    canonical = manager.get_raw_model_reference_json(category) or {}
+    page = queue_service.list_changes(
+        queue_filter=PendingQueueFilter(
+            categories={category},
+            statuses={
+                PendingChangeStatus.PENDING,
+                PendingChangeStatus.APPROVED,
+                PendingChangeStatus.APPLYING,
+            },
+            resource_kinds={PendingResourceKind.MODEL_REFERENCE},
+        ),
+        offset=0,
+        limit=None,
+    )
+    pending = materialize_pending_records(
+        category,
+        page.items,
+        domain=horde_model_reference_settings.canonical_format,
+    )
+    records = [*canonical.values(), *pending.values()]
+    return {
+        record["baseline"]
+        for record in records
+        if isinstance(record, dict) and isinstance(record.get("baseline"), str)
+    }
 
 
 def _convert_legacy_payloads_to_v2(
