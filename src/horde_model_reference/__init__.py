@@ -308,6 +308,18 @@ class TextGuidanceSettings(BaseModel):
     """Absolute path override for text guidance persistence."""
 
 
+class ImageBaselineSettings(BaseModel):
+    """Settings controlling served image baseline persistence."""
+
+    model_config = SettingsConfigDict(use_attribute_docstrings=True)
+
+    relative_subdir: str = "baselines"
+    """Relative folder under the model-reference data root containing the baseline catalog."""
+
+    root_path_override: str | None = None
+    """Absolute path override for image baseline persistence."""
+
+
 class R2Settings(BaseModel):
     """Settings for the gated Cloudflare R2 mirror of hostable (non-generation) models.
 
@@ -464,6 +476,9 @@ Set lower (e.g., 0.005%) to flag fewer models or higher (e.g., 0.01%) to flag mo
 
     text_guidance: TextGuidanceSettings = TextGuidanceSettings()
     """Settings controlling reusable text-model guidance persistence."""
+
+    image_baselines: ImageBaselineSettings = ImageBaselineSettings()
+    """Settings controlling served image-generation baseline persistence."""
 
     r2: R2Settings = Field(default_factory=R2Settings)
     """Gated Cloudflare R2 mirror settings: the client gateway URL plus the devops upload tool's credentials."""
@@ -654,6 +669,7 @@ from .meta_consts import (  # noqa: E402, I001
     get_known_tags,
     get_weights_marker_folders,
     register_image_baseline,
+    register_image_baselines_from_catalog,
     register_category,
 )
 from .text_backend_names import (  # noqa: E402
@@ -666,6 +682,13 @@ from .path_consts import (  # noqa: E402
     horde_model_reference_paths,
 )
 
+from .image_baseline import (  # noqa: E402
+    BaselineCapabilities,
+    HordeBaselinePolicy,
+    ImageBaselineCatalog,
+    ImageBaselineChangeSet,
+    ImageBaselineRecord,
+)
 from .integrations.data_merger import PopularModelResult  # noqa: E402
 from .licensing import (  # noqa: E402
     LicenseAssignment,
@@ -749,6 +772,7 @@ __all__ = [
     "MODEL_STYLE",
     "PENDING_SOURCE_ID",
     "AudioFields",
+    "BaselineCapabilities",
     "BaselineDescriptor",
     "BlipFields",
     "CategoryDescriptor",
@@ -760,6 +784,10 @@ __all__ = [
     "FieldRef",
     "GenericFields",
     "GfpganFields",
+    "HordeBaselinePolicy",
+    "ImageBaselineCatalog",
+    "ImageBaselineChangeSet",
+    "ImageBaselineRecord",
     "ImageFields",
     "ImageGenerationQuery",
     "LicenseAssignment",
@@ -814,6 +842,7 @@ __all__ = [
     "presence_summary",
     "register_category",
     "register_image_baseline",
+    "register_image_baselines_from_catalog",
     "register_record_type",
     "resolve_weights_root",
     "sha256_of",

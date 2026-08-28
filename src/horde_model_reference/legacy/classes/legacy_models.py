@@ -20,6 +20,7 @@ from pydantic import (
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.licensing import ModelLicensing
+from horde_model_reference.meta_consts import is_known_image_baseline
 from horde_model_reference.text_guidance import SupportClaim, TextCapability, TextContextWindow, TextInteractionMode
 from horde_model_reference.util import model_name_to_showcase_folder_name
 
@@ -296,7 +297,7 @@ class LegacyStableDiffusionRecord(LegacyGenericRecord):
     # and respecting the "frozen" model config (legacy models are immutable after validation)
     @model_validator(mode="after")
     def _validate_stable_diffusion_rules(self, info: ValidationInfo) -> LegacyStableDiffusionRecord:
-        if self.baseline not in _BASELINE_NORMALIZATION_MAP.values():
+        if not is_known_image_baseline(self.baseline):
             _record_issue(info, "has an unrecognized baseline.")
         if self.showcases is None or len(self.showcases) == 0:
             _record_issue(info, "has no showcases defined.")

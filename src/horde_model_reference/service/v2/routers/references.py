@@ -193,7 +193,7 @@ async def _queue_model_record_request(
     requestor = await authenticate_queue_requestor(apikey)
     model_name = model_record.name
     assert_v2_write_enabled(manager, category)
-    assert_known_image_baseline(category, model_record)
+    assert_known_image_baseline(manager, category, model_record)
     validate_model_name(model_name)
 
     # Reject backend-prefixed names for text_generation: server auto-generates duplicates

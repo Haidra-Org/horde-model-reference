@@ -16,6 +16,7 @@ import horde_model_reference.service.v1.routers.metadata as v1_metadata
 import horde_model_reference.service.v1.routers.pending_queue as v1_pending_queue
 import horde_model_reference.service.v1.routers.pending_queue_audit as v1_pending_queue_audit
 import horde_model_reference.service.v1.routers.references as v1_references
+import horde_model_reference.service.v2.routers.image_baselines as v2_image_baselines
 import horde_model_reference.service.v2.routers.licensing as v2_licensing
 import horde_model_reference.service.v2.routers.metadata as v2_metadata
 import horde_model_reference.service.v2.routers.pending_queue as v2_pending_queue
@@ -147,6 +148,10 @@ _OPENAPI_TAGS = [
         "description": "Reusable prompting contracts, usage recipes, and exact-model assignments.",
     },
     {
+        "name": "image_baselines",
+        "description": "Published image-generation baseline families, their capabilities, and horde policy.",
+    },
+    {
         "name": "pending_queue",
         "description": "Propose -> approve -> apply workflow for model changes on PRIMARY deployments.",
     },
@@ -207,6 +212,7 @@ app.include_router(v2_pending_queue.router, prefix=v2_prefix, tags=["v2", "pendi
 app.include_router(v2_pending_queue_audit.router, prefix=v2_prefix, tags=["v2", "pending_queue", "audit"])
 app.include_router(v2_user.router, prefix=v2_prefix, tags=["v2", "user"])
 app.include_router(v2_licensing.router, prefix=v2_prefix, tags=["v2", "licensing"])
+app.include_router(v2_image_baselines.router, prefix=v2_prefix, tags=["v2", "image_baselines"])
 app.include_router(v2_references.router, prefix=v2_prefix, tags=["v2"])
 app.include_router(ref_statistics.router, prefix=statistics_prefix, tags=["v2", "statistics"])
 app.include_router(ref_deletion_risk.router, prefix=statistics_prefix, tags=["v2", "deletion-risk"])

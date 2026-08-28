@@ -29,6 +29,7 @@ from horde_model_reference.backends import (
 from horde_model_reference.group_aliases import GroupAliasStore
 from horde_model_reference.group_families import GroupFamilyStore
 from horde_model_reference.group_schema_store import GroupSchemaStore
+from horde_model_reference.image_baseline_store import ImageBaselineStore
 from horde_model_reference.licensing_store import LicensingStore
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, categories_managed_elsewhere
 from horde_model_reference.model_aliases import model_name_candidates
@@ -54,6 +55,7 @@ from horde_model_reference.path_consts import (
     resolve_group_aliases_path,
     resolve_group_families_path,
     resolve_group_schemas_path,
+    resolve_image_baseline_path,
     resolve_licensing_path,
     resolve_pending_queue_path,
     resolve_text_guidance_path,
@@ -147,6 +149,8 @@ class ModelReferenceManager:
     _licensing_store_refresh_attempted: bool = False
     _text_guidance_store: TextGuidanceStore
     _text_guidance_store_refresh_attempted: bool = False
+    _image_baseline_store: ImageBaselineStore
+    _image_baseline_store_refresh_attempted: bool = False
 
     _lock: RLock = RLock()
 
@@ -422,6 +426,13 @@ class ModelReferenceManager:
                     writable=backend.supports_writes(),
                 )
                 cls._instance._text_guidance_store_refresh_attempted = False
+                baseline_bootstrap_path = Path(__file__).resolve().parent / "data" / "baselines"
+                cls._instance._image_baseline_store = ImageBaselineStore(
+                    root_path=resolve_image_baseline_path(data_root),
+                    bootstrap_path=baseline_bootstrap_path,
+                    writable=backend.supports_writes(),
+                )
+                cls._instance._image_baseline_store_refresh_attempted = False
                 if backend.supports_writes():
                     cls._instance._audit_writer = audit_writer
                     cls._instance._pending_queue_service = cls._build_pending_queue_service(
@@ -668,6 +679,41 @@ class ModelReferenceManager:
                 except (OSError, ValueError) as exception:
                     logger.warning(f"Failed to refresh replica text guidance data: {exception}")
         return self._text_guidance_store
+
+    @property
+    def image_baseline_store(self) -> ImageBaselineStore:
+        """Return the served image baseline store, hydrating HTTP replicas from PRIMARY once."""
+        if isinstance(self.backend, HTTPBackend) and not self._image_baseline_store_refresh_attempted:
+            self._hydrate_image_baselines(self.backend)
+        return self._image_baseline_store
+
+    def refresh_image_baselines(self) -> bool:
+        """Re-fetch the PRIMARY baseline export and replace the replica cache.
+
+        A long-lived replica has to pick up a baseline published after it started, which the
+        once-per-process hydration latch on the property alone can never surface.
+
+        Returns:
+            Whether a fresh export was fetched and stored.
+
+        """
+        if not isinstance(self.backend, HTTPBackend):
+            return False
+        self._image_baseline_store_refresh_attempted = False
+        return self._hydrate_image_baselines(self.backend)
+
+    def _hydrate_image_baselines(self, backend: HTTPBackend) -> bool:
+        """Fetch and store the PRIMARY baseline export, latching the attempt either way."""
+        export_payload = backend.fetch_image_baseline_export()
+        self._image_baseline_store_refresh_attempted = True
+        if export_payload is None:
+            return False
+        try:
+            self._image_baseline_store.refresh_replica_export(export_payload)
+        except (OSError, ValueError) as exception:
+            logger.warning(f"Failed to refresh replica image baseline data: {exception}")
+            return False
+        return True
 
     @property
     def deferred_prefetch_handle(self) -> DeferredPrefetchHandle | None:

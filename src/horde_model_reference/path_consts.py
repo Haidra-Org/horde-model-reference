@@ -73,6 +73,9 @@ LICENSING_FOLDER_NAME: str = "licensing"
 TEXT_GUIDANCE_FOLDER_NAME: str = "text_guidance"
 """Default folder containing the reusable text guidance catalog."""
 
+IMAGE_BASELINE_FOLDER_NAME: str = "baselines"
+"""Default folder containing the served image-generation baseline catalog."""
+
 
 def _resolve_side_store_root(
     data_root: Path,
@@ -135,6 +138,16 @@ def resolve_text_guidance_path(data_root: Path) -> Path:
         root_path_override=horde_model_reference_settings.text_guidance.root_path_override,
         relative_subdir=horde_model_reference_settings.text_guidance.relative_subdir,
         default_subdir=TEXT_GUIDANCE_FOLDER_NAME,
+    )
+
+
+def resolve_image_baseline_path(data_root: Path) -> Path:
+    """Return the served image baseline root for a given data root."""
+    return _resolve_side_store_root(
+        data_root,
+        root_path_override=horde_model_reference_settings.image_baselines.root_path_override,
+        relative_subdir=horde_model_reference_settings.image_baselines.relative_subdir,
+        default_subdir=IMAGE_BASELINE_FOLDER_NAME,
     )
 
 
@@ -207,6 +220,11 @@ class HordeModelReferencePaths:
     def text_guidance_path(self) -> Path:
         """Return the root path for reusable text guidance persistence."""
         return resolve_text_guidance_path(self.base_path)
+
+    @property
+    def image_baseline_path(self) -> Path:
+        """Return the root path for served image baseline persistence."""
+        return resolve_image_baseline_path(self.base_path)
 
     @property
     def group_schemas_path(self) -> Path:
@@ -315,6 +333,7 @@ class HordeModelReferencePaths:
         self.pending_queue_path.mkdir(parents=True, exist_ok=True)
         self.licensing_path.mkdir(parents=True, exist_ok=True)
         self.text_guidance_path.mkdir(parents=True, exist_ok=True)
+        self.image_baseline_path.mkdir(parents=True, exist_ok=True)
 
     def _get_file_name(self, model_reference_category: MODEL_REFERENCE_CATEGORY) -> str:
         if model_reference_category not in self.model_reference_filenames:

@@ -7,6 +7,8 @@ from typing import Any, cast
 import pytest
 
 from horde_model_reference.audit.events import AuditOperation
+from horde_model_reference.image_baseline import ImageBaselineChange, ImageBaselineChangeSet, ImageBaselineRecord
+from horde_model_reference.image_baseline_store import ImageBaselineStore
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_manager import ModelReferenceManager
 from horde_model_reference.pending_queue.apply import (
@@ -554,6 +556,89 @@ def test_apply_pending_changes_handles_mark_applied_failure() -> None:
             {"name": "ok"},
         )
     ]
+
+
+def _baseline_record(change_id: int, payload: dict[str, Any] | None) -> PendingChangeRecord:
+    """Build an approved baseline change-set record carried by the shared queue."""
+    return _approved_record(
+        change_id,
+        operation=AuditOperation.UPDATE,
+        payload=payload,
+        model_name=f"baseline:proposal-{change_id}",
+    ).model_copy(
+        update={
+            "resource_kind": PendingResourceKind.IMAGE_BASELINE,
+            "resource_id": f"proposal-{change_id}",
+        },
+    )
+
+
+def test_baseline_change_without_a_payload_releases_its_apply_reservation() -> None:
+    """A baseline change carrying no change set stays approved rather than stuck applying."""
+    manager_stub = _DummyManager(backend=_DummyBackend())
+    manager_stub.image_baseline_store = None  # type: ignore[attr-defined]
+    queue_service_stub = _DummyQueueService([_baseline_record(21, None)])
+
+    result = apply_pending_changes(
+        manager=cast(ModelReferenceManager, manager_stub),
+        queue_service=cast(PendingQueueService, queue_service_stub),
+        change_ids=[21],
+        applied_by="approver",
+        applied_username="approver",
+    )
+
+    assert isinstance(result.failed_error, PendingChangePayloadError)
+    assert result.failed_change_id == 21
+    assert queue_service_stub.records[21].status is PendingChangeStatus.APPROVED
+    assert queue_service_stub.records[21].applied_job_id is None
+
+
+def test_a_rejected_baseline_change_set_surfaces_as_a_backend_error(tmp_path: Path) -> None:
+    """A store refusal keeps the change reviewable instead of silently dropping it."""
+    store = ImageBaselineStore(root_path=tmp_path / "baselines")
+    store.apply_change_set(
+        ImageBaselineChangeSet(
+            title="Seed a baseline",
+            changes=[
+                ImageBaselineChange(
+                    operation="upsert",
+                    name="test_apply_baseline",
+                    record=ImageBaselineRecord(name="test_apply_baseline", native_resolution=1024),
+                ),
+            ],
+        ),
+        referenced_baselines=set(),
+        editor_id="seed",
+    )
+    manager_stub = _DummyManager(backend=_DummyBackend())
+    manager_stub.image_baseline_store = store  # type: ignore[attr-defined]
+    manager_stub.get_raw_model_reference_json = (  # type: ignore[attr-defined,method-assign]
+        lambda _category: {"a_model": {"name": "a_model", "baseline": "test_apply_baseline"}}
+    )
+    change_set = ImageBaselineChangeSet(
+        title="Retire a baseline models still name",
+        changes=[
+            ImageBaselineChange(
+                operation="delete",
+                name="test_apply_baseline",
+                expected_before=store.get("test_apply_baseline"),
+            ),
+        ],
+    )
+    queue_service_stub = _DummyQueueService([_baseline_record(22, change_set.model_dump(mode="json"))])
+
+    result = apply_pending_changes(
+        manager=cast(ModelReferenceManager, manager_stub),
+        queue_service=cast(PendingQueueService, queue_service_stub),
+        change_ids=[22],
+        applied_by="approver",
+        applied_username="approver",
+    )
+
+    assert isinstance(result.failed_error, PendingChangeBackendError)
+    assert result.failed_change_id == 22
+    assert queue_service_stub.records[22].status is PendingChangeStatus.APPROVED
+    assert store.get("test_apply_baseline") is not None
 
 
 def test_apply_pending_changes_missing_payload_surfaces_error() -> None:

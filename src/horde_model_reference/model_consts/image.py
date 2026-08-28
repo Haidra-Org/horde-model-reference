@@ -5,6 +5,7 @@ from enum import auto
 
 from strenum import StrEnum
 
+from horde_model_reference.image_baseline import ImageBaselineCatalog
 from horde_model_reference.registries import DescriptorRegistry, EnumRegistry
 
 
@@ -25,6 +26,7 @@ class KNOWN_IMAGE_GENERATION_BASELINE(StrEnum):
     qwen_image = auto()
     z_image_turbo = auto()
     krea2_turbo = auto()
+    anima = auto()
 
 
 @dataclass(frozen=True)
@@ -71,6 +73,24 @@ _IMAGE_BASELINE_REGISTRY = DescriptorRegistry[KNOWN_IMAGE_GENERATION_BASELINE | 
 def register_image_baseline(name: KNOWN_IMAGE_GENERATION_BASELINE | str, descriptor: BaselineDescriptor) -> None:
     """Register a new image-generation baseline."""
     _IMAGE_BASELINE_REGISTRY.register(name, descriptor)
+
+
+def register_image_baselines_from_catalog(catalog: ImageBaselineCatalog) -> None:
+    """Register every baseline named by a served catalog, replacing any packaged descriptor.
+
+    Args:
+        catalog: The published baseline catalog to hydrate the registry from.
+
+    """
+    for record in catalog.baselines.values():
+        descriptor = BaselineDescriptor(
+            native_resolution=record.native_resolution,
+            alternative_names=tuple(record.alternative_names),
+        )
+        if _IMAGE_BASELINE_REGISTRY.contains(record.name):
+            _IMAGE_BASELINE_REGISTRY.update_value(record.name, descriptor)
+            continue
+        _IMAGE_BASELINE_REGISTRY.register(record.name, descriptor)
 
 
 register_image_baseline(
@@ -170,6 +190,13 @@ register_image_baseline(
     BaselineDescriptor(
         native_resolution=1024,
         alternative_names=("krea_2_turbo", "krea2"),
+    ),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.anima,
+    BaselineDescriptor(
+        native_resolution=1024,
+        alternative_names=("anima_base", "anima_aesthetic", "anima_turbo"),
     ),
 )
 

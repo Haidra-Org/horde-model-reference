@@ -38,6 +38,7 @@ class PendingResourceKind(StrEnum):
 
     MODEL_REFERENCE = "model_reference"
     TEXT_GUIDANCE = "text_guidance"
+    IMAGE_BASELINE = "image_baseline"
 
 
 class PendingChangeRecord(BaseModel):

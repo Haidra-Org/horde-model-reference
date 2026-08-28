@@ -188,6 +188,7 @@ The queue carries more than model edits. `PendingChangeRecord.resource_kind` (`P
 | --------------- | ------------ | ------------- | ---------- |
 | `model_reference` (default) | The model being changed | `None` | `backend.update_model`/`delete_model`, or the `_legacy` variants |
 | `text_guidance` | `guidance:<resource_id>` compatibility label | UUID of the submitted change set | `TextGuidanceStore.apply_change_set` |
+| `image_baseline` | `baseline:<resource_id>` compatibility label | UUID of the submitted change set | `ImageBaselineStore.apply_change_set` |
 
 The default keeps every previously serialized record valid: a stored record with no `resource_kind` loads as `model_reference`.
 
@@ -199,6 +200,8 @@ Consequences of a non-model kind:
 - `PendingQueueFilter.resource_kinds` narrows listings to one or more kinds.
 
 Submission for guidance uses `POST /model_references/v2/text_generation/guidance/change-sets`; see [Text guidance endpoints](http_api/text_guidance_endpoints.md) and [Text Model Usage Guidance](../concepts/text_guidance.md).
+
+An `image_baseline` record follows the same shape: `apply.py` validates its payload as an `ImageBaselineChangeSet` and applies it against the baselines the canonical image reference still names, and `PendingChangeDiffService` renders it as the current catalog against `ImageBaselineStore.preview_change_set`. Submission uses `POST /model_references/v2/image_generation/baselines/change-sets`; see [Image baseline endpoints](http_api/image_baseline_endpoints.md).
 
 ## Authentication & Authorization Flow
 

@@ -76,6 +76,8 @@ version_file = "src/horde_model_reference/_version.py"
     "data/licenses/*.json",
     "data/guidance/*.json",
     "data/guidance/*.md",
+    "data/baselines/*.json",
+    "data/baselines/*.md",
     "py.typed",
 ]
 

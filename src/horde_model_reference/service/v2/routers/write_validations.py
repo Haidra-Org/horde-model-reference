@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 
 from horde_model_reference import CanonicalFormat, ModelReferenceManager
-from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, is_known_image_baseline
+from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.model_reference_records import GenericModelRecord, ImageGenerationModelRecord
 from horde_model_reference.service.shared import assert_canonical_write_enabled, assert_primary_mode
 
@@ -23,6 +23,7 @@ def assert_v2_write_enabled(
 
 
 def assert_known_image_baseline(
+    manager: ModelReferenceManager,
     category: MODEL_REFERENCE_CATEGORY | str,
     model_record: GenericModelRecord,
 ) -> None:
@@ -33,21 +34,21 @@ def assert_known_image_baseline(
     baseline apart from a typo.
 
     Raises:
-        HTTPException: 422 if the record names a baseline this package does not know.
+        HTTPException: 422 if the record names a baseline the served catalog does not publish.
 
     """
     if category != MODEL_REFERENCE_CATEGORY.image_generation:
         return
     if not isinstance(model_record, ImageGenerationModelRecord):
         return
-    if is_known_image_baseline(str(model_record.baseline)):
+    if manager.image_baseline_store.get(str(model_record.baseline)) is not None:
         return
 
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         detail=(
-            f"Unknown baseline '{model_record.baseline}'. Add the baseline to horde-model-reference before "
-            "submitting models that use it."
+            f"Unknown baseline '{model_record.baseline}'. Publish it through "
+            "/model_references/v2/image_generation/baselines/change-sets before submitting models that use it."
         ),
     )
 

@@ -11,6 +11,7 @@ from loguru import logger
 
 from horde_model_reference import CanonicalFormat, ModelReferenceManager, horde_model_reference_settings
 from horde_model_reference.audit.events import AuditOperation
+from horde_model_reference.image_baseline import ImageBaselineChangeSet
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, get_category_descriptor
 from horde_model_reference.text_backend_names import has_legacy_text_backend_prefix
 from horde_model_reference.text_guidance import TextGuidanceChangeSet
@@ -25,6 +26,16 @@ def _category_has_no_legacy_format(category: MODEL_REFERENCE_CATEGORY | str) -> 
         return get_category_descriptor(category).has_legacy_format is False
     except KeyError:
         return False
+
+
+def _referenced_image_baselines(manager: ModelReferenceManager) -> set[str]:
+    """Return every baseline name the canonical image generation reference still points at."""
+    records = manager.get_raw_model_reference_json(MODEL_REFERENCE_CATEGORY.image_generation) or {}
+    return {
+        record["baseline"]
+        for record in records.values()
+        if isinstance(record, dict) and isinstance(record.get("baseline"), str)
+    }
 
 
 class BackendUpdateCallable(Protocol):
@@ -172,6 +183,36 @@ def apply_pending_change(
         if "does not exist" in str(exc):
             raise PendingChangeNotFoundError(f"Change {change_id} not found.") from exc
         raise PendingChangeStateError(str(exc)) from exc
+
+    if record.resource_kind is PendingResourceKind.IMAGE_BASELINE:
+        payload = record.payload
+        if payload is None:
+            queue_service.clear_apply_reservation(change_id=change_id, reservation_id=reservation_id)
+            raise PendingChangePayloadError(f"Baseline change {change_id} is missing its change-set payload.")
+        try:
+            manager.image_baseline_store.apply_change_set(
+                ImageBaselineChangeSet.model_validate(payload),
+                referenced_baselines=_referenced_image_baselines(manager),
+                editor_id=applied_by,
+            )
+        except Exception as exc:
+            queue_service.clear_apply_reservation(change_id=change_id, reservation_id=reservation_id)
+            raise PendingChangeBackendError(str(exc)) from exc
+
+        try:
+            baseline_mark_result = queue_service.mark_applied(
+                change_id=change_id,
+                applied_by=applied_by,
+                applied_username=applied_username,
+                job_id=reservation_id,
+            )
+        except Exception as exc:
+            queue_service.clear_apply_reservation(change_id=change_id, reservation_id=reservation_id)
+            raise PendingChangeBackendError(str(exc)) from exc
+        return PendingChangeApplyResult(
+            record=baseline_mark_result.record,
+            batch_split=baseline_mark_result.batch_split,
+        )
 
     if record.resource_kind is PendingResourceKind.TEXT_GUIDANCE:
         payload = record.payload

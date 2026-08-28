@@ -1,0 +1,437 @@
+{
+  "metadata": {
+    "schema_version": 1,
+    "revision": 1,
+    "updated_at": null
+  },
+  "baselines": {
+    "infer": {
+      "name": "infer",
+      "display_name": "Inferred",
+      "native_resolution": null,
+      "alternative_names": [],
+      "capabilities": {
+        "controlnet": false,
+        "controlnet_types_unavailable": [],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": false
+      },
+      "horde_policy": {
+        "kudos": 1.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 1,
+        "ttl": 1,
+        "resolution_floor": 0
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "stable_diffusion_1": {
+      "name": "stable_diffusion_1",
+      "display_name": "Stable Diffusion 1",
+      "native_resolution": 512,
+      "alternative_names": [
+        "stable diffusion 1",
+        "stable diffusion 1.4",
+        "stable diffusion 1.5",
+        "SD1",
+        "SD14",
+        "SD1.4",
+        "SD15",
+        "SD1.5",
+        "stable_diffusion",
+        "stable_diffusion_1",
+        "stable_diffusion_1.4",
+        "stable_diffusion_1.5"
+      ],
+      "capabilities": {
+        "controlnet": true,
+        "controlnet_types_unavailable": [],
+        "transparent": true,
+        "qr_code": true,
+        "remix": false,
+        "flow_matching": false
+      },
+      "horde_policy": {
+        "kudos": 1.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 1,
+        "ttl": 1,
+        "resolution_floor": 0
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "stable_diffusion_2_768": {
+      "name": "stable_diffusion_2_768",
+      "display_name": "Stable Diffusion 2 (768)",
+      "native_resolution": 768,
+      "alternative_names": [],
+      "capabilities": {
+        "controlnet": true,
+        "controlnet_types_unavailable": [
+          "normal",
+          "mlsd",
+          "hough"
+        ],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": false
+      },
+      "horde_policy": {
+        "kudos": 1.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 1,
+        "ttl": 1,
+        "resolution_floor": 768
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "stable_diffusion_2_512": {
+      "name": "stable_diffusion_2_512",
+      "display_name": "Stable Diffusion 2 (512)",
+      "native_resolution": 512,
+      "alternative_names": [],
+      "capabilities": {
+        "controlnet": true,
+        "controlnet_types_unavailable": [
+          "normal",
+          "mlsd",
+          "hough"
+        ],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": false
+      },
+      "horde_policy": {
+        "kudos": 1.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 1,
+        "ttl": 1,
+        "resolution_floor": 0
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "stable_diffusion_xl": {
+      "name": "stable_diffusion_xl",
+      "display_name": "Stable Diffusion XL",
+      "native_resolution": 1024,
+      "alternative_names": [
+        "stable diffusion xl",
+        "SDXL",
+        "stable_diffusion_xl"
+      ],
+      "capabilities": {
+        "controlnet": true,
+        "controlnet_types_unavailable": [],
+        "transparent": true,
+        "qr_code": true,
+        "remix": false,
+        "flow_matching": false
+      },
+      "horde_policy": {
+        "kudos": 2.0,
+        "kudos_qr_code": 4.0,
+        "kudos_hires": null,
+        "batching": 1,
+        "ttl": 1,
+        "resolution_floor": 1024
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "stable_cascade": {
+      "name": "stable_cascade",
+      "display_name": "Stable Cascade",
+      "native_resolution": 1024,
+      "alternative_names": [
+        "stable_cascade",
+        "stable cascade"
+      ],
+      "capabilities": {
+        "controlnet": false,
+        "controlnet_types_unavailable": [],
+        "transparent": false,
+        "qr_code": false,
+        "remix": true,
+        "flow_matching": false
+      },
+      "horde_policy": {
+        "kudos": 4.0,
+        "kudos_qr_code": null,
+        "kudos_hires": 7.0,
+        "batching": 1,
+        "ttl": 1,
+        "resolution_floor": 1024
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "flux_1": {
+      "name": "flux_1",
+      "display_name": "Flux.1",
+      "native_resolution": 1024,
+      "alternative_names": [],
+      "capabilities": {
+        "controlnet": true,
+        "controlnet_types_unavailable": [],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": true
+      },
+      "horde_policy": {
+        "kudos": 8.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 5,
+        "ttl": 3,
+        "resolution_floor": 1024
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "flux_schnell": {
+      "name": "flux_schnell",
+      "display_name": "Flux.1 Schnell",
+      "native_resolution": 1024,
+      "alternative_names": [
+        "flux_schnell",
+        "flux schnell"
+      ],
+      "capabilities": {
+        "controlnet": true,
+        "controlnet_types_unavailable": [],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": true
+      },
+      "horde_policy": {
+        "kudos": 8.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 5,
+        "ttl": 3,
+        "resolution_floor": 1024
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "flux_dev": {
+      "name": "flux_dev",
+      "display_name": "Flux.1 Dev",
+      "native_resolution": 1024,
+      "alternative_names": [
+        "flux_dev",
+        "flux dev"
+      ],
+      "capabilities": {
+        "controlnet": true,
+        "controlnet_types_unavailable": [],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": true
+      },
+      "horde_policy": {
+        "kudos": 8.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 5,
+        "ttl": 3,
+        "resolution_floor": 1024
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "qwen_image": {
+      "name": "qwen_image",
+      "display_name": "Qwen-Image",
+      "native_resolution": 1024,
+      "alternative_names": [
+        "qwen_image",
+        "qwen image",
+        "qwen-image",
+        "qwen"
+      ],
+      "capabilities": {
+        "controlnet": false,
+        "controlnet_types_unavailable": [],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": true
+      },
+      "horde_policy": {
+        "kudos": 12.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 10,
+        "ttl": 3,
+        "resolution_floor": 1024
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "z_image_turbo": {
+      "name": "z_image_turbo",
+      "display_name": "Z-Image Turbo",
+      "native_resolution": 1024,
+      "alternative_names": [
+        "z_image_turbo",
+        "z image turbo",
+        "zimage-turbo",
+        "zimage"
+      ],
+      "capabilities": {
+        "controlnet": false,
+        "controlnet_types_unavailable": [],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": false
+      },
+      "horde_policy": {
+        "kudos": 8.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 8,
+        "ttl": 3,
+        "resolution_floor": 1024
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "krea2_turbo": {
+      "name": "krea2_turbo",
+      "display_name": "Krea 2 Turbo",
+      "native_resolution": 1024,
+      "alternative_names": [
+        "krea_2_turbo",
+        "krea2"
+      ],
+      "capabilities": {
+        "controlnet": false,
+        "controlnet_types_unavailable": [],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": false
+      },
+      "horde_policy": {
+        "kudos": 8.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 8,
+        "ttl": 3,
+        "resolution_floor": 1024
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
+    "anima": {
+      "name": "anima",
+      "display_name": "Anima",
+      "native_resolution": 1024,
+      "alternative_names": [
+        "anima_base",
+        "anima_aesthetic",
+        "anima_turbo"
+      ],
+      "capabilities": {
+        "controlnet": false,
+        "controlnet_types_unavailable": [],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": false
+      },
+      "horde_policy": {
+        "kudos": 8.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 8,
+        "ttl": 3,
+        "resolution_floor": 1024
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    }
+  }
+}

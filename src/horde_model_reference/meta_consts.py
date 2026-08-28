@@ -25,6 +25,7 @@ from horde_model_reference.model_consts.image import (
     is_known_image_scheduler,
     register_controlnet_style,
     register_image_baseline,
+    register_image_baselines_from_catalog,
     register_image_scheduler,
 )
 from horde_model_reference.model_consts.shared import (
@@ -465,6 +466,7 @@ __all__ = [
     "register_category",
     "register_controlnet_style",
     "register_image_baseline",
+    "register_image_baselines_from_catalog",
     "register_image_scheduler",
     "register_model_domain",
     "register_model_purpose",

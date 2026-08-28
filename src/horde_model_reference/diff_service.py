@@ -13,6 +13,7 @@ from loguru import logger
 
 from horde_model_reference import CanonicalFormat, ModelReferenceManager, horde_model_reference_settings
 from horde_model_reference.audit.events import AuditOperation
+from horde_model_reference.image_baseline import ImageBaselineChangeSet
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
 from horde_model_reference.pending_queue import PendingQueueService
 from horde_model_reference.pending_queue.diff_utils import (
@@ -128,6 +129,9 @@ class PendingChangeDiffService:
             PendingChangeDiff with computed field diffs.
 
         """
+        if record.resource_kind is PendingResourceKind.IMAGE_BASELINE:
+            return self._compute_baseline_diff(record)
+
         if record.resource_kind is PendingResourceKind.TEXT_GUIDANCE:
             return self._compute_guidance_diff(record)
 
@@ -190,6 +194,47 @@ class PendingChangeDiffService:
         proposed_catalog = self._manager.text_guidance_store.preview_change_set(
             change_set,
             canonical_model_names=canonical_model_names,
+        ).model_dump(mode="json")
+        field_diffs = compute_field_diffs(current_catalog, proposed_catalog)
+        fields_added, fields_removed, fields_modified = categorize_field_diffs(field_diffs)
+        return PendingChangeDiff(
+            change_id=record.change_id,
+            category=record.category,
+            model_name=record.model_name,
+            operation=record.operation,
+            current_state=current_catalog,
+            proposed_state=proposed_catalog,
+            net_operation=NetChangeType.MODIFIED.value if field_diffs else NetChangeType.UNCHANGED.value,
+            field_diffs=[
+                {
+                    "field_path": diff.field_path,
+                    "old_value": diff.old_value,
+                    "new_value": diff.new_value,
+                    "change_type": diff.change_type.value,
+                }
+                for diff in field_diffs
+            ],
+            is_critical=True,
+            fields_added=fields_added,
+            fields_removed=fields_removed,
+            fields_modified=fields_modified,
+        )
+
+    def _compute_baseline_diff(self, record: PendingChangeRecord) -> PendingChangeDiff:
+        """Return a prospective-catalog diff for one image baseline change set."""
+        if record.payload is None:
+            raise ValueError("Baseline change is missing its payload.")
+        change_set = ImageBaselineChangeSet.model_validate(record.payload)
+        image_models = self._manager.get_raw_model_reference_json(MODEL_REFERENCE_CATEGORY.image_generation) or {}
+        referenced_baselines = {
+            image_record["baseline"]
+            for image_record in image_models.values()
+            if isinstance(image_record, dict) and isinstance(image_record.get("baseline"), str)
+        }
+        current_catalog = self._manager.image_baseline_store.export().model_dump(mode="json")
+        proposed_catalog = self._manager.image_baseline_store.preview_change_set(
+            change_set,
+            referenced_baselines=referenced_baselines,
         ).model_dump(mode="json")
         field_diffs = compute_field_diffs(current_catalog, proposed_catalog)
         fields_added, fields_removed, fields_modified = categorize_field_diffs(field_diffs)
