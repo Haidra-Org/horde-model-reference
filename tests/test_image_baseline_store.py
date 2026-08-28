@@ -101,6 +101,28 @@ def test_a_stale_precondition_is_refused_as_a_conflict(tmp_path: Path) -> None:
     assert store.metadata().revision == 1
 
 
+def test_replaying_an_already_persisted_change_set_is_a_revision_preserving_noop(tmp_path: Path) -> None:
+    """A queue retry can finish after catalog persistence succeeded but queue marking failed."""
+    store = ImageBaselineStore(root_path=tmp_path, bootstrap_path=_BOOTSTRAP_PATH)
+    change_set = ImageBaselineChangeSet(
+        title="Publish a retry-safe family",
+        changes=[
+            ImageBaselineChange(
+                operation="upsert",
+                name="test_retry_baseline",
+                record=_record("test_retry_baseline"),
+            ),
+        ],
+    )
+
+    first = store.apply_change_set(change_set, referenced_baselines=set(), editor_id="maintainer")
+    replay = store.apply_change_set(change_set, referenced_baselines=set(), editor_id="maintainer")
+
+    assert first.metadata.revision == 2
+    assert replay == first
+    assert store.metadata().revision == 2
+
+
 def test_a_baseline_named_by_a_canonical_model_cannot_be_deleted(tmp_path: Path) -> None:
     """Removing a baseline models still name would strand those records."""
     store = ImageBaselineStore(root_path=tmp_path, bootstrap_path=_BOOTSTRAP_PATH)

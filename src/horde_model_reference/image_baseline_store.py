@@ -100,6 +100,12 @@ class ImageBaselineStore:
         if not self._writable:
             raise PermissionError("Image baseline catalog is read-only.")
         with self._lock:
+            # The catalog file and pending-queue database cannot share a transaction. If persistence
+            # succeeds but marking the queue item applied fails, the queue deliberately releases its
+            # reservation for retry. Treat an already-effective change set as a successful no-op so
+            # that retry can finish the queue transition instead of failing its stale precondition.
+            if self._change_set_is_effective(change_set):
+                return self._catalog.model_copy(deep=True)
             candidate = self._apply_to_copy(
                 change_set,
                 referenced_baselines=referenced_baselines,
@@ -114,6 +120,23 @@ class ImageBaselineStore:
             self._catalog = candidate
             register_image_baselines_from_catalog(candidate)
             return candidate.model_copy(deep=True)
+
+    def _change_set_is_effective(self, change_set: ImageBaselineChangeSet) -> bool:
+        """Return whether every requested end state is already present in the current catalog."""
+        for change in change_set.changes:
+            current = self._catalog.baselines.get(change.name)
+            if change.operation == "delete":
+                if current is not None:
+                    return False
+                continue
+            if change.record is None or current is None:
+                return False
+            # Audit metadata is assigned at apply time and is intentionally absent/stale in the
+            # reviewed payload; compare the requested semantic fields using the current metadata.
+            requested = change.record.model_copy(update={"metadata": current.metadata})
+            if requested != current:
+                return False
+        return True
 
     def refresh_replica_export(self, export_payload: dict[str, Any]) -> None:
         """Replace the read-only replica cache from a validated PRIMARY export."""
