@@ -74,6 +74,7 @@ COMPONENT_PURPOSE_FOLDERS: dict[str, str] = {
     "vae": "vae",
     "text_encoders": "text_encoders",
     "text_encoder": "text_encoders",
+    "face_restore_helper": "gfpgan",
 }
 """Multi-file model components whose ``file_purpose`` routes them to a sibling folder.
 
@@ -82,6 +83,10 @@ loaders look for the VAE in ``<root>/vae`` and the text-encoder in ``<root>/text
 owning category's folder (e.g. ``<root>/compvis``). Keys are ``DownloadRecord.file_purpose`` values; values
 are the destination folder names. Anything not listed here (e.g. ``unet``/checkpoints) stays in the
 category's own folder.
+
+``face_restore_helper`` covers the face detection and parsing weights every face restorer loads from
+``<root>/gfpgan`` regardless of its own category, so a codeformer record can declare them and have them land
+where the restorer looks.
 """
 
 

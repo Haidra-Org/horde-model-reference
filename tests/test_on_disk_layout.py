@@ -123,6 +123,24 @@ def test_file_paths_for_resolves_primary_and_component_paths(tmp_path: Path) -> 
     ]
 
 
+def test_face_restore_helpers_land_in_the_gfpgan_folder_for_every_face_fixer(tmp_path: Path) -> None:
+    """A face restorer of any category declares its shared helper weights and they resolve to gfpgan/."""
+    helper = _download("detection_Resnet50_Final.pth", file_purpose="face_restore_helper")
+    codeformer = _record(MODEL_REFERENCE_CATEGORY.codeformer, [_download("CodeFormers.pth"), helper])
+    gfpgan = _record(MODEL_REFERENCE_CATEGORY.gfpgan, [_download("GFPGANv1.4.pth"), helper])
+
+    helper_path = tmp_path / "gfpgan" / "detection_Resnet50_Final.pth"
+    assert file_paths_for(codeformer, tmp_path) == [tmp_path / "codeformer" / "CodeFormers.pth", helper_path]
+    assert file_paths_for(gfpgan, tmp_path) == [tmp_path / "gfpgan" / "GFPGANv1.4.pth", helper_path]
+
+    (tmp_path / "codeformer").mkdir()
+    (tmp_path / "codeformer" / "CodeFormers.pth").write_bytes(b"w")
+    assert is_present(codeformer, tmp_path) is False
+    (tmp_path / "gfpgan").mkdir()
+    helper_path.write_bytes(b"h")
+    assert is_present(codeformer, tmp_path) is True
+
+
 def test_is_present_true_when_all_files_exist(tmp_path: Path) -> None:
     """Verify is_present is True only when every declared file exists on disk."""
     record = _record(MODEL_REFERENCE_CATEGORY.miscellaneous, [_download("a.bin"), _download("b.bin")])
