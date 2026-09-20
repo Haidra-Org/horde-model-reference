@@ -95,7 +95,7 @@ def test_referenced_baselines_include_live_beta_models() -> None:
         list_changes=lambda **kwargs: SimpleNamespace(items=[pending]),
     )
 
-    assert referenced_image_baselines(manager, queue_service) == {
+    assert referenced_image_baselines(manager, queue_service) == {  # type: ignore
         "stable_diffusion_1",
         "future_baseline",
     }

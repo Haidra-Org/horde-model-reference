@@ -1102,7 +1102,9 @@ class ModelMetadataCorrectionRequest(BaseModel):
     """Replacement last-editor identifier."""
 
 
-model_metadata_route_subpath = f"/{{{PathVariables.model_category_name}}}/model/{{{PathVariables.model_name}}}/metadata"
+model_metadata_route_subpath = (
+    f"/{{{PathVariables.model_category_name}}}/model/{{{PathVariables.model_name}}}/metadata"
+)
 """/{model_category_name}/model/{model_name}/metadata"""
 route_registry.register_route(
     v1_prefix,
