@@ -157,12 +157,16 @@ async def _create_or_update_legacy_model(
 
             related_models = TextModelDuplicateManager.get_variant_names(model_name)
 
-        # Enqueue the change
+        # Enqueue the change. Record metadata is server-owned: the backend preserves or recomputes
+        # it when the change is applied, so the queued payload omits it and the review UI only ever
+        # diffs model content.
+        queued_payload = model_record.model_dump(mode="json")
+        queued_payload.pop("metadata", None)
         change_record = queue_service.enqueue_change(
             category=category,
             model_name=storage_model_name or model_name,
             operation=audit_operation,
-            payload=model_record.model_dump(mode="json"),
+            payload=queued_payload,
             requestor_id=requestor.user_id,
             requestor_username=requestor.username,
             notes=None,

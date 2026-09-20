@@ -652,6 +652,7 @@ class ModelReferenceBackend(ABC):
         *,
         logical_user_id: str | None = None,
         request_id: str | None = None,
+        allow_metadata_override: bool = False,
     ) -> None:
         """Update or create a model reference in legacy format.
 
@@ -664,6 +665,9 @@ class ModelReferenceBackend(ABC):
             record_dict: The model record data in legacy format as a dictionary.
             logical_user_id: Immutable Horde user id for auditing contexts (optional).
             request_id: Optional tracing/idempotency identifier for audit correlation.
+            allow_metadata_override: When True, a ``metadata`` block in record_dict is validated
+                and written as-is instead of being recomputed by the server. Reserved for
+                privileged provenance corrections.
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.
@@ -679,6 +683,7 @@ class ModelReferenceBackend(ABC):
         *,
         logical_user_id: str | None = None,
         request_id: str | None = None,
+        allow_metadata_override: bool = False,
     ) -> None:
         """Update or create a model reference in legacy format from a pydantic BaseModel.
 
@@ -691,6 +696,8 @@ class ModelReferenceBackend(ABC):
             record_model: The model record data as a pydantic BaseModel.
             logical_user_id: Immutable Horde user id for auditing contexts (optional).
             request_id: Optional tracing/idempotency identifier for audit correlation.
+            allow_metadata_override: Passed through to ``update_model_legacy``; when True, a
+                submitted metadata block is honored instead of recomputed.
 
         Raises:
             NotImplementedError: If the backend does not support legacy write operations.
@@ -706,6 +713,7 @@ class ModelReferenceBackend(ABC):
             record_dict,
             logical_user_id=logical_user_id,
             request_id=request_id,
+            allow_metadata_override=allow_metadata_override,
         )
 
     def delete_model_legacy(

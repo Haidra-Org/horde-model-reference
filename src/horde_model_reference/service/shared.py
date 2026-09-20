@@ -61,6 +61,7 @@ class RouteNames(StrEnum):
     update_text_generation_model = auto()
     update_controlnet_model = auto()
     delete_model = auto()
+    set_model_metadata = auto()
     get_models_with_stats = auto()
     get_category_statistics = auto()
     get_category_deletion_risk = auto()

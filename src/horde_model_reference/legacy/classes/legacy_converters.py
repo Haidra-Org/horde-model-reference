@@ -22,6 +22,9 @@ from horde_model_reference.legacy.classes.legacy_models import (
     LegacyTextGenerationRecord,
 )
 from horde_model_reference.legacy.text_csv_utils import parse_legacy_text_csv_file
+from horde_model_reference.model_reference_metadata import (
+    GenericModelRecordMetadata as LegacyRecordMetadata,
+)
 from horde_model_reference.model_reference_records import (
     MODEL_RECORD_TYPE_LOOKUP,
     ClipModelRecord,
@@ -29,6 +32,7 @@ from horde_model_reference.model_reference_records import (
     DownloadRecord,
     GenericModelRecord,
     GenericModelRecordConfig,
+    GenericModelRecordMetadata,
     ImageGenerationModelRecord,
     TextGenerationModelRecord,
 )
@@ -65,10 +69,10 @@ def image_generation_record_to_legacy_dict(record: GenericModelRecord) -> dict[s
     baseline is mapped back to its legacy string form where one exists (otherwise passed through). The result
     validates against :class:`LegacyStableDiffusionRecord`.
 
-    The mapping is intentionally lossy in one direction: v2-only metadata that has no legacy counterpart
-    (record ``metadata``, ``model_classification``, ``finetune_series``) is dropped. The goal is a minimal,
-    valid legacy entry that preserves the component hashes for submission to a legacy-canonical PRIMARY, not
-    a byte-perfect round-trip of every field.
+    The mapping is intentionally lossy in one direction: v2-only fields that have no legacy counterpart
+    (``model_classification``, ``finetune_series``) are dropped. Record ``metadata`` is included when it
+    carries values. The goal is a minimal, valid legacy entry that preserves the component hashes for
+    submission to a legacy-canonical PRIMARY, not a byte-perfect round-trip of every field.
     """
     files: list[dict[str, Any]] = []
     download: list[dict[str, Any]] = []
@@ -100,7 +104,26 @@ def image_generation_record_to_legacy_dict(record: GenericModelRecord) -> dict[s
             entry[field] = value
     if record.licensing is not None:
         entry["licensing"] = record.licensing.model_dump(mode="json", exclude_none=True)
+    if record.metadata.model_dump(exclude_none=True, exclude_defaults=True):
+        entry["metadata"] = record.metadata.model_dump(mode="json", exclude_none=True)
     return entry
+
+
+def _record_metadata_from_legacy(legacy_metadata: LegacyRecordMetadata | None) -> GenericModelRecordMetadata:
+    """Convert legacy record metadata into the canonical record metadata model.
+
+    The two classes are distinct (the legacy one tolerates undeclared keys from on-disk JSON, while the
+    canonical record model may forbid them), so only the declared fields are carried over.
+    """
+    if legacy_metadata is None:
+        return GenericModelRecordMetadata()
+    return GenericModelRecordMetadata(
+        schema_version=legacy_metadata.schema_version,
+        created_at=legacy_metadata.created_at,
+        updated_at=legacy_metadata.updated_at,
+        created_by=legacy_metadata.created_by,
+        updated_by=legacy_metadata.updated_by,
+    )
 
 
 class BaseLegacyConverter:
@@ -312,7 +335,7 @@ class BaseLegacyConverter:
         # Get the appropriate record type from the lookup
         record_class = MODEL_RECORD_TYPE_LOOKUP[self.model_reference_category]
 
-        return record_class(
+        record = record_class(
             record_type=self.model_reference_category,
             name=legacy_record.name,
             description=legacy_record.description,
@@ -321,6 +344,11 @@ class BaseLegacyConverter:
             licensing=legacy_record.licensing,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
+        # Assign after construction so records without legacy metadata keep the field unset, which
+        # keeps the converted JSON free of empty metadata blocks under ``exclude_unset`` writers.
+        if legacy_record.metadata is not None:
+            record.metadata = _record_metadata_from_legacy(legacy_record.metadata)
+        return record
 
     def _convert_single_record_to_legacy(
         self,
@@ -508,7 +536,7 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
 
         model_record_config = self._convert_model_record_config(legacy_record)
 
-        return ImageGenerationModelRecord(
+        record = ImageGenerationModelRecord(
             name=legacy_record.name,
             description=legacy_record.description,
             version=legacy_record.version,
@@ -528,6 +556,11 @@ class LegacyStableDiffusionConverter(BaseLegacyConverter):
             licensing=legacy_record.licensing,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
+        # Assign after construction so records without legacy metadata keep the field unset, which
+        # keeps the converted JSON free of empty metadata blocks under ``exclude_unset`` writers.
+        if legacy_record.metadata is not None:
+            record.metadata = _record_metadata_from_legacy(legacy_record.metadata)
+        return record
 
     @override
     def post_parse_records(self) -> None:
@@ -667,7 +700,7 @@ class LegacyClipConverter(BaseLegacyConverter):
 
         model_record_config = self._convert_model_record_config(legacy_record)
 
-        return ClipModelRecord(
+        record = ClipModelRecord(
             name=legacy_record.name,
             description=legacy_record.description,
             version=legacy_record.version,
@@ -676,6 +709,9 @@ class LegacyClipConverter(BaseLegacyConverter):
             pretrained_name=legacy_record.pretrained_name,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
+        if legacy_record.metadata is not None:
+            record.metadata = _record_metadata_from_legacy(legacy_record.metadata)
+        return record
 
 
 class LegacyTextGenerationConverter(BaseLegacyConverter):
@@ -796,7 +832,7 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             )
             return None
 
-        return TextGenerationModelRecord(
+        record = TextGenerationModelRecord(
             name=legacy_record.name,
             description=legacy_record.description,
             version=legacy_record.version,
@@ -816,6 +852,9 @@ class LegacyTextGenerationConverter(BaseLegacyConverter):
             capabilities=legacy_record.capabilities,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
+        if legacy_record.metadata is not None:
+            record.metadata = _record_metadata_from_legacy(legacy_record.metadata)
+        return record
 
     @override
     def post_parse_records(self) -> None:
@@ -873,7 +912,7 @@ class LegacyControlnetConverter(BaseLegacyConverter):
         # may use the 'style' field instead. Try 'type' first, then fall back to 'style'.
         controlnet_style = legacy_record.type or legacy_record.style
 
-        return ControlNetModelRecord(
+        record = ControlNetModelRecord(
             name=legacy_record.name,
             description=legacy_record.description,
             version=legacy_record.version,
@@ -882,3 +921,6 @@ class LegacyControlnetConverter(BaseLegacyConverter):
             controlnet_style=controlnet_style,
             model_classification=MODEL_CLASSIFICATION_LOOKUP[self.model_reference_category],
         )
+        if legacy_record.metadata is not None:
+            record.metadata = _record_metadata_from_legacy(legacy_record.metadata)
+        return record

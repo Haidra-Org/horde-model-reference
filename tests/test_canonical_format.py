@@ -283,6 +283,94 @@ class TestFileSystemBackendLegacyWrites:
         assert "test_model_1" in data
         assert data["test_model_1"]["name"] == "test_model_1"
 
+    def test_update_model_legacy_populates_metadata_on_create(
+        self,
+        primary_base: Path,
+        legacy_path: Path,
+        legacy_canonical_mode: None,
+        restore_manager_singleton: None,
+    ) -> None:
+        """A legacy create without metadata gets server-assigned timestamps."""
+        backend = FileSystemBackend(base_path=primary_base, replicate_mode=ReplicateMode.PRIMARY)
+        backend.update_model_legacy(
+            MODEL_REFERENCE_CATEGORY.image_generation,
+            "test_model_1",
+            create_test_legacy_model("test_model_1"),
+        )
+
+        data = json.loads((legacy_path / "stable_diffusion.json").read_text(encoding="utf-8"))
+        metadata = data["test_model_1"]["metadata"]
+        assert metadata["created_at"] is not None
+        assert metadata["updated_at"] == metadata["created_at"]
+
+    def test_update_model_legacy_preserves_metadata_on_update(
+        self,
+        primary_base: Path,
+        legacy_path: Path,
+        legacy_canonical_mode: None,
+        restore_manager_singleton: None,
+    ) -> None:
+        """A legacy update without metadata keeps created_at/created_by and refreshes updated_at."""
+        backend = FileSystemBackend(base_path=primary_base, replicate_mode=ReplicateMode.PRIMARY)
+        seeded = create_test_legacy_model("test_model_1")
+        seeded["metadata"] = {"created_at": 1000, "updated_at": 1000, "created_by": "seeder"}
+        legacy_file = legacy_path / "stable_diffusion.json"
+        legacy_file.write_text(json.dumps({"test_model_1": seeded}), encoding="utf-8")
+
+        backend.update_model_legacy(
+            MODEL_REFERENCE_CATEGORY.image_generation,
+            "test_model_1",
+            create_test_legacy_model("test_model_1"),
+            logical_user_id="editor-1",
+        )
+
+        data = json.loads(legacy_file.read_text(encoding="utf-8"))
+        metadata = data["test_model_1"]["metadata"]
+        assert metadata["created_at"] == 1000
+        assert metadata["created_by"] == "seeder"
+        assert metadata["updated_at"] > 1000
+        assert metadata["updated_by"] == "editor-1"
+
+    def test_update_model_legacy_discards_submitted_metadata_without_override(
+        self,
+        primary_base: Path,
+        legacy_path: Path,
+        legacy_canonical_mode: None,
+        restore_manager_singleton: None,
+    ) -> None:
+        """A submitted metadata block is recomputed by the server on ordinary writes."""
+        backend = FileSystemBackend(base_path=primary_base, replicate_mode=ReplicateMode.PRIMARY)
+        payload = create_test_legacy_model("test_model_1")
+        payload["metadata"] = {"created_at": 1, "updated_at": 1}
+        backend.update_model_legacy(MODEL_REFERENCE_CATEGORY.image_generation, "test_model_1", payload)
+
+        data = json.loads((legacy_path / "stable_diffusion.json").read_text(encoding="utf-8"))
+        metadata = data["test_model_1"]["metadata"]
+        assert metadata["created_at"] != 1
+
+    def test_update_model_legacy_honors_metadata_override(
+        self,
+        primary_base: Path,
+        legacy_path: Path,
+        legacy_canonical_mode: None,
+        restore_manager_singleton: None,
+    ) -> None:
+        """allow_metadata_override writes the supplied metadata block as-is."""
+        backend = FileSystemBackend(base_path=primary_base, replicate_mode=ReplicateMode.PRIMARY)
+        payload = create_test_legacy_model("test_model_1")
+        payload["metadata"] = {"created_at": 1674174500, "updated_at": 1706234620}
+        backend.update_model_legacy(
+            MODEL_REFERENCE_CATEGORY.image_generation,
+            "test_model_1",
+            payload,
+            allow_metadata_override=True,
+        )
+
+        data = json.loads((legacy_path / "stable_diffusion.json").read_text(encoding="utf-8"))
+        metadata = data["test_model_1"]["metadata"]
+        assert metadata["created_at"] == 1674174500
+        assert metadata["updated_at"] == 1706234620
+
     def test_update_model_legacy_fails_when_canonical_format_v2(
         self,
         primary_base: Path,

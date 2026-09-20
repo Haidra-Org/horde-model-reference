@@ -1,5 +1,6 @@
 """Test that the refactored converters use the new Pydantic models from legacy_models.py."""
 
+import json
 from pathlib import Path
 
 from horde_model_reference.legacy.classes.legacy_converters import (
@@ -7,6 +8,7 @@ from horde_model_reference.legacy.classes.legacy_converters import (
     LegacyClipConverter,
     LegacyStableDiffusionConverter,
     LegacyTextGenerationConverter,
+    image_generation_record_to_legacy_dict,
 )
 from horde_model_reference.legacy.classes.legacy_models import (
     LegacyClipRecord,
@@ -15,6 +17,12 @@ from horde_model_reference.legacy.classes.legacy_models import (
     LegacyTextGenerationRecord,
 )
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY
+from horde_model_reference.model_reference_records import (
+    DownloadRecord,
+    GenericModelRecordConfig,
+    GenericModelRecordMetadata,
+    ImageGenerationModelRecord,
+)
 
 
 def test_stable_diffusion_converter_uses_legacy_models(
@@ -186,3 +194,84 @@ def test_legacy_sd_record_serialization_keeps_present_config_keys() -> None:
     assert file_entry["md5sum"] == "b" * 32
     assert file_entry["sha256sum"] == "c" * 64
     assert "file_type" not in file_entry
+
+
+def test_sd_converter_preserves_legacy_record_metadata(
+    primary_base: Path,
+    legacy_path: Path,
+) -> None:
+    """Legacy record metadata must survive conversion into the v2 projection."""
+    legacy_record = {
+        "name": "meta_model",
+        "type": "ckpt",
+        "baseline": "stable diffusion 1",
+        "description": "Record carrying provenance metadata.",
+        "config": {
+            "files": [{"path": "meta_model.ckpt", "sha256sum": "a" * 64}],
+            "download": [{"file_name": "meta_model.ckpt", "file_url": "https://example.com/meta_model.ckpt"}],
+        },
+        "metadata": {"created_at": 1674174500, "updated_at": 1706234620, "created_by": "upstream"},
+    }
+    (legacy_path / "stable_diffusion.json").write_text(json.dumps({"meta_model": legacy_record}), encoding="utf-8")
+
+    sd_converter = LegacyStableDiffusionConverter(
+        legacy_folder_path=legacy_path,
+        target_file_folder=primary_base,
+    )
+    converted = sd_converter.convert_to_new_format()
+
+    metadata = converted["meta_model"].metadata
+    assert metadata.created_at == 1674174500
+    assert metadata.updated_at == 1706234620
+    assert metadata.created_by == "upstream"
+
+
+def test_sd_converter_records_without_metadata_stay_unset(
+    primary_base: Path,
+    legacy_path: Path,
+) -> None:
+    """A legacy record without metadata must not gain an empty metadata block in the projection."""
+    legacy_record = {
+        "name": "plain_model",
+        "type": "ckpt",
+        "baseline": "stable diffusion 1",
+        "description": "Record without metadata.",
+        "config": {
+            "files": [{"path": "plain_model.ckpt", "sha256sum": "a" * 64}],
+            "download": [{"file_name": "plain_model.ckpt", "file_url": "https://example.com/plain_model.ckpt"}],
+        },
+    }
+    (legacy_path / "stable_diffusion.json").write_text(json.dumps({"plain_model": legacy_record}), encoding="utf-8")
+
+    sd_converter = LegacyStableDiffusionConverter(
+        legacy_folder_path=legacy_path,
+        target_file_folder=primary_base,
+    )
+    sd_converter.convert_to_new_format()
+
+    projected = json.loads((primary_base / "stable_diffusion.json").read_text(encoding="utf-8"))
+    assert "metadata" not in projected["plain_model"]
+
+
+def test_image_generation_record_to_legacy_dict_round_trips_metadata() -> None:
+    """The v2 to legacy mapping carries record metadata so legacy-canonical submissions keep it."""
+    record = ImageGenerationModelRecord(
+        name="meta_model",
+        baseline="stable_diffusion_1",
+        nsfw=False,
+        config=GenericModelRecordConfig(
+            download=[
+                DownloadRecord(
+                    file_name="meta_model.ckpt",
+                    file_url="https://example.com/meta_model.ckpt",
+                    sha256sum="a" * 64,
+                )
+            ],
+        ),
+        metadata=GenericModelRecordMetadata(created_at=1674174500, updated_at=1706234620),
+    )
+
+    entry = image_generation_record_to_legacy_dict(record)
+
+    assert entry["metadata"]["created_at"] == 1674174500
+    assert entry["metadata"]["updated_at"] == 1706234620

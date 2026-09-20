@@ -1204,3 +1204,109 @@ class TestRouteConditionalImport:
         response = api_client.post(url, json=payload, headers={"apikey": "test_key"})
 
         assert response.status_code in (201, 202, 409, 422, 500)
+
+
+class TestLegacyModelMetadataCorrection:
+    """Tests for the privileged v1 metadata correction endpoint."""
+
+    def _metadata_url(self, category: MODEL_REFERENCE_CATEGORY, model_name: str) -> str:
+        return route_registry.url_for(
+            RouteNames.set_model_metadata,
+            {PathVariables.model_category_name: category.value, PathVariables.model_name: model_name},
+            v1_prefix,
+        )
+
+    def test_set_metadata_success(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+        legacy_canonical_mode: None,
+        mock_auth_success: None,
+    ) -> None:
+        """An approver can correct metadata; unmentioned fields are preserved."""
+        category = MODEL_REFERENCE_CATEGORY.image_generation
+        existing = _create_legacy_model_payload("seeded_model", category)
+        existing["metadata"] = {"created_at": 1000, "updated_at": 1000, "created_by": "seeder"}
+        _create_legacy_json_file(primary_base, category, {"seeded_model": existing})
+
+        response = api_client.put(
+            self._metadata_url(category, "seeded_model"),
+            json={"created_at": 1674174500},
+            headers={"apikey": "test_key"},
+        )
+
+        assert response.status_code == 200
+        legacy_file = primary_base / "legacy" / "stable_diffusion.json"
+        metadata = json.loads(legacy_file.read_text(encoding="utf-8"))["seeded_model"]["metadata"]
+        assert metadata["created_at"] == 1674174500
+        assert metadata["updated_at"] == 1000
+        assert metadata["created_by"] == "seeder"
+
+        # The v2 projection must carry the corrected metadata as well.
+        v2_file = primary_base / "stable_diffusion.json"
+        v2_metadata = json.loads(v2_file.read_text(encoding="utf-8"))["seeded_model"]["metadata"]
+        assert v2_metadata["created_at"] == 1674174500
+
+    def test_set_metadata_requires_at_least_one_field(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+        legacy_canonical_mode: None,
+        mock_auth_success: None,
+    ) -> None:
+        """An empty correction body is rejected."""
+        category = MODEL_REFERENCE_CATEGORY.image_generation
+        existing = _create_legacy_model_payload("seeded_model", category)
+        _create_legacy_json_file(primary_base, category, {"seeded_model": existing})
+
+        response = api_client.put(
+            self._metadata_url(category, "seeded_model"),
+            json={},
+            headers={"apikey": "test_key"},
+        )
+
+        assert response.status_code == 400
+
+    def test_set_metadata_model_not_found(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+        legacy_canonical_mode: None,
+        mock_auth_success: None,
+    ) -> None:
+        """Corrections cannot create records."""
+        response = api_client.put(
+            self._metadata_url(MODEL_REFERENCE_CATEGORY.image_generation, "missing_model"),
+            json={"created_at": 1674174500},
+            headers={"apikey": "test_key"},
+        )
+
+        assert response.status_code == 404
+
+    def test_set_metadata_forbidden_for_non_approver(
+        self,
+        api_client: TestClient,
+        v1_canonical_manager: ModelReferenceManager,
+        primary_base: Path,
+        legacy_canonical_mode: None,
+        mock_auth_success: None,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A valid Horde key without approver rights gets 403."""
+        monkeypatch.setattr(horde_model_reference_settings.pending_queue, "approver_ids", ["someone-else"])
+        category = MODEL_REFERENCE_CATEGORY.image_generation
+        existing = _create_legacy_model_payload("seeded_model", category)
+        _create_legacy_json_file(primary_base, category, {"seeded_model": existing})
+
+        response = api_client.put(
+            self._metadata_url(category, "seeded_model"),
+            json={"created_at": 1674174500},
+            headers={"apikey": "test_key"},
+        )
+
+        assert response.status_code == 403
+        legacy_file = primary_base / "legacy" / "stable_diffusion.json"
+        assert "metadata" not in json.loads(legacy_file.read_text(encoding="utf-8"))["seeded_model"]

@@ -36,7 +36,12 @@ from horde_model_reference.legacy.text_csv_utils import (
     write_legacy_text_csv,
 )
 from horde_model_reference.meta_consts import MODEL_REFERENCE_CATEGORY, get_category_descriptor
-from horde_model_reference.model_reference_metadata import CategoryMetadata, MetadataManager, OperationType
+from horde_model_reference.model_reference_metadata import (
+    CategoryMetadata,
+    GenericModelRecordMetadata,
+    MetadataManager,
+    OperationType,
+)
 
 
 class CategoryMetadataPopulationResult(BaseModel):
@@ -1135,6 +1140,7 @@ class FileSystemBackend(ReplicaBackendBase):
         *,
         logical_user_id: str | None = None,
         request_id: str | None = None,
+        allow_metadata_override: bool = False,
     ) -> None:
         """Update or create a model reference in legacy format.
 
@@ -1146,6 +1152,9 @@ class FileSystemBackend(ReplicaBackendBase):
             record_dict: The model record data in legacy format as a dictionary.
             logical_user_id: Optional logical user ID for audit logging.
             request_id: Optional request ID for audit logging.
+            allow_metadata_override: When True, a ``metadata`` block in record_dict is validated
+                and written as-is instead of being recomputed by the server. Reserved for
+                privileged provenance corrections.
 
         Raises:
             FileNotFoundError: If the legacy category file path is not configured.
@@ -1197,6 +1206,22 @@ class FileSystemBackend(ReplicaBackendBase):
             is_update = model_name in existing_data
             operation_type = OperationType.UPDATE if is_update else OperationType.CREATE
             previous_record = copy.deepcopy(existing_data.get(model_name)) if is_update else None
+
+            # Record metadata is server-owned: submitted values are honored only for explicit
+            # privileged corrections, since every API, pending-queue, and sync payload funnels
+            # through here. Otherwise creation fields are preserved and updated_at tracks the write.
+            incoming_metadata = record_dict.pop("metadata", None)
+            if allow_metadata_override and isinstance(incoming_metadata, dict):
+                validated_metadata = GenericModelRecordMetadata(**incoming_metadata)
+                record_dict["metadata"] = validated_metadata.model_dump(exclude_unset=True, mode="json")
+            elif is_update and isinstance(existing_data[model_name].get("metadata"), dict):
+                record_dict["metadata"] = copy.deepcopy(existing_data[model_name]["metadata"])
+                self._metadata_manager.model_metadata.set_update_timestamp(record_dict)
+                if logical_user_id is not None:
+                    self._metadata_manager.model_metadata.update_metadata(record_dict, updated_by=logical_user_id)
+            else:
+                self._metadata_manager.model_metadata.ensure_metadata_populated(record_dict)
+
             record_snapshot = copy.deepcopy(record_dict)
 
             existing_data[model_name] = record_snapshot

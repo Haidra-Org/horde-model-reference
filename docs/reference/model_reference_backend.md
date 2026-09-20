@@ -47,6 +47,11 @@ When creating a new backend implementation:
 - `update_model_from_base_model()` - Automatically provided if `supports_writes()` returns `True`
 - `supports_legacy_writes()` + `update_model_legacy()` + `delete_model_legacy()` - If legacy writes needed
 - `update_model_legacy_from_base_model()` - Automatically provided if `supports_legacy_writes()` returns `True`
+
+Record metadata is server-owned on legacy writes: `update_model_legacy()` preserves `created_at`/`created_by`,
+refreshes `updated_at`, and only honors a submitted `metadata` block when `allow_metadata_override=True`
+(privileged provenance corrections).
+
 - `supports_cache_warming()` + `warm_cache()` + `warm_cache_async()` - If cache warming supported
 - `supports_health_checks()` + `health_check()` - If health monitoring needed
 - `supports_statistics()` + `get_statistics()` - If statistics tracking desired

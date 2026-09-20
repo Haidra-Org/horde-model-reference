@@ -1,7 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import JSONResponse
+from loguru import logger
+from pydantic import BaseModel
 
 from horde_model_reference import MODEL_REFERENCE_CATEGORY, ModelReferenceManager
 from horde_model_reference.legacy.classes.legacy_models import (
@@ -22,14 +24,17 @@ from horde_model_reference.service.shared import (
     Operation,
     PathVariables,
     RouteNames,
+    authenticate_queue_approver,
     get_model_reference_manager,
     header_auth_scheme,
     route_registry,
     v1_prefix,
+    validate_model_name,
 )
 from horde_model_reference.service.v1.routers.shared import (
     _create_or_update_legacy_model,
     _delete_legacy_model,
+    _resolve_legacy_storage_key,
 )
 
 router = APIRouter(responses={404: {"description": "Not Found"}}, tags=["v1_create_update"])
@@ -1080,3 +1085,128 @@ async def update_legacy_miscellaneous_model(
 
 
 # endregion Miscellaneous
+
+# region Model Metadata
+
+
+class ModelMetadataCorrectionRequest(BaseModel):
+    """Fields accepted for a privileged metadata correction on a legacy model record."""
+
+    created_at: int | None = None
+    """Replacement creation timestamp (Unix time)."""
+    updated_at: int | None = None
+    """Replacement last-update timestamp (Unix time)."""
+    created_by: str | None = None
+    """Replacement creator identifier."""
+    updated_by: str | None = None
+    """Replacement last-editor identifier."""
+
+
+model_metadata_route_subpath = f"/{{{PathVariables.model_category_name}}}/model/{{{PathVariables.model_name}}}/metadata"
+"""/{model_category_name}/model/{model_name}/metadata"""
+route_registry.register_route(
+    v1_prefix,
+    RouteNames.set_model_metadata,
+    model_metadata_route_subpath,
+)
+
+
+@router.put(
+    model_metadata_route_subpath,
+    responses={
+        200: {"description": "Metadata updated successfully"},
+        400: {"description": "Invalid request"},
+        401: {"description": "Invalid API key"},
+        403: {"description": "Caller is not on the approver allowlist"},
+        404: {"description": "Model not found"},
+        503: {"description": "Service unavailable (not in legacy canonical mode)"},
+    },
+    summary="Correct server-owned metadata for a legacy model entry.",
+    operation_id="set_legacy_model_metadata",
+    response_model=None,
+)
+async def set_legacy_model_metadata(
+    model_category_name: MODEL_REFERENCE_CATEGORY,
+    model_name: str,
+    metadata_update: ModelMetadataCorrectionRequest,
+    manager: Annotated[ModelReferenceManager, Depends(get_model_reference_manager)],
+    apikey: Annotated[str, Depends(header_auth_scheme)],
+) -> JSONResponse:
+    """Apply an explicit metadata correction to an existing legacy model record.
+
+    Record metadata is server-owned: ordinary create/update writes ignore any submitted metadata
+    block and instead preserve created_at/created_by while refreshing updated_at. This endpoint is
+    the privileged exception, restricted to pending-queue approvers, for seeding or correcting
+    provenance (for example from upstream GitHub history). Only the fields supplied in the request
+    body are changed; any other metadata fields are preserved. The write never passes through the
+    pending queue, since provenance correction is not model content review.
+    """
+    approver = await authenticate_queue_approver(apikey)
+    validate_model_name(model_name)
+
+    if not manager.backend.supports_legacy_writes():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Legacy writes are only available when canonical_format='LEGACY' in PRIMARY mode.",
+        )
+
+    if model_category_name == MODEL_REFERENCE_CATEGORY.text_generation:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="text_generation stores canonical data as CSV and does not carry per-record metadata.",
+        )
+
+    updates = metadata_update.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one metadata field must be provided.",
+        )
+
+    existing_models = manager.backend.get_legacy_json(model_category_name)
+    storage_model_name = _resolve_legacy_storage_key(manager, model_category_name, model_name)
+    if existing_models is None or storage_model_name is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Model '{model_name}' not found in category '{model_category_name}'",
+        )
+
+    existing_record = existing_models[storage_model_name]
+    if not isinstance(existing_record, dict):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Stored record for '{storage_model_name}' is malformed.",
+        )
+
+    new_record = dict(existing_record)
+    merged_metadata = dict(new_record.get("metadata") or {})
+    merged_metadata.update(updates)
+    new_record["metadata"] = merged_metadata
+
+    try:
+        manager.backend.update_model_legacy(
+            model_category_name,
+            storage_model_name,
+            new_record,
+            logical_user_id=approver.user_id,
+            allow_metadata_override=True,
+        )
+    except Exception as e:
+        logger.exception(f"Error correcting metadata for legacy model '{model_name}': {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to correct metadata: {e!s}",
+        ) from e
+
+    logger.info(f"Approver {approver.username} corrected metadata for legacy model '{storage_model_name}'")
+    return JSONResponse(
+        status_code=status.HTTP_200_OK,
+        content={
+            "model_name": storage_model_name,
+            "category": model_category_name.value,
+            "metadata": merged_metadata,
+        },
+    )
+
+
+# endregion Model Metadata
