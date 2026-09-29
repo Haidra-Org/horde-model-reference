@@ -1,3 +1,4 @@
+import threading
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -307,6 +308,38 @@ class TestCacheAndStaleness:
 
         # Verify manager cache was cleared for this category
         assert category not in manager._cached_records
+
+    def test_backend_refresh_checks_run_without_manager_lock(self) -> None:
+        """Keep backend invalidation callbacks outside the manager/cache lock ordering."""
+        backend = _InMemoryReplicaBackend()
+        manager = ModelReferenceManager(
+            backend=backend,
+            prefetch_strategy=PrefetchStrategy.LAZY,
+            replicate_mode=ReplicateMode.REPLICA,
+        )
+        lock_available: list[bool] = []
+        original_needs_refresh = backend.needs_refresh
+
+        def probe_needs_refresh(category: MODEL_REFERENCE_CATEGORY) -> bool:
+            if not lock_available:
+
+                def acquire_manager_lock() -> None:
+                    acquired = manager._lock.acquire(timeout=0.5)
+                    lock_available.append(acquired)
+                    if acquired:
+                        manager._lock.release()
+
+                probe = threading.Thread(target=acquire_manager_lock)
+                probe.start()
+                probe.join(timeout=1)
+                assert not probe.is_alive()
+            return original_needs_refresh(category)
+
+        backend.needs_refresh = probe_needs_refresh  # type: ignore[method-assign]
+
+        manager._evaluate_cache_state(overwrite_existing=False, safe_mode=False)
+
+        assert lock_available == [True]
 
     def test_lazy_mode_false_fetches_immediately(
         self,

@@ -1037,8 +1037,14 @@ class ModelReferenceManager:
         list[MODEL_REFERENCE_CATEGORY],
     ]:
         """Return whether cached data can be reused plus categories needing refresh."""
+        # Backend freshness checks may synchronously notify invalidation callbacks.
+        # Those callbacks can acquire analytics-cache locks, while a concurrent cache
+        # singleton initialization acquires the analytics lock before consulting this
+        # manager.  Never hold the manager lock across that callback boundary: doing
+        # so creates a manager -> analytics / analytics -> manager lock inversion.
+        refresh_map = {category: self.backend.needs_refresh(category) for category in MODEL_REFERENCE_CATEGORY}
+
         with self._lock:
-            refresh_map = {category: self.backend.needs_refresh(category) for category in MODEL_REFERENCE_CATEGORY}
             all_categories_cached = all(cat in self._cached_records for cat in MODEL_REFERENCE_CATEGORY)
             needs_backend_refresh = overwrite_existing or any(refresh_map.values())
 
