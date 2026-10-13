@@ -401,7 +401,14 @@ def _segmented_download(
     """
     try:
         supports_range, total = _probe_range_support(url, extra_headers, allow_redirects=allow_redirects)
-    except requests.RequestException:
+    except requests.RequestException as error:
+        # The exception message is never logged: it embeds the request URL, whose query may carry an auth token.
+        logger.info(
+            "Range probe failed; using single-stream: file={}, error={}, response={}",
+            destination.name,
+            type(error).__name__,
+            error.response,
+        )
         return None
 
     if not supports_range or total is None or total < _SEGMENT_THRESHOLD_BYTES:
@@ -463,8 +470,16 @@ def _segmented_download(
                             position += len(chunk)
                             report(len(chunk))
                     return
-            except requests.RequestException:
+            except requests.RequestException as error:
                 attempts_remaining -= 1
+                logger.info(
+                    "Segment request failed: file={}, range={}-{}, error={}, response={}",
+                    destination.name,
+                    position,
+                    end,
+                    type(error).__name__,
+                    error.response,
+                )
                 if attempts_remaining <= 0:
                     raise _SegmentFailed from None
                 time.sleep(_RETRY_SLEEP_SECONDS)
@@ -626,12 +641,14 @@ def download_file(
                     streamed_sha256=stream_hasher.hexdigest() if stream_hasher is not None else None,
                 )
 
-        except requests.RequestException:
+        except requests.RequestException as error:
             attempts_remaining -= 1
+            # The exception message is never logged: it embeds the request URL, whose query may carry an auth token.
+            reason = (destination.name, type(error).__name__, error.response)
             if attempts_remaining <= 0:
-                logger.info("Download failed after retries: file={}", destination.name)
+                logger.warning("Download failed after retries: file={}, error={}, response={}", *reason)
                 return DownloadOutcome(success=False, final_path=destination, bytes_written=0, sha256=None)
-            logger.info("Retrying download: file={}", destination.name)
+            logger.info("Retrying download: file={}, error={}, response={}", *reason)
             time.sleep(_RETRY_SLEEP_SECONDS)
 
     return DownloadOutcome(success=False, final_path=destination, bytes_written=0, sha256=None)

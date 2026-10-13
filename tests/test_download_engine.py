@@ -354,6 +354,46 @@ def test_retries_transient_failures_then_succeeds(http_server: tuple[str, _Serve
     assert state.get_count >= 3
 
 
+def test_exhausted_retries_log_status_without_the_auth_token(
+    http_server: tuple[str, _ServerState],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Verify each failed attempt logs the exception type and HTTP status, and never the tokenised URL."""
+    base_url, state = http_server
+    state.force_status = 500
+    monkeypatch.setattr(download_engine, "_RETRY_SLEEP_SECONDS", 0.0)
+
+    outcome = download_file(
+        f"{base_url}/model.bin",
+        tmp_path / "model.bin",
+        auth_query_token="secret-token",
+        max_retries=2,
+    )
+
+    assert outcome.success is False
+    assert "Retrying download: file=model.bin, error=HTTPError, response=<Response [500]>" in caplog.text
+    assert "Download failed after retries: file=model.bin, error=HTTPError, response=<Response [500]>" in caplog.text
+    assert "secret-token" not in caplog.text
+
+
+def test_connection_failure_log_carries_the_error_type(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Verify a refused connection, which has no response, is logged by its exception type."""
+    with _running_server() as (base_url, _state):
+        closed_url = base_url
+    monkeypatch.setattr(download_engine, "_RETRY_SLEEP_SECONDS", 0.0)
+
+    outcome = download_file(f"{closed_url}/model.bin", tmp_path / "model.bin", max_retries=1)
+
+    assert outcome.success is False
+    assert "Download failed after retries: file=model.bin, error=ConnectionError, response=None" in caplog.text
+
+
 def test_sha256_sidecar_cache_is_used_when_newer(tmp_path: Path) -> None:
     """Verify sha256_of trusts a sidecar that is newer than the file (mtime-keyed cache)."""
     target = tmp_path / "weights.bin"
