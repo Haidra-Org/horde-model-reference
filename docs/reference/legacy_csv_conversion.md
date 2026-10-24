@@ -181,14 +181,14 @@ CSV rows with missing optional fields are handled by using empty strings or defa
 
 ```python
 # Missing fields default to:
-description=""
-version=""
-style=""
-baseline=""
-url=""
-tags=[]
-settings=None
-display_name=""
+description = ""
+version = ""
+style = ""
+baseline = ""
+url = ""
+tags = []
+settings = None
+display_name = ""
 ```
 
 `parameters_bn` is the exception-leave it blank or non-numeric and the conversion fails. Ensure every row contains a numeric value (use `0` when no parameter estimate is available).

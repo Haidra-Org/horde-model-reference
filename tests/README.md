@@ -182,6 +182,7 @@ The following critical environment variables are automatically **cleared** befor
 import pytest
 from horde_model_reference import SomeClass
 
+
 def test_some_functionality():
     instance = SomeClass()
     result = instance.do_something()
@@ -192,6 +193,7 @@ def test_some_functionality():
 
 ```python
 import pytest
+
 
 @pytest.mark.integration
 class TestLiveAPI:

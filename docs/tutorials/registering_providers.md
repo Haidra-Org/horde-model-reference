@@ -90,11 +90,11 @@ inspect them:
 ```python
 q = manager.query("image_generation", source=ANY_SOURCE)
 
-q.has_duplicate_names()      # did any name come from more than one source?
-q.duplicate_names()          # {name: [source_id, ...]} for colliding names
-q.where_source("civitai")    # keep only one source's contributions
-q.to_list_with_source()      # [(record, source_id), ...]
-q.group_by_source()          # {source_id: [record, ...]}
+q.has_duplicate_names()  # did any name come from more than one source?
+q.duplicate_names()  # {name: [source_id, ...]} for colliding names
+q.where_source("civitai")  # keep only one source's contributions
+q.to_list_with_source()  # [(record, source_id), ...]
+q.group_by_source()  # {source_id: [record, ...]}
 ```
 
 ### Error isolation
@@ -110,8 +110,8 @@ for this category":
 ```python
 q = manager.query("image_generation", source=ANY_SOURCE)
 
-q.source_status()     # {"horde": "ok", "civitai": "error", "internal": "empty"}
-q.failed_sources()    # ["civitai"] - selected sources that raised during fetch
+q.source_status()  # {"horde": "ok", "civitai": "error", "internal": "empty"}
+q.failed_sources()  # ["civitai"] - selected sources that raised during fetch
 ```
 
 `source_status()` reports each *selected* source as `"ok"` (contributed at least one record),
@@ -121,8 +121,8 @@ q.failed_sources()    # ["civitai"] - selected sources that raised during fetch
 ## Introspecting registered providers
 
 ```python
-manager.list_providers()              # ["civitai", ...] in registration order
-manager.get_provider("civitai")       # the provider instance, or None
+manager.list_providers()  # ["civitai", ...] in registration order
+manager.get_provider("civitai")  # the provider instance, or None
 manager.unregister_provider("civitai")  # True if one was removed
 ```
 
@@ -159,8 +159,7 @@ class CivitaiProvider(ModelProvider):
             return None
         raw = self._download(force_refresh=force_refresh)  # your code
         return {
-            name: ImageGenerationModelRecord.model_validate({**fields, "name": name})
-            for name, fields in raw.items()
+            name: ImageGenerationModelRecord.model_validate({**fields, "name": name}) for name, fields in raw.items()
         }
 ```
 

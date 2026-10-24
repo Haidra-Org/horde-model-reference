@@ -338,10 +338,12 @@ def test_multiple_models_validation(
     assert "model-2" in result
 
     # Check parameter size tags are correct
-    assert isinstance(result["model-1"]["tags"], list)
-    assert isinstance(result["model-2"]["tags"], list)
-    assert "7B" in result["model-1"]["tags"]
-    assert "13B" in result["model-2"]["tags"]
+    model1_tags = result["model-1"]["tags"]
+    model2_tags = result["model-2"]["tags"]
+    assert isinstance(model1_tags, list)
+    assert isinstance(model2_tags, list)
+    assert "7B" in model1_tags
+    assert "13B" in model2_tags
 
 
 def test_tags_handle_comma_separated_string(validator: LegacyTextValidator) -> None:

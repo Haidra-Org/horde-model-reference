@@ -77,10 +77,12 @@ from horde_model_reference import ModelReferenceManager
 
 manager = ModelReferenceManager()
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await manager.ensure_ready_async()
     yield
+
 
 app = FastAPI(lifespan=lifespan)
 ```

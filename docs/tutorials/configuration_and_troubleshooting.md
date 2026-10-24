@@ -141,6 +141,7 @@ The manager provides async variants of all read methods:
 import asyncio
 from horde_model_reference import ModelReferenceManager
 
+
 async def main():
     manager = ModelReferenceManager(prefetch_strategy=PrefetchStrategy.LAZY)
 
@@ -150,6 +151,7 @@ async def main():
 
     # Async warm-up
     await manager.warm_cache_async()
+
 
 asyncio.run(main())
 ```

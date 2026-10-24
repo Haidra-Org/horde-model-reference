@@ -6,7 +6,6 @@ from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import Response
 
 from horde_model_reference import (
     MODEL_REFERENCE_CATEGORY,
@@ -20,6 +19,12 @@ from horde_model_reference.pending_queue.models import PendingChangeStatus
 from horde_model_reference.service.shared import PathVariables, RouteNames, route_registry, v1_prefix
 
 from ..helpers import ALL_MODEL_CATEGORIES  # pyrefly: ignore [missing-import]
+
+# Match Starlette's preferred HTTP client while supporting its httpx fallback.
+try:
+    from httpx2 import Response
+except ImportError:
+    from httpx import Response
 
 # Note: The v1_canonical_manager fixture is now defined in conftest.py
 # It provides a PRIMARY mode manager with canonical_format='LEGACY' for v1 API tests

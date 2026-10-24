@@ -382,6 +382,7 @@ def update_model(self, category, model_name, record_dict):
         # ... write data to disk ...
         self._invalidate_cache(category)  # Force reload on next fetch
 
+
 # FileSystemBackend pattern - invalidate on read error
 try:
     with open(file_path, encoding="utf-8") as f:
@@ -610,18 +611,18 @@ These constraints are validated by the test suite and should be followed when im
 
 ```python
 # When no data has been cached yet:
-backend.is_cache_valid(category)    # Returns False
-backend.needs_refresh(category)     # Returns False (not True!)
-backend.should_fetch_data(category) # Returns True
+backend.is_cache_valid(category)  # Returns False
+backend.needs_refresh(category)  # Returns False (not True!)
+backend.should_fetch_data(category)  # Returns True
 ```
 
 **After caching data (cache exists but is stale):**
 
 ```python
 # After cache expires or file changes:
-backend.is_cache_valid(category)    # Returns False
-backend.needs_refresh(category)     # Returns True (data needs refresh)
-backend.should_fetch_data(category) # Returns True
+backend.is_cache_valid(category)  # Returns False
+backend.needs_refresh(category)  # Returns True (data needs refresh)
+backend.should_fetch_data(category)  # Returns True
 ```
 
 **Key takeaway:** Use `should_fetch_data()` for fetch decisions, not `needs_refresh()`. The latter is specifically for detecting when **existing** data has become stale.
@@ -807,6 +808,7 @@ def update_model(self, category, model_name, record_dict):
         # Invalidate cache to force reload
         self._invalidate_cache(category)
         logger.info(f"Updated {model_name} in {category}")
+
 
 def delete_model(self, category, model_name):
     with self._lock:

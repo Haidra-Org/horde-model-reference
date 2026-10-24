@@ -605,7 +605,7 @@ comparator = ModelReferenceComparator()
 with GitHubSyncClient() as client:
     # Fetch data
     primary_data = {...}  # Fetch text v2 with a v1 lockstep guard, or another category's v1 projection
-    github_data = {...}   # Fetch from GitHub
+    github_data = {...}  # Fetch from GitHub
 
     # Compare
     diff = comparator.compare_categories(

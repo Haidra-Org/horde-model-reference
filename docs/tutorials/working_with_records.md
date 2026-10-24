@@ -126,7 +126,7 @@ Every record has a `model_classification` with `domain` and `purpose`:
 
 ```python
 model = manager.get_model("image_generation", "some_model")
-print(model.model_classification.domain)   # e.g., "image"
+print(model.model_classification.domain)  # e.g., "image"
 print(model.model_classification.purpose)  # e.g., "generation"
 ```
 

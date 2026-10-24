@@ -20,12 +20,7 @@ manager = ModelReferenceManager()
 
 supported = {"stable_diffusion_1", "stable_diffusion_xl"}
 
-servable = (
-    manager.query("image_generation")
-    .where(ImageFields.baseline.is_in(supported))
-    .order_by("name")
-    .to_list()
-)
+servable = manager.query("image_generation").where(ImageFields.baseline.is_in(supported)).order_by("name").to_list()
 print(f"{len(servable)} models match your supported baselines")
 ```
 
@@ -41,9 +36,9 @@ pressure:
 servable = (
     manager.query("image_generation")
     .where(ImageFields.baseline.is_in(supported))
-    .exclude_nsfw()                                  # image-specific helper
+    .exclude_nsfw()  # image-specific helper
     .where(ImageFields.size_on_disk_bytes < 7_000_000_000)
-    .order_by(ImageFields.size_on_disk_bytes)       # smallest first
+    .order_by(ImageFields.size_on_disk_bytes)  # smallest first
     .to_list()
 )
 ```

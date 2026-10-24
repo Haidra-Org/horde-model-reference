@@ -19,8 +19,8 @@ manager = ModelReferenceManager()
 
 # The whole mapping for a category
 models = manager.get_model_reference(MODEL_REFERENCE_CATEGORY.image_generation)
-sdxl = models.get("stable_diffusion_xl")          # None if absent
-all_names = list(models)                            # just the names
+sdxl = models.get("stable_diffusion_xl")  # None if absent
+all_names = list(models)  # just the names
 
 # One record, raising if it does not exist (use get_model_or_none to allow missing)
 sdxl = manager.get_model(MODEL_REFERENCE_CATEGORY.image_generation, "stable_diffusion_xl")
@@ -33,11 +33,11 @@ There are no per-category `query_*` methods - `query()` returns the right typed 
 category:
 
 ```python
-q = manager.query("image_generation")   # -> ImageGenerationQuery (extra image helpers)
-q = manager.query("text_generation")    # -> TextModelQuery       (extra text helpers)
-q = manager.query("controlnet")         # -> ControlNetQuery       (extra controlnet helpers)
-q = manager.query("clip")               # -> ModelQuery[ClipModelRecord]
-q = manager.query("esrgan")             # -> ModelQuery[EsrganModelRecord]
+q = manager.query("image_generation")  # -> ImageGenerationQuery (extra image helpers)
+q = manager.query("text_generation")  # -> TextModelQuery       (extra text helpers)
+q = manager.query("controlnet")  # -> ControlNetQuery       (extra controlnet helpers)
+q = manager.query("clip")  # -> ModelQuery[ClipModelRecord]
+q = manager.query("esrgan")  # -> ModelQuery[EsrganModelRecord]
 ```
 
 You may pass either the `MODEL_REFERENCE_CATEGORY` member or its string value - **both narrow the
@@ -85,9 +85,7 @@ from horde_model_reference import ImageFields
 
 # Boolean filter with is_true() / is_false()
 results = (
-    manager.query("image_generation")
-    .where(ImageFields.nsfw.is_false(), ImageFields.inpainting.is_true())
-    .to_list()
+    manager.query("image_generation").where(ImageFields.nsfw.is_false(), ImageFields.inpainting.is_true()).to_list()
 )
 ```
 
@@ -99,11 +97,7 @@ alternative is `false()` / `true()` (imported from `horde_model_reference`) — 
 from horde_model_reference import ImageFields, false
 
 # Equivalent to ImageFields.nsfw.is_false()
-results = (
-    manager.query("image_generation")
-    .where(ImageFields.nsfw == false)
-    .to_list()
-)
+results = manager.query("image_generation").where(ImageFields.nsfw == false).to_list()
 ```
 
 ```python
@@ -141,11 +135,7 @@ from horde_model_reference import ImageFields
 pred = ImageFields.nsfw.is_false() & (ImageFields.baseline == "stable_diffusion_xl")
 pred_alt = ImageFields.inpainting.is_true()
 
-results = (
-    manager.query("image_generation")
-    .where(pred | pred_alt)
-    .to_list()
-)
+results = manager.query("image_generation").where(pred | pred_alt).to_list()
 ```
 
 ## Tag filtering
@@ -168,12 +158,12 @@ manager.query("image_generation").tags_none(["nsfw", "anime"]).to_list()
 ```python
 from horde_model_reference import ImageFields
 
-manager.query("image_generation").order_by("name").to_list()                 # ascending
+manager.query("image_generation").order_by("name").to_list()  # ascending
 manager.query("image_generation").order_by("name", descending=True).to_list()
 manager.query("image_generation").order_by(ImageFields.size_on_disk_bytes.desc()).to_list()
 
-manager.query("image_generation").limit(10).to_list()              # first 10
-manager.query("image_generation").offset(5).limit(10).to_list()    # skip 5, take 10
+manager.query("image_generation").limit(10).to_list()  # first 10
+manager.query("image_generation").offset(5).limit(10).to_list()  # skip 5, take 10
 ```
 
 ## Terminal operations
@@ -195,30 +185,30 @@ The three domain categories return enriched builders with extra chainable helper
 
 ```python
 q = manager.query("image_generation")
-q.exclude_nsfw()                         # SFW only
-q.only_nsfw()                            # NSFW only
-q.only_inpainting()                      # Inpainting models only
-q.exclude_inpainting()                   # Exclude inpainting
-q.for_baseline("stable_diffusion_xl")    # Filter by baseline
+q.exclude_nsfw()  # SFW only
+q.only_nsfw()  # NSFW only
+q.only_inpainting()  # Inpainting models only
+q.exclude_inpainting()  # Exclude inpainting
+q.for_baseline("stable_diffusion_xl")  # Filter by baseline
 ```
 
 ### Text generation (`TextModelQuery`)
 
 ```python
 q = manager.query("text_generation")
-q.for_backend("koboldcpp")              # Models for a specific backend
-q.exclude_backend_variations()          # Remove legacy backend-prefixed duplicates
-q.only_quantized()                      # Only quantized variants
-q.exclude_quantized()                   # Exclude quantized variants
-q.group_by_base_model()                 # Terminal: group variants by base model name
+q.for_backend("koboldcpp")  # Models for a specific backend
+q.exclude_backend_variations()  # Remove legacy backend-prefixed duplicates
+q.only_quantized()  # Only quantized variants
+q.exclude_quantized()  # Exclude quantized variants
+q.group_by_base_model()  # Terminal: group variants by base model name
 ```
 
 ### ControlNet (`ControlNetQuery`)
 
 ```python
 q = manager.query("controlnet")
-q.for_style("canny")                    # Only canny-style ControlNets
-q.group_by_style()                      # Terminal: group by style
+q.for_style("canny")  # Only canny-style ControlNets
+q.group_by_style()  # Terminal: group by style
 ```
 
 ## Source-aware queries (third-party providers)
@@ -256,12 +246,12 @@ selector, so `["pending", "horde"]` lets a pending beta override canonical while
 ```python
 q = manager.query("image_generation", source=ANY_SOURCE)
 
-q.has_duplicate_names()      # bool: did any name appear in more than one source?
-q.duplicate_names()          # {name: [source_id, ...]} for colliding names (pre-dedup view)
-q.where_source("civitai")    # keep only records contributed by a given source
-q.sources()                  # source id aligned to each result of the current query
-q.to_list_with_source()      # [(record, source_id), ...]
-q.group_by_source()          # {source_id: [record, ...]}
+q.has_duplicate_names()  # bool: did any name appear in more than one source?
+q.duplicate_names()  # {name: [source_id, ...]} for colliding names (pre-dedup view)
+q.where_source("civitai")  # keep only records contributed by a given source
+q.sources()  # source id aligned to each result of the current query
+q.to_list_with_source()  # [(record, source_id), ...]
+q.group_by_source()  # {source_id: [record, ...]}
 ```
 
 See [Registering & Consuming Providers](registering_providers.md) for how to register a source.
@@ -278,11 +268,7 @@ results = manager.query_all().filter(lambda r: "flux" in r.name.lower()).to_list
 Use `.filter()` for logic that doesn't fit the built-in operators:
 
 ```python
-results = (
-    manager.query("image_generation")
-    .filter(lambda r: len(r.config.download) >= 2)
-    .to_list()
-)
+results = manager.query("image_generation").filter(lambda r: len(r.config.download) >= 2).to_list()
 ```
 
 ## Worked example

@@ -78,6 +78,7 @@ import httpx
 BASE = "https://models.aihorde.net/api"
 last_seen: dict[str, int] = {}
 
+
 def refresh_if_changed(client: httpx.Client, category: str) -> dict | None:
     meta = client.get(f"/model_references/v2/metadata/{category}/last_updated").json()
     stamp = meta["last_updated"]

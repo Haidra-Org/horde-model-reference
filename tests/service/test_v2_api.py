@@ -6,7 +6,6 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
-from httpx import Response
 
 from horde_model_reference import (
     MODEL_REFERENCE_CATEGORY,
@@ -25,6 +24,12 @@ from horde_model_reference.service.shared import (
 )
 
 from ..helpers import ALL_MODEL_CATEGORIES
+
+# Match Starlette's preferred HTTP client while supporting its httpx fallback.
+try:
+    from httpx2 import Response
+except ImportError:
+    from httpx import Response
 
 pytestmark = pytest.mark.usefixtures("mock_auth_success")
 
