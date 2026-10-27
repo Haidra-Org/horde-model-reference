@@ -405,6 +405,7 @@
       "display_name": "MOSS-Image",
       "native_resolution": 1024,
       "alternative_names": [
+        "moss_image",
         "moss"
       ],
       "capabilities": {
