@@ -44,7 +44,7 @@ def test_packaged_bootstrap_supplies_the_published_baseline_vocabulary(tmp_path:
     store = ImageBaselineStore(root_path=tmp_path, bootstrap_path=_BOOTSTRAP_PATH)
 
     names = {record.name for record in store.list()}
-    assert {"stable_diffusion_1", "stable_diffusion_xl", "flux_1", "krea2_turbo", "anima"} <= names
+    assert {"stable_diffusion_1", "stable_diffusion_xl", "flux_1", "krea2_turbo", "anima", "moss_image"} <= names
     stable_diffusion_xl = store.get("stable_diffusion_xl")
     assert stable_diffusion_xl is not None
     assert stable_diffusion_xl.native_resolution == 1024

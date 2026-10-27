@@ -400,6 +400,37 @@
         "updated_by": null
       }
     },
+    "moss_image": {
+      "name": "moss_image",
+      "display_name": "MOSS-Image",
+      "native_resolution": 1024,
+      "alternative_names": [
+        "moss"
+      ],
+      "capabilities": {
+        "controlnet": false,
+        "controlnet_types_unavailable": [],
+        "transparent": false,
+        "qr_code": false,
+        "remix": false,
+        "flow_matching": false
+      },
+      "horde_policy": {
+        "kudos": 8.0,
+        "kudos_qr_code": null,
+        "kudos_hires": null,
+        "batching": 8,
+        "ttl": 3,
+        "resolution_floor": 1024
+      },
+      "metadata": {
+        "revision": 1,
+        "created_at": null,
+        "created_by": null,
+        "updated_at": null,
+        "updated_by": null
+      }
+    },
     "anima": {
       "name": "anima",
       "display_name": "Anima",
