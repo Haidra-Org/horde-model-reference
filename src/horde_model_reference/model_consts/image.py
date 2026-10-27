@@ -26,6 +26,7 @@ class KNOWN_IMAGE_GENERATION_BASELINE(StrEnum):
     qwen_image = auto()
     z_image_turbo = auto()
     krea2_turbo = auto()
+    moss_image = auto()
     anima = auto()
 
 
@@ -190,6 +191,13 @@ register_image_baseline(
     BaselineDescriptor(
         native_resolution=1024,
         alternative_names=("krea_2_turbo", "krea2"),
+    ),
+)
+register_image_baseline(
+    KNOWN_IMAGE_GENERATION_BASELINE.moss_image,
+    BaselineDescriptor(
+        native_resolution=1024,
+        alternative_names=("moss_image", "moss"),
     ),
 )
 register_image_baseline(
