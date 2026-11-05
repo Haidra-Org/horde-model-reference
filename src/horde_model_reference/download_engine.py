@@ -52,6 +52,9 @@ __all__ = [
 ProgressCallback = Callable[[int, int], None]
 """Called with ``(downloaded_bytes, total_bytes)`` after each written chunk.
 
+Segmented transfers serialize callbacks in increasing byte order, so a consumer can safely maintain
+one speed estimate or bandwidth pacer per transfer. A callback may block to pace every segment.
+
 May raise :class:`DownloadAborted` to terminate an in-flight download (e.g. on shutdown or config removal);
 the engine propagates it out of :func:`download_file` and cleans up the partial file."""
 
@@ -263,13 +266,26 @@ def _finalize(
     avoiding an immediate second full-file disk read. Resumed and segmented transfers still hash after assembly
     because their byte order was not observed as one complete sequential stream.
     """
+    started = time.perf_counter()
     os.replace(partial, destination)
+    rename_seconds = time.perf_counter() - started
+    checksum_started = time.perf_counter()
     if streamed_sha256 is None:
         digest = sha256_of(destination)
     else:
         digest = streamed_sha256
         _write_sidecar(destination.with_suffix(".sha256"), digest, destination.name)
     matched = _checksum_matches(digest, expected_sha256)
+    logger.info(
+        "Download verification: file={} bytes={} streamed_hash={} checksum_seconds={:.3f} "
+        "rename_seconds={:.3f} checksum_matches={}",
+        destination.name,
+        bytes_written,
+        streamed_sha256 is not None,
+        time.perf_counter() - checksum_started,
+        rename_seconds,
+        matched,
+    )
     if not matched:
         logger.error(
             "Checksum mismatch for {}: expected={}, actual={}",
@@ -399,6 +415,7 @@ def _segmented_download(
     each attempt (and removed on abort/failure), while the resumable contiguous ``.part`` belongs solely to
     the single-stream path so the two never read each other's partial.
     """
+    probe_started = time.perf_counter()
     try:
         supports_range, total = _probe_range_support(url, extra_headers, allow_redirects=allow_redirects)
     except requests.RequestException as error:
@@ -411,6 +428,14 @@ def _segmented_download(
         )
         return None
 
+    logger.debug(
+        "Download range probe: file={} source_host={} supports_range={} bytes={} probe_seconds={:.3f}",
+        destination.name,
+        urlparse(url).hostname,
+        supports_range,
+        total,
+        time.perf_counter() - probe_started,
+    )
     if not supports_range or total is None or total < _SEGMENT_THRESHOLD_BYTES:
         return None
     segments = _plan_segments(total, connections)
@@ -418,25 +443,41 @@ def _segmented_download(
         return None
 
     spart = Path(f"{destination}.spart")
+    allocation_started = time.perf_counter()
     spart.unlink(missing_ok=True)
     with spart.open("wb") as handle:
         handle.truncate(total)
+    allocation_seconds = time.perf_counter() - allocation_started
+    transfer_started = time.perf_counter()
 
     abort = threading.Event()
     progress_lock = threading.Lock()
     downloaded_total = 0
+    write_seconds = 0.0
+    callback_seconds = 0.0
+    retries = 0
 
-    def report(delta: int) -> None:
-        nonlocal downloaded_total
+    def report(delta: int, write_elapsed: float) -> None:
+        nonlocal downloaded_total, write_seconds, callback_seconds
         with progress_lock:
+            if abort.is_set():
+                return
             downloaded_total += delta
-            snapshot = downloaded_total
-        # Called outside the lock; may raise the caller's abort exception, which propagates as this
-        # segment's future result and is re-raised unchanged by the aggregation below.
-        if progress_callback is not None:
-            progress_callback(snapshot, total)
+            write_seconds += write_elapsed
+            # Keep byte accounting and delivery ordered. In particular, several segments must not
+            # race a consumer's shared pacer or sleep concurrently against the same bandwidth cap.
+            if progress_callback is not None:
+                started = time.perf_counter()
+                try:
+                    progress_callback(downloaded_total, total)
+                except BaseException:
+                    abort.set()
+                    raise
+                finally:
+                    callback_seconds += time.perf_counter() - started
 
     def fetch_segment(start: int, end: int) -> None:
+        nonlocal retries
         attempts_remaining = max_retries
         position = start
         while position <= end:
@@ -444,6 +485,7 @@ def _segmented_download(
                 return
             headers = dict(extra_headers) if extra_headers else {}
             headers["Range"] = f"bytes={position}-{end}"
+            request_started = time.perf_counter()
             try:
                 with _http_session().get(
                     url,
@@ -452,6 +494,16 @@ def _segmented_download(
                     allow_redirects=allow_redirects,
                     timeout=_GET_TIMEOUT_SECONDS,
                 ) as response:
+                    logger.debug(
+                        "Download range response: file={} final_host={} start={} end={} status={} "
+                        "headers_seconds={:.3f}",
+                        destination.name,
+                        urlparse(response.url).hostname,
+                        position,
+                        end,
+                        response.status_code,
+                        time.perf_counter() - request_started,
+                    )
                     if response.status_code != 206:
                         # The probe saw range support but this request was not honoured (or errored): treat
                         # a successful non-range response as a definitive retreat, but let transient HTTP
@@ -466,11 +518,15 @@ def _segmented_download(
                                 return
                             if not chunk:
                                 continue
+                            write_started = time.perf_counter()
                             handle.write(chunk)
+                            write_elapsed = time.perf_counter() - write_started
                             position += len(chunk)
-                            report(len(chunk))
+                            report(len(chunk), write_elapsed)
                     return
             except requests.RequestException as error:
+                with progress_lock:
+                    retries += 1
                 attempts_remaining -= 1
                 logger.info(
                     "Segment request failed: file={}, range={}-{}, error={}, response={}",
@@ -501,6 +557,20 @@ def _segmented_download(
         spart.unlink(missing_ok=True)
         logger.warning("Segmented download failed; falling back to single-stream: file={}", destination.name)
         return None
+    logger.info(
+        "Download transfer: file={} mode=segmented source_host={} connections={} bytes={} "
+        "transfer_seconds={:.3f} allocation_seconds={:.3f} write_seconds_sum={:.3f} "
+        "callback_seconds={:.3f} retries={}",
+        destination.name,
+        urlparse(url).hostname,
+        len(segments),
+        downloaded_total,
+        time.perf_counter() - transfer_started,
+        allocation_seconds,
+        write_seconds,
+        callback_seconds,
+        retries,
+    )
     return _finalize(spart, destination, total, expected_sha256)
 
 
@@ -573,6 +643,10 @@ def download_file(
 
     attempts_remaining = max_retries
     while attempts_remaining > 0:
+        transfer_started = time.perf_counter()
+        write_seconds = 0.0
+        inline_hash_seconds = 0.0
+        callback_seconds = 0.0
         partial_size = partial.stat().st_size if partial.exists() else 0
         headers = dict(extra_headers) if extra_headers else {}
         if partial_size:
@@ -627,12 +701,35 @@ def download_file(
                     for chunk in response.iter_content(chunk_size=_CHUNK_SIZE):
                         if not chunk:
                             continue
+                        write_started = time.perf_counter()
                         handle.write(chunk)
+                        write_seconds += time.perf_counter() - write_started
                         if stream_hasher is not None:
+                            hash_started = time.perf_counter()
                             stream_hasher.update(chunk)
+                            inline_hash_seconds += time.perf_counter() - hash_started
                         downloaded += len(chunk)
                         if progress_callback is not None:
-                            progress_callback(downloaded, total)
+                            callback_started = time.perf_counter()
+                            try:
+                                progress_callback(downloaded, total)
+                            finally:
+                                callback_seconds += time.perf_counter() - callback_started
+                logger.info(
+                    "Download transfer: file={} mode=single source_host={} final_host={} connections=1 "
+                    "bytes={} resumed_bytes={} transfer_seconds={:.3f} write_seconds_sum={:.3f} "
+                    "callback_seconds={:.3f} inline_hash_seconds={:.3f} retries={}",
+                    destination.name,
+                    urlparse(download_url).hostname,
+                    urlparse(response.url).hostname,
+                    downloaded - partial_size,
+                    partial_size,
+                    time.perf_counter() - transfer_started,
+                    write_seconds,
+                    callback_seconds,
+                    inline_hash_seconds,
+                    max_retries - attempts_remaining,
+                )
                 return _finalize(
                     partial,
                     destination,

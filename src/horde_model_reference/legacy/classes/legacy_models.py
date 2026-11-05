@@ -116,6 +116,8 @@ class LegacyConfigDownload(BaseModel):
     file_name: str | None = None
     file_path: str | None = ""
     file_url: str | None = None
+    size_bytes: int | None = None
+    """The size of this file in bytes, if known. ``None`` when the reference does not declare it."""
 
     @model_validator(mode="after")
     def _validate_download_fields(self, info: ValidationInfo) -> LegacyConfigDownload:

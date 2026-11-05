@@ -265,6 +265,82 @@ def test_http_session_is_reused_within_a_download_thread() -> None:
     assert download_engine._http_session() is download_engine._http_session()
 
 
+@pytest.mark.parametrize("connections", [1, 4])
+def test_transfer_timing_logs_omit_auth_query(
+    http_server: tuple[str, _ServerState],
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    connections: int,
+) -> None:
+    """Transfer diagnostics must not expose credentials in original or redirected request URLs."""
+    base_url, state = http_server
+    state.payload = b"x" * (64 * 1024 * 1024 if connections > 1 else 1024)
+    outcome = download_file(
+        f"{base_url}/file",
+        tmp_path / "timing.bin",
+        connections=connections,
+        auth_query_token="SECRET_DOWNLOAD_QUERY",
+    )
+    assert outcome.success
+    assert "Download transfer:" in caplog.text
+    assert "Download verification:" in caplog.text
+    assert "source_host=127.0.0.1" in caplog.text
+    assert f"connections={connections}" in caplog.text
+    assert "SECRET_DOWNLOAD_QUERY" not in caplog.text
+    assert "/file?token=" not in caplog.text
+
+
+def test_segmented_progress_is_serialized_and_monotonic(
+    http_server: tuple[str, _ServerState],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A blocked consumer holds back sibling callbacks, so cumulative bytes never arrive out of order."""
+    base_url, state = http_server
+    state.payload = b"x" * (64 * 1024 * 1024)
+    monkeypatch.setattr(download_engine, "_CHUNK_SIZE", 1024 * 1024)
+    entered = threading.Event()
+    release = threading.Event()
+    overlap = threading.Event()
+    readings: list[int] = []
+    outcomes = []
+    errors: list[BaseException] = []
+
+    def callback(downloaded: int, _total: int) -> None:
+        if entered.is_set() and not release.is_set():
+            overlap.set()
+        entered.set()
+        assert release.wait(5)
+        readings.append(downloaded)
+
+    def run() -> None:
+        try:
+            outcomes.append(
+                download_file(
+                    f"{base_url}/file",
+                    tmp_path / "segmented.bin",
+                    connections=4,
+                    progress_callback=callback,
+                )
+            )
+        except BaseException as error:
+            errors.append(error)
+
+    thread = threading.Thread(target=run)
+    thread.start()
+    try:
+        assert entered.wait(5)
+        assert not overlap.wait(0.2)
+    finally:
+        release.set()
+        thread.join(10)
+    assert not thread.is_alive()
+    assert not errors
+    assert outcomes[0].success
+    assert readings == sorted(set(readings))
+    assert readings[-1] == len(state.payload)
+
+
 def test_checksum_mismatch_reports_failure(http_server: tuple[str, _ServerState], tmp_path: Path) -> None:
     """Verify a download whose bytes do not match the declared hash reports failure."""
     base_url, state = http_server

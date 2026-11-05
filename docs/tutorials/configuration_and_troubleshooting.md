@@ -133,6 +133,33 @@ manager = ModelReferenceManager()
 
 This will show backend selection, cache hits/misses, fetch attempts, and conversion details.
 
+## Model-file download throughput
+
+The model-file engine logs `Download transfer` and `Download verification` separately. The transfer
+summary includes the selected mode (`single` or `segmented`), the connection count actually used, the
+source hostname, bytes transferred, elapsed seconds, cumulative write and callback time, and transient
+failures. Single-stream summaries also include the final hostname after redirects and the resumed
+bytes. Segmented summaries include file-allocation time. Debug-level `Download range response` lines
+include the final hostname for each request, and `Download range probe` records probe latency. URLs,
+query tokens and authentication headers are omitted.
+
+`transfer_seconds` includes requests, writes, inline hashing and consumer callbacks, so it is more than
+the network time. Concurrent segments' `write_seconds_sum` may exceed wall-clock time. The verification
+line reports the final checksum and rename time. `streamed_hash=True` means a fresh single-stream
+transfer hashed the bytes while writing, so no full-file checksum read was needed afterward. These
+summaries cover completed transfers. Retry and fallback messages describe failed attempts.
+
+To compare throughput, download the same file from the same source with `connections=1` and
+`connections=4`, using a fresh temporary destination on the same volume for each attempt. Compare
+actual network traffic as well as elapsed time, repeat with the worker idle and serving inference,
+and begin with one active file. A browser transfer from a different source or authenticated session
+does not isolate engine overhead. Segmentation is optional, because hosts and storage devices can
+react differently to concurrent range requests.
+
+Segmented progress callbacks are serialized in increasing cumulative-byte order within a transfer.
+A consumer can keep one pacer per transfer. A callback that blocks pauses progress delivery for every
+segment, so the callback must not wait for another callback from the same transfer.
+
 ## Async Usage
 
 The manager provides async variants of all read methods:

@@ -63,11 +63,11 @@ _IMAGE_LEGACY_PASSTHROUGH_FIELDS = (
 def image_generation_record_to_legacy_dict(record: GenericModelRecord) -> dict[str, Any]:
     """Convert a v2 image-generation record to a legacy ``stable_diffusion.json`` entry dict.
 
-    Inverts the legacy-to-v2 config split: each v2 download becomes a legacy ``files`` entry (carrying its
+    Inverts the legacy-to-v2 config split: each v2 download becomes a legacy ``files`` entry (with the
     ``sha256sum``, ``file_type`` from ``file_purpose`` and the component ``content_hash``) plus a
-    ``download`` entry (carrying the URL), and the config's ``embedded_component_hashes`` is preserved. The
-    baseline is mapped back to its legacy string form where one exists (otherwise passed through). The result
-    validates against :class:`LegacyStableDiffusionRecord`.
+    ``download`` entry (with the URL and any declared size), and the config's
+    ``embedded_component_hashes`` is preserved. The baseline is mapped back to its legacy string form where one
+    exists (otherwise passed through). The result validates against :class:`LegacyStableDiffusionRecord`.
 
     The mapping is intentionally lossy in one direction: v2-only fields that have no legacy counterpart
     (``model_classification``, ``finetune_series``) are dropped. Record ``metadata`` is included when it
@@ -83,9 +83,14 @@ def image_generation_record_to_legacy_dict(record: GenericModelRecord) -> dict[s
         if download_record.content_hash is not None:
             file_entry["content_hash"] = download_record.content_hash
         files.append(file_entry)
-        download.append(
-            {"file_name": download_record.file_name, "file_path": "", "file_url": download_record.file_url},
-        )
+        download_entry: dict[str, Any] = {
+            "file_name": download_record.file_name,
+            "file_path": "",
+            "file_url": download_record.file_url,
+        }
+        if download_record.size_bytes is not None:
+            download_entry["size_bytes"] = download_record.size_bytes
+        download.append(download_entry)
 
     config: dict[str, Any] = {"files": files, "download": download}
     if record.config.embedded_component_hashes:
@@ -314,6 +319,7 @@ class BaseLegacyConverter:
         for download_entry in legacy_record.config.download:
             if download_entry.file_name in download_records:
                 download_records[download_entry.file_name].file_url = download_entry.file_url or ""
+                download_records[download_entry.file_name].size_bytes = download_entry.size_bytes
             else:
                 raise ValueError(f"Unknown download entry: {download_entry.file_name}")
 

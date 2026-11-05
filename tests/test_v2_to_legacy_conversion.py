@@ -116,6 +116,58 @@ def _round_trip(record: ImageGenerationModelRecord, tmp_path: Path) -> ImageGene
     return converted
 
 
+def test_per_file_sizes_survive_full_round_trip(tmp_path: Path) -> None:
+    """Declared per-file sizes come back after v2 -> legacy -> v2, so the declared total stays exact."""
+    record = ImageGenerationModelRecord(
+        name="Sized Model",
+        baseline="flux_1",
+        nsfw=False,
+        config=GenericModelRecordConfig(
+            download=[
+                DownloadRecord(
+                    file_name="unet.safetensors",
+                    file_url="https://x/unet",
+                    file_purpose="unet",
+                    size_bytes=5_000_000_000,
+                ),
+                DownloadRecord(
+                    file_name="te.safetensors",
+                    file_url="https://x/te",
+                    file_purpose="text_encoders",
+                    sha256sum=_SHA,
+                    size_bytes=7_000_000_000,
+                ),
+            ],
+        ),
+    )
+
+    legacy_payload = image_generation_record_to_legacy_dict(record)
+    assert [entry["size_bytes"] for entry in legacy_payload["config"]["download"]] == [5_000_000_000, 7_000_000_000]
+
+    converted = _round_trip(record, tmp_path)
+
+    assert [download.size_bytes for download in converted.config.download] == [5_000_000_000, 7_000_000_000]
+    assert converted.declared_total_size_bytes == 12_000_000_000
+
+
+def test_undeclared_sizes_stay_absent_from_the_legacy_entry() -> None:
+    """A download without a declared size does not write a ``size_bytes`` key, and never writes a null."""
+    record = ImageGenerationModelRecord(
+        name="Unsized Model",
+        baseline="stable_diffusion_xl",
+        nsfw=False,
+        config=GenericModelRecordConfig(
+            download=[DownloadRecord(file_name="model.safetensors", file_url="https://x/model")],
+        ),
+    )
+
+    legacy_payload = image_generation_record_to_legacy_dict(record)
+
+    assert "size_bytes" not in legacy_payload["config"]["download"][0]
+    legacy = LegacyStableDiffusionRecord(**legacy_payload)
+    assert "size_bytes" not in legacy.model_dump()["config"]["download"][0]
+
+
 def test_split_file_hashes_survive_full_round_trip(tmp_path: Path) -> None:
     """A split-file record's per-file content hashes come back after v2 -> legacy -> v2."""
     record = ImageGenerationModelRecord(
